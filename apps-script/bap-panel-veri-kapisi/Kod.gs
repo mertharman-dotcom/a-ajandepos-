@@ -709,7 +709,7 @@ function finansSoruCevapla_(d, cevap) {
 
 // Odemeler sekmesindeki sütunlar başlık adına göre bulunur; sütun sırası değişse de doğru hücreye yazılır.
 var ODEME_SUTUN = {
-  tarih: ['Tarih'], tedarikci: ['Tedarikçi', 'Toptancı', 'Firma'], tutar: ['Tutar'], yontem: ['Yöntem', 'Ödeme_Yöntemi', 'Odeme Yontemi'],
+  id: ['Odeme_ID'], tarih: ['Tarih'], tedarikci: ['Tedarikçi', 'Toptancı', 'Firma'], tutar: ['Tutar'], yontem: ['Yöntem', 'Ödeme_Yöntemi', 'Odeme Yontemi'],
   aciklama: ['Açıklama', 'Aciklama', 'Not'], kayit: ['Kayıt_Zamanı', 'Kayit_Zamani', 'Girilme'], kaynak: ['Kaynak', 'Giren']
 };
 
@@ -775,6 +775,8 @@ function toptanciOdemeGir_(d) {
   var satir = []; for (var j = 0; j < lc; j++) satir.push('');
   satir[c.tarih] = tarih; satir[c.tedarikci] = ad; satir[c.tutar] = tutar; satir[c.yontem] = yontem;
   satir[c.aciklama] = aciklama; satir[c.kayit] = damga; satir[c.kaynak] = 'Panel';
+  // Eski ödeme sayfasının kimlik biçimi: O + yyMMddHHmmss + 2 hane (ör. O26092213141974).
+  if (c.id >= 0) satir[c.id] = 'O' + Utilities.formatDate(new Date(), TZ, 'yyMMddHHmmss') + ('0' + Math.floor(Math.random() * 100)).slice(-2);
   var no = sh.getLastRow() + 1;
   sh.getRange(no, 1, 1, lc).setValues([satir]);
   sh.getRange(no, c.tarih + 1).setNumberFormat('dd.mm.yyyy');
