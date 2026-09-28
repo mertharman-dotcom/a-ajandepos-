@@ -14,20 +14,110 @@
 var VK_SEKME = 'Veri_Kontrol';
 var VK_TARAMA_BASLANGIC = '2026-01-01';
 
+var VK_STOK_GECIKME_GUN = 14;   // bundan eski olup stoğa hiç işlenmemiş kalem = geç yüklenmiş fatura → stoğa girmez
+
 /** Ocak'tan bu yana bütün alış faturalarını tarar; Sayfa1'de olmayanları ekler ve kalemlere ayırır. */
 function kolaybiAlisTamTarama() {
+  geriDonukTaramaDuzelt(true);   // önceki tarama yarıda kaldıysa onu da toparlar
   var eski = KC_GUN;
   var bas = new Date(VK_TARAMA_BASLANGIC + 'T00:00:00');
   KC_GUN = Math.ceil((Date.now() - bas.getTime()) / 86400000) + 1;
+  var o = {};
   try {
-    var o = kolaybiFaturalariCek() || {};
-    var msg = 'Tam tarama bitti: ' + (o.gorulen || 0) + ' fatura görüldü, ' + (o.yeni || 0) + ' eksik fatura eklendi.';
-    Logger.log(msg);
-    try { SpreadsheetApp.getUi().alert(msg); } catch (e) {}
-    return o;
+    o = kolaybiFaturalariCek() || {};
   } finally {
     KC_GUN = eski;
   }
+  var d = geriDonukTaramaDuzelt(true);
+  var msg = 'Tam tarama bitti: ' + (o.gorulen || 0) + ' fatura görüldü, ' + (o.yeni || 0) + ' eksik fatura eklendi. ' + d.ozet;
+  Logger.log(msg);
+  try { SpreadsheetApp.getUi().alert(msg); } catch (e) {}
+  return o;
+}
+
+/**
+ * Geriye dönük taramanın yan etkilerini temizler (tekrar çalıştırmak güvenlidir):
+ *  1) VK_TARAMA_BASLANGIC'tan eski faturaları Sayfa1'den ve kalemlerinden siler (önceki dönem, açılışa dahil).
+ *  2) Satis_Faturalari'nda da bulunan (satış olup alışa düşmüş) faturaları siler; bu adla açılmış
+ *     faturasız Tedarikciler satırını da siler (sahte borç oluşmasın).
+ *  3) Stoğa hiç işlenmemiş (Stoga_Islendi boş) ve VK_STOK_GECIKME_GUN günden eski kalemleri ATLANDI yapar.
+ *     Alış motoru bunları atlar; aylar önce tüketilmiş mal bugünkü stoğa eklenmez. Borç ve fiyat hesabı etkilenmez.
+ */
+function geriDonukTaramaDuzelt(sessiz) {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var s1 = ss.getSheetByName(KC_KAYNAK) || ss.getSheets()[0];
+  var ks = ss.getSheetByName('Fatura_Kalemleri');
+  var sf = ss.getSheetByName('Satis_Faturalari');
+  var satisId = {}, satisAd = {};
+  if (sf && sf.getLastRow() > 1) sf.getRange(2, 1, sf.getLastRow() - 1, 5).getValues().forEach(function (r) {
+    var id = vk_no_(r[0]); if (id) satisId[id] = true;
+    if (r[4]) satisAd[vk_nrm_(r[4])] = true;
+  });
+
+  // 1-2) Sayfa1
+  var silNo = {}, silSatir = [], kalanTed = {};
+  var n1 = s1.getLastRow() - 1;
+  var d1 = n1 > 0 ? s1.getRange(2, 1, n1, 3).getValues() : [];
+  d1.forEach(function (r, i) {
+    var no = vk_no_(r[0]); if (!no) return;
+    var iso = vk_iso_(r[1]);
+    if ((iso && iso < VK_TARAMA_BASLANGIC) || satisId[no]) { silNo[no] = true; silSatir.push(i + 2); }
+    else kalanTed[vk_nrm_(r[2])] = true;
+  });
+  vk_satirSil_(s1, silSatir);
+
+  // Kalemler: silinen faturaların kalemlerini sil, geç yüklenenleri ATLANDI yap
+  var atlandi = 0, kalemSil = [];
+  if (ks && ks.getLastRow() > 1) {
+    var nk = ks.getLastRow() - 1;
+    var dk = ks.getRange(2, 1, nk, 12).getValues();
+    var sinir = vk_iso_(new Date(Date.now() - VK_STOK_GECIKME_GUN * 86400000));
+    var damga = Utilities.formatDate(new Date(), 'Europe/Istanbul', 'dd.MM.yyyy');
+    var durum = [], sebep = [], degisti = false;
+    dk.forEach(function (r, i) {
+      if (silNo[vk_no_(r[0])]) kalemSil.push(i + 2);
+      var d = String(r[10] || '').trim(), s = r[11];
+      if (!d && !silNo[vk_no_(r[0])]) {
+        var iso = vk_iso_(r[1]);
+        if (iso && iso < sinir) { d = 'ATLANDI'; s = 'Geç yüklenen fatura (' + damga + ' geriye dönük tarama), stoğa işlenmedi'; atlandi++; degisti = true; }
+      }
+      durum.push([d]); sebep.push([s]);
+    });
+    if (degisti) { ks.getRange(2, 11, nk, 1).setValues(durum); ks.getRange(2, 12, nk, 1).setValues(sebep); }
+    vk_satirSil_(ks, kalemSil);
+  }
+
+  // Satış müşterisi adıyla açılmış, faturası kalmamış tedarikçi satırı
+  var ts = ss.getSheetByName('Tedarikciler'), tedSil = [];
+  if (ts && ts.getLastRow() > 1) ts.getRange(2, 1, ts.getLastRow() - 1, 1).getValues().forEach(function (r, i) {
+    var k = vk_nrm_(r[0]); if (k && satisAd[k] && !kalanTed[k]) tedSil.push(i + 2);
+  });
+  vk_satirSil_(ts, tedSil);
+
+  var ozet = silSatir.length + ' fatura silindi (önceki dönem / satış), ' + kalemSil.length + ' kalemi silindi, ' +
+             atlandi + ' geç yüklenen kalem stoğa işlenmeyecek (ATLANDI)' + (tedSil.length ? ', ' + tedSil.length + ' tedarikçi satırı silindi' : '') + '.';
+  Logger.log(ozet);
+  if (!sessiz) { try { SpreadsheetApp.getUi().alert(ozet); } catch (e) {} }
+  return { ozet: ozet, fatura: silSatir.length, kalem: kalemSil.length, atlandi: atlandi, tedarikci: tedSil.length };
+}
+
+function vk_satirSil_(sh, satirlar) {
+  if (!sh || !satirlar.length) return;
+  satirlar.sort(function (a, b) { return a - b; });
+  for (var j = satirlar.length - 1; j >= 0;) {
+    var k = j;
+    while (k > 0 && satirlar[k - 1] === satirlar[k] - 1) k--;
+    sh.deleteRows(satirlar[k], satirlar[j] - satirlar[k] + 1);
+    j = k - 1;
+  }
+}
+
+function vk_iso_(v) {
+  if (v instanceof Date) return Utilities.formatDate(v, 'Europe/Istanbul', 'yyyy-MM-dd');
+  var s = String(v || '').trim(), m = s.match(/^(\d{1,2})\.(\d{1,2})\.(\d{4})/);
+  if (m) return m[3] + '-' + ('0' + m[2]).slice(-2) + '-' + ('0' + m[1]).slice(-2);
+  m = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  return m ? m[0] : '';
 }
 
 /** Her pazar 03:00 civarı tam tarama. Mevcut 2 saatlik çekim tetikleyicisine dokunmaz. */
