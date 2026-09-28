@@ -717,7 +717,9 @@ var ODEME_SUTUN = {
 // Yalnızca Odemeler sekmesinin sonuna yeni satır ekler; mevcut satırlara dokunmaz.
 function toptanciOdemeGir_(d) {
   var cache = CacheService.getScriptCache(), istek = String(d.istekNo || '').slice(0, 64);
-  if (istek && cache.get('odeme_' + istek)) return { hata: 'Bu ödeme az önce kaydedildi; iki kez gönderilmedi.' };
+  // Aynı gönderim ikinci kez gelirse (yanıt yolda kaybolup yeniden gönderildiyse) yeni satır yazma, ilk sonucu döndür.
+  var onceki = istek ? cache.get('odeme_' + istek) : null;
+  if (onceki) { try { var o = JSON.parse(onceki); o.zatenKayitli = true; return o; } catch (err) { return { tamam: true, zatenKayitli: true }; } }
 
   var ss = SpreadsheetApp.openById(KAYNAK.fatura.id);
   // Toptancı adı Tedarikciler listesindekiyle birebir aynı yazılmalı, yoksa borçtan düşülmez.
@@ -777,12 +779,13 @@ function toptanciOdemeGir_(d) {
   sh.getRange(no, 1, 1, lc).setValues([satir]);
   sh.getRange(no, c.tarih + 1).setNumberFormat('dd.mm.yyyy');
   sh.getRange(no, c.tutar + 1).setNumberFormat('#,##0.00');
-  if (istek) cache.put('odeme_' + istek, '1', 600);
+  var sonuc = { tamam: true, satir: no, ad: ad, tutar: tutar, tarih: tarihYazi, yontem: yontem };
+  if (istek) cache.put('odeme_' + istek, JSON.stringify(sonuc), 600);
 
   var ozet = ad + ' — ' + tutar.toLocaleString('tr-TR') + ' TL (' + yontem + ')' + (aciklama ? ', ' + aciklama : '');
   // Satır yazıldı; kayıt defterine düşülemese bile ödeme kaydedilmiş sayılır (tekrar gönderilip çift yazılmasın).
   try { cevapKaydet_('Finans', 'Kolaybi Fatura Ham Veri › Odemeler', no, 'Toptancı ödemesi ' + tarihYazi, ozet, damga.slice(0, 16)); } catch (err) { }
-  return { tamam: true, satir: no, ad: ad, tutar: tutar, tarih: tarihYazi, yontem: yontem };
+  return sonuc;
 }
 
 // Tüm panel cevaplarının ortak kaydı. İlk cevapta dosya kendiliğinden oluşturulur.

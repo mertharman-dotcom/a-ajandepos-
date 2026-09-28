@@ -95,8 +95,9 @@ export default {
         const r = await fetch(env.GAS_URL, { method: 'POST', headers: { 'content-type': 'application/json' }, body: ileti, redirect: 'follow' });
         const metin = await r.text();
         try { return json(JSON.parse(metin), 200); }
-        catch (e) { return json({ hata: 'Ödeme kaydedilemedi: veri kapısı beklenmeyen bir cevap verdi. Apps Script yeni sürüm olarak yayınlandı mı?' }, 502); }
-      } catch (e) { return json({ hata: 'Veri kapısına ulaşılamadı; ödeme kaydedilmedi.' }, 502); }
+        // Veri kapısı satırı yazıp sonra hata vermiş olabilir: "kaydedilmedi" demeyip panelden kontrol ettir.
+        catch (e) { return json({ belirsiz: true, hata: 'Veri kapısı beklenmeyen bir cevap verdi; ödeme kaydedilmiş olabilir.' }, 502); }
+      } catch (e) { return json({ belirsiz: true, hata: 'Veri kapısına ulaşılamadı; ödeme kaydedilmiş olabilir.' }, 502); }
     }
 
     if (url.pathname === '/' || url.pathname === '/index.html') {

@@ -417,7 +417,7 @@ function toptanciOdemeSayfa(a){var f=VERI.finans;
   var durum=el("span",{class:"cevap-durum "+(F.durumSinif||""),role:"status",text:F.durum});
   var kaydet=el("button",{type:"submit",class:"dugme ana-dugme"},[F.onayBekliyor?"Yine de ekle":"Ödemeyi kaydet"]);
   var vazgec=F.onayBekliyor?el("button",{type:"button",class:"dugme",onclick:function(){F.onayBekliyor=false;F.durum="";F.durumSinif="";ciz();}},["Vazgeç"]):null;
-  if(F.gonderiliyor)kaydet.setAttribute("disabled","");
+  if(F.gonderiliyor)[kaydet,sec,tutar,tarih,yon,acik].forEach(function(x){x.setAttribute("disabled","");});
 
   function ipucuYaz(){ipucu.textContent="";var bb=borcMap[normAd(sec.value)];var t=tutarOku(tutar.value);
     if(sec.value){if(bb&&bb.borc>0.5){ipucu.appendChild(el("span",{text:"Güncel borç "+para(bb.borc)+(bb.vadesiGecen>0.5?", vadesi geçen "+para(bb.vadesiGecen):"")+"."}));
@@ -426,7 +426,10 @@ function toptanciOdemeSayfa(a){var f=VERI.finans;
       else ipucu.appendChild(el("span",{style:"color:var(--gri)",text:"Bu toptancının açık borcu görünmüyor; ödeme avans olarak düşülür."}));}
     if(t>0)ipucu.appendChild(el("strong",{text:"Girilecek: "+kurus(t)}));
     if(t>0&&bb&&bb.borc>0.5&&t>bb.borc+0.5)ipucu.appendChild(el("span",{class:"etiket e-dikkat",text:"Borçtan "+para(t-bb.borc)+" fazla"}));}
-  function sakla(){F.tedarikci=sec.value;F.tutar=tutar.value;F.tarih=tarih.value;F.yontem=yon.value;F.aciklama=acik.value;
+  function sakla(){var once=[F.tedarikci,F.tutar,F.tarih,F.yontem,F.aciklama].join("|");
+    F.tedarikci=sec.value;F.tutar=tutar.value;F.tarih=tarih.value;F.yontem=yon.value;F.aciklama=acik.value;
+    // İçerik değiştiyse bu artık yeni bir ödemedir; önceki gönderimin numarasıyla karışmasın.
+    if(once!==[F.tedarikci,F.tutar,F.tarih,F.yontem,F.aciklama].join("|"))F.istekNo=yeniIstekNo();
     if(F.onayBekliyor){F.onayBekliyor=false;kaydet.textContent="Ödemeyi kaydet";if(vazgec)vazgec.remove();durum.textContent="";durum.className="cevap-durum";F.durum="";}}
   [sec,tutar,tarih,yon,acik].forEach(function(x){x.addEventListener("input",function(){sakla();ipucuYaz();});x.addEventListener("change",function(){sakla();ipucuYaz();});});
   ipucuYaz();
@@ -438,15 +441,16 @@ function toptanciOdemeSayfa(a){var f=VERI.finans;
     if(!F.tarih)return hata("Tarihi seç.",tarih);
     if(F.tarih>bugunIst())return hata("İleri tarihli ödeme girilemez.",tarih);
     if(!F.yontem)return hata("Ödeme yöntemini seç.",yon);
-    F.gonderiliyor=true;kaydet.setAttribute("disabled","");durum.className="cevap-durum";durum.textContent="Kaydediliyor…";
+    F.gonderiliyor=true;[kaydet,sec,tutar,tarih,yon,acik].forEach(function(x){x.setAttribute("disabled","");});durum.className="cevap-durum";durum.textContent="Kaydediliyor…";
     fetch("/api/odeme",{method:"POST",credentials:"same-origin",headers:{"content-type":"application/json","x-bap-panel":"1"},
       body:JSON.stringify({istekNo:F.istekNo,tedarikci:F.tedarikci,tutar:String(t),tarih:F.tarih,yontem:F.yontem,aciklama:F.aciklama,onay:onay})})
       .then(function(r){return r.json();}).then(function(d){F.gonderiliyor=false;
-        if(d&&d.tamam){F.durum="Kaydedildi: "+d.tarih+", "+kisaAd(d.ad)+", "+kurus(d.tutar)+" ("+d.yontem+"). Tablo satırı "+d.satir+".";F.durumSinif="iyi";
+        if(d&&d.tamam){F.durum=(d.zatenKayitli?"Bu ödeme zaten kaydedilmişti, ikinci kez yazılmadı: ":"Kaydedildi: ")+(d.ad?d.tarih+", "+kisaAd(d.ad)+", "+kurus(d.tutar)+" ("+d.yontem+"). Tablo satırı "+d.satir+".":"");F.durumSinif="iyi";
           F.tutar="";F.aciklama="";F.onayBekliyor=false;F.istekNo=yeniIstekNo();yukle(true);return;}
+        if(d&&d.belirsiz){F.durum=d.hata+" Son ödemeler listesi yenileniyor, orada yoksa tekrar gönder (aynı ödeme iki kez yazılmaz).";F.durumSinif="kotu";yukle(true);return;}
         if(d&&d.tekrarMi){F.onayBekliyor=true;F.durum=d.hata;F.durumSinif="kotu";ciz();return;}
         F.durum=(d&&d.hata)||"Kaydedilemedi.";F.durumSinif="kotu";ciz();})
-      .catch(function(){F.gonderiliyor=false;F.durum="Bağlantı hatası; ödeme kaydedilmedi. Tekrar göndermeden önce Son ödemeler listesini kontrol et.";F.durumSinif="kotu";ciz();});}
+      .catch(function(){F.gonderiliyor=false;F.durum="Cevap alınamadı; ödeme kaydedilmiş olabilir. Son ödemeler listesi yenileniyor, orada yoksa tekrar gönder (aynı ödeme iki kez yazılmaz).";F.durumSinif="kotu";yukle(true);});}
 
   var form=el("form",{class:"odeme-form",novalidate:"",onsubmit:gonder},[
     el("div",{class:"odeme-izgara"},[el("label",{class:"ted"},["Toptancı",sec]),el("label",null,["Tutar (₺)",tutar]),el("label",null,["Ödeme tarihi",tarih]),el("label",null,["Yöntem",yon]),
