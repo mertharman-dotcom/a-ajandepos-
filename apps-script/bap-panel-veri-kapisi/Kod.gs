@@ -1,0 +1,804 @@
+/**
+ * BAP Yönetim Paneli — Veri Kapısı (Google Apps Script)
+ *
+ * Ne yapar: Panel verisini tablolardan OKUR ve özet olarak panele verir.
+ * Yazma: Yalnızca sahibin panelden verdiği cevabı yazar (doPost): ilgili sorunun Cevap hücresine ekler ve
+ *        'BAP Panel Cevapları' tablosuna kayıt düşer. Başka hiçbir hücreyi değiştirmez, hiçbir şey silmez.
+ * Gizlilik: Müşteri adı, telefonu, adresi ve personel kişisel bilgisi dışarı verilmez; yalnız toplamlar döner.
+ * Erişim: Yalnızca doğru anahtarla gelen isteğe cevap verir. Anahtar koda yazılmaz, Komut Dosyası Özelliklerinde durur.
+ *
+ * Kurulum sırası: 1) anahtarOlustur çalıştır  2) testEt çalıştır  3) Web uygulaması olarak yayınla.
+ */
+
+var TZ = 'Europe/Istanbul';
+
+// beklenenDk: kaynağın normalde en geç kaç dakikada bir güncellenmesi beklenir (tazelik göstergesi için).
+var KAYNAK = {
+  siparis:  { id: '1gdn_rbaevKx9_-pNTRKL1DDtytFxZHr9QF-jrS4cHPE', ad: 'Adisyo sipariş verisi',   bolum: 'satis',    beklenenDk: 60 },
+  isKaydi:  { id: '1Lsfaxw71jGeo93AuLovkyFfAfw2H53BsYWKire5COhs', ad: 'Ortak iş kaydı',          bolum: 'merkez',   beklenenDk: 1440 },
+  hub:      { id: '1JbhHFzQYAvRXokYT3IClXgHz0vsXR3Rb0521jxBOFUQ', ad: 'Yapay zeka görev merkezi', bolum: 'ai',       beklenenDk: 1440 },
+  gider:    { id: '1F-lWaWJN43GdQMAQWpggPmwFoFEcWARCB0GRHhR70Tw', ad: 'Aylık gider takibi',      bolum: 'finans',   beklenenDk: 10080 },
+  hakedis:  { id: '139-CaKw5Dew7-PFIDAcjn6h673QJGPJ1j3mPslkttAE', ad: 'Platform hakediş',        bolum: 'finans',   beklenenDk: 1440 },
+  fatura:   { id: '1JJ6UZzh8rSX1FE9Cr-UPzEAaE-2aKtM10bEvjAv2P5w', ad: 'Alış faturaları',         bolum: 'alim',     beklenenDk: 1440 },
+  stok:     { id: '1Ec-xcTvh6D2DfxDwueSzQtguT3HR5VaSNOTWpqYPwhE', ad: 'Stok takip',              bolum: 'stok',     beklenenDk: 1440 },
+  menu:     { id: '1rcOUvokeb0VG3mm72-IKV1-bk0WugEcNSvDaHz41pP8', ad: 'Menü ve genel bilgiler',  bolum: 'genel',    beklenenDk: 43200 },
+  kurye:    { id: '1LG7naAbMM9aL3K0QNzzrjXomC2LXjx4rdSCYNYWzDQo', ad: 'Kurye çalışma süresi',    bolum: 'kurye',    beklenenDk: 1440 },
+  personel: { id: '1WBniOC2h9SvD20bHZl3G4o0f4kUmjbXtIrNvYVyV8Hg', ad: 'Personel',                bolum: 'personel', beklenenDk: 1440 },
+  yorum:    { id: '1KLWCEBwFMHCTrTnCYLhv2ctg5PvGtS9DNzoMXF-Z1JE', ad: 'Trendyol yorumları',      bolum: 'musteri',  beklenenDk: 1440 }
+};
+
+var DEPARTMANLAR = ['Müşteri İlişkileri', 'Operasyon', 'Finans', 'Satış & Gelir', 'Teknoloji & Sistemler',
+                    'İnsan Kaynakları', 'Strateji & İş Geliştirme', 'Sosyal Medya'];
+
+/* ---------------- Web uygulaması girişi ---------------- */
+
+function doGet(e) {
+  var p = (e && e.parameter) || {};
+  var anahtar = PropertiesService.getScriptProperties().getProperty('PANEL_KEY');
+  if (!anahtar || p.key !== anahtar) return json_({ hata: 'yetkisiz' });
+
+  var cache = CacheService.getScriptCache();
+  if (!p.fresh) {
+    var c = onbellekOku_(cache);
+    if (c) return ContentService.createTextOutput(c).setMimeType(ContentService.MimeType.JSON);
+  }
+  var metin = JSON.stringify(paketHazirla_());
+  onbellekYaz_(cache, metin); // 2 dakika önbellek (parçalı)
+  return ContentService.createTextOutput(metin).setMimeType(ContentService.MimeType.JSON);
+}
+
+
+// Önbellek anahtar başına 100 KB sınırlı; büyük paket parçalara bölünür.
+function onbellekYaz_(cache, metin) {
+  var n = Math.ceil(metin.length / 90000), o = {};
+  if (n > 9) return;
+  for (var i = 0; i < n; i++) o['panel_v1_' + i] = metin.substr(i * 90000, 90000);
+  o['panel_v1_n'] = String(n);
+  cache.putAll(o, 120);
+}
+function onbellekOku_(cache) {
+  var n = +cache.get('panel_v1_n'); if (!n) return null;
+  var keys = []; for (var i = 0; i < n; i++) keys.push('panel_v1_' + i);
+  var o = cache.getAll(keys), s = '';
+  for (i = 0; i < n; i++) { if (o[keys[i]] == null) return null; s += o[keys[i]]; }
+  return s;
+}
+
+/* ---------------- Elle çalıştırılacak yardımcılar ---------------- */
+
+// Bir kez çalıştırın. Günlükteki (Yürütme günlüğü) anahtarı yalnızca Cloudflare'deki GAS_KEY alanına yapıştırın.
+function anahtarOlustur() {
+  var k = Utilities.getUuid().replace(/-/g, '') + Utilities.getUuid().replace(/-/g, '');
+  PropertiesService.getScriptProperties().setProperty('PANEL_KEY', k);
+  Logger.log('Panel anahtarı hazır. Bunu yalnızca Cloudflare GAS_KEY alanına yapıştırın, başka yere yazmayın:');
+  Logger.log(k);
+}
+
+// Yayınlamadan önce çalıştırın: verinin okunabildiğini ve hata olmadığını gösterir.
+function testEt() {
+  var v = paketHazirla_();
+  Logger.log('Kaynak sayısı: ' + v.kaynaklar.length);
+  Logger.log('Bugünkü ciro: ' + (v.satis ? v.satis.gun.bugun.ciro : 'yok'));
+  Logger.log('Bekleyen karar: ' + (v.hub ? v.hub.bekleyen.length : 'yok'));
+  Logger.log('Hatalar: ' + JSON.stringify(v.hatalar));
+}
+
+/* ---------------- Paket ---------------- */
+
+function paketHazirla_() {
+  var simdi = new Date();
+  var out = {
+    surum: 1,
+    olusturma: Utilities.formatDate(simdi, TZ, "yyyy-MM-dd'T'HH:mm:ss"),
+    kaynaklar: [], satis: null, nabiz: null, isKaydi: null, hub: null, finans: null, personel: null, genel: null, hatalar: []
+  };
+  Object.keys(KAYNAK).forEach(function (k) {
+    var s = KAYNAK[k];
+    var r = { anahtar: k, ad: s.ad, bolum: s.bolum, beklenenDk: s.beklenenDk,
+              link: 'https://docs.google.com/spreadsheets/d/' + s.id };
+    try {
+      var t = DriveApp.getFileById(s.id).getLastUpdated();
+      r.guncelleme = Utilities.formatDate(t, TZ, "yyyy-MM-dd'T'HH:mm:ss");
+      r.dakika = Math.max(0, Math.round((simdi.getTime() - t.getTime()) / 60000));
+    } catch (err) { r.hata = 'Dosya açılamadı'; }
+    out.kaynaklar.push(r);
+  });
+  bolum_(out, 'satis', satis_);
+  bolum_(out, 'nabiz', nabiz_);
+  bolum_(out, 'isKaydi', isKaydi_);
+  bolum_(out, 'hub', hub_);
+  bolum_(out, 'finans', finans_);
+  bolum_(out, 'personel', personel_);
+  bolum_(out, 'genel', genel_);
+  return out;
+}
+
+function bolum_(out, ad, fn) {
+  try { out[ad] = fn(); }
+  catch (err) { out.hatalar.push({ bolum: ad, mesaj: String((err && err.message) || err) }); }
+}
+
+/* ---------------- Satış ---------------- */
+
+function satis_() {
+  var sh = SpreadsheetApp.openById(KAYNAK.siparis.id).getSheetByName('Satıs Verileri');
+  if (!sh) throw new Error("Sipariş dosyasında 'Satıs Verileri' sekmesi bulunamadı");
+  var son = sh.getLastRow(), gen = sh.getLastColumn();
+  var b = sh.getRange(1, 1, 1, gen).getValues()[0];
+  var c = {
+    tarih: kolon_(b, ['Sipariş Tarihi']), sube: kolon_(b, ['Şube']), kanal: kolon_(b, ['Sipariş Kanalı']),
+    marka: kolon_(b, ['Marka']), tutar: kolon_(b, ['Toplam Tutar']), durum: kolon_(b, ['Durum']),
+    tip: kolon_(b, ['Sipariş Tipi', 'Masa Siparişi']), cikan: kolon_(b, ['Ürün Çıkan Şube']), id: kolon_(b, ['Sipariş ID']), mahalle: kolon_(b, ['Mahalle'])
+  };
+  if (c.tarih < 0 || c.tutar < 0 || c.durum < 0) throw new Error('Sipariş tablosunda tarih, tutar ya da durum sütunu bulunamadı');
+  var n = Math.min(5000, son - 1);
+  if (n <= 0) return null;
+  var rows = sh.getRange(son - n + 1, 1, n, gen).getValues();
+
+  var simdi = simdi_();
+  var bugun = isGunu_(simdi);
+  var dun = gunEkle_(bugun, -1);
+  var gecenHafta = gunEkle_(bugun, -7);
+  var dow = (new Date(bugun + 'T00:00:00Z').getUTCDay() + 6) % 7; // Pazartesi = 0
+  var haftaBasi = gunEkle_(bugun, -dow);
+  var ilkSeri = gunEkle_(bugun, -13);
+
+  var seri = {}; for (var i = 0; i < 14; i++) seri[gunEkle_(ilkSeri, i)] = { ciro: 0, adet: 0 };
+  var g = { bugun: z_(), dun: z_(), hafta: z_(), gecenHaftaAyniSaat: z_() };
+  var acik = z_(), iptalBugun = 0, sonSiparis = null;
+  var kanalBugun = {}, subeBugun = {}, markaBugun = {}, kanalHafta = {}, mutfakBugun = {};
+  var yediBasi = gunEkle_(bugun, -6), otuzBasi = gunEkle_(bugun, -29);
+  var markaDetay = {}, mah = { bugun: {}, hafta: {}, otuz: {} }, mahBos = { bugun: 0, hafta: 0, otuz: 0 };
+  var cikan = { bugunDolu: 0, bugunToplam: 0, yediDolu: 0, yediToplam: 0, baskaSubedenBugun: 0, sonEksik: [] };
+
+  rows.forEach(function (r) {
+    var ms = zaman_(r[c.tarih]); if (ms === null) return;
+    var gun = isGunu_(ms);
+    var d = norm_(r[c.durum]);
+    var tutar = sayi_(r[c.tutar]);
+    if (sonSiparis === null || ms > sonSiparis) sonSiparis = ms;
+    if (d.indexOf('iptal') >= 0 || d.indexOf('iade') >= 0 || d.indexOf('red') === 0) { if (gun === bugun) iptalBugun++; return; }
+    if (d !== 'kapali') { if (gun === bugun) { acik.ciro += tutar; acik.adet++; } return; }
+
+    if (seri[gun]) { seri[gun].ciro += tutar; seri[gun].adet++; }
+    var gelen = subeAnahtar_(c.sube >= 0 ? r[c.sube] : ''), mutfak = c.cikan >= 0 ? subeAnahtar_(r[c.cikan]) : '';
+    if (gun >= yediBasi && gun <= bugun) {
+      cikan.yediToplam++;
+      if (mutfak) cikan.yediDolu++;
+      else cikan.sonEksik.push({ ms: ms, id: String(c.id >= 0 ? r[c.id] : ''), sube: gelen });
+    }
+    var mh = String(c.mahalle >= 0 ? r[c.mahalle] : '').trim();
+    if (/bulunamad/i.test(mh)) mh = '';
+    if (gun >= otuzBasi && gun <= bugun) mahEkle_(mah.otuz, mahBos, 'otuz', mh, tutar);
+    if (gun >= haftaBasi && gun <= bugun) mahEkle_(mah.hafta, mahBos, 'hafta', mh, tutar);
+    if (gun === bugun) {
+      mahEkle_(mah.bugun, mahBos, 'bugun', mh, tutar);
+      var mk = markaKok_(c.marka >= 0 ? r[c.marka] : ''), sb = gelen || 'Belirtilmemiş';
+      var md = markaDetay[mk] = markaDetay[mk] || { ad: mk, ciro: 0, adet: 0, subeler: {} };
+      md.ciro += tutar; md.adet++;
+      var ms2 = md.subeler[sb] = md.subeler[sb] || { ad: sb, ciro: 0, adet: 0 }; ms2.ciro += tutar; ms2.adet++;
+    }
+    if (gun === bugun) {
+      cikan.bugunToplam++; if (mutfak) cikan.bugunDolu++;
+      if (mutfak && gelen && mutfak !== gelen) cikan.baskaSubedenBugun++;
+      topla_(mutfakBugun, mutfak || gelen, tutar);
+    }
+    var kanal = String(c.kanal >= 0 ? r[c.kanal] : '').trim() || ('Adisyo ' + String(c.tip >= 0 ? r[c.tip] : '').replace(/Siparişi/i, '').trim().toLowerCase()).trim();
+    if (gun === bugun) { ek_(g.bugun, tutar); topla_(kanalBugun, kanal, tutar); topla_(subeBugun, c.sube >= 0 ? r[c.sube] : '', tutar); topla_(markaBugun, c.marka >= 0 ? r[c.marka] : '', tutar); }
+    if (gun === dun) ek_(g.dun, tutar);
+    if (gun >= haftaBasi && gun <= bugun) { ek_(g.hafta, tutar); topla_(kanalHafta, kanal, tutar); }
+    if (gun === gecenHafta && ms <= simdi - 7 * 86400000) ek_(g.gecenHaftaAyniSaat, tutar);
+  });
+
+  cikan.sonEksik = cikan.sonEksik.sort(function (a, b) { return b.ms - a.ms; }).slice(0, 8)
+    .map(function (x) { return { id: x.id, zaman: new Date(x.ms).toISOString().slice(0, 16).replace('T', ' '), sube: x.sube }; });
+  cikan.sutunVar = c.cikan >= 0;
+
+  return {
+    bugun: bugun, dun: dun, haftaBasi: haftaBasi, cikanSube: cikan, mutfakBugun: sirala_(mutfakBugun),
+    markaDetay: Object.keys(markaDetay).map(function (k2) { var m = markaDetay[k2];
+      return { ad: m.ad, ciro: Math.round(m.ciro), adet: m.adet, subeler: Object.keys(m.subeler).map(function (s2) { var x = m.subeler[s2]; return { ad: x.ad, ciro: Math.round(x.ciro), adet: x.adet }; }).sort(function (a, b) { return b.ciro - a.ciro; }) };
+    }).sort(function (a, b) { return b.ciro - a.ciro; }),
+    mahalle: { bugun: mahSirala_(mah.bugun), hafta: mahSirala_(mah.hafta), otuz: mahSirala_(mah.otuz), bos: mahBos },
+    sonSiparis: sonSiparis ? new Date(sonSiparis).toISOString().slice(0, 16).replace('T', ' ') : null,
+    gun: g, acik: acik, iptalBugun: iptalBugun,
+    kanalBugun: sirala_(kanalBugun), subeBugun: sirala_(subeBugun), markaBugun: sirala_(markaBugun), kanalHafta: sirala_(kanalHafta),
+    seri: Object.keys(seri).sort().map(function (k) { return { gun: k, ciro: Math.round(seri[k].ciro), adet: seri[k].adet }; })
+  };
+}
+
+/* ---------------- Sistem nabzı (sipariş dosyasındaki Sistem_Nabzi sekmesi) ---------------- */
+
+function nabiz_() {
+  var sh = SpreadsheetApp.openById(KAYNAK.siparis.id).getSheetByName('Sistem_Nabzi');
+  if (!sh) return null;
+  var v = sh.getRange(1, 1, Math.min(40, Math.max(1, sh.getLastRow())), 3).getDisplayValues();
+  var out = { sonKontrol: null, satirlar: [] }, basladi = false;
+  v.forEach(function (r) {
+    var a = String(r[0]).trim();
+    if (/^son kontrol/i.test(a)) out.sonKontrol = a.replace(/^son kontrol:?\s*/i, '');
+    else if (norm_(a) === 'sistem') basladi = true;
+    else if (basladi && a) out.satirlar.push({ sistem: a, durum: String(r[1]).trim(), detay: String(r[2]).trim() });
+  });
+  return out;
+}
+
+/* ---------------- Ortak iş kaydı ---------------- */
+
+function isKaydi_() {
+  var sh = SpreadsheetApp.openById(KAYNAK.isKaydi.id).getSheets()[0];
+  var v = sh.getDataRange().getDisplayValues();
+  if (v.length < 2) return null;
+  var b = v[0];
+  var c = { tarih: kolon_(b, ['Tarih-Saat', 'Tarih']), dep: kolon_(b, ['Departman']), ajan: kolon_(b, ['Ajan']),
+            ne: kolon_(b, ['Ne yapıldı']), denetci: kolon_(b, ['Denetçi sonucu']) };
+  if (c.tarih < 0 || c.dep < 0) throw new Error('İş kaydında tarih ya da departman sütunu bulunamadı');
+  var simdi = simdi_();
+  var dep = {};
+  DEPARTMANLAR.forEach(function (d) { dep[d] = { departman: d, son: null, saatOnce: null, son24: 0, son7: 0 }; });
+  var kayitlar = [];
+  for (var i = 1; i < v.length; i++) {
+    var r = v[i]; var ms = zaman_(r[c.tarih]); if (ms === null) continue;
+    var ad = depEsle_(r[c.dep]); if (!ad) continue;
+    var o = dep[ad]; var saat = (simdi - ms) / 3600000;
+    if (o.son === null || ms > o.sonMs) { o.sonMs = ms; o.son = new Date(ms).toISOString().slice(0, 16).replace('T', ' '); o.saatOnce = Math.round(saat); }
+    if (saat <= 24) o.son24++;
+    if (saat <= 168) o.son7++;
+    kayitlar.push({ ms: ms, zaman: new Date(ms).toISOString().slice(0, 16).replace('T', ' '), departman: ad,
+                    ajan: c.ajan >= 0 ? r[c.ajan] : '', ne: kodsuz_(c.ne >= 0 ? r[c.ne] : '').slice(0, 260),
+                    denetci: c.denetci >= 0 ? r[c.denetci] : '' });
+  }
+  kayitlar.sort(function (a, b) { return b.ms - a.ms; });
+  return {
+    departmanlar: DEPARTMANLAR.map(function (d) { var o = dep[d]; delete o.sonMs; return o; }),
+    sonKayitlar: kayitlar.slice(0, 15).map(function (k) { delete k.ms; return k; })
+  };
+}
+
+/* ---------------- Yapay zeka görev merkezi (BAP AI HUB) ---------------- */
+
+function hub_() {
+  var ss = SpreadsheetApp.openById(KAYNAK.hub.id);
+  var tq = tablo_(ss, 'TASK_QUEUE'), ap = tablo_(ss, 'CEO_APPROVALS'), ao = tablo_(ss, 'AI_OUTPUTS'),
+      ej = tablo_(ss, 'ENGINE_JOBS'), au = tablo_(ss, 'AUDIT_LOG');
+
+  var konu = {}, gorevDurum = {}, gorevToplam = 0;
+  tq.satirlar.forEach(function (r) {
+    var id = al_(tq, r, 'TASK_ID'); if (!id || testMi_(id)) return;
+    konu[id] = { konu: al_(tq, r, 'TOPIC'), departman: al_(tq, r, 'DEPARTMENT') };
+    gorevToplam++; topla_(gorevDurum, al_(tq, r, 'STATUS') || 'BOŞ', 1);
+  });
+
+  var bekleyen = [];
+  ap.satirlar.forEach(function (r) {
+    var id = al_(ap, r, 'APPROVAL_ID'), gorev = al_(ap, r, 'TASK_ID'), durum = String(al_(ap, r, 'STATUS'));
+    if (!id || testMi_(id) || testMi_(gorev) || /TEST|CLOSED|PROCESSED/i.test(durum)) return;
+    if (String(al_(ap, r, 'MERT_DECISION')).trim()) return;
+    var k = konu[gorev] || {};
+    bekleyen.push({ id: id, konu: k.konu || '', departman: k.departman || '', istek: String(al_(ap, r, 'REQUEST')).slice(0, 600),
+                    kapsam: String(al_(ap, r, 'SCOPE')).slice(0, 400), yetki: al_(ap, r, 'AUTHORITY_LEVEL'),
+                    olusturma: String(al_(ap, r, 'CREATED_AT')).slice(0, 16).replace('T', ' ') });
+  });
+
+  var cikti = {};
+  ao.satirlar.forEach(function (r) { if (!testMi_(al_(ao, r, 'TASK_ID'))) topla_(cikti, al_(ao, r, 'AI_ENGINE') || 'Bilinmiyor', 1); });
+
+  var motor = {};
+  ej.satirlar.forEach(function (r) {
+    if (testMi_(al_(ej, r, 'TASK_ID'))) return;
+    var m = String(al_(ej, r, 'AI_ENGINE') || 'Bilinmiyor').toUpperCase(), s = String(al_(ej, r, 'STATUS'));
+    motor[m] = motor[m] || { motor: m, toplam: 0, biten: 0, hata: 0 };
+    motor[m].toplam++;
+    if (/DONE|COMPLETED|SUCCESS/i.test(s)) motor[m].biten++;
+    else if (/ERROR|BLOCKED|FAIL/i.test(s)) motor[m].hata++;
+  });
+
+  var acikDenetim = 0, ciddi = 0;
+  au.satirlar.forEach(function (r) {
+    var s = String(al_(au, r, 'STATUS'));
+    if (testMi_(al_(au, r, 'TASK_ID')) || /TEST|CLOSED|RESOLVED|DONE/i.test(s)) return;
+    acikDenetim++; if (/HIGH|CRITICAL/i.test(String(al_(au, r, 'SEVERITY')))) ciddi++;
+  });
+
+  return {
+    gorevToplam: gorevToplam, gorevDurum: sirala_(gorevDurum), bekleyen: bekleyen,
+    cikti: sirala_(cikti), motorlar: Object.keys(motor).map(function (k) { return motor[k]; }),
+    acikDenetim: acikDenetim, ciddiDenetim: ciddi, not: 'Deneme kayıtları sayılmadı.'
+  };
+}
+
+
+/* ---------------- Finans ve alımlar (Kolaybi fatura verisi + aylık gider takibi) ---------------- */
+
+function finans_() {
+  var ss = SpreadsheetApp.openById(KAYNAK.fatura.id);
+  var simdi = simdi_();
+  var bugun = new Date(simdi).toISOString().slice(0, 10);
+  var ay = bugun.slice(0, 7), gun = +bugun.slice(8, 10);
+  var gAy = new Date(Date.UTC(+ay.slice(0, 4), +ay.slice(5, 7) - 2, 1)).toISOString().slice(0, 7);
+  var out = { ay: ay, bugun: bugun };
+
+  // Alış faturaları
+  var al = satirlar_(ss, 'Sayfa1');
+  var cT = kolon_(al.b, ['Tarih']), cG = kolon_(al.b, ['Gönderen', 'Tedarikçi']), cU = kolon_(al.b, ['Tutar']), cN = kolon_(al.b, ['Fatura_No']);
+  var gorulen = {}, faturalar = [], aylik = {}, tedBuAy = {};
+  var alis = { buAy: 0, buAyAdet: 0, gecenAy: 0, gecenAyAyniDonem: 0 };
+  al.r.forEach(function (r) {
+    var no = String(r[cN] || ''), ms = zaman_(r[cT]); if (ms === null) return;
+    if (no && gorulen[no]) return; if (no) gorulen[no] = 1;
+    var t = sayi_(r[cU]), tarih = new Date(ms).toISOString().slice(0, 10), a2 = tarih.slice(0, 7), ad = String(r[cG] || '').trim();
+    faturalar.push({ ms: ms, tarih: tarih, ad: ad, tutar: t });
+    aylik[a2] = (aylik[a2] || 0) + t;
+    if (a2 === ay) { alis.buAy += t; alis.buAyAdet++; var x = tedBuAy[ad] = tedBuAy[ad] || { ad: ad, tutar: 0, adet: 0 }; x.tutar += t; x.adet++; }
+    if (a2 === gAy) { alis.gecenAy += t; if (+tarih.slice(8, 10) <= gun) alis.gecenAyAyniDonem += t; }
+  });
+  alis.aylik = Object.keys(aylik).sort().slice(-6).map(function (k) { return { ay: k, tutar: Math.round(aylik[k]) }; });
+  alis.tedarikciBuAy = Object.keys(tedBuAy).map(function (k) { var x = tedBuAy[k]; return { ad: x.ad, tutar: Math.round(x.tutar), adet: x.adet }; })
+    .sort(function (a, b) { return b.tutar - a.tutar; }).slice(0, 15);
+  alis.sonFaturalar = faturalar.slice().sort(function (a, b) { return b.ms - a.ms; }).slice(0, 12)
+    .map(function (f) { return { tarih: f.tarih, ad: f.ad, tutar: Math.round(f.tutar * 100) / 100 }; });
+  out.alis = alis;
+
+  // Ödemeler
+  var od = satirlar_(ss, 'Odemeler');
+  var oT = kolon_(od.b, ['Tarih']), oG = kolon_(od.b, ['Tedarikçi']), oU = kolon_(od.b, ['Tutar']), oY = kolon_(od.b, ['Yöntem']);
+  var odemeler = [], odeme = { buAy: 0, buAyAdet: 0 };
+  od.r.forEach(function (r) {
+    var ms = zaman_(r[oT]); if (ms === null) return;
+    var t = sayi_(r[oU]), tarih = new Date(ms).toISOString().slice(0, 10);
+    odemeler.push({ ms: ms, tarih: tarih, ad: String(r[oG] || '').trim(), tutar: t, yontem: oY >= 0 ? r[oY] : '' });
+    if (tarih.slice(0, 7) === ay) { odeme.buAy += t; odeme.buAyAdet++; }
+  });
+  odeme.son = odemeler.slice().sort(function (a, b) { return b.ms - a.ms; }).slice(0, 10)
+    .map(function (o) { return { tarih: o.tarih, ad: o.ad, tutar: Math.round(o.tutar * 100) / 100, yontem: o.yontem }; });
+  out.odeme = odeme;
+
+  // Tedarikçi borcu ve vadesi geçen (ödemeler en eski faturadan kapatılır)
+  var td = satirlar_(ss, 'Tedarikciler');
+  var dG = kolon_(td.b, ['Tedarikçi']), dV = kolon_(td.b, ['Vade_Gun']), dA = kolon_(td.b, ['Acilis_Bakiye']);
+  var borc = { toplam: 0, vadesiGecen: 0, tedarikciSayisi: 0, vgTedarikci: 0, liste: [] };
+  td.r.forEach(function (r) {
+    var ad = String(r[dG] || '').trim(); if (!ad) return;
+    var n = norm_(ad), vade = sayi_(r[dV]) || 30, acilis = sayi_(r[dA]);
+    var fat = faturalar.filter(function (f) { return norm_(f.ad) === n; }).sort(function (a, b) { return a.ms - b.ms; });
+    var odenen = odemeler.filter(function (o) { return norm_(o.ad) === n; }).reduce(function (t, o) { return t + o.tutar; }, 0);
+    var kalanOdeme = odenen, acilisKalan = Math.max(0, acilis - kalanOdeme); kalanOdeme = Math.max(0, kalanOdeme - acilis);
+    var vg = acilisKalan, enEski = acilisKalan > 0 ? 'açılış bakiyesi' : null;
+    var toplamFat = 0;
+    fat.forEach(function (f) {
+      toplamFat += f.tutar;
+      var acik = Math.max(0, f.tutar - kalanOdeme); kalanOdeme = Math.max(0, kalanOdeme - f.tutar);
+      if (acik > 0.5 && (simdi - f.ms) / 86400000 > vade) { vg += acik; if (!enEski) enEski = f.tarih; }
+    });
+    var b = acilis + toplamFat - odenen;
+    if (Math.abs(b) < 0.5 && vg < 0.5) return;
+    borc.liste.push({ ad: ad, borc: Math.round(b * 100) / 100, vadesiGecen: Math.round(vg * 100) / 100, enEski: enEski, vadeGun: vade });
+    borc.toplam += Math.max(0, b); borc.tedarikciSayisi++;
+    if (vg > 0.5) { borc.vadesiGecen += vg; borc.vgTedarikci++; }
+  });
+  borc.liste.sort(function (a, b) { return b.vadesiGecen - a.vadesiGecen || b.borc - a.borc; });
+  out.borc = borc;
+
+  // Yemek kartı / kurum alacakları (satış faturaları)
+  var sf = satirlar_(ss, 'Satis_Faturalari');
+  var sI = kolon_(sf.b, ['Fatura_ID']), sM = kolon_(sf.b, ['Musteri']), sK = kolon_(sf.b, ['Kalan']), sV = kolon_(sf.b, ['Vade_Tarihi']), sD = kolon_(sf.b, ['Odeme_Durumu']);
+  var alacak = { toplam: 0, vadesiGecen: 0, liste: [] }, am = {}, gorSf = {};
+  sf.r.forEach(function (r) {
+    var id = String(r[sI] || ''); if (id && gorSf[id]) return; if (id) gorSf[id] = 1;
+    var kalan = sayi_(r[sK]); if (kalan < 0.5 || /^paid$/i.test(String(r[sD] || ''))) return;
+    var ad = String(r[sM] || '').trim() || 'Belirtilmemiş', v = zaman_(r[sV]);
+    var x = am[ad] = am[ad] || { ad: ad, kalan: 0, vadesiGecen: 0, adet: 0 };
+    x.kalan += kalan; x.adet++; alacak.toplam += kalan;
+    if (v !== null && v < simdi) { x.vadesiGecen += kalan; alacak.vadesiGecen += kalan; }
+  });
+  alacak.liste = Object.keys(am).map(function (k) { var x = am[k]; return { ad: x.ad, kalan: Math.round(x.kalan), vadesiGecen: Math.round(x.vadesiGecen), adet: x.adet }; })
+    .sort(function (a, b) { return b.kalan - a.kalan; });
+  out.alacak = alacak;
+
+  // Aylık gider tablosu ve açık sorular (BAP Aylık Gider Takibi)
+  try {
+    var gs = SpreadsheetApp.openById(KAYNAK.gider.id);
+    var oz = gs.getSheetByName('Özet');
+    if (oz) {
+      var v = oz.getDataRange().getDisplayValues(), aylar = null, kalemler = [], toplam = null;
+      v.forEach(function (r) {
+        var a0 = String(r[0]).trim();
+        if (/^gider kalemi$/i.test(a0)) aylar = r.slice(1).filter(function (x) { return String(x).trim(); });
+        else if (aylar && /^toplam/i.test(a0)) toplam = r.slice(1, aylar.length + 1).map(sayi_);
+        else if (aylar && !toplam && a0) kalemler.push({ ad: a0, degerler: r.slice(1, aylar.length + 1).map(sayi_) });
+      });
+      if (aylar) out.gider = { aylar: aylar, kalemler: kalemler, toplam: toplam || [] };
+    }
+    var es = gs.getSheetByName('Eksikler & Sorular');
+    if (es) {
+      var ev = es.getDataRange().getDisplayValues(), eb = ev[0];
+      var c = { konu: kolon_(eb, ['Konu']), neden: kolon_(eb, ['Neden önemli']), etki: kolon_(eb, ['Tutar etkisi']), durum: kolon_(eb, ['Durum']), cevap: kolon_(eb, ['Cevap']) };
+      out.sorular = ev.slice(1).filter(function (r) { return r[c.konu] && !/kapand/i.test(r[c.durum]); }).map(function (r) {
+        return { no: r[0], konu: r[c.konu], neden: r[c.neden], etki: r[c.etki], durum: r[c.durum], cevap: c.cevap >= 0 ? r[c.cevap] : '' };
+      });
+    }
+  } catch (err) { out.giderHata = String(err.message || err); }
+  return out;
+}
+
+function satirlar_(ss, ad) {
+  var sh = ss.getSheetByName(ad);
+  if (!sh || sh.getLastRow() < 2) return { b: [], r: [] };
+  var v = sh.getDataRange().getValues();
+  return { b: v[0].map(String), r: v.slice(1) };
+}
+
+
+
+
+/* ---------------- Genel bilgiler (BAP GENEL BİLGİLER: menü, şubeler, bölgeler, ödeme) ---------------- */
+var GENEL_PORTAL_URL = 'https://bap-genel-bilgiler.mertharman.workers.dev/';
+
+function genel_() {
+  var ss = SpreadsheetApp.openById(KAYNAK.menu.id), out = { portal: GENEL_PORTAL_URL };
+  var t = function (ad) { var sh = ss.getSheetByName(ad); return sh ? sh.getDataRange().getDisplayValues() : null; };
+  var m = t('Menü');
+  if (m) {
+    var b = m[0], c = { ad: kolon_(b, ['Urun_Adı', 'Ürün Adı']), kat: kolon_(b, ['Kategori']), fiyat: kolon_(b, ['Fiyat']), ic: kolon_(b, ['İçerik']), haz: kolon_(b, ['Hazırlanma Süresi']),
+      akt: kolon_(b, ['Aktif']), tur: kolon_(b, ['Ürün / Yarı Mamül / Direkt Satış']), rec: kolon_(b, ['Reçete_Durumu']), kal: kolon_(b, ['Kalori (kcal)']) };
+    out.menu = m.slice(1).filter(function (r) { return String(r[c.ad]).trim(); }).map(function (r) {
+      return { ad: r[c.ad], kategori: r[c.kat], fiyat: sayi_(r[c.fiyat]), icerik: String(r[c.ic] || '').slice(0, 180), hazirlama: r[c.haz], aktif: !/pasif|hay[ıi]r|false/i.test(r[c.akt]),
+               tur: c.tur >= 0 ? r[c.tur] : '', recete: c.rec >= 0 ? r[c.rec] : '', kalori: c.kal >= 0 ? r[c.kal] : '' };
+    });
+  }
+  var s = t('Şubeler');
+  if (s) out.subeler = s.slice(1).filter(function (r) { return r[0]; }).map(function (r) { return { ad: r[0], adres: r[1], telefon: r[2], saatler: r[3] }; });
+  var mh = t('Mahalle_Sube');
+  if (mh) out.bolgeler = mh.slice(1).filter(function (r) { return r[0]; }).map(function (r) { return { mahalle: r[0], tamAd: r[1], sube: r[2], sure: r[3] }; });
+  var od = t('Ödeme yöntemleri');
+  if (od) out.odeme = od.slice(1).filter(function (r) { return r[0]; }).map(function (r) { return { ad: r[0], grup: r[1], tip: r[2], online: /true/i.test(r[3]) }; });
+  var al = t('Al Ayarları');
+  if (al) out.santral = al.slice(1).filter(function (r) { return r[0]; }).map(function (r) { return { ayar: onar_(r[0]), deger: onar_(r[1]) }; });
+  return out;
+}
+
+// "SipariÅŸ" gibi bozuk kodlanmış Türkçe karakterleri düzeltir.
+function onar_(s) {
+  return String(s || '').replace(/Ã§/g, 'ç').replace(/Ã‡/g, 'Ç').replace(/ÄŸ/g, 'ğ').replace(/Äž/g, 'Ğ').replace(/Ä±/g, 'ı').replace(/Ä°/g, 'İ')
+    .replace(/Ã¶/g, 'ö').replace(/Ã–/g, 'Ö').replace(/ÅŸ/g, 'ş').replace(/Åž/g, 'Ş').replace(/Ã¼/g, 'ü').replace(/Ãœ/g, 'Ü');
+}
+
+/* ---------------- Personel (BAP Personel dosyası) ----------------
+ * Şifre, telefon, IBAN, acil durum kişisi ve ayrılma notu panele HİÇ gönderilmez.
+ */
+var PERSONEL_PANEL_URL = 'https://script.google.com/macros/s/AKfycbwPJbZCgnURva8C--D7jmMK8t4jhaQkC3J0ps-j7fxQEgbrSAfTtLYKqtMJr9yfXtOm/exec?panel=yonetici';
+
+function personel_() {
+  var ss = SpreadsheetApp.openById(KAYNAK.personel.id);
+  var simdi = simdi_(), bugun = isGunu_(simdi), ay = bugun.slice(0, 7);
+  var out = { bugun: bugun, yoneticiLink: PERSONEL_PANEL_URL };
+
+  // Aktif personel (yalnız ad, şube, departman, maaş toplamı)
+  var ps = ss.getSheetByName('Personel'), aktif = [], maasToplam = 0, subeSay = {};
+  if (ps) {
+    var v = ps.getDataRange().getDisplayValues(), b = v[0];
+    var cA = kolon_(b, ['İsim Soyisim']), cAk = kolon_(b, ['Aktif']), cM = kolon_(b, ['Maaş']), cS = kolon_(b, ['Sube', 'Şube']), cD = kolon_(b, ['Departman']);
+    v.slice(1).forEach(function (r) {
+      if (!r[cA] || !/^(true|evet|1)$/i.test(String(r[cAk]).trim())) return;
+      aktif.push({ ad: r[cA], sube: cS >= 0 ? r[cS] : '', departman: cD >= 0 ? r[cD] : '' });
+      maasToplam += sayi_(r[cM]); topla_(subeSay, cS >= 0 ? r[cS] : '', 1);
+    });
+  }
+  out.aktif = { sayi: aktif.length, maasToplam: Math.round(maasToplam), subeler: sirala_(subeSay), liste: aktif };
+  out.bilgiler = personelBilgileri_(ss);
+
+  // Giriş-çıkış kayıtları: bugün ve bu ay
+  var gs = ss.getSheetByName('Personel_Giris_Cİkis') || ss.getSheetByName('Personel_Giris_Cikis');
+  var bugunListe = [], ayKisi = {};
+  if (gs) {
+    var g = gs.getDataRange().getDisplayValues(), gb = g[0];
+    var c = { gun: kolon_(gb, ['Kayıt Okutma (Gün)', 'Kayıt Okutma']), ad: kolon_(gb, ['İsim Soyisim']), gir: kolon_(gb, ['Mesai Giriş']), cik: kolon_(gb, ['Mesai Çıkış']),
+              not: kolon_(gb, ['Gün Genel Notu']), ga: kolon_(gb, ['Giriş Açıklaması']), ca: kolon_(gb, ['Çıkış Açıklaması']), top: kolon_(gb, ['Toplam mesai']),
+              faz: kolon_(gb, ['Fazla Mesai']), gps: kolon_(gb, ['Gps']), off: kolon_(gb, ['OFF Günü']), yi: kolon_(gb, ['Yıllık İzin']), rap: kolon_(gb, ['Rapor']),
+              ui: kolon_(gb, ['Ücretsiz İzin']), dev: kolon_(gb, ['Devamsızlık']) };
+    g.slice(1).forEach(function (r) {
+      var ms = zaman_(r[c.gun]); if (ms === null || !r[c.ad]) return;
+      var gun = new Date(ms).toISOString().slice(0, 10);
+      // Gps sütunu bazen ham koordinat içerir; yalnız şube adı çıkarılır, koordinat panele gönderilmez.
+      var sbGps = subeAnahtar_(r[c.gps] || ''); sbGps = /Erenköy|Fikirtepe/.test(sbGps) ? sbGps.replace('BAP ', '') : '';
+      if (gun === bugun) bugunListe.push({ ad: r[c.ad], sube: sbGps, giris: r[c.gir] || '', cikis: r[c.cik] || '', not: r[c.not] || '',
+        girisNot: kodsuz_(r[c.ga] || ''), cikisNot: kodsuz_(r[c.ca] || ''), toplam: r[c.top] || '' });
+      if (gun.slice(0, 7) === ay) {
+        var x = ayKisi[r[c.ad]] = ayKisi[r[c.ad]] || { ad: r[c.ad], gun: 0, dk: 0, fazlaDk: 0, eksikDk: 0, gec: 0, izin: 0 };
+        var t = sureDk_(r[c.top]); if (t > 0) { x.gun++; x.dk += t; }
+        var f = sureDk_(r[c.faz]); if (f > 0) x.fazlaDk += f; else if (f < 0) x.eksikDk += -f;
+        if (/geç girildi/i.test(r[c.ga] || '')) x.gec++;
+        [c.yi, c.rap, c.ui, c.dev].forEach(function (i) { if (i >= 0 && String(r[i]).trim()) x.izin++; });
+      }
+    });
+  }
+  bugunListe.sort(function (a, b) { return String(a.giris).localeCompare(String(b.giris)); });
+
+  // Bugünün vardiya planı
+  var planli = [];
+  var vs = ss.getSheetByName('Vardiya');
+  if (vs) {
+    var vv = vs.getDataRange().getDisplayValues(), vb = vv[0];
+    var dow = (new Date(bugun + 'T00:00:00Z').getUTCDay() + 6) % 7, hafta = gunEkle_(bugun, -dow);
+    var gunAd = ['Pzt', 'Sal', 'Çar', 'Per', 'Cum', 'Cmt', 'Paz'][dow], cG = kolon_(vb, [gunAd]), cH = kolon_(vb, ['Hafta (Pazartesi)', 'Hafta']), cI = kolon_(vb, ['İsim Soyisim']), cS2 = kolon_(vb, ['Şube', 'Sube']);
+    vv.slice(1).forEach(function (r) {
+      var h = zaman_(r[cH]); if (h === null || new Date(h).toISOString().slice(0, 10) !== hafta) return;
+      var plan = String(r[cG] || '').trim(); if (!plan) return;
+      var kayit = bugunListe.filter(function (x) { return norm_(x.ad) === norm_(r[cI]); })[0];
+      planli.push({ ad: r[cI], plan: plan, calisacak: /\d{1,2}:\d{2}/.test(plan), geldi: !!kayit, giris: kayit ? kayit.giris : '', sube: (cS2 >= 0 && r[cS2]) || (kayit ? kayit.sube : '') });
+    });
+  }
+  out.bugunKayit = bugunListe;
+  out.plan = planli;
+  out.vardiya = vardiyaPlani_(ss, bugun, out.bilgiler);
+  out.ay = { ay: ay, kisiler: Object.keys(ayKisi).map(function (k) { var x = ayKisi[k]; x.saat = Math.round(x.dk / 6) / 10; delete x.dk; return x; })
+    .sort(function (a, b) { return b.saat - a.saat; }) };
+
+  // Maaş ödemeleri (yalnız ay toplamı ve kişi sayısı)
+  var os = ss.getSheetByName('Odemeler'), odAy = {};
+  if (os) {
+    var ov = os.getDataRange().getDisplayValues(), ob = ov[0], oA = kolon_(ob, ['Ay']), oT = kolon_(ob, ['Tutar']);
+    ov.slice(1).forEach(function (r) { if (r[oA]) { var x = odAy[r[oA]] = odAy[r[oA]] || { ay: r[oA], tutar: 0, kisi: 0 }; x.tutar += sayi_(r[oT]); x.kisi++; } });
+  }
+  out.odemeler = Object.keys(odAy).sort().slice(-6).map(function (k) { var x = odAy[k]; x.tutar = Math.round(x.tutar); return x; });
+  return out;
+}
+
+
+
+// Vardiya çizelgesi: 4 hafta geri, 2 hafta ileri. Geçmiş günlerde fiili giriş-çıkış da eklenir.
+function vardiyaPlani_(ss, bugun, bilgiler) {
+  var vs = ss.getSheetByName('Vardiya'); if (!vs) return null;
+  var dow = (new Date(bugun + 'T00:00:00Z').getUTCDay() + 6) % 7, buHafta = gunEkle_(bugun, -dow);
+  var ilk = gunEkle_(buHafta, -28), son = gunEkle_(buHafta, 14);
+  var subeHar = {}; (bilgiler && bilgiler.liste || []).forEach(function (p) { subeHar[norm_(p.ad)] = p.degerler && p.degerler['Sube'] || ''; });
+  var v = vs.getDataRange().getDisplayValues(), b = v[0];
+  var cH = kolon_(b, ['Hafta (Pazartesi)', 'Hafta']), cI = kolon_(b, ['İsim Soyisim']), cS = kolon_(b, ['Şube', 'Sube']);
+  var gc = ['Pzt', 'Sal', 'Çar', 'Per', 'Cum', 'Cmt', 'Paz'].map(function (g) { return kolon_(b, [g]); });
+  var haftalar = {};
+  v.slice(1).forEach(function (r) {
+    var ms = zaman_(r[cH]); if (ms === null || !String(r[cI]).trim()) return;
+    var h = new Date(ms).toISOString().slice(0, 10); if (h < ilk || h > son) return;
+    var gunler = gc.map(function (i) { return i >= 0 ? String(r[i] || '').trim() : ''; });
+    var saat = 0, off = 0;
+    gunler.forEach(function (g) { var m = g.match(/^(\d{1,2}):(\d{2})\s*-\s*(\d{1,2}):(\d{2})$/);
+      if (m) { var dk = (+m[3] * 60 + +m[4]) - (+m[1] * 60 + +m[2]); if (dk <= 0) dk += 1440; saat += dk / 60; } else if (/^off$/i.test(g)) off++; });
+    (haftalar[h] = haftalar[h] || []).push({ ad: r[cI], sube: (cS >= 0 && r[cS]) || subeHar[norm_(r[cI])] || '', gunler: gunler, planSaat: Math.round(saat * 10) / 10, off: off });
+  });
+  // Fiili kayıtlar (yalnız bu pencere)
+  var gercek = {}, gs = ss.getSheetByName('Personel_Giris_Cİkis') || ss.getSheetByName('Personel_Giris_Cikis');
+  if (gs) {
+    var g = gs.getDataRange().getDisplayValues(), gb = g[0];
+    var c = { gun: kolon_(gb, ['Kayıt Okutma (Gün)', 'Kayıt Okutma']), ad: kolon_(gb, ['İsim Soyisim']), gir: kolon_(gb, ['Mesai Giriş']), cik: kolon_(gb, ['Mesai Çıkış']), top: kolon_(gb, ['Toplam mesai']), ga: kolon_(gb, ['Giriş Açıklaması']) };
+    g.slice(1).forEach(function (r) {
+      var ms = zaman_(r[c.gun]); if (ms === null) return; var gun = new Date(ms).toISOString().slice(0, 10);
+      if (gun < ilk || gun > bugun) return;
+      gercek[norm_(r[c.ad]) + '|' + gun] = { g: String(r[c.gir] || '').slice(0, 5), c: String(r[c.cik] || '').slice(0, 5), t: String(r[c.top] || '').replace(/:\d{2}$/, ''), gec: /geç girildi/i.test(r[c.ga] || '') };
+    });
+  }
+  return { buHafta: buHafta, bugun: bugun, haftalar: Object.keys(haftalar).sort().map(function (h) { return { hafta: h, satirlar: haftalar[h] }; }), gercek: gercek };
+}
+
+// Personel bilgileri: hassas alanların DEĞERİ gönderilmez, yalnız dolu/eksik bilgisi gönderilir.
+var PERSONEL_ALANLAR = [
+  { ad: 'İşe Giriş', etiket: 'İşe giriş tarihi', tur: 'tarih', goster: true },
+  { ad: 'Maaş', etiket: 'Aylık maaş', tur: 'sayi', goster: true },
+  { ad: 'SGK lı', etiket: 'SGK durumu', tur: 'evethayir', goster: true },
+  { ad: 'Sube', etiket: 'Şube', tur: 'sube', goster: true },
+  { ad: 'Departman', etiket: 'Departman / pozisyon', tur: 'metin', goster: true },
+  { ad: 'Telefon Numarası', etiket: 'Telefon', tur: 'telefon', goster: false },
+  { ad: 'IBAN', etiket: 'IBAN', tur: 'iban', goster: false },
+  { ad: 'Banka Hesap Adı', etiket: 'Banka hesap adı', tur: 'metin', goster: false },
+  { ad: 'Acil durum kişi', etiket: 'Acil durum kişisi', tur: 'metin', goster: false },
+  { ad: 'Acil durum kişisi telefon', etiket: 'Acil durum telefonu', tur: 'telefon', goster: false }
+];
+
+function personelBilgileri_(ss) {
+  var ps = ss.getSheetByName('Personel'); if (!ps) return null;
+  var v = ps.getDataRange().getDisplayValues(), b = v[0];
+  var cA = kolon_(b, ['İsim Soyisim']), cAk = kolon_(b, ['Aktif']), cC = kolon_(b, ['İşten Çıkış']);
+  var idx = PERSONEL_ALANLAR.map(function (a) { return kolon_(b, [a.ad]); });
+  var liste = [];
+  for (var i = 1; i < v.length; i++) {
+    var r = v[i]; if (!String(r[cA]).trim()) continue;
+    var aktifMi = /^(true|evet|1)$/i.test(String(r[cAk]).trim());
+    var p = { satir: i + 1, ad: r[cA], aktif: aktifMi, cikis: cC >= 0 ? r[cC] : '', degerler: {}, eksik: [] };
+    PERSONEL_ALANLAR.forEach(function (a, j) {
+      if (idx[j] < 0) return;
+      var dolu = String(r[idx[j]]).trim() !== '';
+      if (a.goster && dolu) p.degerler[a.ad] = r[idx[j]];
+      if (!dolu) p.eksik.push({ alan: a.ad, etiket: a.etiket, tur: a.tur });
+    });
+    liste.push(p);
+  }
+  return { alanlar: PERSONEL_ALANLAR.map(function (a) { return { ad: a.ad, etiket: a.etiket }; }), liste: liste };
+}
+
+// Sahip panelden eksik bir personel bilgisini girer. Yalnız BOŞ hücreye yazılır; dolu bilgi panelden değiştirilemez.
+function personelBilgiGir_(d) {
+  var alan = PERSONEL_ALANLAR.filter(function (a) { return a.ad === d.alan; })[0];
+  if (!alan) return { hata: 'Bu alan panelden girilemez.' };
+  var deger = dogrula_(alan.tur, String(d.cevap || '').trim());
+  if (deger.hata) return { hata: deger.hata };
+  var ss = SpreadsheetApp.openById(KAYNAK.personel.id), ps = ss.getSheetByName('Personel');
+  var v = ps.getDataRange().getDisplayValues(), b = v[0];
+  var cA = kolon_(b, ['İsim Soyisim']), cX = kolon_(b, [alan.ad]), satir = +d.satir;
+  if (cX < 0 || !(satir >= 2 && satir <= v.length)) return { hata: 'Personel satırı bulunamadı.' };
+  if (norm_(v[satir - 1][cA]) !== norm_(d.ad)) return { hata: 'Personel listesi değişmiş; sayfayı yenileyip tekrar deneyin.' };
+  if (String(v[satir - 1][cX]).trim() !== '') return { hata: 'Bu bilgi zaten dolu. Değiştirmek için yönetici panelini kullanın.' };
+  ps.getRange(satir, cX + 1).setValue(deger.deger);
+  var damga = Utilities.formatDate(new Date(), TZ, 'dd.MM.yyyy HH:mm:ss');
+  var gizli = alan.goster ? String(deger.deger) : maskele_(String(deger.deger));
+  var log = ss.getSheetByName('Islem_Loglari');
+  if (log) { log.insertRowAfter(1); log.getRange(2, 1, 1, 5).setValues([[damga, 'Yönetici (panel)', 'PERSONEL_BILGI_GIRILDI', d.ad + ' — ' + alan.etiket + ': ' + gizli, '-']]); }
+  cevapKaydet_('İnsan Kaynakları', 'BAP Personel › Personel', satir, d.ad + ' — ' + alan.etiket + ' girildi', gizli, damga.slice(0, 16));
+  return { tamam: true, goster: gizli };
+}
+
+function dogrula_(tur, s) {
+  if (!s) return { hata: 'Boş bırakılamaz.' };
+  if (tur === 'iban') { var t = s.replace(/\s+/g, '').toUpperCase(); if (!/^TR\d{24}$/.test(t)) return { hata: 'IBAN TR ile başlamalı ve 26 karakter olmalı.' };
+    return { deger: t.replace(/(.{4})/g, '$1 ').trim() }; }
+  if (tur === 'telefon') { var n = s.replace(/\D/g, '').replace(/^90/, '').replace(/^0/, ''); if (!/^\d{10}$/.test(n)) return { hata: 'Telefon 10 haneli olmalı (5XX XXX XX XX).' }; return { deger: n }; }
+  if (tur === 'tarih') { var m = s.match(/^(\d{1,2})[.\/-](\d{1,2})[.\/-](\d{4})$/); if (!m) return { hata: 'Tarih GG.AA.YYYY biçiminde olmalı.' };
+    return { deger: ('0' + m[1]).slice(-2) + '.' + ('0' + m[2]).slice(-2) + '.' + m[3] }; }
+  if (tur === 'sayi') { var x = sayi_(s); if (!(x > 0)) return { hata: 'Geçerli bir tutar yazın.' }; return { deger: x }; }
+  if (tur === 'evethayir') { if (/^(evet|var|true|1|sgkl[ıi])$/i.test(s)) return { deger: true }; if (/^(hay[ıi]r|yok|false|0)$/i.test(s)) return { deger: false }; return { hata: 'Evet ya da Hayır yazın.' }; }
+  if (tur === 'sube') { var sb = subeAnahtar_(s); if (!/Erenköy|Fikirtepe/.test(sb)) return { hata: 'Erenköy ya da Fikirtepe yazın.' }; return { deger: sb.replace('BAP ', '') }; }
+  return { deger: s.slice(0, 200) };
+}
+function maskele_(s) { var t = s.replace(/\s+/g, ''); return t.length > 4 ? '•••• ' + t.slice(-4) : '••••'; }
+
+// "9:47:22" → 587, "--0:12:38" → -13 (dakika)
+function sureDk_(s) {
+  var m = String(s || '').trim().match(/^(-*)(\d+):(\d{1,2})(?::(\d{1,2}))?/); if (!m) return 0;
+  var dk = (+m[2]) * 60 + (+m[3]) + (m[4] ? Math.round(+m[4] / 60) : 0);
+  return m[1] ? -dk : dk;
+}
+
+/* ---------------- Sahibin panelden verdiği cevaplar ---------------- */
+
+// Panel POST ile { key, tur: 'cevap', kaynak: 'finans-soru', no, konu, cevap } gönderir.
+function doPost(e) {
+  var d; try { d = JSON.parse(e.postData.contents); } catch (err) { return json_({ hata: 'Geçersiz istek' }); }
+  var anahtar = PropertiesService.getScriptProperties().getProperty('PANEL_KEY');
+  if (!anahtar || d.key !== anahtar) return json_({ hata: 'yetkisiz' });
+  var cevap = String(d.cevap || '').replace(/\s+/g, ' ').trim().slice(0, 1500);
+  if (!cevap) return json_({ hata: 'Cevap boş.' });
+  var kilit = LockService.getScriptLock(); kilit.waitLock(20000);
+  try {
+    if (d.kaynak === 'finans-soru') return json_(finansSoruCevapla_(d, cevap));
+    if (d.kaynak === 'personel-bilgi') return json_(personelBilgiGir_(d));
+    return json_({ hata: 'Bilinmeyen kaynak.' });
+  } finally { kilit.releaseLock(); CacheService.getScriptCache().remove('panel_v1_n'); }
+}
+
+function finansSoruCevapla_(d, cevap) {
+  var sh = SpreadsheetApp.openById(KAYNAK.gider.id).getSheetByName('Eksikler & Sorular');
+  if (!sh) return { hata: "'Eksikler & Sorular' sekmesi bulunamadı." };
+  var v = sh.getDataRange().getDisplayValues(), b = v[0];
+  var cK = kolon_(b, ['Konu']), cC = kolon_(b, ['Cevap']);
+  if (cK < 0 || cC < 0) return { hata: 'Konu ya da Cevap sütunu bulunamadı.' };
+  for (var i = 1; i < v.length; i++) {
+    if (String(v[i][0]) === String(d.no) && norm_(v[i][cK]) === norm_(d.konu)) {
+      var damga = Utilities.formatDate(new Date(), TZ, 'dd.MM.yyyy HH:mm');
+      var eski = String(v[i][cC] || '').trim();
+      var yeni = (eski ? eski + ' | ' : '') + 'Sahip (panelden, ' + damga + '): ' + cevap;
+      sh.getRange(i + 1, cC + 1).setValue(yeni);
+      cevapKaydet_('Finans', 'BAP Aylık Gider Takibi › Eksikler & Sorular', i + 1, v[i][cK], cevap, damga);
+      return { tamam: true, cevap: yeni };
+    }
+  }
+  return { hata: 'Soru tabloda bulunamadı; tablo değişmiş olabilir. Sayfayı yenileyip tekrar deneyin.' };
+}
+
+// Tüm panel cevaplarının ortak kaydı. İlk cevapta dosya kendiliğinden oluşturulur.
+function cevapKaydet_(bolum, kaynak, satir, konu, cevap, damga) {
+  var p = PropertiesService.getScriptProperties(), id = p.getProperty('CEVAP_DOSYASI'), ss;
+  if (id) { try { ss = SpreadsheetApp.openById(id); } catch (err) { ss = null; } }
+  if (!ss) {
+    ss = SpreadsheetApp.create('BAP Panel Cevapları');
+    var s0 = ss.getSheets()[0]; s0.setName('Cevaplar');
+    s0.appendRow(['Zaman', 'Bölüm', 'Kaynak dosya', 'Satır', 'Konu', 'Sahibin cevabı', 'Durum', 'İşleyen ajan', 'İşlenme zamanı']);
+    s0.setFrozenRows(1);
+    p.setProperty('CEVAP_DOSYASI', ss.getId());
+  }
+  ss.getSheetByName('Cevaplar').appendRow([damga, bolum, kaynak, satir, konu, cevap, 'Yeni', '', '']);
+}
+
+/* ---------------- Yardımcılar ---------------- */
+
+function json_(o) { return ContentService.createTextOutput(JSON.stringify(o)).setMimeType(ContentService.MimeType.JSON); }
+
+function norm_(s) {
+  return String(s == null ? '' : s).replace(/İ/g, 'i').toLowerCase()
+    .replace(/ı/g, 'i').replace(/ş/g, 's').replace(/ğ/g, 'g').replace(/ü/g, 'u').replace(/ö/g, 'o').replace(/ç/g, 'c')
+    .replace(/[^a-z0-9]/g, '');
+}
+
+function kolon_(baslik, adaylar) {
+  var n = baslik.map(norm_), i, j, a;
+  for (i = 0; i < adaylar.length; i++) { j = n.indexOf(norm_(adaylar[i])); if (j >= 0) return j; }
+  for (i = 0; i < adaylar.length; i++) { a = norm_(adaylar[i]); for (j = 0; j < n.length; j++) if (n[j] && n[j].indexOf(a) === 0) return j; }
+  return -1;
+}
+
+function tablo_(ss, ad) {
+  var sh = ss.getSheetByName(ad);
+  if (!sh || sh.getLastRow() < 2) return { baslik: [], satirlar: [], idx: {} };
+  var v = sh.getDataRange().getDisplayValues(), idx = {};
+  v[0].forEach(function (h, i) { idx[String(h).trim().toUpperCase()] = i; });
+  return { baslik: v[0], satirlar: v.slice(1), idx: idx };
+}
+function al_(t, r, ad) { var i = t.idx[ad]; return i === undefined ? '' : r[i]; }
+function testMi_(id) { return /TEST/i.test(String(id || '')); }
+
+function sayi_(v) {
+  if (typeof v === 'number') return v;
+  var s = String(v || '').replace(/[^\d,.\-]/g, '');
+  if (!s) return 0;
+  if (/^-?\d{1,3}(\.\d{3})+$/.test(s)) s = s.replace(/\./g, ''); // 861.265 → 861265 (binlik nokta)
+  else if (s.indexOf(',') >= 0 && s.indexOf('.') >= 0) s = s.lastIndexOf(',') > s.lastIndexOf('.') ? s.replace(/\./g, '').replace(',', '.') : s.replace(/,/g, '');
+  else if (s.indexOf(',') >= 0) s = s.replace(',', '.');
+  var x = parseFloat(s); return isNaN(x) ? 0 : x;
+}
+
+// İstanbul saatiyle yazılmış zamanı saat diliminden bağımsız milisaniyeye çevirir (karşılaştırma için).
+function zaman_(v) {
+  var s = (v instanceof Date) ? Utilities.formatDate(v, TZ, 'dd.MM.yyyy HH:mm:ss') : String(v || '').trim();
+  var m = s.match(/^(\d{1,2})[.\/](\d{1,2})[.\/](\d{4})(?:[ T](\d{1,2}):(\d{2})(?::(\d{2}))?)?/);
+  if (m) return Date.UTC(+m[3], +m[2] - 1, +m[1], +(m[4] || 0), +(m[5] || 0), +(m[6] || 0));
+  m = s.match(/^(\d{4})-(\d{2})-(\d{2})(?:[ T](\d{2}):(\d{2})(?::(\d{2}))?)?/);
+  if (m) return Date.UTC(+m[1], +m[2] - 1, +m[3], +(m[4] || 0), +(m[5] || 0), +(m[6] || 0));
+  return null;
+}
+function simdi_() { return zaman_(new Date()); }
+
+// İş günü 10:00 – ertesi gün 03:00: gece 00:00-03:00 arası bir önceki güne yazılır.
+function isGunu_(ms) { return new Date(ms - 3 * 3600000).toISOString().slice(0, 10); }
+function gunEkle_(gun, k) { return new Date(Date.parse(gun + 'T00:00:00Z') + k * 86400000).toISOString().slice(0, 10); }
+
+function z_() { return { ciro: 0, adet: 0 }; }
+function ek_(o, t) { o.ciro += t; o.adet++; }
+function topla_(o, k, t) { k = String(k || '').trim() || 'Belirtilmemiş'; o[k] = (o[k] || 0) + t; }
+function sirala_(o) {
+  return Object.keys(o).map(function (k) { return { ad: k, deger: Math.round(o[k] * 100) / 100 }; })
+    .sort(function (a, b) { return b.deger - a.deger; });
+}
+
+// Marka adından şube kısmını atar: "BAP Pizza Erenköy" → "BAP Pizza". Yalnız "BAP Erenköy" yazanlar Adisyo'dan girilen siparişlerdir.
+function markaKok_(s) {
+  var t = String(s || '').replace(/erenk[öo]y|fikirtepe/ig, '').replace(/\s{2,}/g, ' ').trim();
+  if (!t) return 'Belirtilmemiş';
+  if (norm_(t) === 'bap') return "BAP (Adisyo'dan girilen)";
+  return t;
+}
+
+function mahEkle_(o, bos, donem, ad, tutar) {
+  if (!ad) { bos[donem]++; return; }
+  var x = o[ad] = o[ad] || { ciro: 0, adet: 0 }; x.ciro += tutar; x.adet++;
+}
+function mahSirala_(o) {
+  return Object.keys(o).map(function (k) { return { ad: k, ciro: Math.round(o[k].ciro), adet: o[k].adet }; })
+    .sort(function (a, b) { return b.adet - a.adet || b.ciro - a.ciro; }).slice(0, 30);
+}
+
+// Şube adlarını tek biçime getirir: "Erenköy", "BAP Erenköy", "erenkoy" → "BAP Erenköy".
+function subeAnahtar_(s) {
+  var n = norm_(s); if (!n) return '';
+  if (n.indexOf('erenkoy') >= 0) return 'BAP Erenköy';
+  if (n.indexOf('fikirtepe') >= 0) return 'BAP Fikirtepe';
+  return String(s).trim();
+}
+
+function depEsle_(ad) {
+  var n = norm_(ad); if (!n) return null;
+  for (var i = 0; i < DEPARTMANLAR.length; i++) { var d = norm_(DEPARTMANLAR[i]); if (n === d || n.indexOf(d) === 0 || d.indexOf(n) === 0) return DEPARTMANLAR[i]; }
+  return null;
+}
+
+// Sahibe gösterilen metinden iş kodlarını temizler (ör. "TS-G12", "MI-C6").
+function kodsuz_(s) {
+  return String(s || '').replace(/\b(?:MI|OP|IK|FN|SG|SM|TS|IG|GM)-[A-Z]{0,4}\d+[a-z]?\b/g, '')
+    .replace(/\(\s*[,;]?\s*\)/g, '').replace(/\s{2,}/g, ' ').trim();
+}

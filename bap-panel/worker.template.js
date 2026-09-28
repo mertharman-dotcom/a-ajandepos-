@@ -1,0 +1,88 @@
+// BAP Yönetim Paneli — Cloudflare Worker (tek dosya)
+//
+// Cloudflare'de Settings > Variables and Secrets bölümüne şu üç ayarı girin:
+//   GAS_URL        (Text)   Apps Script web uygulamasının adresi (sonu /exec ile biter)
+//   GAS_KEY        (Secret) Apps Script'te anahtarOlustur ile üretilen anahtar
+//   ALLOWED_EMAIL  (Text)   Panele girebilecek tek e-posta adresi
+//
+// Güvenlik: Cloudflare Access açık değilse ya da giriş yapan e-posta ALLOWED_EMAIL değilse
+// panel hiçbir veri göstermez. Veri kapısının anahtarı tarayıcıya hiç gönderilmez.
+
+const PAGE = __PAGE__;
+
+const LOCKED = "<!doctype html><html lang=\"tr\"><head><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width, initial-scale=1\"><meta name=\"robots\" content=\"noindex, nofollow\"><title>BAP Yönetim Paneli</title>\n<style>body{margin:0;min-height:100vh;display:grid;place-items:center;background:#E9ECEE;color:#34312D;font-family:\"Segoe UI\",system-ui,sans-serif}main{max-width:460px;padding:32px;background:#FBFAF7;border:1px solid #D9D4CB;border-radius:12px}b{font-size:28px;letter-spacing:.14em}h1{font-size:20px;margin:18px 0 6px}p{margin:0;color:#76706A;line-height:1.5}</style></head>\n<body><main><b>BAP</b><h1>Bu panele giriş kapalı</h1><p>Panel yalnızca izin verilen e-posta adresiyle, Cloudflare giriş ekranından açılır. Giriş ekranını görmediysen panelin korumasının henüz açılmadığı anlamına gelir; kurulum rehberindeki koruma adımını tamamla.</p></main></body></html>\n";
+
+const HTML_HEADERS = {
+  'content-type': 'text/html; charset=utf-8',
+  'cache-control': 'no-store',
+  'x-frame-options': 'DENY',
+  'x-content-type-options': 'nosniff',
+  'referrer-policy': 'no-referrer',
+  'x-robots-tag': 'noindex, nofollow'
+};
+
+function json(obj, status) {
+  return new Response(JSON.stringify(obj), {
+    status: status || 200,
+    headers: { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store', 'x-content-type-options': 'nosniff' }
+  });
+}
+
+export default {
+  async fetch(request, env) {
+    const email = (request.headers.get('cf-access-authenticated-user-email') || '').trim().toLowerCase();
+    const izinli = (env.ALLOWED_EMAIL || '').trim().toLowerCase();
+    if (!izinli || email !== izinli) {
+      return new Response(LOCKED, { status: 403, headers: HTML_HEADERS });
+    }
+
+    const url = new URL(request.url);
+
+    if (url.pathname === '/api/data') {
+      if (!env.GAS_URL || !env.GAS_KEY) {
+        return json({ hata: 'Veri kapısı ayarları eksik: Cloudflare ayarlarına GAS_URL ve GAS_KEY girilmeli.' }, 500);
+      }
+      const hedef = new URL(env.GAS_URL);
+      hedef.searchParams.set('key', env.GAS_KEY);
+      if (url.searchParams.get('fresh')) hedef.searchParams.set('fresh', '1');
+      try {
+        const r = await fetch(hedef.toString(), { redirect: 'follow' });
+        const metin = await r.text();
+        let veri;
+        try { veri = JSON.parse(metin); }
+        catch (e) {
+          return json({ hata: 'Veri kapısı beklenmeyen bir cevap verdi. Apps Script yayınında "Erişimi olanlar: Herkes" seçili mi, adres /exec ile mi bitiyor, kontrol edin.' }, 502);
+        }
+        if (veri && veri.hata === 'yetkisiz') {
+          return json({ hata: 'Veri kapısı anahtarı eşleşmiyor. Cloudflare GAS_KEY ile Apps Script anahtarı aynı olmalı.' }, 502);
+        }
+        return json(veri, 200);
+      } catch (e) {
+        return json({ hata: 'Veri kapısına ulaşılamadı. Biraz sonra yeniden deneyin.' }, 502);
+      }
+    }
+
+    if (url.pathname === '/api/cevap' && request.method === 'POST') {
+      // Yalnızca panelin kendisinden gelen istek kabul edilir (başka siteden gönderilemez).
+      if (request.headers.get('x-bap-panel') !== '1' || (request.headers.get('origin') || url.origin) !== url.origin) {
+        return json({ hata: 'İzin verilmeyen istek.' }, 403);
+      }
+      let govde;
+      try { govde = await request.json(); } catch (e) { return json({ hata: 'Geçersiz istek.' }, 400); }
+      const ileti = JSON.stringify({ key: env.GAS_KEY, tur: 'cevap', kaynak: String(govde.kaynak || ''), no: String(govde.no || ''),
+        konu: String(govde.konu || '').slice(0, 500), cevap: String(govde.cevap || '').slice(0, 1500),
+        satir: String(govde.satir || ''), ad: String(govde.ad || '').slice(0, 120), alan: String(govde.alan || '').slice(0, 60) });
+      try {
+        const r = await fetch(env.GAS_URL, { method: 'POST', headers: { 'content-type': 'application/json' }, body: ileti, redirect: 'follow' });
+        const metin = await r.text();
+        try { return json(JSON.parse(metin), 200); }
+        catch (e) { return json({ hata: 'Cevap kaydedilemedi: veri kapısı beklenmeyen bir cevap verdi. Apps Script yeni sürüm olarak yayınlandı mı?' }, 502); }
+      } catch (e) { return json({ hata: 'Veri kapısına ulaşılamadı; cevap kaydedilmedi.' }, 502); }
+    }
+
+    if (url.pathname === '/' || url.pathname === '/index.html') {
+      return new Response(PAGE, { headers: HTML_HEADERS });
+    }
+    return new Response('Bulunamadı', { status: 404 });
+  }
+};
