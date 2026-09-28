@@ -3,7 +3,8 @@
  *
  * Ne yapar: Panel verisini tablolardan OKUR ve özet olarak panele verir.
  * Yazma: Yalnızca sahibin panelden verdiği cevabı yazar (doPost): ilgili sorunun Cevap hücresine ekler ve
- *        'BAP Panel Cevapları' tablosuna kayıt düşer. Başka hiçbir hücreyi değiştirmez, hiçbir şey silmez.
+ *        'BAP Panel Cevapları' tablosuna kayıt düşer. Toptancı ödemesi girilince 'Kolaybi Fatura Ham Veri › Odemeler'
+ *        sekmesinin sonuna yeni satır ekler. Başka hiçbir hücreyi değiştirmez, hiçbir şey silmez.
  * Gizlilik: Müşteri adı, telefonu, adresi ve personel kişisel bilgisi dışarı verilmez; yalnız toplamlar döner.
  * Erişim: Yalnızca doğru anahtarla gelen isteğe cevap verir. Anahtar koda yazılmaz, Komut Dosyası Özelliklerinde durur.
  *
@@ -342,23 +343,28 @@ function finans_() {
   // Ödemeler
   var od = satirlar_(ss, 'Odemeler');
   var oT = kolon_(od.b, ['Tarih']), oG = kolon_(od.b, ['Tedarikçi']), oU = kolon_(od.b, ['Tutar']), oY = kolon_(od.b, ['Yöntem']);
-  var odemeler = [], odeme = { buAy: 0, buAyAdet: 0 };
-  od.r.forEach(function (r) {
+  var oA = kolon_(od.b, ODEME_SUTUN.aciklama);
+  var odemeler = [], odeme = { buAy: 0, buAyAdet: 0 }, yontemler = {};
+  od.r.forEach(function (r, i) {
     var ms = zaman_(r[oT]); if (ms === null) return;
-    var t = sayi_(r[oU]), tarih = new Date(ms).toISOString().slice(0, 10);
-    odemeler.push({ ms: ms, tarih: tarih, ad: String(r[oG] || '').trim(), tutar: t, yontem: oY >= 0 ? r[oY] : '' });
+    var t = sayi_(r[oU]), tarih = new Date(ms).toISOString().slice(0, 10), y = oY >= 0 ? String(r[oY] || '').trim() : '';
+    odemeler.push({ ms: ms, sira: i, tarih: tarih, ad: String(r[oG] || '').trim(), tutar: t, yontem: y, aciklama: oA >= 0 ? String(r[oA] || '').trim() : '' });
+    if (y) yontemler[y] = 1;
     if (tarih.slice(0, 7) === ay) { odeme.buAy += t; odeme.buAyAdet++; }
   });
-  odeme.son = odemeler.slice().sort(function (a, b) { return b.ms - a.ms; }).slice(0, 10)
-    .map(function (o) { return { tarih: o.tarih, ad: o.ad, tutar: Math.round(o.tutar * 100) / 100, yontem: o.yontem }; });
+  // Aynı gün girilen ödemelerde en son eklenen en üstte görünsün.
+  odeme.son = odemeler.slice().sort(function (a, b) { return b.ms - a.ms || b.sira - a.sira; }).slice(0, 40)
+    .map(function (o) { return { tarih: o.tarih, ad: o.ad, tutar: Math.round(o.tutar * 100) / 100, yontem: o.yontem, aciklama: o.aciklama }; });
+  odeme.yontemler = Object.keys(yontemler).sort();
   out.odeme = odeme;
 
   // Tedarikçi borcu ve vadesi geçen (ödemeler en eski faturadan kapatılır)
   var td = satirlar_(ss, 'Tedarikciler');
   var dG = kolon_(td.b, ['Tedarikçi']), dV = kolon_(td.b, ['Vade_Gun']), dA = kolon_(td.b, ['Acilis_Bakiye']);
-  var borc = { toplam: 0, vadesiGecen: 0, tedarikciSayisi: 0, vgTedarikci: 0, liste: [] };
+  var borc = { toplam: 0, vadesiGecen: 0, tedarikciSayisi: 0, vgTedarikci: 0, liste: [] }, tumTed = [];
   td.r.forEach(function (r) {
     var ad = String(r[dG] || '').trim(); if (!ad) return;
+    tumTed.push(ad);
     var n = norm_(ad), vade = sayi_(r[dV]) || 30, acilis = sayi_(r[dA]);
     var fat = faturalar.filter(function (f) { return norm_(f.ad) === n; }).sort(function (a, b) { return a.ms - b.ms; });
     var odenen = odemeler.filter(function (o) { return norm_(o.ad) === n; }).reduce(function (t, o) { return t + o.tutar; }, 0);
@@ -378,6 +384,8 @@ function finans_() {
   });
   borc.liste.sort(function (a, b) { return b.vadesiGecen - a.vadesiGecen || b.borc - a.borc; });
   out.borc = borc;
+  // Ödeme ekranındaki toptancı listesi: borcu olmayanlar da seçilebilsin.
+  out.tedarikciler = tumTed.sort(function (a, b) { return a.localeCompare(b, 'tr'); });
 
   // Yemek kartı / kurum alacakları (satış faturaları)
   var sf = satirlar_(ss, 'Satis_Faturalari');
@@ -663,6 +671,11 @@ function doPost(e) {
   var d; try { d = JSON.parse(e.postData.contents); } catch (err) { return json_({ hata: 'Geçersiz istek' }); }
   var anahtar = PropertiesService.getScriptProperties().getProperty('PANEL_KEY');
   if (!anahtar || d.key !== anahtar) return json_({ hata: 'yetkisiz' });
+  if (d.tur === 'odeme') {
+    var k = LockService.getScriptLock(); k.waitLock(20000);
+    try { return json_(toptanciOdemeGir_(d)); }
+    finally { k.releaseLock(); CacheService.getScriptCache().remove('panel_v1_n'); }
+  }
   var cevap = String(d.cevap || '').replace(/\s+/g, ' ').trim().slice(0, 1500);
   if (!cevap) return json_({ hata: 'Cevap boş.' });
   var kilit = LockService.getScriptLock(); kilit.waitLock(20000);
@@ -690,6 +703,86 @@ function finansSoruCevapla_(d, cevap) {
     }
   }
   return { hata: 'Soru tabloda bulunamadı; tablo değişmiş olabilir. Sayfayı yenileyip tekrar deneyin.' };
+}
+
+/* ---------------- Toptancı ödemesi girişi ---------------- */
+
+// Odemeler sekmesindeki sütunlar başlık adına göre bulunur; sütun sırası değişse de doğru hücreye yazılır.
+var ODEME_SUTUN = {
+  tarih: ['Tarih'], tedarikci: ['Tedarikçi', 'Toptancı', 'Firma'], tutar: ['Tutar'], yontem: ['Yöntem', 'Ödeme_Yöntemi', 'Odeme Yontemi'],
+  aciklama: ['Açıklama', 'Aciklama', 'Not'], kayit: ['Kayıt_Zamanı', 'Kayit_Zamani', 'Girilme'], kaynak: ['Kaynak', 'Giren']
+};
+
+// Panel POST ile { key, tur: 'odeme', istekNo, tedarikci, tutar, tarih, yontem, aciklama, onay } gönderir.
+// Yalnızca Odemeler sekmesinin sonuna yeni satır ekler; mevcut satırlara dokunmaz.
+function toptanciOdemeGir_(d) {
+  var cache = CacheService.getScriptCache(), istek = String(d.istekNo || '').slice(0, 64);
+  if (istek && cache.get('odeme_' + istek)) return { hata: 'Bu ödeme az önce kaydedildi; iki kez gönderilmedi.' };
+
+  var ss = SpreadsheetApp.openById(KAYNAK.fatura.id);
+  // Toptancı adı Tedarikciler listesindekiyle birebir aynı yazılmalı, yoksa borçtan düşülmez.
+  var td = satirlar_(ss, 'Tedarikciler'), dG = kolon_(td.b, ['Tedarikçi']), aranan = norm_(d.tedarikci), ad = '';
+  td.r.forEach(function (r) { var x = String(r[dG] || '').trim(); if (x && norm_(x) === aranan) ad = x; });
+  if (!aranan) return { hata: 'Toptancı seçin.' };
+  if (!ad) return { hata: 'Bu toptancı Tedarikciler listesinde yok. Önce tabloya ekleyin; yoksa ödeme borçtan düşülmez.' };
+
+  var tutar = Math.round(sayi_(d.tutar) * 100) / 100;
+  if (!(tutar > 0)) return { hata: 'Geçerli bir tutar yazın.' };
+  if (tutar > 5000000) return { hata: 'Tutar çok yüksek görünüyor; kontrol edin.' };
+
+  var m = String(d.tarih || '').match(/^(\d{4})-(\d{2})-(\d{2})$/) || null, g, a, y;
+  if (m) { y = +m[1]; a = +m[2]; g = +m[3]; }
+  else { m = String(d.tarih || '').match(/^(\d{1,2})[.\/-](\d{1,2})[.\/-](\d{4})$/); if (!m) return { hata: 'Tarih GG.AA.YYYY biçiminde olmalı.' }; g = +m[1]; a = +m[2]; y = +m[3]; }
+  var tarih = new Date(y, a - 1, g, 12, 0, 0);
+  if (tarih.getMonth() !== a - 1 || tarih.getDate() !== g) return { hata: 'Geçersiz tarih.' };
+  var gun = (tarih.getTime() - Date.now()) / 86400000;
+  if (gun > 1) return { hata: 'İleri tarihli ödeme girilemez.' };
+  if (gun < -400) return { hata: 'Bir yıldan eski ödeme panelden girilemez; tabloya elle yazın.' };
+  var tarihYazi = Utilities.formatDate(tarih, TZ, 'dd.MM.yyyy');
+
+  var yontem = String(d.yontem || '').replace(/\s+/g, ' ').trim().slice(0, 40);
+  if (!yontem) return { hata: 'Ödeme yöntemini seçin.' };
+  var aciklama = String(d.aciklama || '').replace(/\s+/g, ' ').trim().slice(0, 300);
+
+  var sh = ss.getSheetByName('Odemeler');
+  if (!sh) {
+    sh = ss.insertSheet('Odemeler');
+    sh.appendRow(['Tarih', 'Tedarikçi', 'Tutar', 'Yöntem', 'Açıklama', 'Kayıt_Zamanı', 'Kaynak']);
+    sh.setFrozenRows(1);
+  }
+  var lc = Math.max(1, sh.getLastColumn()), b = sh.getRange(1, 1, 1, lc).getValues()[0].map(String);
+  var c = {}; Object.keys(ODEME_SUTUN).forEach(function (k) { c[k] = kolon_(b, ODEME_SUTUN[k]); });
+  if (c.tarih < 0 || c.tedarikci < 0 || c.tutar < 0) return { hata: "Odemeler sekmesinde Tarih, Tedarikçi ve Tutar başlıkları bulunamadı." };
+  // Eksik yardımcı sütunları sona ekle (Yöntem, Açıklama, kayıt izi), mevcut sütunların yerini değiştirmez.
+  [['yontem', 'Yöntem'], ['aciklama', 'Açıklama'], ['kayit', 'Kayıt_Zamanı'], ['kaynak', 'Kaynak']].forEach(function (x) {
+    if (c[x[0]] < 0) { lc++; sh.getRange(1, lc).setValue(x[1]); c[x[0]] = lc - 1; b.push(x[1]); }
+  });
+
+  // Aynı gün, aynı toptancı, aynı tutar zaten varsa önce sor.
+  if (d.onay !== '1' && sh.getLastRow() >= 2) {
+    var v = sh.getRange(2, 1, sh.getLastRow() - 1, lc).getValues(), tz = zaman_(tarih);
+    for (var i = v.length - 1; i >= 0; i--) {
+      if (norm_(v[i][c.tedarikci]) === aranan && Math.abs(sayi_(v[i][c.tutar]) - tutar) < 0.01 && zaman_(v[i][c.tarih]) !== null
+          && new Date(zaman_(v[i][c.tarih])).toISOString().slice(0, 10) === new Date(tz).toISOString().slice(0, 10)) {
+        return { tekrarMi: true, hata: tarihYazi + ' tarihinde ' + ad + ' için aynı tutarda bir ödeme zaten var. Yine de eklemek istiyorsan onayla.' };
+      }
+    }
+  }
+
+  var damga = Utilities.formatDate(new Date(), TZ, 'dd.MM.yyyy HH:mm:ss');
+  var satir = []; for (var j = 0; j < lc; j++) satir.push('');
+  satir[c.tarih] = tarih; satir[c.tedarikci] = ad; satir[c.tutar] = tutar; satir[c.yontem] = yontem;
+  satir[c.aciklama] = aciklama; satir[c.kayit] = damga; satir[c.kaynak] = 'Panel';
+  var no = sh.getLastRow() + 1;
+  sh.getRange(no, 1, 1, lc).setValues([satir]);
+  sh.getRange(no, c.tarih + 1).setNumberFormat('dd.mm.yyyy');
+  sh.getRange(no, c.tutar + 1).setNumberFormat('#,##0.00');
+  if (istek) cache.put('odeme_' + istek, '1', 600);
+
+  var ozet = ad + ' — ' + tutar.toLocaleString('tr-TR') + ' TL (' + yontem + ')' + (aciklama ? ', ' + aciklama : '');
+  // Satır yazıldı; kayıt defterine düşülemese bile ödeme kaydedilmiş sayılır (tekrar gönderilip çift yazılmasın).
+  try { cevapKaydet_('Finans', 'Kolaybi Fatura Ham Veri › Odemeler', no, 'Toptancı ödemesi ' + tarihYazi, ozet, damga.slice(0, 16)); } catch (err) { }
+  return { tamam: true, satir: no, ad: ad, tutar: tutar, tarih: tarihYazi, yontem: yontem };
 }
 
 // Tüm panel cevaplarının ortak kaydı. İlk cevapta dosya kendiliğinden oluşturulur.

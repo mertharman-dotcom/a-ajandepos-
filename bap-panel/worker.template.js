@@ -80,6 +80,25 @@ export default {
       } catch (e) { return json({ hata: 'Veri kapısına ulaşılamadı; cevap kaydedilmedi.' }, 502); }
     }
 
+    if (url.pathname === '/api/odeme' && request.method === 'POST') {
+      // Toptancı ödemesi: yalnızca panelin kendisinden gelen istek kabul edilir.
+      if (request.headers.get('x-bap-panel') !== '1' || (request.headers.get('origin') || url.origin) !== url.origin) {
+        return json({ hata: 'İzin verilmeyen istek.' }, 403);
+      }
+      let govde;
+      try { govde = await request.json(); } catch (e) { return json({ hata: 'Geçersiz istek.' }, 400); }
+      const ileti = JSON.stringify({ key: env.GAS_KEY, tur: 'odeme', istekNo: String(govde.istekNo || '').slice(0, 64),
+        tedarikci: String(govde.tedarikci || '').slice(0, 200), tutar: String(govde.tutar || '').slice(0, 20),
+        tarih: String(govde.tarih || '').slice(0, 10), yontem: String(govde.yontem || '').slice(0, 40),
+        aciklama: String(govde.aciklama || '').slice(0, 300), onay: govde.onay === '1' ? '1' : '' });
+      try {
+        const r = await fetch(env.GAS_URL, { method: 'POST', headers: { 'content-type': 'application/json' }, body: ileti, redirect: 'follow' });
+        const metin = await r.text();
+        try { return json(JSON.parse(metin), 200); }
+        catch (e) { return json({ hata: 'Ödeme kaydedilemedi: veri kapısı beklenmeyen bir cevap verdi. Apps Script yeni sürüm olarak yayınlandı mı?' }, 502); }
+      } catch (e) { return json({ hata: 'Veri kapısına ulaşılamadı; ödeme kaydedilmedi.' }, 502); }
+    }
+
     if (url.pathname === '/' || url.pathname === '/index.html') {
       return new Response(PAGE, { headers: HTML_HEADERS });
     }

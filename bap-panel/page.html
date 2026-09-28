@@ -138,11 +138,24 @@ h1{font-size:34px;line-height:1.12;margin:0;font-weight:700;letter-spacing:-.015
 .uyari b{display:block;margin-bottom:2px}
 .bilgi{background:var(--mavi-acik);border-radius:var(--r);padding:14px 18px;font-size:14px;margin-bottom:24px;max-width:80ch}
 
+.odeme-form{background:var(--kagit);border:1px solid var(--cizgi);border-radius:var(--r);padding:18px;margin-bottom:28px}
+.odeme-izgara{display:grid;grid-template-columns:minmax(0,2fr) minmax(0,1fr) minmax(0,1fr) minmax(0,1fr);gap:14px 16px}
+.odeme-izgara label{display:flex;flex-direction:column;gap:5px;font-size:13px;color:var(--gri);min-width:0}
+.odeme-izgara .genis{grid-column:1/-1}
+.odeme-izgara select,.odeme-izgara input{font:inherit;font-size:15px;padding:9px 10px;border:1px solid var(--cizgi);border-radius:var(--r-kucuk);background:var(--zemin);color:var(--murekkep);width:100%;min-width:0}
+.odeme-izgara select:focus,.odeme-izgara input:focus{outline:2px solid var(--mavi-koyu);outline-offset:1px}
+.odeme-ipucu{font-size:13px;color:var(--murekkep);min-height:20px;display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.odeme-ipucu button{cursor:pointer;border:1px solid var(--cizgi);background:var(--kum-acik);border-radius:999px;padding:1px 10px;font-size:12.5px}
+.dugme.ana-dugme{background:var(--mavi-koyu);border-color:var(--mavi-koyu);color:var(--kagit);font-weight:600}
+.odeme-alt{display:flex;align-items:center;gap:12px;margin-top:16px;flex-wrap:wrap}
+.cevap-durum.iyi{color:var(--iyi);font-weight:600} .cevap-durum.kotu{color:var(--kotu)}
+@media (max-width:760px){.odeme-izgara{grid-template-columns:1fr 1fr}.odeme-izgara .ted{grid-column:1/-1}}
+
 .yukleniyor{padding:80px 0;color:var(--gri);font-size:15px}
 
-@media (max-width:1100px){ .iki{grid-template-columns:1fr} }
+@media (max-width:1100px){ .iki{grid-template-columns:minmax(0,1fr)} }
 @media (max-width:760px){
-  .kabuk{grid-template-columns:1fr}
+  .kabuk{grid-template-columns:minmax(0,1fr)}
   .yan{position:sticky;top:0;height:auto;z-index:5;padding:12px 10px;border-right:0;border-bottom:1px solid var(--cizgi)}
   .marka{display:none} .yan-alt{display:none}
   .nav{flex-direction:row;overflow-x:auto;gap:4px}
@@ -168,7 +181,7 @@ h1{font-size:34px;line-height:1.12;margin:0;font-weight:700;letter-spacing:-.015
 <script>
 (function(){
 "use strict";
-var BOLUMLER=[["merkez","Yönetim Merkezi"],["ozet","İşletme Özeti"],["satis","Satışlar"],["finans","Finans"],["alim","Alımlar & Giderler"],["stok","Ürün, Stok & Hazırlık"],["kurye","Kurye & Teslimat"],["personel","Personel"],["musteri","Müşteri İlişkileri"],["genel","Genel Bilgiler"],["kararlar","Kararlarım"],["ai","AI Ekibi"]];
+var BOLUMLER=[["merkez","Yönetim Merkezi"],["ozet","İşletme Özeti"],["satis","Satışlar"],["finans","Finans"],["odeme","Toptancı Ödemeleri"],["alim","Alımlar & Giderler"],["stok","Ürün, Stok & Hazırlık"],["kurye","Kurye & Teslimat"],["personel","Personel"],["musteri","Müşteri İlişkileri"],["genel","Genel Bilgiler"],["kararlar","Kararlarım"],["ai","AI Ekibi"]];
 var YETKI={L0:"Yalnız inceleme",L1:"Öneri ve taslak",L2:"Önceden izinli küçük işlem",L3:"Direktör yetkisinde",L4:"Senin onayın gerekiyor",L5:"Yapay zeka uygulayamaz"};
 var DURUM={COMPLETED:"Tamamlandı",WAITING_MERT:"Senin onayını bekliyor",WAITING_REVIEW:"İkinci kontrol bekliyor",ROUTED:"Sıraya alındı",IN_ANALYSIS:"Analizde",NEW:"Yeni",BLOCKED:"Durduruldu",ERROR_FINAL:"Hatayla kapandı",APPROVED:"Onaylandı",REJECTED:"Reddedildi",IN_IMPLEMENTATION:"Uygulanıyor",EXECUTED:"Uygulandı",VERIFYING:"Doğrulanıyor",VERIFIED:"Doğrulandı","BOŞ":"Durumu yazılmamış"};
 var VERI=null, AKTIF=(location.hash||"#merkez").slice(1), YUKLENIYOR=false;
@@ -324,6 +337,7 @@ function tablo(basliklar,satirlar){return el("div",{class:"liste kaydir"},[el("t
 function tedHucre(ad){return el("span",{title:ad,text:kisaAd(ad)});}
 
 function finansSayfa(a){var f=VERI.finans;a.appendChild(ust("Finans","Tedarikçi borçları, alacaklar ve aylık giderler. Kaynak: Kolaybi faturaları ve aylık gider takibi."));a.appendChild(nabizSeridi(["finans","alim"]));var h=hatalarKutusu(["finans"]);if(h)a.appendChild(h);if(!f)return;
+  a.appendChild(odemeGirDugmesi());
   var al=f.alis,od=f.odeme,b=f.borc,ac=f.alacak;var k=al.gecenAyAyniDonem?karsilastir(al.buAy,al.gecenAyAyniDonem):{m:null,s:""};
   a.appendChild(el("div",{class:"rakamlar"},[rakam(ayAd(f.ay)+" alımları",para(al.buAy),k.m?k.m.replace("geçen haftanın aynı saatine","geçen ayın aynı dönemine"):al.buAyAdet+" fatura",k.s==="yukari"?"asagi":(k.s==="asagi"?"yukari":"")),
     rakam(ayAd(f.ay)+" ödenen",para(od.buAy),od.buAyAdet+" ödeme kaydı"),rakam("Toplam tedarikçi borcu",para(b.toplam),b.tedarikciSayisi+" tedarikçi"),
@@ -350,6 +364,7 @@ function soruSatiri(s){var notEl=el("div",{class:"meta"},[s.etki?el("span",{text
     el("div",{class:"cevap-kutu"},[alan,el("div",{class:"cevap-alt"},[dug,durum])])]);}
 
 function alimSayfa(a){var f=VERI.finans;a.appendChild(ust("Alımlar & giderler","Kolaybi'ye düşen alış faturaları ve yapılan ödemeler."));a.appendChild(nabizSeridi("alim"));var h=hatalarKutusu(["finans"]);if(h)a.appendChild(h);if(!f)return;
+  a.appendChild(odemeGirDugmesi());
   var al=f.alis,od=f.odeme;var k=al.gecenAyAyniDonem?karsilastir(al.buAy,al.gecenAyAyniDonem):null;
   a.appendChild(el("div",{class:"rakamlar"},[rakam(ayAd(f.ay)+" alımları",para(al.buAy),al.buAyAdet+" fatura"),rakam("Geçen ayın aynı dönemi",para(al.gecenAyAyniDonem),k?k.m.replace("geçen haftanın aynı saatine göre","fark"):null),
     rakam("Geçen ay toplam",para(al.gecenAy)),rakam(ayAd(f.ay)+" ödenen",para(od.buAy),od.buAyAdet+" ödeme"),rakam("Tedarikçi sayısı",String(al.tedarikciBuAy.length),"bu ay fatura kesen")]));
@@ -357,7 +372,93 @@ function alimSayfa(a){var f=VERI.finans;a.appendChild(ust("Alımlar & giderler",
   a.appendChild(el("div",{class:"iki"},[blok(ayAd(f.ay)+" tedarikçilere göre","Bu ay kesilen alış faturalarının toplamı.",al.tedarikciBuAy.length?tablo([["Tedarikçi"],["Fatura",1],["Tutar",1]],al.tedarikciBuAy.map(function(x){return [tedHucre(x.ad),String(x.adet),para(x.tutar)];})):bos("Bu ay alış faturası yok.")),
     blok("Son 6 ay alımlar",null,cubuklar(seri))]));
   a.appendChild(el("div",{class:"iki"},[blok("Son gelen faturalar",null,tablo([["Tarih"],["Tedarikçi"],["Tutar",1]],al.sonFaturalar.map(function(x){return [tarihTr(x.tarih),tedHucre(x.ad),para(x.tutar)];}))),
-    blok("Son ödemeler",null,od.son.length?tablo([["Tarih"],["Tedarikçi"],["Tutar",1]],od.son.map(function(x){return [tarihTr(x.tarih),tedHucre(x.ad),para(x.tutar)];})):bos("Ödeme kaydı yok."))]));}
+    blok("Son ödemeler",null,od.son.length?tablo([["Tarih"],["Tedarikçi"],["Tutar",1]],od.son.slice(0,10).map(function(x){return [tarihTr(x.tarih),tedHucre(x.ad),para(x.tutar)];})):bos("Ödeme kaydı yok."))]));}
+
+/* ---- Toptancı ödemesi girişi: Kolaybi Fatura Ham Veri › Odemeler sekmesine yazar ---- */
+function odemeGirDugmesi(){return el("p",{style:"margin:0 0 22px"},[el("button",{type:"button",class:"dugme ana-dugme",onclick:function(){git("odeme");}},["+ Toptancı ödemesi gir"])]);}
+function bugunIst(){try{return new Intl.DateTimeFormat("en-CA",{timeZone:"Europe/Istanbul",year:"numeric",month:"2-digit",day:"2-digit"}).format(new Date());}catch(e){return new Date().toISOString().slice(0,10);}}
+function yeniIstekNo(){try{if(window.crypto&&crypto.randomUUID)return crypto.randomUUID();}catch(e){}return Date.now().toString(36)+Math.random().toString(36).slice(2);}
+// "12.500", "12.500,50", "12500,5", "12500.5" → sayı
+function tutarOku(s){s=String(s||"").replace(/[^\d,.\-]/g,"");if(!s)return 0;
+  if(/^\d{1,3}(\.\d{3})+$/.test(s))s=s.replace(/\./g,"");
+  else if(s.indexOf(",")>=0&&s.indexOf(".")>=0)s=s.lastIndexOf(",")>s.lastIndexOf(".")?s.replace(/\./g,"").replace(",","."):s.replace(/,/g,"");
+  else if(s.indexOf(",")>=0)s=s.replace(",",".");
+  var x=parseFloat(s);return isNaN(x)?0:Math.round(x*100)/100;}
+function kurus(n){var k=Math.round(n*100)%100!==0;return new Intl.NumberFormat("tr-TR",{minimumFractionDigits:k?2:0,maximumFractionDigits:2}).format(n)+" ₺";}
+var ODEME_FORM={tedarikci:"",tutar:"",tarih:"",yontem:"",aciklama:"",durum:"",durumSinif:"",onayBekliyor:false,istekNo:yeniIstekNo(),gonderiliyor:false};
+var ODEME_YONTEMLERI=["Havale/EFT","Nakit","Kredi Kartı","Çek"];
+
+function toptanciOdemeSayfa(a){var f=VERI.finans;
+  a.appendChild(ust("Toptancı ödemeleri","Toptancıya yaptığın ödemeyi buradan gir. Kolaybi Fatura Ham Veri › Odemeler sekmesine yazılır ve tedarikçi borcundan düşülür."));
+  a.appendChild(nabizSeridi("alim"));var h=hatalarKutusu(["finans"]);if(h)a.appendChild(h);if(!f)return;
+  var od=f.odeme,b=f.borc,F=ODEME_FORM;if(!F.tarih)F.tarih=bugunIst();
+  a.appendChild(el("div",{class:"rakamlar"},[rakam(ayAd(f.ay)+" ödenen",para(od.buAy),od.buAyAdet+" ödeme kaydı"),rakam(ayAd(f.ay)+" alımları",para(f.alis.buAy),f.alis.buAyAdet+" fatura"),
+    rakam("Toplam tedarikçi borcu",para(b.toplam),b.tedarikciSayisi+" tedarikçi"),rakam("Vadesi geçen borç",para(b.vadesiGecen),b.vgTedarikci+" tedarikçide",b.vadesiGecen>0?"asagi":"")]));
+
+  // Toptancı listesi: önce borcu olanlar (vadesi geçen önde), sonra diğerleri alfabetik.
+  var borcMap={};b.liste.forEach(function(x){borcMap[normAd(x.ad)]=x;});
+  var tum=(f.tedarikciler&&f.tedarikciler.length)?f.tedarikciler:b.liste.map(function(x){return x.ad;});
+  var borclu=b.liste.filter(function(x){return x.borc>0.5;}).map(function(x){return x.ad;});
+  var digerleri=tum.filter(function(x){var bb=borcMap[normAd(x)];return !(bb&&bb.borc>0.5);});
+  var sec=el("select",{"aria-label":"Toptancı",required:""});
+  sec.appendChild(el("option",{value:"",text:"Toptancı seç…"}));
+  function grup(ad,liste){if(!liste.length)return;var g=el("optgroup",{label:ad});liste.forEach(function(x){var bb=borcMap[normAd(x)];
+    g.appendChild(el("option",{value:x,text:kisaAd(x)+(bb&&bb.borc>0.5?" — borç "+para(bb.borc):"")}));});sec.appendChild(g);}
+  grup("Borcu olanlar",borclu);grup("Diğer toptancılar",digerleri);
+  if(F.tedarikci&&tum.indexOf(F.tedarikci)<0)F.tedarikci="";
+  sec.value=F.tedarikci;
+  var ipucu=el("div",{class:"odeme-ipucu"});
+  var tutar=el("input",{type:"text",inputmode:"decimal",placeholder:"örn. 12.500",value:F.tutar,"aria-label":"Tutar",autocomplete:"off"});
+  var tarih=el("input",{type:"date",value:F.tarih,max:bugunIst(),"aria-label":"Ödeme tarihi"});
+  var yontemler=ODEME_YONTEMLERI.concat((od.yontemler||[]).filter(function(y){return ODEME_YONTEMLERI.map(normAd).indexOf(normAd(y))<0;}));
+  var yon=el("select",{"aria-label":"Ödeme yöntemi"},[el("option",{value:"",text:"Seç…"})].concat(yontemler.map(function(y){return el("option",{value:y,text:y});})));
+  yon.value=F.yontem;
+  var acik=el("input",{type:"text",maxlength:"300",placeholder:"İsteğe bağlı: dekont no, hangi faturalar, şube…",value:F.aciklama,"aria-label":"Açıklama"});
+  var durum=el("span",{class:"cevap-durum "+(F.durumSinif||""),role:"status",text:F.durum});
+  var kaydet=el("button",{type:"submit",class:"dugme ana-dugme"},[F.onayBekliyor?"Yine de ekle":"Ödemeyi kaydet"]);
+  var vazgec=F.onayBekliyor?el("button",{type:"button",class:"dugme",onclick:function(){F.onayBekliyor=false;F.durum="";F.durumSinif="";ciz();}},["Vazgeç"]):null;
+  if(F.gonderiliyor)kaydet.setAttribute("disabled","");
+
+  function ipucuYaz(){ipucu.textContent="";var bb=borcMap[normAd(sec.value)];var t=tutarOku(tutar.value);
+    if(sec.value){if(bb&&bb.borc>0.5){ipucu.appendChild(el("span",{text:"Güncel borç "+para(bb.borc)+(bb.vadesiGecen>0.5?", vadesi geçen "+para(bb.vadesiGecen):"")+"."}));
+        if(bb.vadesiGecen>0.5&&Math.abs(bb.vadesiGecen-bb.borc)>0.5)ipucu.appendChild(el("button",{type:"button",onclick:function(){tutar.value=String(bb.vadesiGecen).replace(".",",");F.tutar=tutar.value;ipucuYaz();}},["Vadesi geçeni yaz"]));
+        ipucu.appendChild(el("button",{type:"button",onclick:function(){tutar.value=String(bb.borc).replace(".",",");F.tutar=tutar.value;ipucuYaz();}},["Borcun tamamını yaz"]));}
+      else ipucu.appendChild(el("span",{style:"color:var(--gri)",text:"Bu toptancının açık borcu görünmüyor; ödeme avans olarak düşülür."}));}
+    if(t>0)ipucu.appendChild(el("strong",{text:"Girilecek: "+kurus(t)}));
+    if(t>0&&bb&&bb.borc>0.5&&t>bb.borc+0.5)ipucu.appendChild(el("span",{class:"etiket e-dikkat",text:"Borçtan "+para(t-bb.borc)+" fazla"}));}
+  function sakla(){F.tedarikci=sec.value;F.tutar=tutar.value;F.tarih=tarih.value;F.yontem=yon.value;F.aciklama=acik.value;
+    if(F.onayBekliyor){F.onayBekliyor=false;kaydet.textContent="Ödemeyi kaydet";if(vazgec)vazgec.remove();durum.textContent="";durum.className="cevap-durum";F.durum="";}}
+  [sec,tutar,tarih,yon,acik].forEach(function(x){x.addEventListener("input",function(){sakla();ipucuYaz();});x.addEventListener("change",function(){sakla();ipucuYaz();});});
+  ipucuYaz();
+
+  function gonder(ev){ev.preventDefault();if(F.gonderiliyor)return;var onay=F.onayBekliyor?"1":"";F.onayBekliyor=false;sakla();F.onayBekliyor=!!onay;var t=tutarOku(F.tutar);
+    function hata(m,k){durum.textContent=m;durum.className="cevap-durum kotu";F.durum=m;F.durumSinif="kotu";if(k)k.focus();}
+    if(!F.tedarikci)return hata("Toptancıyı seç.",sec);
+    if(!(t>0))return hata("Geçerli bir tutar yaz.",tutar);
+    if(!F.tarih)return hata("Tarihi seç.",tarih);
+    if(F.tarih>bugunIst())return hata("İleri tarihli ödeme girilemez.",tarih);
+    if(!F.yontem)return hata("Ödeme yöntemini seç.",yon);
+    F.gonderiliyor=true;kaydet.setAttribute("disabled","");durum.className="cevap-durum";durum.textContent="Kaydediliyor…";
+    fetch("/api/odeme",{method:"POST",credentials:"same-origin",headers:{"content-type":"application/json","x-bap-panel":"1"},
+      body:JSON.stringify({istekNo:F.istekNo,tedarikci:F.tedarikci,tutar:String(t),tarih:F.tarih,yontem:F.yontem,aciklama:F.aciklama,onay:onay})})
+      .then(function(r){return r.json();}).then(function(d){F.gonderiliyor=false;
+        if(d&&d.tamam){F.durum="Kaydedildi: "+d.tarih+", "+kisaAd(d.ad)+", "+kurus(d.tutar)+" ("+d.yontem+"). Tablo satırı "+d.satir+".";F.durumSinif="iyi";
+          F.tutar="";F.aciklama="";F.onayBekliyor=false;F.istekNo=yeniIstekNo();yukle(true);return;}
+        if(d&&d.tekrarMi){F.onayBekliyor=true;F.durum=d.hata;F.durumSinif="kotu";ciz();return;}
+        F.durum=(d&&d.hata)||"Kaydedilemedi.";F.durumSinif="kotu";ciz();})
+      .catch(function(){F.gonderiliyor=false;F.durum="Bağlantı hatası; ödeme kaydedilmedi. Tekrar göndermeden önce Son ödemeler listesini kontrol et.";F.durumSinif="kotu";ciz();});}
+
+  var form=el("form",{class:"odeme-form",novalidate:"",onsubmit:gonder},[
+    el("div",{class:"odeme-izgara"},[el("label",{class:"ted"},["Toptancı",sec]),el("label",null,["Tutar (₺)",tutar]),el("label",null,["Ödeme tarihi",tarih]),el("label",null,["Yöntem",yon]),
+      el("div",{class:"genis"},[ipucu]),el("label",{class:"genis"},["Açıklama",acik])]),
+    el("div",{class:"odeme-alt"},[kaydet,vazgec,durum])]);
+  a.appendChild(blok("Yeni ödeme",null,form));
+
+  var sonlar=od.son||[];
+  a.appendChild(el("div",{class:"iki"},[
+    blok("Son ödemeler","En son girilen en üstte. Yanlış bir kaydı düzeltmek ya da silmek için tabloyu aç.",sonlar.length?tablo([["Tarih"],["Toptancı"],["Tutar",1],["Yöntem"],["Açıklama"]],sonlar.map(function(x){return [tarihTr(x.tarih),tedHucre(x.ad),kurus(x.tutar),x.yontem||"—",x.aciklama||""];})):bos("Ödeme kaydı yok.")),
+    blok("Toptancı borçları","Ödemeler en eski faturadan düşülür. Satıra dokununca ödeme formunda o toptancı seçilir.",b.liste.length?tablo([["Toptancı"],["Borç",1],["Vadesi geçen",1]],b.liste.map(function(x){
+      return [el("button",{type:"button",style:"all:unset;cursor:pointer;color:var(--mavi-koyu);text-decoration:underline",title:x.ad,onclick:function(){F.tedarikci=x.ad;F.durum="";F.onayBekliyor=false;ciz();window.scrollTo(0,0);}},[kisaAd(x.ad)]),para(x.borc),x.vadesiGecen?para(x.vadesiGecen):"—"];})):bos("Açık tedarikçi borcu yok."))]));}
 
 function dkYaz(dk){dk=Math.round(dk||0);var s=Math.floor(dk/60),d=dk%60;return s?(s+" sa"+(d?" "+d+" dk":"")):d+" dk";}
 var PERS_SEKME="genel";
@@ -459,6 +560,7 @@ function odemeSekme(a,G){var O=G.odeme||[],grup={};O.forEach(function(x){(grup[x
 
 var CIZ={genel:genelSayfa,merkez:merkez,ozet:ozet,satis:satis,kararlar:kararlar,ai:ai,
   finans:finansSayfa,
+  odeme:toptanciOdemeSayfa,
   alim:alimSayfa,
   stok:kaynakBolumu("stok","Ürün, stok ve hazırlık","Stok seviyeleri, reçetesiz satışlar ve menü buraya gelecek."),
   kurye:kaynakBolumu("kurye","Kurye ve teslimat","Kurye çalışma süreleri, kesintiler ve açık hesaplar buraya gelecek."),
@@ -475,7 +577,9 @@ function yukle(taze){if(YUKLENIYOR)return;YUKLENIYOR=true;if(VERI)ciz();
   fetch("/api/data"+(taze?"?fresh=1":""),{cache:"no-store",credentials:"same-origin"}).then(function(r){return r.json();}).then(function(d){VERI=d;}).catch(function(){VERI={hata:"Bağlantı kurulamadı. İnternetini kontrol edip yeniden dene."};}).then(function(){YUKLENIYOR=false;ciz();});}
 
 window.addEventListener("hashchange",function(){var h=(location.hash||"#merkez").slice(1);if(h!==AKTIF){AKTIF=h;ciz();}});
-nav();yukle(false);setInterval(function(){if(!document.hidden)yukle(false);},300000);
+nav();yukle(false);setInterval(function(){if(document.hidden)return;
+  // Ödeme formu yarım doldurulmuşken otomatik yenileme ekranı yeniden çizip odağı kaçırmasın.
+  if(AKTIF==="odeme"&&(ODEME_FORM.tutar||ODEME_FORM.aciklama||ODEME_FORM.gonderiliyor))return;yukle(false);},300000);
 })();
 </script>
 </body>
