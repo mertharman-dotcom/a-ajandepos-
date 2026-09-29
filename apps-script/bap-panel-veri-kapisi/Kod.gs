@@ -1112,7 +1112,8 @@ function seferler_(ss, bugun) {
 // Teslim edilmiş seferde gerçek teslim sırası, edilmemişte en kısa sıra kullanılır.
 function rotaHesapla_(d) {
   var idler = (d.idler || []).map(siparisNo_).filter(String).slice(0, 5); if (!idler.length) return { hata: 'Sipariş seçilmedi.' };
-  var cache = CacheService.getScriptCache(), anahtar = 'rota_' + idler.slice().sort().join('_'), eski = cache.get(anahtar);
+  var zorla = SUBE_KONUM[d.sube] ? d.sube : '';  // panelden "Erenköy'den / Fikirtepe'den hesapla"
+  var cache = CacheService.getScriptCache(), anahtar = 'rota_' + idler.slice().sort().join('_') + (zorla ? '_' + norm_(zorla) : ''), eski = cache.get(anahtar);
   if (eski) { try { var o = JSON.parse(eski); o.onbellek = true; return o; } catch (e) { } }
   var ss = SpreadsheetApp.openById(KAYNAK.kurye.id);
   var s = sonSatirlar_(ss, 'Siparişler', 1500, ['Tarih', 'Sipariş ID', 'Adisyon No', 'Adres', 'Restorandan Çıktı', 'Teslim Saati', 'Mesafe (km)']);
@@ -1125,7 +1126,7 @@ function rotaHesapla_(d) {
     duraklar.push({ id: id, no: r[c.no], mahalle: mh, adres: adresTemizle_(r[c.adres]), tesDk: saatDk_(r[c.tes]), cikDk: saatDk_(r[c.cik]), tabloKm: sayi_(r[c.km]), sube: siparisSubesi_(soz, gun, r[c.no], mh) }); });
   if (!duraklar.length) return { hata: 'Siparişler tabloda bulunamadı.' };
   var sb = {}; duraklar.forEach(function (x) { sb[x.sube.sube] = (sb[x.sube.sube] || 0) + 1; });
-  var sube = Object.keys(sb).sort(function (a, b) { return sb[b] - sb[a]; })[0], cikis = SUBE_KONUM[sube] || SUBE_KONUM['BAP Erenköy'];
+  var sube = zorla || Object.keys(sb).sort(function (a, b) { return sb[b] - sb[a]; })[0], cikis = SUBE_KONUM[sube] || SUBE_KONUM['BAP Erenköy'];
   var teslimli = duraklar.every(function (x) { return x.tesDk !== null; });
 
   function sor(sirali, optimize) {
@@ -1138,7 +1139,7 @@ function rotaHesapla_(d) {
     sira = sira.concat([sirali[sirali.length - 1]]);
     var bacak = rt.legs.map(function (l, i) { var sn = (l.duration_in_traffic || l.duration).value;
       return { kime: sira[i], km: Math.round(l.distance.value / 100) / 10, dk: Math.round(sn / 60), trafikli: !!l.duration_in_traffic, adres: String(l.end_address || '').replace(/, Türkiye$/, '') }; });
-    return { bacak: bacak, toplamSn: bacak.reduce(function (t, x) { return t + x.dk; }, 0) };
+    return { bacak: bacak, toplamSn: bacak.reduce(function (t, x) { return t + x.dk; }, 0), baslangic: String((rt.legs[0] || {}).start_address || '').replace(/, Türkiye$/, '') };
   }
   var sonuc;
   try {
@@ -1149,7 +1150,7 @@ function rotaHesapla_(d) {
   } catch (err) { return { hata: String(err.message || err) }; }
   var surus = sonuc.bacak.reduce(function (t, x) { return t + x.dk; }, 0), km = Math.round(sonuc.bacak.reduce(function (t, x) { return t + x.km; }, 0) * 10) / 10;
   var ilkCik = Math.min.apply(null, duraklar.map(function (x) { return x.cikDk === null ? 99999 : x.cikDk; })), sonTes = Math.max.apply(null, duraklar.map(function (x) { return x.tesDk || 0; }));
-  var out = { sube: sube, cikis: cikis, subeKaynak: duraklar.map(function (x) { return x.sube.kaynak; }).join(','), sira: teslimli ? 'gerçek teslim sırası' : 'en kısa sıra (öneri)',
+  var out = { sube: sube, cikis: cikis, baslangic: sonuc.baslangic, elle: !!zorla, subeKaynak: zorla ? 'elle' : duraklar.map(function (x) { return x.sube.kaynak; }).join(','), sira: teslimli ? 'gerçek teslim sırası' : 'en kısa sıra (öneri)',
     bacaklar: sonuc.bacak.map(function (b) { return { no: b.kime.no, mahalle: b.kime.mahalle, adres: b.adres, km: b.km, dk: b.dk, trafikli: b.trafikli }; }),
     toplamKm: km, surusDk: surus, teslimPayiDk: TESLIM_PAYI_DK * duraklar.length, kapatmaDk: surus + TESLIM_PAYI_DK * duraklar.length,
     fiiliDk: teslimli && ilkCik < 99999 ? Math.round(sonTes - ilkCik) : null, tabloKm: Math.round(duraklar.reduce(function (t, x) { return t + x.tabloKm; }, 0) * 10) / 10,
