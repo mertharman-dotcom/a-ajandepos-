@@ -669,119 +669,148 @@ function sureDk_(s) {
 
 // Kaynak: 'Kurye Net Çalışma Süresi' tablosu (Siparişler, Günlük Mesai, Teslimat Gecikmeleri, Açık Hesaplar).
 // Müşteri adı, telefonu, adresi ve sipariş içeriği dışarı verilmez.
+
+// Gecikme ölçütleri (dakika). Toplam süre HEDEF.toplam'ı aşan sipariş gecikmiş sayılır; sebebi:
+// mutfak = sipariş → restorandan çıkış HEDEF.cikis'i aştı, kurye = yol süresi mesafeye göre beklenenden HEDEF.yolPay fazla.
+var KURYE_HEDEF = { toplam: 40, cikis: 25, yolPay: 5 };
+var KURYE_DONEMLER = ['bugun', 'dun', 'yedi', 'ay', 'otuz'];
+
+// Mesafeye göre beklenen yol süresi (dk). 'Teslimat Gecikmeleri' sekmesindeki beklenen değerlerle örtüşür.
+function beklenenYol_(km) { return Math.floor(5.8 + 2.35 * km); }
+
 function kurye_() {
   var ss = SpreadsheetApp.openById(KAYNAK.kurye.id);
-  var simdi = simdi_(), bugun = isGunu_(simdi), ay = bugun.slice(0, 7);
-  var yediBasi = gunEkle_(bugun, -6), ilkSeri = gunEkle_(bugun, -13);
-  var out = { bugun: bugun, ay: ay };
-  var donemler = ['bugun', 'yedi', 'ay'];
-  function donemleri(gun) { var d = []; if (gun === bugun) d.push('bugun'); if (gun >= yediBasi && gun <= bugun) d.push('yedi'); if (gun.slice(0, 7) === ay && gun <= bugun) d.push('ay'); return d; }
-  var kisi = {}; donemler.forEach(function (d) { kisi[d] = {}; });
-  function kk(d, ad) { return kisi[d][ad] = kisi[d][ad] || { ad: ad, paket: 0, ciro: 0, km: 0, toplamDk: 0, yolDk: 0, sureAdet: 0, gec30: 0, mesaiDk: 0, mesaiPaket: 0, gun: 0, gecGiris: 0, gecGirisDk: 0, kesintiDk: 0, gecikme: 0 }; }
+  var simdi = simdi_(), bugun = isGunu_(simdi), ay = bugun.slice(0, 7), dun = gunEkle_(bugun, -1);
+  var yediBasi = gunEkle_(bugun, -6), otuzBasi = gunEkle_(bugun, -29), ilkSeri = gunEkle_(bugun, -13);
+  var out = { bugun: bugun, hedef: KURYE_HEDEF };
+  function donemleri(gun) {
+    var d = []; if (gun > bugun) return d;
+    if (gun === bugun) d.push('bugun'); if (gun === dun) d.push('dun');
+    if (gun >= yediBasi) d.push('yedi'); if (gun.slice(0, 7) === ay) d.push('ay'); if (gun >= otuzBasi) d.push('otuz');
+    return d;
+  }
+  var kisi = {}, genel = {}; KURYE_DONEMLER.forEach(function (d) { kisi[d] = {}; genel[d] = gz_(); });
+  function kk(d, ad) { return kisi[d][ad] = kisi[d][ad] || { ad: ad, paket: 0, km: 0, toplamDk: 0, yolDk: 0, sureAdet: 0, gec: 0, kuryeGec: 0,
+    mesaiDk: 0, mesaiPaket: 0, gun: 0, gecGiris: 0, gecGirisDk: 0, erkenDk: 0, kapanisDk: 0 }; }
 
-  // Siparişler: kurye başına paket, süre, km; saatlik yük ve 14 günlük seri
-  var s = sonSatirlar_(ss, 'Siparişler', 6000);
-  var seri = {}; for (var i = 0; i < 14; i++) seri[gunEkle_(ilkSeri, i)] = { adet: 0, dk: 0, n: 0 };
-  var saat = {}, dagilim = [0, 0, 0, 0, 0], platform = {}, genel = { bugun: z2_(), yedi: z2_(), ay: z2_() }, sonSiparisMs = null;
+  // Siparişler: süre aşamaları, gecikme sebebi, kurye başına paket
+  var s = sonSatirlar_(ss, 'Siparişler', 8000);
+  var seri = {}; for (var i = 0; i < 14; i++) seri[gunEkle_(ilkSeri, i)] = { adet: 0, dk: 0, n: 0, gec: 0 };
+  var saat = {}, dagilim = [0, 0, 0, 0, 0], platform = {}, enKotu = [], sonSiparisMs = null;
   if (s) {
-    var c = { tarih: kolon_(s.b, ['Tarih']), kurye: kolon_(s.b, ['Kurye']), plat: kolon_(s.b, ['Platform']), sip: kolon_(s.b, ['Sipariş Saati']),
-              hz: kolon_(s.b, ['Hazırlık (dk)']), yol: kolon_(s.b, ['Yol (dk)']), top: kolon_(s.b, ['Toplam (dk)']), km: kolon_(s.b, ['Mesafe (km)']),
-              tutar: kolon_(s.b, ['Tutar (TL)', 'Tutar']), durum: kolon_(s.b, ['Durum']) };
+    var c = { tarih: kolon_(s.b, ['Tarih']), no: kolon_(s.b, ['Adisyon No']), kurye: kolon_(s.b, ['Kurye']), plat: kolon_(s.b, ['Platform']), sip: kolon_(s.b, ['Sipariş Saati']),
+              at: kolon_(s.b, ['Atama (dk)']), hz: kolon_(s.b, ['Hazırlık (dk)']), yol: kolon_(s.b, ['Yol (dk)']), top: kolon_(s.b, ['Toplam (dk)']), km: kolon_(s.b, ['Mesafe (km)']),
+              durum: kolon_(s.b, ['Durum']) };
     s.v.forEach(function (r) {
       var gun = gunStr_(r[c.tarih]); if (!gun) return;
       if (c.durum >= 0 && /iptal|iade/i.test(r[c.durum])) return;
-      var ad = String(r[c.kurye] || '').trim() || 'Atanmamış';
-      var top = sayi_(r[c.top]), yol = sayi_(r[c.yol]), km = sayi_(r[c.km]), tutar = sayi_(r[c.tutar]);
+      var ad = String(r[c.kurye] || '').trim() || 'Atanmamış', plat = String(r[c.plat] || '').trim() || 'Belirtilmemiş';
+      var at = sayi_(r[c.at]), hz = sayi_(r[c.hz]), yol = sayi_(r[c.yol]), top = sayi_(r[c.top]), km = sayi_(r[c.km]);
       var sureVar = top > 0 && top < 240; // uçuk değerler (unutulan teslim) ortalamayı bozmasın
+      var cikis = at + hz, bekYol = beklenenYol_(km);
+      var gec = sureVar && top > KURYE_HEDEF.toplam;
+      var mutfak = cikis > KURYE_HEDEF.cikis, kuryeden = km > 0 && yol > bekYol + KURYE_HEDEF.yolPay;
+      var sebep = !gec ? '' : (mutfak && kuryeden ? 'ikisi' : mutfak ? 'mutfak' : kuryeden ? 'kurye' : 'diger');
       var ms = zaman_(String(r[c.tarih]).trim() + ' ' + String(r[c.sip] || '').trim());
       if (ms !== null && (sonSiparisMs === null || ms > sonSiparisMs)) sonSiparisMs = ms;
-      if (seri[gun]) { seri[gun].adet++; if (sureVar) { seri[gun].dk += top; seri[gun].n++; } }
+      if (seri[gun]) { seri[gun].adet++; if (sureVar) { seri[gun].dk += top; seri[gun].n++; } if (gec) seri[gun].gec++; }
       donemleri(gun).forEach(function (d) {
-        var x = kk(d, ad); x.paket++; x.ciro += tutar; x.km += km;
-        if (sureVar) { x.toplamDk += top; x.yolDk += yol; x.sureAdet++; if (top > 45) x.gec30++; }
-        var g = genel[d]; g.adet++; g.ciro += tutar; g.km += km; if (sureVar) { g.dk += top; g.n++; if (top > 45) g.gec++; }
+        var x = kk(d, ad); x.paket++; x.km += km;
+        if (sureVar) { x.toplamDk += top; x.yolDk += yol; x.sureAdet++; }
+        if (gec) { x.gec++; if (sebep === 'kurye' || sebep === 'ikisi') x.kuryeGec++; }
+        var g = genel[d]; g.adet++; g.km += km;
+        if (sureVar) { g.n++; g.at += at; g.cikis += cikis; g.yol += yol; g.top += top; }
+        if (gec) { g.gec++; g[sebep]++; }
       });
       if (gun >= yediBasi && gun <= bugun) {
         var h = parseInt(String(r[c.sip] || '').split(':')[0], 10);
         if (!isNaN(h)) { var sx = saat[h] = saat[h] || { adet: 0, dk: 0, n: 0 }; sx.adet++; if (sureVar) { sx.dk += top; sx.n++; } }
-        if (sureVar) dagilim[top <= 20 ? 0 : top <= 30 ? 1 : top <= 45 ? 2 : top <= 60 ? 3 : 4]++;
-        var p = platform[r[c.plat] || 'Belirtilmemiş'] = platform[r[c.plat] || 'Belirtilmemiş'] || { ad: r[c.plat] || 'Belirtilmemiş', adet: 0, dk: 0, n: 0, ciro: 0 };
-        p.adet++; p.ciro += tutar; if (sureVar) { p.dk += top; p.n++; }
+        if (sureVar) dagilim[top <= 20 ? 0 : top <= 30 ? 1 : top <= 40 ? 2 : top <= 60 ? 3 : 4]++;
+        var p = platform[plat] = platform[plat] || { ad: plat, adet: 0, dk: 0, n: 0, gec: 0 };
+        p.adet++; if (sureVar) { p.dk += top; p.n++; } if (gec) p.gec++;
+        if (gec) enKotu.push({ gun: gun, no: r[c.no], platform: plat, kurye: ad, saat: String(r[c.sip] || '').slice(0, 5), km: Math.round(km * 100) / 100,
+          cikis: Math.round(cikis), yol: Math.round(yol), bekYol: bekYol, toplam: Math.round(top), sebep: sebep });
       }
     });
   }
   out.sonSiparis = sonSiparisMs === null ? null : new Date(sonSiparisMs).toISOString().slice(0, 16).replace('T', ' ');
-  out.genel = {}; donemler.forEach(function (d) { var g = genel[d]; out.genel[d] = { adet: g.adet, ciro: Math.round(g.ciro), km: Math.round(g.km), ortDk: g.n ? Math.round(g.dk / g.n) : null, gec: g.gec }; });
-  out.seri = Object.keys(seri).sort().map(function (k) { var x = seri[k]; return { gun: k, adet: x.adet, ortDk: x.n ? Math.round(x.dk / x.n) : null }; });
-  // İş günü 10:00'da başlar: saatleri 10, 11, …, 23, 0, 1, 2 sırasıyla ver
+  out.genel = {};
+  KURYE_DONEMLER.forEach(function (d) { var g = genel[d], o = function (t) { return g.n ? Math.round(t / g.n * 10) / 10 : null; };
+    out.genel[d] = { adet: g.adet, km: Math.round(g.km), atama: o(g.at), cikis: o(g.cikis), yol: o(g.yol), toplam: o(g.top), gec: g.gec,
+      sebep: { mutfak: g.mutfak, kurye: g.kurye, ikisi: g.ikisi, diger: g.diger } }; });
+  out.seri = Object.keys(seri).sort().map(function (k) { var x = seri[k]; return { gun: k, adet: x.adet, ortDk: x.n ? Math.round(x.dk / x.n) : null, gec: x.gec }; });
+  // İş günü 10:00'da başlar: saatleri 11, …, 23, 0, 1, 2 sırasıyla ver
   out.saatlik = []; for (var hh = 10; hh < 27; hh++) { var h2 = hh % 24, sv = saat[h2]; if (sv || (hh >= 11 && hh <= 23)) out.saatlik.push({ saat: h2, gunluk: sv ? Math.round(sv.adet / 7 * 10) / 10 : 0, ortDk: sv && sv.n ? Math.round(sv.dk / sv.n) : null }); }
-  out.dagilim = ['20 dk ve altı', '21–30 dk', '31–45 dk', '46–60 dk', '60 dk üstü'].map(function (ad, j) { return { ad: ad, deger: dagilim[j] }; });
-  out.platform = Object.keys(platform).map(function (k) { var p = platform[k]; return { ad: p.ad, adet: p.adet, ciro: Math.round(p.ciro), ortDk: p.n ? Math.round(p.dk / p.n) : null }; }).sort(function (a, b) { return b.adet - a.adet; });
+  out.dagilim = ['20 dk ve altı', '21–30 dk', '31–40 dk', '41–60 dk', '60 dk üstü'].map(function (ad, j) { return { ad: ad, deger: dagilim[j] }; });
+  out.platform = Object.keys(platform).map(function (k) { var p = platform[k]; return { ad: p.ad, adet: p.adet, gec: p.gec, ortDk: p.n ? Math.round(p.dk / p.n) : null }; }).sort(function (a, b) { return b.adet - a.adet; });
+  out.enKotu = enKotu.sort(function (a, b) { return b.toplam - a.toplam; }).slice(0, 30);
 
-  // Günlük Mesai: bugün kim sahada, dönem bazında net saat, geç giriş, kesinti
-  var m = sonSatirlar_(ss, 'Günlük Mesai', 1500), bugunMesai = [];
+  // Günlük Mesai: bugün kim sahada; dönem bazında net saat, geç giriş, erken ve kapanış kesintisi
+  var m = sonSatirlar_(ss, 'Günlük Mesai', 2000), bugunMesai = [], kesintiler = [];
   if (m) {
     var cm = { tarih: kolon_(m.b, ['Tarih']), kurye: kolon_(m.b, ['Kurye']), pg: kolon_(m.b, ['Planlı Giriş']), g: kolon_(m.b, ['Giriş']), pc: kolon_(m.b, ['Planlı Çıkış']),
                cik: kolon_(m.b, ['Çıkış']), ek: kolon_(m.b, ['Erken Kesinti (dk)']), kk: kolon_(m.b, ['Kapanış Kesintisi (dk)']), net: kolon_(m.b, ['Net Süre']),
-               ham: kolon_(m.b, ['Ham Süre']), paket: kolon_(m.b, ['Paket']), gec: kolon_(m.b, ['Geç Giriş (dk)']), durum: kolon_(m.b, ['Durum']), neden: kolon_(m.b, ['Kesinti Gerekçesi']) };
+               paket: kolon_(m.b, ['Paket']), gec: kolon_(m.b, ['Geç Giriş (dk)']), durum: kolon_(m.b, ['Durum']), neden: kolon_(m.b, ['Kesinti Gerekçesi']) };
     m.v.forEach(function (r) {
       var gun = gunStr_(r[cm.tarih]); if (!gun) return;
       var ad = String(r[cm.kurye] || '').trim(); if (!ad) return;
-      var net = sureDk_(r[cm.net]), paket = sayi_(r[cm.paket]), gec = sayi_(r[cm.gec]), kes = sayi_(r[cm.ek]) + sayi_(r[cm.kk]);
-      if (gun === bugun) bugunMesai.push({ ad: ad, plan: [r[cm.pg], r[cm.pc]].filter(String).join('–'), giris: r[cm.g] || '', cikis: r[cm.cik] || '', paket: paket, gecDk: gec,
-        durum: r[cm.durum] || '', netDk: net, neden: kodsuz_(r[cm.neden] || '') });
+      var net = sureDk_(r[cm.net]), paket = sayi_(r[cm.paket]), gec = sayi_(r[cm.gec]), erken = sayi_(r[cm.ek]), kapanis = sayi_(r[cm.kk]);
+      var acik = /açık/i.test(r[cm.durum] || '') || (r[cm.g] && !r[cm.cik]);
+      if (gun === bugun) {
+        // Vardiyası kapanmamış kurye için süreyi girişten şu ana kadar say (tablo vardiya kapanınca yazıyor).
+        var canli = 0, gm = String(r[cm.g] || '').match(/^(\d{1,2}):(\d{2})/);
+        if (acik && gm) { var gms = Date.parse(gun + 'T00:00:00Z') + (+gm[1]) * 3600000 + (+gm[2]) * 60000; if (+gm[1] < 6) gms += 86400000; canli = Math.max(0, Math.round((simdi - gms) / 60000)); }
+        bugunMesai.push({ ad: ad, plan: [r[cm.pg], r[cm.pc]].filter(String).join('–'), giris: r[cm.g] || '', cikis: r[cm.cik] || '', paket: paket, gecDk: gec,
+          durum: r[cm.durum] || '', netDk: net, canliDk: canli, acik: !!acik, neden: kodsuz_(r[cm.neden] || '') });
+      }
+      if (gun >= yediBasi && gun <= bugun && (erken > 0 || kapanis > 0))
+        kesintiler.push({ gun: gun, ad: ad, erken: erken, kapanis: kapanis, unutulmus: kapanis >= 120, neden: kodsuz_(r[cm.neden] || '') });
+      // Açık vardiyanın paketi, süresi yazılmadan saatte-paket oranına girmesin.
       donemleri(gun).forEach(function (d) {
-        var x = kk(d, ad); if (net > 0) { x.mesaiDk += net; x.mesaiPaket += paket; x.gun++; }
-        if (gec > 0) { x.gecGiris++; x.gecGirisDk += gec; } x.kesintiDk += kes;
+        var x = kk(d, ad); if (net > 0 && !acik) { x.mesaiDk += net; x.mesaiPaket += paket; x.gun++; }
+        if (gec > 0) { x.gecGiris++; x.gecGirisDk += gec; } x.erkenDk += erken; x.kapanisDk += kapanis;
       });
     });
   }
   bugunMesai.sort(function (a, b) { return String(a.giris || '99').localeCompare(String(b.giris || '99')); });
   out.bugunMesai = bugunMesai;
+  out.kesintiler = kesintiler.sort(function (a, b) { return b.gun.localeCompare(a.gun) || (b.erken + b.kapanis) - (a.erken + a.kapanis); }).slice(0, 40);
 
-  // Teslimat gecikmeleri: son 30 gün, müşteri adı olmadan
-  var t = sonSatirlar_(ss, 'Teslimat Gecikmeleri', 2000), otuzBasi = gunEkle_(bugun, -29), gecikmeler = [];
-  if (t) {
-    var ct = { tarih: kolon_(t.b, ['Tarih']), no: kolon_(t.b, ['Adisyon No']), kurye: kolon_(t.b, ['Kurye']), km: kolon_(t.b, ['Km']), bek: kolon_(t.b, ['Beklenen (dk)']),
-               fiili: kolon_(t.b, ['Fiili (dk)']), fazla: kolon_(t.b, ['Fazla (dk)']), cikti: kolon_(t.b, ['Restorandan Çıktı']) };
-    t.v.forEach(function (r) {
-      var gun = gunStr_(r[ct.tarih]); if (!gun || gun < otuzBasi) return;
-      var ad = String(r[ct.kurye] || '').trim() || 'Atanmamış';
-      donemleri(gun).forEach(function (d) { kk(d, ad).gecikme++; });
-      gecikmeler.push({ gun: gun, no: r[ct.no], kurye: ad, km: sayi_(r[ct.km]), beklenen: sayi_(r[ct.bek]), fiili: sayi_(r[ct.fiili]), fazla: sayi_(r[ct.fazla]), cikti: String(r[ct.cikti] || '').slice(0, 5) });
-    });
-  }
-  gecikmeler.sort(function (a, b) { return b.gun.localeCompare(a.gun) || b.fazla - a.fazla; });
-  out.gecikme = { otuzGun: gecikmeler.length, liste: gecikmeler.slice(0, 25) };
-
-  // Açık hesaplar: kuryede kalan / henüz kapanmamış tahsilatlar
-  var a = sonSatirlar_(ss, 'Açık Hesaplar', 2000), acik = [], acikKisi = {};
+  // Açık hesaplar: 'Ödenmez' (işletme/personel siparişi) kuryeden alınacak para değil, ayrı sayılır.
+  var a = sonSatirlar_(ss, 'Açık Hesaplar', 2000), acikL = [], haric = { adet: 0, tutar: 0 };
   if (a) {
     var ca = { tarih: kolon_(a.b, ['Tarih']), no: kolon_(a.b, ['Adisyon No']), plat: kolon_(a.b, ['Platform']), kurye: kolon_(a.b, ['Kurye']),
                odeme: kolon_(a.b, ['Ödeme Yöntemi']), tutar: kolon_(a.b, ['Tutar (TL)', 'Tutar']), durum: kolon_(a.b, ['Durum']) };
     a.v.forEach(function (r) {
       var gun = gunStr_(r[ca.tarih]); if (!gun) return;
-      var ad = String(r[ca.kurye] || '').trim() || 'Atanmamış', tutar = sayi_(r[ca.tutar]);
-      acik.push({ gun: gun, no: r[ca.no], platform: r[ca.plat] || '', kurye: ad, odeme: r[ca.odeme] || '', tutar: tutar, durum: r[ca.durum] || '' });
-      topla_(acikKisi, ad, tutar);
+      var odeme = String(r[ca.odeme] || '').trim(), tutar = sayi_(r[ca.tutar]);
+      if (/ödenmez|odenmez/i.test(odeme)) { haric.adet++; haric.tutar += tutar; return; }
+      var yas = Math.round((Date.parse(bugun + 'T00:00:00Z') - Date.parse(gun + 'T00:00:00Z')) / 86400000);
+      acikL.push({ gun: gun, yas: yas, no: r[ca.no], platform: r[ca.plat] || '', kurye: String(r[ca.kurye] || '').trim() || 'Atanmamış', odeme: odeme, tutar: tutar,
+        durum: r[ca.durum] || '', kod: /kod/i.test(odeme) });
     });
   }
-  acik.sort(function (x, y) { return y.gun.localeCompare(x.gun); });
-  out.acik = { adet: acik.length, toplam: Math.round(acik.reduce(function (s2, x) { return s2 + x.tutar; }, 0)), kisi: sirala_(acikKisi), liste: acik.slice(0, 40) };
+  acikL.sort(function (x, y) { return y.yas - x.yas || y.tutar - x.tutar; });
+  var eski = acikL.filter(function (x) { return x.yas > 0; }), bugunkuler = acikL.filter(function (x) { return x.yas <= 0; });
+  var eskiKisi = {}; eski.forEach(function (x) { topla_(eskiKisi, x.kurye, x.tutar); });
+  var tl = function (l) { return Math.round(l.reduce(function (t, x) { return t + x.tutar; }, 0)); };
+  out.acik = { eski: { adet: eski.length, toplam: tl(eski), ayUstu: eski.filter(function (x) { return x.yas > 30; }).length },
+               bugun: { adet: bugunkuler.length, toplam: tl(bugunkuler) }, haric: { adet: haric.adet, toplam: Math.round(haric.tutar) },
+               kod: acikL.filter(function (x) { return x.kod; }).length, kisi: sirala_(eskiKisi), liste: eski.slice(0, 40).concat(bugunkuler.slice(0, 20)) };
 
   out.kisiler = {};
-  donemler.forEach(function (d) {
+  KURYE_DONEMLER.forEach(function (d) {
     out.kisiler[d] = Object.keys(kisi[d]).map(function (k) { var x = kisi[d][k];
-      return { ad: x.ad, paket: x.paket, ciro: Math.round(x.ciro), km: Math.round(x.km), ortDk: x.sureAdet ? Math.round(x.toplamDk / x.sureAdet) : null,
-               ortYol: x.sureAdet ? Math.round(x.yolDk / x.sureAdet) : null, gec45: x.gec30, netSaat: Math.round(x.mesaiDk / 6) / 10,
+      return { ad: x.ad, paket: x.paket, km: Math.round(x.km), ortDk: x.sureAdet ? Math.round(x.toplamDk / x.sureAdet) : null,
+               ortYol: x.sureAdet ? Math.round(x.yolDk / x.sureAdet) : null, gec: x.gec, kuryeGec: x.kuryeGec, netSaat: Math.round(x.mesaiDk / 6) / 10,
                paketSaat: x.mesaiDk >= 60 ? Math.round(x.mesaiPaket / (x.mesaiDk / 60) * 10) / 10 : null, gun: x.gun,
-               gecGiris: x.gecGiris, gecGirisDk: Math.round(x.gecGirisDk), kesintiDk: Math.round(x.kesintiDk), gecikme: x.gecikme };
+               gecGiris: x.gecGiris, gecGirisDk: Math.round(x.gecGirisDk), erkenDk: Math.round(x.erkenDk), kapanisDk: Math.round(x.kapanisDk) };
     }).sort(function (x, y) { return y.paket - x.paket || y.netSaat - x.netSaat; });
   });
   return out;
 }
 
-function z2_() { return { adet: 0, ciro: 0, km: 0, dk: 0, n: 0, gec: 0 }; }
+function gz_() { return { adet: 0, km: 0, n: 0, at: 0, cikis: 0, yol: 0, top: 0, gec: 0, mutfak: 0, kurye: 0, ikisi: 0, diger: 0 }; }
 
 // "29.09.2026" → "2026-09-29"
 function gunStr_(v) { var ms = zaman_(v); return ms === null ? null : new Date(ms).toISOString().slice(0, 10); }

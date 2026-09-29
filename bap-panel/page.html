@@ -563,73 +563,100 @@ function odemeSekme(a,G){var O=G.odeme||[],grup={};O.forEach(function(x){(grup[x
     blok("Santral ve arama ayarları",null,(G.santral||[]).length?tablo([["Ayar"],["Değer"]],G.santral.map(function(x){return [x.ayar,x.deger];})):bos("Ayar bulunamadı."))]));}
 
 /* ---------------- Kurye ve teslimat ---------------- */
-var KURYE_DONEM="yedi";
-function dkEtiket(dk,iyi,kotu){if(dk==null)return "—";var c=dk<=iyi?"e-iyi":(dk<=kotu?"e-dikkat":"e-kotu");return el("span",{class:"etiket "+c,text:dk+" dk"});}
+var KURYE_DONEM="yedi",KURYE_SEBEP="";
+var KD_AD={bugun:"Bugün",dun:"Dün",yedi:"Son 7 gün",ay:"Bu ay",otuz:"Son 30 gün"};
+var SEBEP_AD={mutfak:"Mutfak",kurye:"Kurye",ikisi:"İkisi birden",diger:"Diğer"};
+var SEBEP_RENK={mutfak:"var(--dikkat)",kurye:"var(--kotu)",ikisi:"var(--mavi-koyu)",diger:"var(--gri)"};
+function virgul(n){return n==null?"—":String(n).replace(".",",");}
+function dkEtiket(dk,iyi,kotu){if(dk==null)return "—";var c=dk<=iyi?"e-iyi":(dk<=kotu?"e-dikkat":"e-kotu");return el("span",{class:"etiket "+c,text:virgul(dk)+" dk"});}
 function kuryeDurum(d){var c=/tamam/i.test(d)?"e-iyi":(/açık/i.test(d)?"e-notr":(/kesinti|yok/i.test(d)?"e-dikkat":"e-notr"));return el("span",{class:"etiket "+c,text:d||"—"});}
+function saatDk(dk){return dk>0?Math.floor(dk/60)+" sa "+(dk%60)+" dk":"—";}
+function svgYap(W,H,etiket){var ns="http://www.w3.org/2000/svg",svg=document.createElementNS(ns,"svg");svg.setAttribute("viewBox","0 0 "+W+" "+H);svg.setAttribute("role","img");svg.setAttribute("aria-label",etiket);
+  svg.yaz=function(x,y,t,cls,renk){var e=document.createElementNS(ns,"text");e.setAttribute("x",x);e.setAttribute("y",y);e.setAttribute("text-anchor","middle");if(cls)e.setAttribute("class",cls);if(renk)e.setAttribute("style","fill:"+renk);e.textContent=t;svg.appendChild(e);};
+  svg.sutun=function(x,y,w,h,renk,baslik){var r=document.createElementNS(ns,"rect");r.setAttribute("x",x);r.setAttribute("y",y);r.setAttribute("width",Math.max(2,w));r.setAttribute("height",Math.max(h,1));r.setAttribute("rx",3);r.setAttribute("fill",renk);var t=document.createElementNS(ns,"title");t.textContent=baslik;r.appendChild(t);svg.appendChild(r);};
+  return svg;}
 
 // Saatlik yük: sütun = son 7 günün saat başına ortalama sipariş adedi, üstünde ortalama teslim süresi.
-function saatlikGrafik(l){if(!l||!l.length)return bos("Son 7 günde sipariş yok.");var W=760,H=230,ust=30,alt=34,p=16,bw=(W-p*2)/l.length;var max=Math.max.apply(null,l.map(function(x){return x.gunluk;}))||1;
-  var ns="http://www.w3.org/2000/svg";var svg=document.createElementNS(ns,"svg");svg.setAttribute("viewBox","0 0 "+W+" "+H);svg.setAttribute("role","img");svg.setAttribute("aria-label","Saat başına ortalama sipariş ve teslim süresi");
-  function yaz(x,y,t,cls,renk){var e=document.createElementNS(ns,"text");e.setAttribute("x",x);e.setAttribute("y",y);e.setAttribute("text-anchor","middle");if(cls)e.setAttribute("class",cls);if(renk)e.setAttribute("style","fill:"+renk);e.textContent=t;svg.appendChild(e);}
-  l.forEach(function(x,i){var h=Math.round((H-ust-alt)*x.gunluk/max);var cx=p+i*bw+bw/2;var r=document.createElementNS(ns,"rect");r.setAttribute("x",p+i*bw+4);r.setAttribute("y",H-alt-h);r.setAttribute("width",Math.max(2,bw-8));r.setAttribute("height",Math.max(h,1));r.setAttribute("rx",3);
-    var yavas=x.ortDk!=null&&x.ortDk>40;r.setAttribute("fill",yavas?"var(--kotu)":"var(--mavi)");var t=document.createElementNS(ns,"title");t.textContent=("0"+x.saat).slice(-2)+":00 — günde ortalama "+String(x.gunluk).replace(".",",")+" sipariş"+(x.ortDk!=null?", ortalama teslim "+x.ortDk+" dk":"");r.appendChild(t);svg.appendChild(r);
-    yaz(cx,H-alt-h-16,String(x.gunluk).replace(".",","),"deger-yazi");if(x.ortDk!=null)yaz(cx,H-alt-h-4,x.ortDk+" dk","adet-yazi",yavas?"var(--kotu)":null);
-    yaz(cx,H-alt+16,("0"+x.saat).slice(-2));});
+function saatlikGrafik(l,hedef){if(!l||!l.length)return bos("Son 7 günde sipariş yok.");var W=760,H=230,ust=30,alt=34,p=16,bw=(W-p*2)/l.length;var max=Math.max.apply(null,l.map(function(x){return x.gunluk;}))||1;
+  var svg=svgYap(W,H,"Saat başına ortalama sipariş ve teslim süresi");
+  l.forEach(function(x,i){var h=Math.round((H-ust-alt)*x.gunluk/max),cx=p+i*bw+bw/2,yavas=x.ortDk!=null&&x.ortDk>hedef;
+    svg.sutun(p+i*bw+4,H-alt-h,bw-8,h,yavas?"var(--kotu)":"var(--mavi)",("0"+x.saat).slice(-2)+":00 — günde ortalama "+virgul(x.gunluk)+" sipariş"+(x.ortDk!=null?", ortalama teslim "+x.ortDk+" dk":""));
+    svg.yaz(cx,H-alt-h-16,virgul(x.gunluk),"deger-yazi");if(x.ortDk!=null)svg.yaz(cx,H-alt-h-4,x.ortDk+" dk","adet-yazi",yavas?"var(--kotu)":null);svg.yaz(cx,H-alt+16,("0"+x.saat).slice(-2));});
   return el("div",{class:"grafik"},[svg]);}
 
-// 14 gün: sütun = paket adedi, üstünde ortalama teslim süresi.
-function kuryeSeri(seri){if(!seri||!seri.length)return bos("Grafik için veri yok.");var W=760,H=240,ust=30,alt=40,p=20,bw=(W-p*2)/seri.length;var max=Math.max.apply(null,seri.map(function(x){return x.adet;}))||1;
-  var ns="http://www.w3.org/2000/svg";var svg=document.createElementNS(ns,"svg");svg.setAttribute("viewBox","0 0 "+W+" "+H);svg.setAttribute("role","img");svg.setAttribute("aria-label","Son 14 günün paket adedi ve teslim süresi");
-  function yaz(x,y,t,cls,renk){var e=document.createElementNS(ns,"text");e.setAttribute("x",x);e.setAttribute("y",y);e.setAttribute("text-anchor","middle");if(cls)e.setAttribute("class",cls);if(renk)e.setAttribute("style","fill:"+renk);e.textContent=t;svg.appendChild(e);}
-  seri.forEach(function(x,i){var h=Math.round((H-ust-alt)*x.adet/max);var cx=p+i*bw+bw/2;var r=document.createElementNS(ns,"rect");r.setAttribute("x",p+i*bw+4);r.setAttribute("y",H-alt-h);r.setAttribute("width",Math.max(2,bw-8));r.setAttribute("height",Math.max(h,1));r.setAttribute("rx",3);
-    r.setAttribute("fill",i===seri.length-1?"var(--mavi-koyu)":"var(--mavi)");var t=document.createElementNS(ns,"title");t.textContent=gunAd(x.gun)+": "+x.adet+" paket"+(x.ortDk!=null?", ortalama teslim "+x.ortDk+" dk":"");r.appendChild(t);svg.appendChild(r);
-    yaz(cx,H-alt-h-16,String(x.adet),"deger-yazi");if(x.ortDk!=null)yaz(cx,H-alt-h-4,x.ortDk+" dk","adet-yazi",x.ortDk>40?"var(--kotu)":null);
-    var d=new Date(x.gun+"T00:00:00Z");yaz(cx,H-alt+16,GUNLER[d.getUTCDay()]+" "+d.getUTCDate());});
+// 14 gün: sütun = paket adedi (koyu kısmı geciken), üstünde ortalama teslim süresi.
+function kuryeSeri(seri,hedef){if(!seri||!seri.length)return bos("Grafik için veri yok.");var W=760,H=240,ust=30,alt=40,p=20,bw=(W-p*2)/seri.length;var max=Math.max.apply(null,seri.map(function(x){return x.adet;}))||1;
+  var svg=svgYap(W,H,"Son 14 günün paket adedi ve teslim süresi");
+  seri.forEach(function(x,i){var h=Math.round((H-ust-alt)*x.adet/max),hg=Math.round((H-ust-alt)*x.gec/max),cx=p+i*bw+bw/2,bas=gunAd(x.gun)+": "+x.adet+" paket, "+x.gec+" geciken"+(x.ortDk!=null?", ortalama teslim "+x.ortDk+" dk":"");
+    svg.sutun(p+i*bw+4,H-alt-h,bw-8,h,i===seri.length-1?"var(--mavi-koyu)":"var(--mavi)",bas);if(hg)svg.sutun(p+i*bw+4,H-alt-hg,bw-8,hg,"var(--kotu)",bas);
+    svg.yaz(cx,H-alt-h-16,String(x.adet),"deger-yazi");if(x.ortDk!=null)svg.yaz(cx,H-alt-h-4,x.ortDk+" dk","adet-yazi",x.ortDk>hedef?"var(--kotu)":null);
+    var d=new Date(x.gun+"T00:00:00Z");svg.yaz(cx,H-alt+16,GUNLER[d.getUTCDay()]+" "+d.getUTCDate());});
   return el("div",{class:"grafik"},[svg]);}
+
+// Gecikmelerin sebebe göre dağılımı: tek yatay şerit + açıklamalı satırlar.
+function sebepBlok(G){var S=G.sebep,top=G.gec;if(!top)return bos("Bu dönemde geciken teslimat yok.");
+  var serit=el("div",{style:"display:flex;height:16px;border-radius:8px;overflow:hidden;margin:4px 18px 12px"},["mutfak","ikisi","kurye","diger"].map(function(k){return S[k]?el("span",{title:SEBEP_AD[k]+": "+S[k],style:"background:"+SEBEP_RENK[k]+";width:"+(S[k]/top*100)+"%"}):null;}));
+  return el("div",{class:"liste",style:"padding-top:14px"},[serit].concat(["mutfak","ikisi","kurye","diger"].map(function(k){
+    return el("div",{class:"cubuk"},[el("span",null,[el("i",{style:"display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:7px;background:"+SEBEP_RENK[k]}),SEBEP_AD[k]]),el("span",{style:"color:var(--gri);font-size:13px",text:{mutfak:"Restorandan geç çıktı, yol normal",ikisi:"Hem geç çıktı hem yolda uzadı",kurye:"Zamanında çıktı, yolda uzadı",diger:"Tek başına sınırı aşmayan birikim"}[k]}),el("span",{class:"sayi",text:S[k]+" (%"+Math.round(S[k]/top*100)+")"})]);})));}
 
 function kuryeSayfa(a){var K=VERI.kurye;a.appendChild(ust("Kurye ve teslimat",K&&K.sonSiparis?"Kaynak: Kurye Net Çalışma Süresi tablosu. Son sipariş kaydı: "+K.sonSiparis+".":null));a.appendChild(nabizSeridi("kurye"));var h=hatalarKutusu(["kurye"]);if(h)a.appendChild(h);if(!K)return;
-  var G=K.genel,sahada=K.bugunMesai.filter(function(x){return x.giris&&!x.cikis;}).length,gecGelen=K.bugunMesai.filter(function(x){return x.gecDk>0;}).length;
-  var ay=K.kisiler.ay,ayPaket=ay.reduce(function(t,x){return t+(x.paketSaat!=null?x.paket:0);},0),aySaat=ay.reduce(function(t,x){return t+(x.paketSaat!=null?x.netSaat:0);},0);
-  var fark=G.bugun.ortDk!=null&&G.yedi.ortDk!=null?G.bugun.ortDk-G.yedi.ortDk:null;
+  var HD=K.hedef,D=KURYE_DONEM,G=K.genel[D],A=K.acik;
+  a.appendChild(el("div",{class:"sekmeler"},["bugun","dun","yedi","ay","otuz"].map(function(k){return el("button",{type:"button","aria-pressed":D===k?"true":"false",onclick:function(){KURYE_DONEM=k;ciz();}},[KD_AD[k]]);})));
+  var oran=G.adet?Math.round(G.gec/G.adet*100):0;
   a.appendChild(el("div",{class:"rakamlar"},[
-    rakam("Bugün paket",String(G.bugun.adet),G.yedi.adet?"Son 7 günde günde ortalama "+Math.round(G.yedi.adet/7):null),
-    rakam("Sahada kurye",String(sahada),K.bugunMesai.length+" kişinin bugün kaydı var"+(gecGelen?", "+gecGelen+" geç girdi":""),gecGelen?"asagi":""),
-    rakam("Ortalama teslim (bugün)",G.bugun.ortDk!=null?G.bugun.ortDk+" dk":"—",fark==null?null:(fark>0?"+":"")+fark+" dk son 7 gün ortalamasına ("+G.yedi.ortDk+" dk) göre",fark==null||fark===0?"":(fark>0?"asagi":"yukari")),
-    rakam("45 dk üstü teslim",String(G.yedi.gec),"son 7 günde, "+(G.yedi.adet?"%"+Math.round(G.yedi.gec/G.yedi.adet*100)+" oran":"—"),G.yedi.gec?"asagi":""),
-    rakam("Saatte paket (bu ay)",aySaat?String(Math.round(ayPaket/aySaat*10)/10).replace(".",","):"—",aySaat?TL.format(Math.round(aySaat))+" net saatte "+ayPaket+" paket":null),
-    rakam("Açık hesap",para(K.acik.toplam),K.acik.adet+" sipariş kapanmadı",K.acik.adet?"asagi":"")]));
+    rakam("Paket",TL.format(G.adet),D==="yedi"||D==="otuz"?"günde ortalama "+Math.round(G.adet/(D==="yedi"?7:30)):TL.format(G.km)+" km"),
+    rakam("Kurye atama",G.atama!=null?virgul(G.atama)+" dk":"—","sipariş → kurye atandı"),
+    rakam("Restorandan çıkış",G.cikis!=null?virgul(G.cikis)+" dk":"—","sipariş → paket yola çıktı",G.cikis>HD.cikis?"asagi":""),
+    rakam("Yol",G.yol!=null?virgul(G.yol)+" dk":"—","çıkış → teslim"),
+    rakam("Teslim",G.toplam!=null?virgul(G.toplam)+" dk":"—","sipariş → kapıda",G.toplam>HD.toplam?"asagi":""),
+    rakam(HD.toplam+" dk üstü",TL.format(G.gec),G.adet?"paketlerin %"+oran+"'i":null,oran>10?"asagi":"")]));
+
+  // Gecikmeler neden oluyor
+  a.appendChild(el("div",{class:"iki"},[
+    blok("Gecikme neden oluyor",KD_AD[D]+", "+HD.toplam+" dakikayı aşan "+G.gec+" teslimat. Mutfak: sipariş → çıkış "+HD.cikis+" dakikayı aştı. Kurye: yol süresi mesafeye göre beklenenden "+HD.yolPay+" dakikadan fazla uzun.",sebepBlok(G)),
+    blok("Teslim süresi dağılımı","Son 7 günde paketlerin sipariş-teslim süresi.",cubuklar(K.dagilim,function(n){return n+" paket";}))]));
 
   // Bugün sahada kim var
-  a.appendChild(blok("Bugün vardiya","Günlük Mesai sekmesinden. Geç giriş dakikası planlı girişe göredir; kesinti gerekçesini görmek için durumun üzerine gel.",
-    K.bugunMesai.length?tablo([["Kurye"],["Plan"],["Giriş"],["Çıkış"],["Geç",1],["Paket",1],["Net süre",1],["Durum"]],K.bugunMesai.map(function(x){
-      var d=kuryeDurum(x.durum);if(x.neden)d.setAttribute("title",x.neden);
-      return [x.ad,x.plan||"—",x.giris||"—",x.cikis||(x.giris?"sahada":"—"),x.gecDk>0?el("span",{class:"etiket "+(x.gecDk>15?"e-kotu":"e-dikkat"),text:x.gecDk+" dk"}):"—",String(x.paket||0),x.netDk>0?Math.floor(x.netDk/60)+" sa "+(x.netDk%60)+" dk":"—",d];})):bos("Bugün için mesai kaydı yok.")));
+  var M=K.bugunMesai,planli=M.filter(function(x){return x.plan;}).length,giren=M.filter(function(x){return x.giris;}).length,sahada=M.filter(function(x){return x.acik&&x.giris;}).length,gelmedi=M.filter(function(x){return x.plan&&!x.giris;}).length,gecGelen=M.filter(function(x){return x.gecDk>0;}).length;
+  a.appendChild(blok("Bugün vardiya","Planlı "+planli+", giriş yapan "+giren+", şu an sahada "+sahada+(gelmedi?", gelmeyen "+gelmedi:"")+(gecGelen?", geç giren "+gecGelen:"")+". Vardiyası açık kuryenin süresi girişten şu ana kadar sayılır; tablo vardiya kapanınca net süreyi yazar.",
+    M.length?tablo([["Kurye"],["Plan"],["Giriş"],["Çıkış"],["Geç",1],["Paket",1],["Süre",1],["Saatte paket",1],["Durum"]],M.map(function(x){
+      var d=kuryeDurum(x.durum);if(x.neden)d.setAttribute("title",x.neden);var dk=x.acik?x.canliDk:x.netDk,ps=dk>=60?Math.round(x.paket/(dk/60)*10)/10:null;
+      return [x.ad,x.plan||"—",x.giris||el("span",{style:"color:var(--kotu)",text:x.plan?"gelmedi":"—"}),x.cikis||(x.acik&&x.giris?"sahada":"—"),x.gecDk>0?el("span",{class:"etiket "+(x.gecDk>15?"e-kotu":"e-dikkat"),text:x.gecDk+" dk"}):"—",String(x.paket||0),
+        x.acik?el("span",{title:"Vardiya sürüyor",text:saatDk(dk)+" ↻"}):saatDk(dk),ps!=null?el("span",{class:ps<1.5?"etiket e-dikkat":null,text:virgul(ps)}):"—",d];})):bos("Bugün için mesai kaydı yok.")));
 
   // Kurye karnesi
-  var ad={bugun:"Bugün",yedi:"Son 7 gün",ay:"Bu ay"};var kap=el("div");
-  function karne(){kap.textContent="";
-    kap.appendChild(el("div",{class:"sekmeler"},["bugun","yedi","ay"].map(function(k){return el("button",{type:"button","aria-pressed":KURYE_DONEM===k?"true":"false",onclick:function(){KURYE_DONEM=k;karne();}},[ad[k]]);})));
-    var l=K.kisiler[KURYE_DONEM]||[];
-    kap.appendChild(l.length?tablo([["Kurye"],["Paket",1],["Net saat",1],["Saatte paket",1],["Ort. teslim",1],["Ort. yol",1],["45 dk üstü",1],["Gecikme kaydı",1],["Geç giriş",1],["Kesinti",1],["Km",1]],l.map(function(x){
-      return [x.ad,String(x.paket),x.netSaat?String(x.netSaat).replace(".",","):"—",x.paketSaat!=null?String(x.paketSaat).replace(".",","):"—",dkEtiket(x.ortDk,30,40),x.ortYol!=null?x.ortYol+" dk":"—",
-        x.gec45?el("span",{class:"etiket e-kotu",text:String(x.gec45)}):"0",x.gecikme?String(x.gecikme):"0",x.gecGiris?x.gecGiris+" kez, "+x.gecGirisDk+" dk":"—",x.kesintiDk?x.kesintiDk+" dk":"—",TL.format(x.km)];})):bos("Bu dönemde kayıt yok."));}
-  karne();
-  a.appendChild(blok("Kurye karnesi","Paket, süre ve km Siparişler sekmesinden; net saat, geç giriş ve kesinti Günlük Mesai'den. Saatte paket = mesai sekmesindeki paket / net saat. Ortalama teslim sipariş saatinden teslime kadar geçen süredir (4 saati aşan hatalı kayıtlar hariç).",kap));
+  var l=K.kisiler[D]||[];
+  a.appendChild(blok("Kurye karnesi — "+KD_AD[D],"Paket, süre ve km Siparişler sekmesinden; net saat, geç giriş ve kesinti Günlük Mesai'den. Saatte paket yalnız kapanmış vardiyalardan hesaplanır. ‘Erken çevrimiçi’ vardiyadan önce açık kalan ve zaten ödenmeyen süredir, ceza değildir. Kapanış: son teslimden sonra makul çıkışı aşan süre.",
+    l.length?tablo([["Kurye"],["Paket",1],["Net saat",1],["Saatte paket",1],["Ort. teslim",1],["Ort. yol",1],["Geciken",1],["Yolda geciken",1],["Geç giriş",1],["Erken çevrimiçi",1],["Kapanış",1],["Km",1]],l.map(function(x){
+      return [x.ad,String(x.paket),x.netSaat?virgul(x.netSaat):"—",x.paketSaat!=null?el("span",{class:x.paketSaat<1.5?"etiket e-dikkat":null,text:virgul(x.paketSaat)}):"—",dkEtiket(x.ortDk,30,HD.toplam),x.ortYol!=null?x.ortYol+" dk":"—",
+        String(x.gec),x.kuryeGec?el("span",{class:"etiket e-kotu",text:String(x.kuryeGec)}):"0",x.gecGiris?x.gecGiris+" kez, "+x.gecGirisDk+" dk":"—",x.erkenDk?x.erkenDk+" dk":"—",x.kapanisDk?el("span",{class:x.kapanisDk>=120?"etiket e-kotu":null,text:x.kapanisDk+" dk"}):"—",TL.format(x.km)];})):bos("Bu dönemde kayıt yok.")));
 
-  a.appendChild(blok("Hangi saatte sıkışıyoruz","Son 7 günün saat başına günlük ortalama sipariş adedi; sütunun üstünde o saatteki ortalama teslim süresi. Kırmızı sütunlar ortalama 40 dakikayı aşan saatlerdir: ya kurye az ya mutfak yavaş. Vardiyayı bu saatlere göre kaydır.",saatlikGrafik(K.saatlik)));
-  a.appendChild(blok("Son 14 gün","Sütun paket adedi, üstünde ortalama teslim süresi. En koyu sütun bugün.",kuryeSeri(K.seri)));
+  a.appendChild(blok("Hangi saatte sıkışıyoruz","Son 7 günün saat başına günlük ortalama sipariş adedi; sütunun üstünde o saatteki ortalama teslim süresi. Kırmızı sütunlar ortalaması "+HD.toplam+" dakikayı aşan saatlerdir: o saatlere kurye ya da mutfak desteği gerekir.",saatlikGrafik(K.saatlik,HD.toplam)));
+  a.appendChild(blok("Son 14 gün","Sütun paket adedi, kırmızı kısmı "+HD.toplam+" dakikayı aşan teslimatlar; üstünde ortalama teslim süresi. En koyu sütun bugün.",kuryeSeri(K.seri,HD.toplam)));
+  a.appendChild(blok("Platformlar","Son 7 gün.",K.platform.length?tablo([["Platform"],["Paket",1],["Ort. teslim",1],["Geciken",1]],K.platform.map(function(p){return [p.ad,String(p.adet),dkEtiket(p.ortDk,30,HD.toplam),p.gec+" (%"+(p.adet?Math.round(p.gec/p.adet*100):0)+")"];})):bos("Kayıt yok.")));
+
+  // En uzun süren teslimatlar
+  var ek=el("div");(function ekCiz(){ek.textContent="";
+    ek.appendChild(el("div",{class:"sekmeler"},[["","Tümü"],["mutfak","Mutfak"],["kurye","Kurye"],["ikisi","İkisi birden"],["diger","Diğer"]].map(function(s){return el("button",{type:"button","aria-pressed":KURYE_SEBEP===s[0]?"true":"false",onclick:function(){KURYE_SEBEP=s[0];ekCiz();}},[s[1]]);})));
+    var L=K.enKotu.filter(function(x){return !KURYE_SEBEP||x.sebep===KURYE_SEBEP;}).slice(0,15);
+    ek.appendChild(L.length?tablo([["Tarih"],["Saat"],["Adisyon"],["Platform"],["Kurye"],["Km",1],["Çıkış",1],["Yol / beklenen",1],["Toplam",1],["Sebep"]],L.map(function(x){
+      return [gunAd(x.gun),x.saat,String(x.no||""),x.platform,x.kurye,virgul(x.km),el("span",{class:x.cikis>HD.cikis?"etiket e-dikkat":null,text:x.cikis+" dk"}),el("span",{class:x.yol>x.bekYol+HD.yolPay?"etiket e-kotu":null,text:x.yol+" / "+x.bekYol+" dk"}),x.toplam+" dk",el("span",{class:"etiket",style:"background:var(--kum-acik);color:"+SEBEP_RENK[x.sebep],text:SEBEP_AD[x.sebep]})];})):bos("Bu sebeple geciken teslimat yok."));})();
+  a.appendChild(blok("En uzun süren teslimatlar","Son 7 günün en yavaş teslimatları, en uzundan kısaya. Sebebe göre süz.",ek));
+
+  // Kesintiler
+  var KS=K.kesintiler.filter(function(x){return x.erken+x.kapanis>=10;}).slice(0,20);
+  a.appendChild(blok("Kesintiler","Son 7 günde 10 dakikayı aşanlar. Erken çevrimiçi: vardiyadan önce açık kalan süre (ödenmiyor, ceza değil). Kapanış: son teslimden sonra açık kalan süre. 2 saati aşan kapanış büyük ihtimalle çıkış yapmayı unutmaktır; tablodaki Kesinti İstisnaları sekmesine yazılarak düzeltilir.",
+    KS.length?tablo([["Tarih"],["Kurye"],["Erken çevrimiçi",1],["Kapanış",1],["Not"]],KS.map(function(x){return [gunAd(x.gun),x.ad,x.erken?x.erken+" dk":"—",x.kapanis?el("span",{class:"etiket "+(x.unutulmus?"e-kotu":"e-dikkat"),text:x.kapanis+" dk"}):"—",
+      x.unutulmus?el("span",{title:x.neden,text:"Çıkış unutulmuş olabilir"}):el("span",{title:x.neden,style:"color:var(--gri)",text:x.neden.length>70?x.neden.slice(0,70)+"…":x.neden})];})):bos("Son 7 günde 10 dakikayı aşan kesinti yok.")));
+
+  // Açık hesaplar
+  a.appendChild(el("div",{class:"rakamlar"},[rakam("Dünden eski açık",para(A.eski.toplam),A.eski.adet+" kayıt",A.eski.adet?"asagi":""),rakam("Bir aydan eski",String(A.eski.ayUstu),A.eski.ayUstu?"tahsil edilmedi ya da işaretlenmedi":null,A.eski.ayUstu?"asagi":""),
+    rakam("Bugün açık",para(A.bugun.toplam),A.bugun.adet+" kayıt; gün kapanmadan normal"),rakam("Hariç tutulan",para(A.haric.toplam),A.haric.adet+" ‘Ödenmez’ sipariş (işletme/personel)")]));
   a.appendChild(el("div",{class:"iki"},[
-    blok("Teslim süresi dağılımı","Son 7 günde paketlerin sipariş-teslim süresi.",cubuklar(K.dagilim,function(n){return n+" paket";})),
-    blok("Platformlar","Son 7 gün.",K.platform.length?tablo([["Platform"],["Paket",1],["Ort. teslim",1]],K.platform.map(function(p){return [p.ad,String(p.adet),dkEtiket(p.ortDk,30,40)];})):bos("Kayıt yok."))]));
-
-  var gl=K.gecikme.liste;
-  a.appendChild(blok("Geciken teslimatlar","Son 30 günde "+K.gecikme.otuzGun+" kayıt. Beklenen süre mesafeye göre hesaplanır; en fazla geciken en üstte (gün içinde).",gl.length?tablo([["Tarih"],["Adisyon"],["Kurye"],["Km",1],["Beklenen",1],["Fiili",1],["Fazla",1],["Çıkış"]],gl.map(function(x){
-    return [gunAd(x.gun),String(x.no||""),x.kurye,String(x.km).replace(".",","),x.beklenen+" dk",x.fiili+" dk",el("span",{class:"etiket "+(x.fazla>=30?"e-kotu":"e-dikkat"),text:"+"+x.fazla+" dk"}),x.cikti||"—"];})):bos("Son 30 günde geciken teslimat kaydı yok.")));
-
-  var A=K.acik;
-  a.appendChild(el("div",{class:"iki"},[
-    blok("Açık hesaplar","Henüz kapanmamış tahsilatlar (yemek kartı, kart, nakit). Müşteri adı gösterilmez; ayrıntı tabloda.",A.liste.length?tablo([["Tarih"],["Adisyon"],["Kurye"],["Ödeme"],["Tutar",1],["Durum"]],A.liste.map(function(x){return [gunAd(x.gun),String(x.no||""),x.kurye,x.odeme,para(x.tutar),x.durum];})):bos("Açık hesap yok.")),
-    blok("Kimde ne kadar açık var",null,cubuklar(A.kisi))]));}
+    blok("Açık hesaplar","Önce en eskiler. Müşteri adı gösterilmez; ayrıntı tabloda."+(A.kod?" ‘Kod’ ile ödenen "+A.kod+" kayıt uygulama içinde ödenmiş olabilir; kuryeden alınacak para var mı teyit et.":""),A.liste.length?tablo([["Tarih"],["Adisyon"],["Kurye"],["Ödeme"],["Tutar",1],["Durum"]],A.liste.map(function(x){
+      var yas=x.yas<=0?el("span",{class:"etiket e-notr",text:"bugün"}):el("span",{class:"etiket "+(x.yas>30?"e-kotu":x.yas>3?"e-dikkat":"e-notr"),text:x.yas+" gün"});
+      return [el("span",null,[gunAd(x.gun)+" ",yas]),String(x.no||""),x.kurye,x.kod?el("span",null,[x.odeme+" ",el("span",{class:"etiket e-dikkat",text:"teyit"})]):x.odeme,para(x.tutar),x.durum];})):bos("Açık hesap yok.")),
+    blok("Kimde ne kadar açık var","Dünden eski kayıtlar.",cubuklar(A.kisi))]));}
 
 var CIZ={genel:genelSayfa,merkez:merkez,ozet:ozet,satis:satis,kararlar:kararlar,ai:ai,
   finans:finansSayfa,

@@ -19,13 +19,16 @@ Finans / Alımlar sayfalarındaki tedarikçi borcundan düşülür.
 
 ## Kurye & teslimat ekranı
 
-Panelde **Kurye & Teslimat** bölümü (`#kurye`). **Kurye Net Çalışma Süresi** tablosunu yalnızca okur:
-Siparişler, Günlük Mesai, Teslimat Gecikmeleri ve Açık Hesaplar sekmeleri.
+Panelde **Kurye & Teslimat** bölümü (`#kurye`). **Kurye Net Çalışma Süresi** tablosunu yalnızca okur
+(Siparişler, Günlük Mesai, Açık Hesaplar). Dönem: Bugün / Dün / Son 7 gün / Bu ay / Son 30 gün.
 
-- Bugün kim sahada, geç giriş, paket ve net süre (Günlük Mesai).
-- Kurye karnesi (bugün / 7 gün / bu ay): paket, net saat, saatte paket, ortalama teslim ve yol süresi, 45 dk üstü teslim, geç giriş, kesinti, km.
-- Saat saat yük: son 7 günün saat başına ortalama sipariş ve teslim süresi; 40 dk'yı aşan saatler kırmızı.
-- Son 14 gün, teslim süresi dağılımı, platformlar, geciken teslimatlar, açık hesaplar.
+- Süre aşamaları: kurye atama, restorandan çıkış, yol, teslim; 40 dk üstü teslimler.
+- Gecikmenin sebebi: mutfak (sipariş → çıkış 25 dk üstü), kurye (yol, mesafeye göre beklenenden 5 dk fazla), ikisi, diğer.
+  Ölçütler `Kod.gs` içindeki `KURYE_HEDEF`'te; beklenen yol `beklenenYol_(km)`.
+- Bugün vardiya: açık vardiyanın süresi girişten şu ana kadar sayılır; saatte paket yalnız kapanmış vardiyalardan.
+- Kurye karnesi, saat saat yük, son 14 gün, platformlar, en uzun süren teslimatlar (sebebe göre süzülür).
+- Kesintiler: erken çevrimiçi (ödenmeyen, ceza değil) ve kapanış ayrı; 2 saati aşan kapanış "çıkış unutulmuş olabilir".
+- Açık hesaplar: 'Ödenmez' siparişler hariç, dünden eski / bugün ayrı, yaşa göre renk, 'Kod' ile ödenenler teyit etiketli.
 - Müşteri adı, telefonu, adresi ve sipariş içeriği panele gönderilmez.
 
 ## Yayına alma
