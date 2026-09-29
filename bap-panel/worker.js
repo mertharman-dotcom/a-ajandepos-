@@ -21,6 +21,13 @@ const HTML_HEADERS = {
   'x-robots-tag': 'noindex, nofollow'
 };
 
+// Apps Script hata verdiğinde JSON yerine HTML hata sayfası döner; sayfadaki hata metnini kısaca çıkarır.
+function gasHatasi(metin) {
+  const t = String(metin || '').replace(/<script[\s\S]*?<\/script>|<style[\s\S]*?<\/style>/gi, ' ').replace(/<[^>]+>/g, ' ')
+    .replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/&amp;/g, '&').replace(/\s+/g, ' ').trim();
+  return t ? ' Google\'ın mesajı: ' + t.slice(0, 300) : '';
+}
+
 function json(obj, status) {
   return new Response(JSON.stringify(obj), {
     status: status || 200,
@@ -51,7 +58,7 @@ export default {
         let veri;
         try { veri = JSON.parse(metin); }
         catch (e) {
-          return json({ hata: 'Veri kapısı beklenmeyen bir cevap verdi. Apps Script yayınında "Erişimi olanlar: Herkes" seçili mi, adres /exec ile mi bitiyor, kontrol edin.' }, 502);
+          return json({ hata: 'Veri kapısı beklenmeyen bir cevap verdi. Apps Script yayınında "Erişimi olanlar: Herkes" seçili mi, adres /exec ile mi bitiyor, kontrol edin.' + gasHatasi(metin) }, 502);
         }
         if (veri && veri.hata === 'yetkisiz') {
           return json({ hata: 'Veri kapısı anahtarı eşleşmiyor. Cloudflare GAS_KEY ile Apps Script anahtarı aynı olmalı.' }, 502);
@@ -113,7 +120,7 @@ export default {
         const r = await fetch(env.GAS_URL, { method: 'POST', headers: { 'content-type': 'application/json' }, body: ileti, redirect: 'follow' });
         const metin = await r.text();
         try { return json(JSON.parse(metin), 200); }
-        catch (e) { return json({ belirsiz: true, hata: 'Veri kapısı beklenmeyen bir cevap verdi; kayıt yazılmış olabilir. Paneli yenileyip kontrol edin.' }, 502); }
+        catch (e) { return json({ belirsiz: true, hata: 'Veri kapısı beklenmeyen bir cevap verdi; kayıt yazılmış olabilir. Paneli yenileyip kontrol edin.' + gasHatasi(metin) }, 502); }
       } catch (e) { return json({ belirsiz: true, hata: 'Veri kapısına ulaşılamadı; kayıt yazılmış olabilir. Paneli yenileyip kontrol edin.' }, 502); }
     }
 
