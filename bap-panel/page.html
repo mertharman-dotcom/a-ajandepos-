@@ -626,9 +626,10 @@ function sebepBlok(G){var S=G.sebep,top=G.gec;if(!top)return bos("Bu dönemde ge
 
 function kuryeSayfa(a){var K=VERI.kurye;a.appendChild(ust("Kurye ve teslimat",K&&K.sonSiparis?"Kaynak: Kurye Net Çalışma Süresi tablosu. Son sipariş kaydı: "+K.sonSiparis+".":null));a.appendChild(nabizSeridi("kurye"));var h=hatalarKutusu(["kurye"]);if(h)a.appendChild(h);if(!K)return;
   var HD=K.hedef,D=KURYE_DONEM,G=K.genel[D],A=K.acik;
-  var SK=[["ozet","Özet"],["bordro","Bordro"],["teslimat","Teslimat analizi"],["kesinti","Kesintiler"],["acik","Açık hesaplar ("+A.eski.adet+")"]];
+  var aktifSefer=(K.seferler||[]).filter(function(g){return g.durum!=="tamamlandı";}).length;
+  var SK=[["ozet","Özet"],["rota","Seferler & rota"+(aktifSefer?" ("+aktifSefer+" aktif)":"")],["bordro","Bordro"],["teslimat","Teslimat analizi"],["kesinti","Kesintiler"],["acik","Açık hesaplar ("+A.eski.adet+")"]];
   a.appendChild(el("div",{class:"sekmeler",style:"border-bottom:1px solid var(--cizgi);padding-bottom:12px;margin-bottom:16px"},SK.map(function(k){return el("button",{type:"button","aria-pressed":KURYE_SEKME===k[0]?"true":"false",onclick:function(){KURYE_SEKME=k[0];ciz();}},[k[1]]);})));
-  if(KURYE_SEKME==="bordro")return kuryeBordro(a,K);if(KURYE_SEKME==="kesinti")return kuryeKesinti(a,K);if(KURYE_SEKME==="acik")return kuryeAcik(a,K);
+  if(KURYE_SEKME==="rota")return kuryeRota(a,K);if(KURYE_SEKME==="bordro")return kuryeBordro(a,K);if(KURYE_SEKME==="kesinti")return kuryeKesinti(a,K);if(KURYE_SEKME==="acik")return kuryeAcik(a,K);
   a.appendChild(el("div",{class:"sekmeler"},["bugun","dun","yedi","ay","otuz"].map(function(k){return el("button",{type:"button","aria-pressed":D===k?"true":"false",onclick:function(){KURYE_DONEM=k;ciz();}},[KD_AD[k]]);})));
   if(KURYE_SEKME==="teslimat")return kuryeTeslimat(a,K);
   var oran=G.adet?Math.round(G.gec/G.adet*100):0;
@@ -760,6 +761,44 @@ function kuryeBordro(a,K){var B=K.bordro||[];if(!B.length)return a.appendChild(b
   a.appendChild(blok("Kurye hakedişi","Net süre üzerinden (kesintiler düşülmüş). Saat hakedişi = net saat × saat ücreti; paket hakedişi = paket × paket ücreti. Para kesintisi kurye tablosundaki Kesintiler sekmesinden (panelden ‘Kuryeden kes’ denenler dahil); ayrıntı için üzerine gel. Haddy'de KDV kesinti düşüldükten sonraki tutar üzerinden. Ücretler kurye tablosundaki ‘Kurye bilgiler’ sekmesinden gelir.",tb));
   var T=top(H.kisiler);
   a.appendChild(el("div",{class:"rakamlar"},[rakam("Haftalık kurye maliyeti",para(T.toplam),"KDV dahil"),rakam("Paket başı",T.paket?para(T.toplam/T.paket):"—",T.paket+" paket"),rakam("Net saat",TL.format(Math.round(T.netDk/60))+" sa",T.netDk>=60?virgul(Math.round(T.paket/(T.netDk/60)*100)/100)+" paket/saat":null),rakam("Kesinti",T.kesintiDk+" dk",T.paraKesinti?"ve "+para(T.paraKesinti)+" para kesintisi":null)]));}
+
+var ROTA={};// sipariş kümesi → {durum:"gidiyor"|"tamam"|"hata", veri, mesaj}
+function rotaAnahtar(g){return g.siparisler.map(function(x){return x.id;}).filter(String).sort().join("_");}
+function rotaIste(g,sonra){var k=rotaAnahtar(g);if(!k)return;ROTA[k]={durum:"gidiyor"};sonra();
+  fetch("/api/rota",{method:"POST",credentials:"same-origin",headers:{"content-type":"application/json","x-bap-panel":"1"},body:JSON.stringify({idler:g.siparisler.map(function(x){return x.id;})})})
+    .then(function(r){return r.json();}).then(function(d){ROTA[k]=d&&!d.hata?{durum:"tamam",veri:d}:{durum:"hata",mesaj:(d&&d.hata)||"Hesaplanamadı."};})
+    .catch(function(){ROTA[k]={durum:"hata",mesaj:"Bağlantı koptu."};}).then(sonra);}
+function rotaSonucu(r,g){var V=r.veri,b=V.bacaklar;
+  var satirlar=b.map(function(x,i){return [String(i+1),(i===0?(V.sube||"Şube").replace("BAP ","")+" şube":"Durak "+i)+" → "+x.mahalle,el("span",{title:x.adres,text:"Adisyon "+x.no}),virgul(x.km)+" km",x.dk+" dk"+(x.trafikli?"":" *")];});
+  var fark=V.fiiliDk!=null?V.fiiliDk-V.kapatmaDk:null;
+  return el("div",{style:"margin-top:10px"},[tablo([["#"],["Bacak"],["Sipariş"],["Km",1],["Canlı süre",1]],satirlar),
+    el("div",{class:"rakamlar dort",style:"margin:12px 0 4px"},[rakam("Gidilecek km",virgul(V.toplamKm)+" km",V.tabloKm?"tabloda "+virgul(V.tabloKm)+" km (her sipariş şubeden ayrı)":null),
+      rakam("Sürüş (şu anki trafik)",V.surusDk+" dk",V.sira),rakam("Paket kapatma süresi",V.kapatmaDk+" dk","sürüş + kapıda "+V.teslimPayiDk+" dk"),
+      V.fiiliDk!=null?rakam("Gerçekleşen",V.fiiliDk+" dk",(fark>0?"+":"")+fark+" dk tahmine göre",fark>10?"asagi":(fark<=0?"yukari":"")):rakam("Hesaplandı",V.zaman,V.onbellek?"son 10 dk içindeki hesap":"az önce")]),
+    b.some(function(x){return !x.trafikli;})?el("p",{style:"font-size:12.5px;color:var(--gri)",text:"* trafik bilgisi gelmedi, normal süre yazıldı."}):null]);}
+
+function kuryeRota(a,K){var L=K.seferler||[],KN=K.subeKonum||{};var kap=el("div");
+  function ciz2(){kap.textContent="";
+    var aktif=L.filter(function(g){return g.durum!=="tamamlandı";}),biten=L.filter(function(g){return g.durum==="tamamlandı";}).slice(0,15);
+    kap.appendChild(el("div",{class:"bilgi"},["Aynı kurye "+5+" dakika içinde restorandan çıktıysa siparişler tek sefer sayılır; yola çıkmamış ama kuryeye atanmış siparişler de birlikte görünür. ‘Canlı süre ve km’ Google Haritalar'dan şu anki trafikle şube → 1. teslimat → 2. teslimat … bacaklarını hesaplar. Çıkış noktaları: ",
+      el("strong",{text:"Erenköy"})," "+(KN["BAP Erenköy"]||"")+"; ",el("strong",{text:"Fikirtepe"})," "+(KN["BAP Fikirtepe"]||"")+". Teslim edilmiş seferde gerçek teslim sırası, edilmemişte en kısa sıra kullanılır. Adres gösterilmez, yalnız mahalle; bacağın üzerine gelince Haritalar'ın bulduğu sokak görünür."]));
+    if(K.seferHata)kap.appendChild(el("div",{class:"uyari kotu"},[el("b",{text:"Seferler okunamadı"}),el("div",{text:K.seferHata})]));
+    var hepsi=aktif.filter(function(g){var r=ROTA[rotaAnahtar(g)];return !r||r.durum==="hata";});
+    if(hepsi.length>1)kap.appendChild(el("p",null,[el("button",{type:"button",class:"dugme ana-dugme",onclick:function(){hepsi.forEach(function(g){rotaIste(g,ciz2);});}},["Aktif "+hepsi.length+" seferin hepsini hesapla"])]));
+    function kart(g){var k=rotaAnahtar(g),r=ROTA[k];var et={"yola çıkmadı":"e-dikkat","yolda":"e-notr","tamamlandı":"e-iyi"}[g.durum];
+      var tahmini=g.siparisler.some(function(x){return x.subeKaynak!=="Adisyo";});
+      var ust2=el("h3",null,[g.kurye+" ",el("span",{class:"etiket "+et,text:g.durum})," ",el("span",{class:"etiket e-notr",text:g.siparisler.length+" paket"})]);
+      var meta=el("div",{class:"meta"},[el("span",{text:(g.sube||"").replace("BAP ","")+" şubeden"+(tahmini?" (şube kısmen tahmini)":"")}),g.cikti?el("span",{text:"Çıkış "+g.cikti}):null,g.fiiliDk!=null?el("span",{text:"Son teslim "+g.fiiliDk+" dk sonra"}):null]);
+      var tb=tablo([["Adisyon"],["Platform"],["Mahalle"],["Km (tablo)",1],["Çıktı"],["Teslim"],["Şube"]],g.siparisler.map(function(x){
+        return [String(x.no||""),x.platform,x.mahalle,virgul(x.km),x.cikti||"—",x.teslim||"—",el("span",{title:x.subeKaynak==="Adisyo"?"Adisyo'daki ürün çıkan şube":x.subeKaynak==="mahalle"?"Mahalle listesinden tahmin":"Bulunamadı, Erenköy varsayıldı",style:x.subeKaynak==="Adisyo"?null:"color:var(--dikkat)",text:x.sube.replace("BAP ","")+(x.subeKaynak==="Adisyo"?"":" ?")})];}));
+      var alt;if(!k)alt=el("p",{class:"cevap-durum",text:"Sipariş numarası yok, hesaplanamaz."});
+      else if(r&&r.durum==="gidiyor")alt=el("p",{class:"cevap-durum",text:"Google Haritalar'dan hesaplanıyor…"});
+      else if(r&&r.durum==="tamam")alt=el("div",null,[rotaSonucu(r,g),el("button",{type:"button",class:"dugme",style:"padding:4px 10px;font-size:13px",onclick:function(){rotaIste(g,ciz2);}},["Yeniden hesapla"])]);
+      else alt=el("div",null,[el("button",{type:"button",class:"dugme",onclick:function(){rotaIste(g,ciz2);}},["Canlı süre ve km hesapla"]),r&&r.durum==="hata"?el("span",{class:"cevap-durum kotu",style:"margin-left:10px",text:r.mesaj}):null]);
+      return el("div",{class:"satir"},[ust2,meta,el("div",{style:"margin-top:8px"},[tb]),el("div",{style:"margin-top:8px"},[alt])]);}
+    kap.appendChild(blok("Aktif seferler",aktif.length?"Yola çıkmamış ve yoldaki paketler.":null,aktif.length?el("div",{class:"liste"},aktif.map(kart)):bos("Şu an yolda ya da bekleyen paket yok.")));
+    kap.appendChild(blok("Bugün tamamlananlar","Son 15 sefer. Canlı hesap şu anki trafiğe göredir; gerçekleşen süreyle karşılaştırmak içindir.",biten.length?el("div",{class:"liste"},biten.map(kart)):bos("Bugün tamamlanan sefer yok.")));}
+  ciz2();a.appendChild(kap);}
 
 var HESAP_ISLEM={};// siparisId → {durum:"gidiyor"|"tamam"|"hata", islem, mesaj}
 function hesapKapat(x,islem,yenidenCiz){

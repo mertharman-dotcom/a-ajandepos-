@@ -38,6 +38,12 @@ Panelde **Kurye & Teslimat** bölümü (`#kurye`). **Kurye Net Çalışma Süres
   (yoksa açılır) olarak yazılır ve o sipariş listeden düşer; yanlış kapatılan satır o sekmeden silinirse yeniden açık görünür.
   **Kuryeden kes** ayrıca **Kesintiler** sekmesine TL kesinti yazar. Sipariş bilgisi tarayıcıdan değil Açık Hesaplar'dan okunur;
   aynı sipariş iki kez kapatılamaz.
+- Seferler & rota: bugünün siparişleri kurye bazında seferlere ayrılır (restorandan 5 dk içinde çıkanlar tek sefer; atanmış
+  ama yola çıkmamışlar ayrı grup). "Canlı süre ve km" Google Haritalar'dan (Apps Script Maps servisi, şu anki trafik)
+  şube → 1. → 2. → 3. teslimat bacaklarını hesaplar: gidilecek km, sürüş, paket kapatma süresi (sürüş + kapı başına 2 dk),
+  tamamlanmış seferde gerçekleşenle fark. Çıkış noktaları `SUBE_KONUM` (Erenköy: Alpler Sk. No:7; Fikirtepe: Mandıra Cd.
+  Evinpark Sitesi). Şube: Adisyo'da tarih + günlük sipariş no → Ürün Çıkan Şube / Şube; yoksa Genel Bilgiler › Mahalle_Sube;
+  o da yoksa Erenköy (panelde "?" ile işaretli). Hesap düğmeyle yapılır ve 10 dk saklanır (günlük Haritalar kotası için).
 - Kesinti girişi (Kesintiler sekmesi): kurye, tarih, tür (para ₺ / süre dk), miktar ve açıklama. Kurye tablosunun
   **Kesintiler** sekmesine kurye panelindeki biçimde yazılır (açıklamanın sonunda "(panel)"). Aynı gün + kurye + miktar
   varsa önce onay ister; aynı gönderim iki kez yazılmaz. Yanlış kayıt tablodan silinir.

@@ -110,6 +110,23 @@ export default {
       } catch (e) { return json({ belirsiz: true, hata: 'Veri kapısına ulaşılamadı; ödeme kaydedilmiş olabilir.' }, 502); }
     }
 
+    if (url.pathname === '/api/rota' && request.method === 'POST') {
+      // Canlı rota (yalnız okur): sipariş numaralarını veri kapısına iletir.
+      if (request.headers.get('x-bap-panel') !== '1' || (request.headers.get('origin') || url.origin) !== url.origin) {
+        return json({ hata: 'İzin verilmeyen istek.' }, 403);
+      }
+      let govde;
+      try { govde = await request.json(); } catch (e) { return json({ hata: 'Geçersiz istek.' }, 400); }
+      const idler = (Array.isArray(govde.idler) ? govde.idler : []).slice(0, 5).map(function (x) { return String(x).replace(/\D/g, '').slice(0, 20); });
+      const ileti = JSON.stringify({ key: env.GAS_KEY, tur: 'rota', idler: idler });
+      try {
+        const r = await fetch(env.GAS_URL, { method: 'POST', headers: { 'content-type': 'application/json' }, body: ileti, redirect: 'follow' });
+        const metin = await r.text();
+        try { return json(JSON.parse(metin), 200); }
+        catch (e) { return json({ hata: 'Veri kapısı beklenmeyen bir cevap verdi.' + gasHatasi(metin) }, 502); }
+      } catch (e) { return json({ hata: 'Veri kapısına ulaşılamadı.' }, 502); }
+    }
+
     if (url.pathname === '/api/kesinti' && request.method === 'POST') {
       // Kurye kesintisi: yalnızca panelin kendisinden gelen istek kabul edilir.
       if (request.headers.get('x-bap-panel') !== '1' || (request.headers.get('origin') || url.origin) !== url.origin) {

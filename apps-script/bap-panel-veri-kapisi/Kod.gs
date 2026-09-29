@@ -886,6 +886,8 @@ function kurye_() {
       sebep: { mutfak: g.mutfak, kurye: g.kurye, ikisi: g.ikisi, diger: g.diger } }; });
   out.seri = Object.keys(seri).sort().map(function (k) { var x = seri[k]; return { gun: k, adet: x.adet, ortDk: x.n ? Math.round(x.dk / x.n) : null, gec: x.gec, maliyet: Math.round(x.maliyet) }; });
   out.ucret = KURYE_UCRET;
+  try { out.seferler = seferler_(ss, bugun); } catch (err) { out.seferler = []; out.seferHata = String(err.message || err); }
+  out.subeKonum = SUBE_KONUM;
   out.kisiler = {};
   KURYE_DONEMLER.forEach(function (d) {
     out.kisiler[d] = Object.keys(kisi[d]).map(function (k) { var x = kisi[d][k];
@@ -1006,6 +1008,156 @@ function kesintiGir_(d) {
   return sonuc;
 }
 
+/* ---------------- Kurye seferleri ve canlı rota ---------------- */
+
+// Şubelerin çıkış noktası (Google Haritalar'a verilen adres).
+var SUBE_KONUM = {
+  'BAP Erenköy': 'Erenköy Mahallesi, Alpler Sokak No:7, 34738 Kadıköy/İstanbul',
+  'BAP Fikirtepe': 'Evinpark Sitesi, Mandıra Caddesi, Fikirtepe, 34720 Kadıköy/İstanbul'
+};
+var SEFER_ARALIK_DK = 5;   // aynı kuryenin bu kadar dakika içinde restorandan çıkan siparişleri tek sefer
+var TESLIM_PAYI_DK = 2;    // her kapıda paketi teslim etmek için eklenen süre
+
+// Adres metninden mahalle adı (panelde yalnız mahalle gösterilir).
+function mahalleAdi_(adres) {
+  var s = String(adres || ''), m = s.match(/Mahalle\s*:\s*([^,]+?)\s*Mah/i) || s.match(/([A-ZÇĞİÖŞÜ][\wçğıöşüÇĞİÖŞÜ]+)\s+(?:Kadıköy\s+|Üsküdar\s+|Ataşehir\s+)?Mah(?:allesi)?\b/);
+  if (m) return m[1].trim();
+  var ilk = s.split(',')[0].trim();
+  // "Göztepe Cavitpaşa Sk. No:1" gibi mahalle + sokak bitişikse yalnız ilk kelime mahalledir
+  if (/\b(Sk|Sok|Sokak|Cd|Cad|Cadde|Caddesi|Bulvar|Blv|No)\b/i.test(ilk)) ilk = ilk.split(/\s+/)[0];
+  return ilk.slice(0, 30);
+}
+// Platform adresini Haritalar'ın anlayacağı hale getirir: kat, daire, apartman adı, notlar atılır.
+// Sokakta kapı numarası yoksa platformun "Apt No" / "Apt" alanı (bina numarası) kapı numarası olarak kullanılır.
+function adresTemizle_(adres) {
+  var s = String(adres || '').split(' * ')[0].split(/,?\s*Türkiye\b/)[0];
+  var kapiVar = /(?:^|[^A-Za-z.])No\s*:?\s*\d/i.test(s.replace(/Apt\.?\s*No/gi, '').replace(/Kapı\s*No/gi, '').replace(/Bina\s*No/gi, ''));
+  if (!kapiVar) { var m = s.match(/Apt\.?(?:\s*No)?\s*:\s*(\d[\d\/-]*)/i); if (m) s = s.replace(m[0], 'No:' + m[1]); }
+  s = s.replace(/Apt\.?(?:\s*Adı|\s*No)?\s*:[^,]*/gi, '').replace(/Kat\s*:[^,]*/gi, '').replace(/Daire(?:\s*No)?\s*:[^,]*/gi, '')
+       .replace(/Kapı\s*No\s*:[^,]*/gi, '').replace(/Bina\s*No\s*:\s*/gi, '').replace(/TGO Yemek/gi, '').replace(/Mahalle\s*:/gi, '')
+       .replace(/\s*,\s*(,\s*)+/g, ', ').replace(/\s{2,}/g, ' ').replace(/^[,\s]+|[,\s-]+$/g, '');
+  if (!/[iİ]stanbul/.test(s)) s += ', İstanbul';
+  return s.slice(0, 220);
+}
+function saatDk_(s) { var m = String(s || '').match(/^(\d{1,2}):(\d{2})(?::(\d{2}))?/); if (!m) return null; var d = (+m[1]) * 60 + (+m[2]) + (m[3] ? +m[3] / 60 : 0); return d < 360 ? d + 1440 : d; }
+
+// Siparişin çıktığı şube: Adisyo'da (tarih + günlük sipariş no) → Ürün Çıkan Şube, yoksa Şube; bulunamazsa mahalle listesi.
+function subeSozlugu_() {
+  var cache = CacheService.getScriptCache(), c = cache.get('sube_sozluk_v1'); if (c) { try { return JSON.parse(c); } catch (e) { } }
+  var out = { no: {}, mahalle: {} };
+  try {
+    var a = sonSatirlar_(SpreadsheetApp.openById(KAYNAK.siparis.id), 'Satıs Verileri', 1500, ['Sipariş No', 'Sipariş Tarihi', 'Şube', 'Ürün Çıkan Şube']);
+    if (a) { var cn = kolon_(a.b, ['Sipariş No']), ct = kolon_(a.b, ['Sipariş Tarihi']), cs = kolon_(a.b, ['Şube']), cc = kolon_(a.b, ['Ürün Çıkan Şube']);
+      a.v.forEach(function (r) { var no = String(r[cn] || '').trim(), gun = gunStr_(r[ct]); if (!no || !gun) return;
+        var sb = subeAnahtar_(r[cc]) || subeAnahtar_(r[cs]); if (/Erenköy|Fikirtepe/.test(sb)) out.no[gun + '|' + no] = sb; }); }
+  } catch (e) { }
+  try {
+    var mh = SpreadsheetApp.openById(KAYNAK.menu.id).getSheetByName('Mahalle_Sube');
+    if (mh) mh.getDataRange().getDisplayValues().slice(1).forEach(function (r) { var sb = subeAnahtar_(r[2]); if (r[0] && /Erenköy|Fikirtepe/.test(sb)) out.mahalle[norm_(String(r[0]).replace(/\bmah(allesi)?\b\.?/i, ''))] = sb; });
+  } catch (e) { }
+  try { cache.put('sube_sozluk_v1', JSON.stringify(out), 600); } catch (e) { }
+  return out;
+}
+function siparisSubesi_(soz, gun, no, mahalle) {
+  var k = soz.no[gun + '|' + String(no || '').trim()] || soz.no[gunEkle_(gun, -1) + '|' + String(no || '').trim()];
+  if (k) return { sube: k, kaynak: 'Adisyo' };
+  var m = soz.mahalle[norm_(mahalle)]; if (m) return { sube: m, kaynak: 'mahalle' };
+  return { sube: 'BAP Erenköy', kaynak: 'varsayılan' };
+}
+
+// Bugünün seferleri: aynı kurye + restorandan SEFER_ARALIK_DK içinde çıkan siparişler. Yola çıkmamış atanmış siparişler ayrı grup.
+function seferler_(ss, bugun) {
+  var s = sonSatirlar_(ss, 'Siparişler', 600, ['Tarih', 'Sipariş ID', 'Adisyon No', 'Platform', 'Kurye', 'Atandı', 'Restorandan Çıktı', 'Teslim Saati', 'Mesafe (km)', 'Toplam (dk)', 'Adres', 'Durum']);
+  if (!s) return [];
+  var c = { tarih: kolon_(s.b, ['Tarih']), id: kolon_(s.b, ['Sipariş ID']), no: kolon_(s.b, ['Adisyon No']), plat: kolon_(s.b, ['Platform']), kurye: kolon_(s.b, ['Kurye']),
+            at: kolon_(s.b, ['Atandı']), cik: kolon_(s.b, ['Restorandan Çıktı']), tes: kolon_(s.b, ['Teslim Saati']), km: kolon_(s.b, ['Mesafe (km)']), top: kolon_(s.b, ['Toplam (dk)']),
+            adres: kolon_(s.b, ['Adres']), durum: kolon_(s.b, ['Durum']) };
+  var soz = subeSozlugu_(), yarin = gunEkle_(bugun, 1), kisi = {};
+  s.v.forEach(function (r) {
+    var gun = gunStr_(r[c.tarih]); if (gun !== bugun && gun !== yarin) return;
+    var durum = String(r[c.durum] || ''); if (/iptal|iade/i.test(durum)) return;
+    var ad = String(r[c.kurye] || '').trim(); if (!ad) return;
+    var mh = mahalleAdi_(r[c.adres]), sb = siparisSubesi_(soz, gun, r[c.no], mh);
+    (kisi[ad] = kisi[ad] || []).push({ id: siparisNo_(r[c.id]), no: r[c.no], platform: r[c.plat] || '', mahalle: mh, km: sayi_(r[c.km]),
+      cikti: String(r[c.cik] || '').slice(0, 5), teslim: String(r[c.tes] || '').slice(0, 5), cikDk: saatDk_(r[c.cik]), tesDk: saatDk_(r[c.tes]),
+      durum: durum, sube: sb.sube, subeKaynak: sb.kaynak });
+  });
+  var out = [];
+  Object.keys(kisi).forEach(function (ad) {
+    var l = kisi[ad], cikmis = l.filter(function (x) { return x.cikDk !== null; }).sort(function (a, b) { return a.cikDk - b.cikDk; });
+    var bekleyen = l.filter(function (x) { return x.cikDk === null && !/teslim/i.test(x.durum); });
+    var grup = null;
+    cikmis.forEach(function (x) {
+      if (!grup || x.cikDk - grup.bas > SEFER_ARALIK_DK) { grup = { kurye: ad, bas: x.cikDk, siparisler: [] }; out.push(grup); }
+      grup.siparisler.push(x);
+    });
+    if (bekleyen.length) out.push({ kurye: ad, bas: 99999, bekliyor: true, siparisler: bekleyen });
+  });
+  out.forEach(function (g) {
+    var l = g.siparisler, bitti = l.every(function (x) { return x.tesDk !== null; });
+    g.durum = g.bekliyor ? 'yola çıkmadı' : bitti ? 'tamamlandı' : 'yolda';
+    var sb = {}; l.forEach(function (x) { sb[x.sube] = (sb[x.sube] || 0) + 1; }); g.sube = Object.keys(sb).sort(function (a, b) { return sb[b] - sb[a]; })[0];
+    if (bitti && !g.bekliyor) { var son = Math.max.apply(null, l.map(function (x) { return x.tesDk; })); g.fiiliDk = Math.round(son - g.bas); g.cikti = l[0].cikti; }
+    else if (!g.bekliyor) g.cikti = l[0].cikti;
+    l.sort(function (a, b) { return (a.tesDk || 99999) - (b.tesDk || 99999); });
+    l.forEach(function (x) { delete x.cikDk; delete x.tesDk; });
+    delete g.bas;
+  });
+  var sira = { 'yola çıkmadı': 0, 'yolda': 1, 'tamamlandı': 2 };
+  out.sort(function (a, b) { return sira[a.durum] - sira[b.durum] || String(b.cikti || '').localeCompare(String(a.cikti || '')); });
+  return out.slice(0, 60);
+}
+
+// Canlı rota: { idler: [...] }. Şubeden → 1. teslimat → 2. → 3.; her bacak o anki trafikle km ve süre.
+// Teslim edilmiş seferde gerçek teslim sırası, edilmemişte en kısa sıra kullanılır.
+function rotaHesapla_(d) {
+  var idler = (d.idler || []).map(siparisNo_).filter(String).slice(0, 5); if (!idler.length) return { hata: 'Sipariş seçilmedi.' };
+  var cache = CacheService.getScriptCache(), anahtar = 'rota_' + idler.slice().sort().join('_'), eski = cache.get(anahtar);
+  if (eski) { try { var o = JSON.parse(eski); o.onbellek = true; return o; } catch (e) { } }
+  var ss = SpreadsheetApp.openById(KAYNAK.kurye.id);
+  var s = sonSatirlar_(ss, 'Siparişler', 1500, ['Tarih', 'Sipariş ID', 'Adisyon No', 'Adres', 'Restorandan Çıktı', 'Teslim Saati', 'Mesafe (km)']);
+  if (!s) return { hata: 'Siparişler sekmesi okunamadı.' };
+  var c = { tarih: kolon_(s.b, ['Tarih']), id: kolon_(s.b, ['Sipariş ID']), no: kolon_(s.b, ['Adisyon No']), adres: kolon_(s.b, ['Adres']), cik: kolon_(s.b, ['Restorandan Çıktı']),
+            tes: kolon_(s.b, ['Teslim Saati']), km: kolon_(s.b, ['Mesafe (km)']) };
+  var soz = subeSozlugu_(), duraklar = [];
+  s.v.forEach(function (r) { var id = siparisNo_(r[c.id]); if (idler.indexOf(id) < 0) return;
+    var gun = gunStr_(r[c.tarih]), mh = mahalleAdi_(r[c.adres]);
+    duraklar.push({ id: id, no: r[c.no], mahalle: mh, adres: adresTemizle_(r[c.adres]), tesDk: saatDk_(r[c.tes]), cikDk: saatDk_(r[c.cik]), tabloKm: sayi_(r[c.km]), sube: siparisSubesi_(soz, gun, r[c.no], mh) }); });
+  if (!duraklar.length) return { hata: 'Siparişler tabloda bulunamadı.' };
+  var sb = {}; duraklar.forEach(function (x) { sb[x.sube.sube] = (sb[x.sube.sube] || 0) + 1; });
+  var sube = Object.keys(sb).sort(function (a, b) { return sb[b] - sb[a]; })[0], cikis = SUBE_KONUM[sube] || SUBE_KONUM['BAP Erenköy'];
+  var teslimli = duraklar.every(function (x) { return x.tesDk !== null; });
+
+  function sor(sirali, optimize) {
+    var df = Maps.newDirectionFinder().setOrigin(cikis).setDestination(sirali[sirali.length - 1].adres).setMode(Maps.DirectionFinder.Mode.DRIVING)
+      .setLanguage('tr').setRegion('tr').setDepart(new Date());
+    sirali.slice(0, -1).forEach(function (x) { df.addWaypoint(x.adres); });
+    if (optimize && sirali.length > 2) df.setOptimizeWaypoints(true);
+    var r = df.getDirections(); if (!r || r.status !== 'OK' || !r.routes || !r.routes.length) throw new Error('Haritalar rota bulamadı (' + (r && r.status) + ')');
+    var rt = r.routes[0], ara = sirali.slice(0, -1), sira = optimize && rt.waypoint_order ? rt.waypoint_order.map(function (i) { return ara[i]; }) : ara;
+    sira = sira.concat([sirali[sirali.length - 1]]);
+    var bacak = rt.legs.map(function (l, i) { var sn = (l.duration_in_traffic || l.duration).value;
+      return { kime: sira[i], km: Math.round(l.distance.value / 100) / 10, dk: Math.round(sn / 60), trafikli: !!l.duration_in_traffic, adres: String(l.end_address || '').replace(/, Türkiye$/, '') }; });
+    return { bacak: bacak, toplamSn: bacak.reduce(function (t, x) { return t + x.dk; }, 0) };
+  }
+  var sonuc;
+  try {
+    if (teslimli || duraklar.length === 1) sonuc = sor(duraklar.slice().sort(function (a, b) { return (a.tesDk || 0) - (b.tesDk || 0); }), false);
+    else { // teslim edilmemiş: her durağı son durak deneyip en kısa sırayı seç (en çok 5 sorgu)
+      duraklar.forEach(function (son, i) { var l = duraklar.filter(function (x, j) { return j !== i; }).concat([son]); var r = sor(l, true); if (!sonuc || r.toplamSn < sonuc.toplamSn) sonuc = r; });
+    }
+  } catch (err) { return { hata: String(err.message || err) }; }
+  var surus = sonuc.bacak.reduce(function (t, x) { return t + x.dk; }, 0), km = Math.round(sonuc.bacak.reduce(function (t, x) { return t + x.km; }, 0) * 10) / 10;
+  var ilkCik = Math.min.apply(null, duraklar.map(function (x) { return x.cikDk === null ? 99999 : x.cikDk; })), sonTes = Math.max.apply(null, duraklar.map(function (x) { return x.tesDk || 0; }));
+  var out = { sube: sube, cikis: cikis, subeKaynak: duraklar.map(function (x) { return x.sube.kaynak; }).join(','), sira: teslimli ? 'gerçek teslim sırası' : 'en kısa sıra (öneri)',
+    bacaklar: sonuc.bacak.map(function (b) { return { no: b.kime.no, mahalle: b.kime.mahalle, adres: b.adres, km: b.km, dk: b.dk, trafikli: b.trafikli }; }),
+    toplamKm: km, surusDk: surus, teslimPayiDk: TESLIM_PAYI_DK * duraklar.length, kapatmaDk: surus + TESLIM_PAYI_DK * duraklar.length,
+    fiiliDk: teslimli && ilkCik < 99999 ? Math.round(sonTes - ilkCik) : null, tabloKm: Math.round(duraklar.reduce(function (t, x) { return t + x.tabloKm; }, 0) * 10) / 10,
+    zaman: Utilities.formatDate(new Date(), TZ, 'HH:mm') };
+  try { cache.put(anahtar, JSON.stringify(out), 600); } catch (e) { }
+  return out;
+}
+
 function gz_() { return { maliyet: 0, mesaiPaket: 0, adet: 0, km: 0, n: 0, at: 0, cikis: 0, yol: 0, top: 0, gec: 0, mutfak: 0, kurye: 0, ikisi: 0, diger: 0 }; }
 
 // "29.09.2026" → "2026-09-29"
@@ -1038,6 +1190,9 @@ function doPost(e) {
   var d; try { d = JSON.parse(e.postData.contents); } catch (err) { return json_({ hata: 'Geçersiz istek' }); }
   var anahtar = PropertiesService.getScriptProperties().getProperty('PANEL_KEY');
   if (!anahtar || d.key !== anahtar) return json_({ hata: 'yetkisiz' });
+  if (d.tur === 'rota') {
+    try { return json_(rotaHesapla_(d)); } catch (err) { return json_({ hata: String(err.message || err) }); }
+  }
   if (d.tur === 'kesinti') {
     var kk = LockService.getScriptLock(); kk.waitLock(20000);
     try { return json_(kesintiGir_(d)); }
