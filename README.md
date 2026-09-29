@@ -17,6 +17,17 @@ Finans / Alımlar sayfalarındaki tedarikçi borcundan düşülür.
 - Mevcut satırlara dokunmaz, hiçbir şey silmez. Yanlış kaydı tablodan düzeltin.
 - Her giriş ayrıca **BAP Panel Cevapları** tablosuna iz olarak düşer.
 
+## Kurye & teslimat ekranı
+
+Panelde **Kurye & Teslimat** bölümü (`#kurye`). **Kurye Net Çalışma Süresi** tablosunu yalnızca okur:
+Siparişler, Günlük Mesai, Teslimat Gecikmeleri ve Açık Hesaplar sekmeleri.
+
+- Bugün kim sahada, geç giriş, paket ve net süre (Günlük Mesai).
+- Kurye karnesi (bugün / 7 gün / bu ay): paket, net saat, saatte paket, ortalama teslim ve yol süresi, 45 dk üstü teslim, geç giriş, kesinti, km.
+- Saat saat yük: son 7 günün saat başına ortalama sipariş ve teslim süresi; 40 dk'yı aşan saatler kırmızı.
+- Son 14 gün, teslim süresi dağılımı, platformlar, geciken teslimatlar, açık hesaplar.
+- Müşteri adı, telefonu, adresi ve sipariş içeriği panele gönderilmez.
+
 ## Yayına alma
 
 1. **Apps Script** (BAP Panel Veri Kapısı): `apps-script/bap-panel-veri-kapisi/Kod.gs` içeriğini `Kod.gs` dosyasına yapıştır,

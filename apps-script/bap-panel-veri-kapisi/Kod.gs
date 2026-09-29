@@ -91,7 +91,7 @@ function paketHazirla_() {
   var out = {
     surum: 1,
     olusturma: Utilities.formatDate(simdi, TZ, "yyyy-MM-dd'T'HH:mm:ss"),
-    kaynaklar: [], satis: null, nabiz: null, isKaydi: null, hub: null, finans: null, personel: null, genel: null, hatalar: []
+    kaynaklar: [], satis: null, nabiz: null, isKaydi: null, hub: null, finans: null, personel: null, kurye: null, genel: null, hatalar: []
   };
   Object.keys(KAYNAK).forEach(function (k) {
     var s = KAYNAK[k];
@@ -110,6 +110,7 @@ function paketHazirla_() {
   bolum_(out, 'hub', hub_);
   bolum_(out, 'finans', finans_);
   bolum_(out, 'personel', personel_);
+  bolum_(out, 'kurye', kurye_);
   bolum_(out, 'genel', genel_);
   return out;
 }
@@ -662,6 +663,135 @@ function sureDk_(s) {
   var m = String(s || '').trim().match(/^(-*)(\d+):(\d{1,2})(?::(\d{1,2}))?/); if (!m) return 0;
   var dk = (+m[2]) * 60 + (+m[3]) + (m[4] ? Math.round(+m[4] / 60) : 0);
   return m[1] ? -dk : dk;
+}
+
+/* ---------------- Kurye ve teslimat ---------------- */
+
+// Kaynak: 'Kurye Net Çalışma Süresi' tablosu (Siparişler, Günlük Mesai, Teslimat Gecikmeleri, Açık Hesaplar).
+// Müşteri adı, telefonu, adresi ve sipariş içeriği dışarı verilmez.
+function kurye_() {
+  var ss = SpreadsheetApp.openById(KAYNAK.kurye.id);
+  var simdi = simdi_(), bugun = isGunu_(simdi), ay = bugun.slice(0, 7);
+  var yediBasi = gunEkle_(bugun, -6), ilkSeri = gunEkle_(bugun, -13);
+  var out = { bugun: bugun, ay: ay };
+  var donemler = ['bugun', 'yedi', 'ay'];
+  function donemleri(gun) { var d = []; if (gun === bugun) d.push('bugun'); if (gun >= yediBasi && gun <= bugun) d.push('yedi'); if (gun.slice(0, 7) === ay && gun <= bugun) d.push('ay'); return d; }
+  var kisi = {}; donemler.forEach(function (d) { kisi[d] = {}; });
+  function kk(d, ad) { return kisi[d][ad] = kisi[d][ad] || { ad: ad, paket: 0, ciro: 0, km: 0, toplamDk: 0, yolDk: 0, sureAdet: 0, gec30: 0, mesaiDk: 0, mesaiPaket: 0, gun: 0, gecGiris: 0, gecGirisDk: 0, kesintiDk: 0, gecikme: 0 }; }
+
+  // Siparişler: kurye başına paket, süre, km; saatlik yük ve 14 günlük seri
+  var s = sonSatirlar_(ss, 'Siparişler', 6000);
+  var seri = {}; for (var i = 0; i < 14; i++) seri[gunEkle_(ilkSeri, i)] = { adet: 0, dk: 0, n: 0 };
+  var saat = {}, dagilim = [0, 0, 0, 0, 0], platform = {}, genel = { bugun: z2_(), yedi: z2_(), ay: z2_() }, sonSiparisMs = null;
+  if (s) {
+    var c = { tarih: kolon_(s.b, ['Tarih']), kurye: kolon_(s.b, ['Kurye']), plat: kolon_(s.b, ['Platform']), sip: kolon_(s.b, ['Sipariş Saati']),
+              hz: kolon_(s.b, ['Hazırlık (dk)']), yol: kolon_(s.b, ['Yol (dk)']), top: kolon_(s.b, ['Toplam (dk)']), km: kolon_(s.b, ['Mesafe (km)']),
+              tutar: kolon_(s.b, ['Tutar (TL)', 'Tutar']), durum: kolon_(s.b, ['Durum']) };
+    s.v.forEach(function (r) {
+      var gun = gunStr_(r[c.tarih]); if (!gun) return;
+      if (c.durum >= 0 && /iptal|iade/i.test(r[c.durum])) return;
+      var ad = String(r[c.kurye] || '').trim() || 'Atanmamış';
+      var top = sayi_(r[c.top]), yol = sayi_(r[c.yol]), km = sayi_(r[c.km]), tutar = sayi_(r[c.tutar]);
+      var sureVar = top > 0 && top < 240; // uçuk değerler (unutulan teslim) ortalamayı bozmasın
+      var ms = zaman_(String(r[c.tarih]).trim() + ' ' + String(r[c.sip] || '').trim());
+      if (ms !== null && (sonSiparisMs === null || ms > sonSiparisMs)) sonSiparisMs = ms;
+      if (seri[gun]) { seri[gun].adet++; if (sureVar) { seri[gun].dk += top; seri[gun].n++; } }
+      donemleri(gun).forEach(function (d) {
+        var x = kk(d, ad); x.paket++; x.ciro += tutar; x.km += km;
+        if (sureVar) { x.toplamDk += top; x.yolDk += yol; x.sureAdet++; if (top > 45) x.gec30++; }
+        var g = genel[d]; g.adet++; g.ciro += tutar; g.km += km; if (sureVar) { g.dk += top; g.n++; if (top > 45) g.gec++; }
+      });
+      if (gun >= yediBasi && gun <= bugun) {
+        var h = parseInt(String(r[c.sip] || '').split(':')[0], 10);
+        if (!isNaN(h)) { var sx = saat[h] = saat[h] || { adet: 0, dk: 0, n: 0 }; sx.adet++; if (sureVar) { sx.dk += top; sx.n++; } }
+        if (sureVar) dagilim[top <= 20 ? 0 : top <= 30 ? 1 : top <= 45 ? 2 : top <= 60 ? 3 : 4]++;
+        var p = platform[r[c.plat] || 'Belirtilmemiş'] = platform[r[c.plat] || 'Belirtilmemiş'] || { ad: r[c.plat] || 'Belirtilmemiş', adet: 0, dk: 0, n: 0, ciro: 0 };
+        p.adet++; p.ciro += tutar; if (sureVar) { p.dk += top; p.n++; }
+      }
+    });
+  }
+  out.sonSiparis = sonSiparisMs === null ? null : new Date(sonSiparisMs).toISOString().slice(0, 16).replace('T', ' ');
+  out.genel = {}; donemler.forEach(function (d) { var g = genel[d]; out.genel[d] = { adet: g.adet, ciro: Math.round(g.ciro), km: Math.round(g.km), ortDk: g.n ? Math.round(g.dk / g.n) : null, gec: g.gec }; });
+  out.seri = Object.keys(seri).sort().map(function (k) { var x = seri[k]; return { gun: k, adet: x.adet, ortDk: x.n ? Math.round(x.dk / x.n) : null }; });
+  // İş günü 10:00'da başlar: saatleri 10, 11, …, 23, 0, 1, 2 sırasıyla ver
+  out.saatlik = []; for (var hh = 10; hh < 27; hh++) { var h2 = hh % 24, sv = saat[h2]; if (sv || (hh >= 11 && hh <= 23)) out.saatlik.push({ saat: h2, gunluk: sv ? Math.round(sv.adet / 7 * 10) / 10 : 0, ortDk: sv && sv.n ? Math.round(sv.dk / sv.n) : null }); }
+  out.dagilim = ['20 dk ve altı', '21–30 dk', '31–45 dk', '46–60 dk', '60 dk üstü'].map(function (ad, j) { return { ad: ad, deger: dagilim[j] }; });
+  out.platform = Object.keys(platform).map(function (k) { var p = platform[k]; return { ad: p.ad, adet: p.adet, ciro: Math.round(p.ciro), ortDk: p.n ? Math.round(p.dk / p.n) : null }; }).sort(function (a, b) { return b.adet - a.adet; });
+
+  // Günlük Mesai: bugün kim sahada, dönem bazında net saat, geç giriş, kesinti
+  var m = sonSatirlar_(ss, 'Günlük Mesai', 1500), bugunMesai = [];
+  if (m) {
+    var cm = { tarih: kolon_(m.b, ['Tarih']), kurye: kolon_(m.b, ['Kurye']), pg: kolon_(m.b, ['Planlı Giriş']), g: kolon_(m.b, ['Giriş']), pc: kolon_(m.b, ['Planlı Çıkış']),
+               cik: kolon_(m.b, ['Çıkış']), ek: kolon_(m.b, ['Erken Kesinti (dk)']), kk: kolon_(m.b, ['Kapanış Kesintisi (dk)']), net: kolon_(m.b, ['Net Süre']),
+               ham: kolon_(m.b, ['Ham Süre']), paket: kolon_(m.b, ['Paket']), gec: kolon_(m.b, ['Geç Giriş (dk)']), durum: kolon_(m.b, ['Durum']), neden: kolon_(m.b, ['Kesinti Gerekçesi']) };
+    m.v.forEach(function (r) {
+      var gun = gunStr_(r[cm.tarih]); if (!gun) return;
+      var ad = String(r[cm.kurye] || '').trim(); if (!ad) return;
+      var net = sureDk_(r[cm.net]), paket = sayi_(r[cm.paket]), gec = sayi_(r[cm.gec]), kes = sayi_(r[cm.ek]) + sayi_(r[cm.kk]);
+      if (gun === bugun) bugunMesai.push({ ad: ad, plan: [r[cm.pg], r[cm.pc]].filter(String).join('–'), giris: r[cm.g] || '', cikis: r[cm.cik] || '', paket: paket, gecDk: gec,
+        durum: r[cm.durum] || '', netDk: net, neden: kodsuz_(r[cm.neden] || '') });
+      donemleri(gun).forEach(function (d) {
+        var x = kk(d, ad); if (net > 0) { x.mesaiDk += net; x.mesaiPaket += paket; x.gun++; }
+        if (gec > 0) { x.gecGiris++; x.gecGirisDk += gec; } x.kesintiDk += kes;
+      });
+    });
+  }
+  bugunMesai.sort(function (a, b) { return String(a.giris || '99').localeCompare(String(b.giris || '99')); });
+  out.bugunMesai = bugunMesai;
+
+  // Teslimat gecikmeleri: son 30 gün, müşteri adı olmadan
+  var t = sonSatirlar_(ss, 'Teslimat Gecikmeleri', 2000), otuzBasi = gunEkle_(bugun, -29), gecikmeler = [];
+  if (t) {
+    var ct = { tarih: kolon_(t.b, ['Tarih']), no: kolon_(t.b, ['Adisyon No']), kurye: kolon_(t.b, ['Kurye']), km: kolon_(t.b, ['Km']), bek: kolon_(t.b, ['Beklenen (dk)']),
+               fiili: kolon_(t.b, ['Fiili (dk)']), fazla: kolon_(t.b, ['Fazla (dk)']), cikti: kolon_(t.b, ['Restorandan Çıktı']) };
+    t.v.forEach(function (r) {
+      var gun = gunStr_(r[ct.tarih]); if (!gun || gun < otuzBasi) return;
+      var ad = String(r[ct.kurye] || '').trim() || 'Atanmamış';
+      donemleri(gun).forEach(function (d) { kk(d, ad).gecikme++; });
+      gecikmeler.push({ gun: gun, no: r[ct.no], kurye: ad, km: sayi_(r[ct.km]), beklenen: sayi_(r[ct.bek]), fiili: sayi_(r[ct.fiili]), fazla: sayi_(r[ct.fazla]), cikti: String(r[ct.cikti] || '').slice(0, 5) });
+    });
+  }
+  gecikmeler.sort(function (a, b) { return b.gun.localeCompare(a.gun) || b.fazla - a.fazla; });
+  out.gecikme = { otuzGun: gecikmeler.length, liste: gecikmeler.slice(0, 25) };
+
+  // Açık hesaplar: kuryede kalan / henüz kapanmamış tahsilatlar
+  var a = sonSatirlar_(ss, 'Açık Hesaplar', 2000), acik = [], acikKisi = {};
+  if (a) {
+    var ca = { tarih: kolon_(a.b, ['Tarih']), no: kolon_(a.b, ['Adisyon No']), plat: kolon_(a.b, ['Platform']), kurye: kolon_(a.b, ['Kurye']),
+               odeme: kolon_(a.b, ['Ödeme Yöntemi']), tutar: kolon_(a.b, ['Tutar (TL)', 'Tutar']), durum: kolon_(a.b, ['Durum']) };
+    a.v.forEach(function (r) {
+      var gun = gunStr_(r[ca.tarih]); if (!gun) return;
+      var ad = String(r[ca.kurye] || '').trim() || 'Atanmamış', tutar = sayi_(r[ca.tutar]);
+      acik.push({ gun: gun, no: r[ca.no], platform: r[ca.plat] || '', kurye: ad, odeme: r[ca.odeme] || '', tutar: tutar, durum: r[ca.durum] || '' });
+      topla_(acikKisi, ad, tutar);
+    });
+  }
+  acik.sort(function (x, y) { return y.gun.localeCompare(x.gun); });
+  out.acik = { adet: acik.length, toplam: Math.round(acik.reduce(function (s2, x) { return s2 + x.tutar; }, 0)), kisi: sirala_(acikKisi), liste: acik.slice(0, 40) };
+
+  out.kisiler = {};
+  donemler.forEach(function (d) {
+    out.kisiler[d] = Object.keys(kisi[d]).map(function (k) { var x = kisi[d][k];
+      return { ad: x.ad, paket: x.paket, ciro: Math.round(x.ciro), km: Math.round(x.km), ortDk: x.sureAdet ? Math.round(x.toplamDk / x.sureAdet) : null,
+               ortYol: x.sureAdet ? Math.round(x.yolDk / x.sureAdet) : null, gec45: x.gec30, netSaat: Math.round(x.mesaiDk / 6) / 10,
+               paketSaat: x.mesaiDk >= 60 ? Math.round(x.mesaiPaket / (x.mesaiDk / 60) * 10) / 10 : null, gun: x.gun,
+               gecGiris: x.gecGiris, gecGirisDk: Math.round(x.gecGirisDk), kesintiDk: Math.round(x.kesintiDk), gecikme: x.gecikme };
+    }).sort(function (x, y) { return y.paket - x.paket || y.netSaat - x.netSaat; });
+  });
+  return out;
+}
+
+function z2_() { return { adet: 0, ciro: 0, km: 0, dk: 0, n: 0, gec: 0 }; }
+
+// "29.09.2026" → "2026-09-29"
+function gunStr_(v) { var ms = zaman_(v); return ms === null ? null : new Date(ms).toISOString().slice(0, 10); }
+
+// Sekmenin başlığı ve son n satırı (görünen değerlerle). Sekme yoksa ya da boşsa null.
+function sonSatirlar_(ss, ad, n) {
+  var sh = ss.getSheetByName(ad); if (!sh) return null;
+  var son = sh.getLastRow(), gen = sh.getLastColumn(); if (son < 2) return null;
+  var k = Math.min(n, son - 1);
+  return { b: sh.getRange(1, 1, 1, gen).getDisplayValues()[0], v: sh.getRange(son - k + 1, 1, k, gen).getDisplayValues() };
 }
 
 /* ---------------- Sahibin panelden verdiği cevaplar ---------------- */
