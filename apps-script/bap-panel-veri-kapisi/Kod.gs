@@ -734,7 +734,7 @@ function kurye_() {
     mesaiDk: 0, mesaiPaket: 0, gun: 0, gecGiris: 0, gecGirisDk: 0, erkenDk: 0, kapanisDk: 0, maliyet: 0 }; }
 
   // Siparişler: süre aşamaları, gecikme sebebi, kurye başına paket
-  var s = sonSatirlar_(ss, 'Siparişler', 8000);
+  var s = sonSatirlar_(ss, 'Siparişler', 6000, ['Tarih', 'Adisyon No', 'Kurye', 'Platform', 'Sipariş Saati', 'Atama (dk)', 'Hazırlık (dk)', 'Yol (dk)', 'Toplam (dk)', 'Mesafe (km)', 'Durum']);
   var seri = {}; for (var i = 0; i < 14; i++) seri[gunEkle_(ilkSeri, i)] = { adet: 0, dk: 0, n: 0, gec: 0, maliyet: 0 };
   var saat = {}, dagilim = [0, 0, 0, 0, 0], platform = {}, enKotu = [], sonSiparisMs = null;
   if (s) {
@@ -781,7 +781,7 @@ function kurye_() {
   out.enKotu = enKotu.sort(function (a, b) { return b.toplam - a.toplam; }).slice(0, 30);
 
   // Günlük Mesai: bugün kim sahada; dönem bazında net saat, geç giriş, kesinti, maliyet; haftalık bordro
-  var m = sonSatirlar_(ss, 'Günlük Mesai', 3000), bugunMesai = [], kesintiler = [], kadro = {}, haftalar = {};
+  var m = sonSatirlar_(ss, 'Günlük Mesai', 1200), bugunMesai = [], kesintiler = [], kadro = {}, haftalar = {};
   var dow = (new Date(bugun + 'T00:00:00Z').getUTCDay() + 6) % 7, buHafta = gunEkle_(bugun, -dow), ilkHafta = gunEkle_(buHafta, -7 * 7);
   if (m) {
     var cm = { tarih: kolon_(m.b, ['Tarih']), kurye: kolon_(m.b, ['Kurye']), pg: kolon_(m.b, ['Planlı Giriş']), g: kolon_(m.b, ['Giriş']), pc: kolon_(m.b, ['Planlı Çıkış']),
@@ -955,11 +955,23 @@ function gz_() { return { maliyet: 0, mesaiPaket: 0, adet: 0, km: 0, n: 0, at: 0
 function gunStr_(v) { var ms = zaman_(v); return ms === null ? null : new Date(ms).toISOString().slice(0, 10); }
 
 // Sekmenin başlığı ve son n satırı (görünen değerlerle). Sekme yoksa ya da boşsa null.
-function sonSatirlar_(ss, ad, n) {
+// basliklar verilirse yalnız o sütunlar okunur (uzun metin sütunları atlanır; büyük sekmede çok daha hızlı).
+// Satırlar yine tam genişlikte döner, okunmayan hücreler boş kalır; kolon_ ile bulunan sıra numaraları değişmez.
+function sonSatirlar_(ss, ad, n, basliklar) {
   var sh = ss.getSheetByName(ad); if (!sh) return null;
   var son = sh.getLastRow(), gen = sh.getLastColumn(); if (son < 2) return null;
-  var k = Math.min(n, son - 1);
-  return { b: sh.getRange(1, 1, 1, gen).getDisplayValues()[0], v: sh.getRange(son - k + 1, 1, k, gen).getDisplayValues() };
+  var k = Math.min(n, son - 1), b = sh.getRange(1, 1, 1, gen).getDisplayValues()[0];
+  if (!basliklar) return { b: b, v: sh.getRange(son - k + 1, 1, k, gen).getDisplayValues() };
+  var idx = []; basliklar.forEach(function (h) { var i = kolon_(b, [h]); if (i >= 0 && idx.indexOf(i) < 0) idx.push(i); });
+  idx.sort(function (x, y) { return x - y; });
+  var v = []; for (var r = 0; r < k; r++) { var bos = []; bos.length = gen; v.push(bos); }
+  // Yan yana sütunları tek seferde oku
+  for (var j = 0; j < idx.length;) {
+    var bas = idx[j], bit = bas; while (j + 1 < idx.length && idx[j + 1] === bit + 1) { j++; bit++; } j++;
+    var blok = sh.getRange(son - k + 1, bas + 1, k, bit - bas + 1).getDisplayValues();
+    for (r = 0; r < k; r++) for (var c = bas; c <= bit; c++) v[r][c] = blok[r][c - bas];
+  }
+  return { b: b, v: v };
 }
 
 /* ---------------- Sahibin panelden verdiği cevaplar ---------------- */
