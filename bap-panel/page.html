@@ -603,6 +603,21 @@ function maliyetSeri(seri){if(!seri||!seri.length)return bos("Grafik için veri 
     svg.yaz(cx,H-alt-h-6,kisa(x.maliyet),"deger-yazi");var d=new Date(x.gun+"T00:00:00Z");svg.yaz(cx,H-alt+16,GUNLER[d.getUTCDay()]+" "+d.getUTCDate());if(pb)svg.yaz(cx,H-alt+30,pb+" ₺/pk","adet-yazi");});
   return el("div",{class:"grafik"},[svg]);}
 
+// 14 gün paket başı kurye maliyeti; kesikli çizgi kapanmış günlerin ortalaması. Bugün soluk: açık vardiyaların saati henüz yok.
+function paketBasiSeri(seri){var l=(seri||[]).map(function(x){return {gun:x.gun,pb:x.adet?Math.round(x.maliyet/x.adet):null};});
+  var kapali=l.slice(0,-1).filter(function(x){return x.pb;});if(!kapali.length)return bos("Grafik için veri yok.");
+  var ort=Math.round(kapali.reduce(function(t,x){return t+x.pb;},0)/kapali.length);
+  var W=760,H=250,ust=36,alt=34,p=20,bw=(W-p*2)/l.length;var max=Math.max.apply(null,l.map(function(x){return x.pb||0;}).concat([ort]))||1;
+  var svg=svgYap(W,H,"Son 14 günün paket başı kurye maliyeti");
+  l.forEach(function(x,i){var son=i===l.length-1,v=x.pb||0,h=Math.round((H-ust-alt)*v/max),cx=p+i*bw+bw/2;
+    var renk=son?"var(--cizgi)":(v>ort*1.15?"var(--kotu)":"var(--mavi)");
+    svg.sutun(p+i*bw+4,H-alt-h,bw-8,h,renk,gunAd(x.gun)+": paket başı "+(x.pb?para(x.pb):"—")+(son?" (vardiyalar kapanmadı, eksik)":""));
+    if(x.pb)svg.yaz(cx,H-alt-h-6,x.pb+" ₺","deger-yazi",son?"var(--gri)":null);var d=new Date(x.gun+"T00:00:00Z");svg.yaz(cx,H-alt+16,GUNLER[d.getUTCDay()]+" "+d.getUTCDate());});
+  var y=H-alt-Math.round((H-ust-alt)*ort/max),ns="http://www.w3.org/2000/svg",ln=document.createElementNS(ns,"line");
+  ln.setAttribute("x1",p);ln.setAttribute("x2",W-p);ln.setAttribute("y1",y);ln.setAttribute("y2",y);ln.setAttribute("stroke","var(--murekkep)");ln.setAttribute("stroke-dasharray","4 4");ln.setAttribute("stroke-width","1");ln.setAttribute("opacity",".55");svg.appendChild(ln);
+  var t=document.createElementNS(ns,"text");t.setAttribute("x",W-p);t.setAttribute("y",12);t.setAttribute("text-anchor","end");t.setAttribute("class","adet-yazi");t.textContent="- - - kapanmış günlerin ortalaması: "+ort+" ₺";svg.appendChild(t);
+  return el("div",{class:"grafik"},[svg]);}
+
 // Gecikmelerin sebebe göre dağılımı: tek yatay şerit + açıklamalı satırlar.
 function sebepBlok(G){var S=G.sebep,top=G.gec;if(!top)return bos("Bu dönemde geciken teslimat yok.");
   var serit=el("div",{style:"display:flex;height:16px;border-radius:8px;overflow:hidden;margin:4px 18px 12px"},["mutfak","ikisi","kurye","diger"].map(function(k){return S[k]?el("span",{title:SEBEP_AD[k]+": "+S[k],style:"background:"+SEBEP_RENK[k]+";width:"+(S[k]/top*100)+"%"}):null;}));
@@ -644,6 +659,7 @@ function kuryeSayfa(a){var K=VERI.kurye;a.appendChild(ust("Kurye ve teslimat",K&
 
   a.appendChild(blok("Son 14 gün","Sütun paket adedi, kırmızı kısmı "+HD.toplam+" dakikayı aşan teslimatlar; üstünde ortalama teslim süresi. En koyu sütun bugün.",kuryeSeri(K.seri,HD.toplam)));
   a.appendChild(blok("Kurye maliyeti — son 14 gün","Saat ücreti × net süre + paket ücreti, Haddy tarafında KDV dahil. Altında paket başı maliyet. Açık vardiyanın yalnız paketleri sayılır; saati vardiya kapanınca eklenir.",maliyetSeri(K.seri)));
+  a.appendChild(blok("Paket başı kurye maliyeti — son 14 gün","Günün kurye maliyeti ÷ o gün teslim edilen paket. Kesikli çizgi kapanmış günlerin ortalaması; ortalamayı %15'ten fazla aşan günler kırmızı: ya kurye fazla ya sipariş az. Bugün gri, çünkü açık vardiyaların saati henüz eklenmedi.",paketBasiSeri(K.seri)));
 }
 
 
