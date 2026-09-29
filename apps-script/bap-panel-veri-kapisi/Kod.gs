@@ -675,8 +675,25 @@ function sureDk_(s) {
 var KURYE_HEDEF = { toplam: 40, cikis: 25, yolPay: 5 };
 var KURYE_DONEMLER = ['bugun', 'dun', 'yedi', 'ay', 'otuz'];
 
-// Mesafeye göre beklenen yol süresi (dk). 'Teslimat Gecikmeleri' sekmesindeki beklenen değerlerle örtüşür.
-function beklenenYol_(km) { return Math.floor(5.8 + 2.35 * km); }
+// Mesafeye göre beklenen yol süresi (dk): 5 dk + km başına 2,5 dk (kurye panelindeki formül).
+function beklenenYol_(km) { return Math.round(5 + 2.5 * km); }
+
+// Kurye ücretleri. Listede adı olmayan kurye 'varsayilan' ile hesaplanır (Haddy).
+// saat: net saat başına ₺, paket: paket başına ₺, kdv: oran (0,20 = %20). Saat hakedişi kesintiler düşülmüş net süre üzerinden.
+var KURYE_UCRET = {
+  varsayilan: { grup: 'Haddy', saat: 235, paket: 25, kdv: 0.20 },
+  kisiler: { 'Kenan Aydemir': { grup: 'BAP', saat: 245, paket: 15, kdv: 0 } }
+};
+function kuryeUcret_(ad) {
+  var k = KURYE_UCRET.kisiler, n = norm_(ad);
+  for (var a in k) if (norm_(a) === n) return k[a];
+  return KURYE_UCRET.varsayilan;
+}
+// Bir mesai satırının maliyeti (KDV dahil) ve kırılımı.
+function kuryeMaliyet_(ad, netDk, paket) {
+  var u = kuryeUcret_(ad), saat = netDk / 60 * u.saat, pk = paket * u.paket, kdv = (saat + pk) * u.kdv;
+  return { grup: u.grup, saat: saat, paket: pk, kdv: kdv, toplam: saat + pk + kdv };
+}
 
 function kurye_() {
   var ss = SpreadsheetApp.openById(KAYNAK.kurye.id);
@@ -691,11 +708,11 @@ function kurye_() {
   }
   var kisi = {}, genel = {}; KURYE_DONEMLER.forEach(function (d) { kisi[d] = {}; genel[d] = gz_(); });
   function kk(d, ad) { return kisi[d][ad] = kisi[d][ad] || { ad: ad, paket: 0, km: 0, toplamDk: 0, yolDk: 0, sureAdet: 0, gec: 0, kuryeGec: 0,
-    mesaiDk: 0, mesaiPaket: 0, gun: 0, gecGiris: 0, gecGirisDk: 0, erkenDk: 0, kapanisDk: 0 }; }
+    mesaiDk: 0, mesaiPaket: 0, gun: 0, gecGiris: 0, gecGirisDk: 0, erkenDk: 0, kapanisDk: 0, maliyet: 0 }; }
 
   // Siparişler: süre aşamaları, gecikme sebebi, kurye başına paket
   var s = sonSatirlar_(ss, 'Siparişler', 8000);
-  var seri = {}; for (var i = 0; i < 14; i++) seri[gunEkle_(ilkSeri, i)] = { adet: 0, dk: 0, n: 0, gec: 0 };
+  var seri = {}; for (var i = 0; i < 14; i++) seri[gunEkle_(ilkSeri, i)] = { adet: 0, dk: 0, n: 0, gec: 0, maliyet: 0 };
   var saat = {}, dagilim = [0, 0, 0, 0, 0], platform = {}, enKotu = [], sonSiparisMs = null;
   if (s) {
     var c = { tarih: kolon_(s.b, ['Tarih']), no: kolon_(s.b, ['Adisyon No']), kurye: kolon_(s.b, ['Kurye']), plat: kolon_(s.b, ['Platform']), sip: kolon_(s.b, ['Sipariş Saati']),
@@ -734,47 +751,61 @@ function kurye_() {
     });
   }
   out.sonSiparis = sonSiparisMs === null ? null : new Date(sonSiparisMs).toISOString().slice(0, 16).replace('T', ' ');
-  out.genel = {};
-  KURYE_DONEMLER.forEach(function (d) { var g = genel[d], o = function (t) { return g.n ? Math.round(t / g.n * 10) / 10 : null; };
-    out.genel[d] = { adet: g.adet, km: Math.round(g.km), atama: o(g.at), cikis: o(g.cikis), yol: o(g.yol), toplam: o(g.top), gec: g.gec,
-      sebep: { mutfak: g.mutfak, kurye: g.kurye, ikisi: g.ikisi, diger: g.diger } }; });
-  out.seri = Object.keys(seri).sort().map(function (k) { var x = seri[k]; return { gun: k, adet: x.adet, ortDk: x.n ? Math.round(x.dk / x.n) : null, gec: x.gec }; });
   // İş günü 10:00'da başlar: saatleri 11, …, 23, 0, 1, 2 sırasıyla ver
   out.saatlik = []; for (var hh = 10; hh < 27; hh++) { var h2 = hh % 24, sv = saat[h2]; if (sv || (hh >= 11 && hh <= 23)) out.saatlik.push({ saat: h2, gunluk: sv ? Math.round(sv.adet / 7 * 10) / 10 : 0, ortDk: sv && sv.n ? Math.round(sv.dk / sv.n) : null }); }
   out.dagilim = ['20 dk ve altı', '21–30 dk', '31–40 dk', '41–60 dk', '60 dk üstü'].map(function (ad, j) { return { ad: ad, deger: dagilim[j] }; });
   out.platform = Object.keys(platform).map(function (k) { var p = platform[k]; return { ad: p.ad, adet: p.adet, gec: p.gec, ortDk: p.n ? Math.round(p.dk / p.n) : null }; }).sort(function (a, b) { return b.adet - a.adet; });
   out.enKotu = enKotu.sort(function (a, b) { return b.toplam - a.toplam; }).slice(0, 30);
 
-  // Günlük Mesai: bugün kim sahada; dönem bazında net saat, geç giriş, erken ve kapanış kesintisi
-  var m = sonSatirlar_(ss, 'Günlük Mesai', 2000), bugunMesai = [], kesintiler = [];
+  // Günlük Mesai: bugün kim sahada; dönem bazında net saat, geç giriş, kesinti, maliyet; haftalık bordro
+  var m = sonSatirlar_(ss, 'Günlük Mesai', 3000), bugunMesai = [], kesintiler = [], kadro = {}, haftalar = {};
+  var dow = (new Date(bugun + 'T00:00:00Z').getUTCDay() + 6) % 7, buHafta = gunEkle_(bugun, -dow), ilkHafta = gunEkle_(buHafta, -7 * 7);
   if (m) {
     var cm = { tarih: kolon_(m.b, ['Tarih']), kurye: kolon_(m.b, ['Kurye']), pg: kolon_(m.b, ['Planlı Giriş']), g: kolon_(m.b, ['Giriş']), pc: kolon_(m.b, ['Planlı Çıkış']),
                cik: kolon_(m.b, ['Çıkış']), ek: kolon_(m.b, ['Erken Kesinti (dk)']), kk: kolon_(m.b, ['Kapanış Kesintisi (dk)']), net: kolon_(m.b, ['Net Süre']),
                paket: kolon_(m.b, ['Paket']), gec: kolon_(m.b, ['Geç Giriş (dk)']), durum: kolon_(m.b, ['Durum']), neden: kolon_(m.b, ['Kesinti Gerekçesi']) };
     m.v.forEach(function (r) {
-      var gun = gunStr_(r[cm.tarih]); if (!gun) return;
+      var gun = gunStr_(r[cm.tarih]); if (!gun || gun > bugun) return;
       var ad = String(r[cm.kurye] || '').trim(); if (!ad) return;
       var net = sureDk_(r[cm.net]), paket = sayi_(r[cm.paket]), gec = sayi_(r[cm.gec]), erken = sayi_(r[cm.ek]), kapanis = sayi_(r[cm.kk]);
-      var acik = /açık/i.test(r[cm.durum] || '') || (r[cm.g] && !r[cm.cik]);
+      var acik = /açık/i.test(r[cm.durum] || '') || !!(r[cm.g] && !r[cm.cik]);
+      var mal = kuryeMaliyet_(ad, acik ? 0 : net, paket), u = kuryeUcret_(ad);
+      if (gun >= otuzBasi) kadro[ad] = u.grup;
       if (gun === bugun) {
         // Vardiyası kapanmamış kurye için süreyi girişten şu ana kadar say (tablo vardiya kapanınca yazıyor).
         var canli = 0, gm = String(r[cm.g] || '').match(/^(\d{1,2}):(\d{2})/);
         if (acik && gm) { var gms = Date.parse(gun + 'T00:00:00Z') + (+gm[1]) * 3600000 + (+gm[2]) * 60000; if (+gm[1] < 6) gms += 86400000; canli = Math.max(0, Math.round((simdi - gms) / 60000)); }
         bugunMesai.push({ ad: ad, plan: [r[cm.pg], r[cm.pc]].filter(String).join('–'), giris: r[cm.g] || '', cikis: r[cm.cik] || '', paket: paket, gecDk: gec,
-          durum: r[cm.durum] || '', netDk: net, canliDk: canli, acik: !!acik, neden: kodsuz_(r[cm.neden] || '') });
+          durum: r[cm.durum] || '', netDk: net, canliDk: canli, acik: acik, neden: kodsuz_(r[cm.neden] || '') });
       }
-      if (gun >= yediBasi && gun <= bugun && (erken > 0 || kapanis > 0))
-        kesintiler.push({ gun: gun, ad: ad, erken: erken, kapanis: kapanis, unutulmus: kapanis >= 120, neden: kodsuz_(r[cm.neden] || '') });
-      // Açık vardiyanın paketi, süresi yazılmadan saatte-paket oranına girmesin.
+      if (gun >= otuzBasi && (erken > 0 || kapanis > 0))
+        kesintiler.push({ gun: gun, ad: ad, erken: erken, kapanis: kapanis, tl: Math.round((erken + kapanis) / 60 * u.saat), unutulmus: kapanis >= 120, neden: kodsuz_(r[cm.neden] || '') });
+      if (seri[gun]) seri[gun].maliyet += mal.toplam;
+      // Açık vardiyanın süresi henüz yazılmadı: saatte-paket oranına girmesin, paketleri hakedişe girsin.
       donemleri(gun).forEach(function (d) {
         var x = kk(d, ad); if (net > 0 && !acik) { x.mesaiDk += net; x.mesaiPaket += paket; x.gun++; }
         if (gec > 0) { x.gecGiris++; x.gecGirisDk += gec; } x.erkenDk += erken; x.kapanisDk += kapanis;
+        x.maliyet += mal.toplam; genel[d].maliyet += mal.toplam; genel[d].mesaiPaket += paket;
       });
+      var hf = gunEkle_(gun, -((new Date(gun + 'T00:00:00Z').getUTCDay() + 6) % 7));
+      if (hf >= ilkHafta) {
+        var hk = haftalar[hf] = haftalar[hf] || {}, b = hk[ad] = hk[ad] || { ad: ad, grup: mal.grup, gun: 0, netDk: 0, paket: 0, kesintiDk: 0, saat: 0, paketTl: 0, kdv: 0, toplam: 0, acik: false };
+        if (net > 0 || paket > 0) b.gun++; if (!acik) b.netDk += net; b.paket += paket; b.kesintiDk += erken + kapanis; if (acik) b.acik = true;
+        b.saat += mal.saat; b.paketTl += mal.paket; b.kdv += mal.kdv; b.toplam += mal.toplam;
+      }
     });
   }
   bugunMesai.sort(function (a, b) { return String(a.giris || '99').localeCompare(String(b.giris || '99')); });
   out.bugunMesai = bugunMesai;
-  out.kesintiler = kesintiler.sort(function (a, b) { return b.gun.localeCompare(a.gun) || (b.erken + b.kapanis) - (a.erken + a.kapanis); }).slice(0, 40);
+  var bugunAdlar = {}; bugunMesai.forEach(function (x) { bugunAdlar[norm_(x.ad)] = 1; });
+  out.kadro = { sayi: Object.keys(kadro).length, off: Object.keys(kadro).filter(function (k) { return !bugunAdlar[norm_(k)]; }).sort(function (a, b) { return a.localeCompare(b, 'tr'); }) };
+  out.kesintiler = kesintiler.sort(function (a, b) { return b.gun.localeCompare(a.gun) || (b.erken + b.kapanis) - (a.erken + a.kapanis); }).slice(0, 150);
+  var yuv = function (x) { return Math.round(x); };
+  out.bordro = Object.keys(haftalar).sort().reverse().map(function (hf) {
+    return { hafta: hf, bitis: gunEkle_(hf, 6), kisiler: Object.keys(haftalar[hf]).map(function (k) { var b = haftalar[hf][k];
+      return { ad: b.ad, grup: b.grup, gun: b.gun, netDk: b.netDk, paket: b.paket, kesintiDk: b.kesintiDk, saat: yuv(b.saat), paketTl: yuv(b.paketTl), kdv: yuv(b.kdv), toplam: yuv(b.toplam), acik: b.acik };
+    }).sort(function (a, b) { return a.grup.localeCompare(b.grup) || b.toplam - a.toplam; }) };
+  });
 
   // Açık hesaplar: 'Ödenmez' (işletme/personel siparişi) kuryeden alınacak para değil, ayrı sayılır.
   var a = sonSatirlar_(ss, 'Açık Hesaplar', 2000), acikL = [], haric = { adet: 0, tutar: 0 };
@@ -787,7 +818,7 @@ function kurye_() {
       if (/ödenmez|odenmez/i.test(odeme)) { haric.adet++; haric.tutar += tutar; return; }
       var yas = Math.round((Date.parse(bugun + 'T00:00:00Z') - Date.parse(gun + 'T00:00:00Z')) / 86400000);
       acikL.push({ gun: gun, yas: yas, no: r[ca.no], platform: r[ca.plat] || '', kurye: String(r[ca.kurye] || '').trim() || 'Atanmamış', odeme: odeme, tutar: tutar,
-        durum: r[ca.durum] || '', kod: /kod/i.test(odeme) });
+        durum: r[ca.durum] || '' });
     });
   }
   acikL.sort(function (x, y) { return y.yas - x.yas || y.tutar - x.tutar; });
@@ -796,21 +827,28 @@ function kurye_() {
   var tl = function (l) { return Math.round(l.reduce(function (t, x) { return t + x.tutar; }, 0)); };
   out.acik = { eski: { adet: eski.length, toplam: tl(eski), ayUstu: eski.filter(function (x) { return x.yas > 30; }).length },
                bugun: { adet: bugunkuler.length, toplam: tl(bugunkuler) }, haric: { adet: haric.adet, toplam: Math.round(haric.tutar) },
-               kod: acikL.filter(function (x) { return x.kod; }).length, kisi: sirala_(eskiKisi), liste: eski.slice(0, 40).concat(bugunkuler.slice(0, 20)) };
+               kisi: sirala_(eskiKisi), liste: eski.slice(0, 40).concat(bugunkuler.slice(0, 20)) };
 
+  out.genel = {};
+  KURYE_DONEMLER.forEach(function (d) { var g = genel[d], o = function (t) { return g.n ? Math.round(t / g.n * 10) / 10 : null; };
+    out.genel[d] = { adet: g.adet, km: Math.round(g.km), maliyet: Math.round(g.maliyet), paketBasi: g.mesaiPaket ? Math.round(g.maliyet / g.mesaiPaket) : null, atama: o(g.at), cikis: o(g.cikis), yol: o(g.yol), toplam: o(g.top), gec: g.gec,
+      sebep: { mutfak: g.mutfak, kurye: g.kurye, ikisi: g.ikisi, diger: g.diger } }; });
+  out.seri = Object.keys(seri).sort().map(function (k) { var x = seri[k]; return { gun: k, adet: x.adet, ortDk: x.n ? Math.round(x.dk / x.n) : null, gec: x.gec, maliyet: Math.round(x.maliyet) }; });
+  out.ucret = KURYE_UCRET;
   out.kisiler = {};
   KURYE_DONEMLER.forEach(function (d) {
     out.kisiler[d] = Object.keys(kisi[d]).map(function (k) { var x = kisi[d][k];
       return { ad: x.ad, paket: x.paket, km: Math.round(x.km), ortDk: x.sureAdet ? Math.round(x.toplamDk / x.sureAdet) : null,
                ortYol: x.sureAdet ? Math.round(x.yolDk / x.sureAdet) : null, gec: x.gec, kuryeGec: x.kuryeGec, netSaat: Math.round(x.mesaiDk / 6) / 10,
                paketSaat: x.mesaiDk >= 60 ? Math.round(x.mesaiPaket / (x.mesaiDk / 60) * 10) / 10 : null, gun: x.gun,
-               gecGiris: x.gecGiris, gecGirisDk: Math.round(x.gecGirisDk), erkenDk: Math.round(x.erkenDk), kapanisDk: Math.round(x.kapanisDk) };
+               gecGiris: x.gecGiris, gecGirisDk: Math.round(x.gecGirisDk), erkenDk: Math.round(x.erkenDk), kapanisDk: Math.round(x.kapanisDk),
+               maliyet: Math.round(x.maliyet), paketBasi: x.paket ? Math.round(x.maliyet / x.paket) : null };
     }).sort(function (x, y) { return y.paket - x.paket || y.netSaat - x.netSaat; });
   });
   return out;
 }
 
-function gz_() { return { adet: 0, km: 0, n: 0, at: 0, cikis: 0, yol: 0, top: 0, gec: 0, mutfak: 0, kurye: 0, ikisi: 0, diger: 0 }; }
+function gz_() { return { maliyet: 0, mesaiPaket: 0, adet: 0, km: 0, n: 0, at: 0, cikis: 0, yol: 0, top: 0, gec: 0, mutfak: 0, kurye: 0, ikisi: 0, diger: 0 }; }
 
 // "29.09.2026" → "2026-09-29"
 function gunStr_(v) { var ms = zaman_(v); return ms === null ? null : new Date(ms).toISOString().slice(0, 10); }

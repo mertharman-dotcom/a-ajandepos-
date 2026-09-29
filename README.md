@@ -28,7 +28,11 @@ Panelde **Kurye & Teslimat** bölümü (`#kurye`). **Kurye Net Çalışma Süres
 - Bugün vardiya: açık vardiyanın süresi girişten şu ana kadar sayılır; saatte paket yalnız kapanmış vardiyalardan.
 - Kurye karnesi, saat saat yük, son 14 gün, platformlar, en uzun süren teslimatlar (sebebe göre süzülür).
 - Kesintiler: erken çevrimiçi (ödenmeyen, ceza değil) ve kapanış ayrı; 2 saati aşan kapanış "çıkış unutulmuş olabilir".
-- Açık hesaplar: 'Ödenmez' siparişler hariç, dünden eski / bugün ayrı, yaşa göre renk, 'Kod' ile ödenenler teyit etiketli.
+- Açık hesaplar: 'Ödenmez' siparişler hariç, dünden eski / bugün ayrı ve yaşa göre renkli. Trendyol'un kodlu ödemeleri de kapıda tahsil edilebildiği için listede kalır.
+- Sekmeler: Özet, Bordro, Teslimat analizi, Kesintiler, Açık hesaplar.
+- Bordro ve kurye maliyeti: ücretler `Kod.gs` içindeki `KURYE_UCRET`'te (Haddy: saat 235 ₺ + paket 25 ₺ + %20 KDV;
+  Kenan Aydemir / BAP: saat 245 ₺ + paket 15 ₺, KDV yok). Saat hakedişi kesintiler düşülmüş net süre üzerinden.
+  Ücret değişince yalnız bu satırlar güncellenir; yeni BAP kuryesi `kisiler` listesine eklenir.
 - Müşteri adı, telefonu, adresi ve sipariş içeriği panele gönderilmez.
 
 ## Yayına alma
