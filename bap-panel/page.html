@@ -765,7 +765,7 @@ function kuryeBordro(a,K){var B=K.bordro||[];if(!B.length)return a.appendChild(b
 var ROTA={};// sipariş kümesi → {durum:"gidiyor"|"tamam"|"hata", veri, mesaj}
 function rotaAnahtar(g){return g.siparisler.map(function(x){return x.id;}).filter(String).sort().join("_");}
 function rotaIste(g,sonra,sube){var k=rotaAnahtar(g);if(!k)return;ROTA[k]={durum:"gidiyor"};sonra();
-  fetch("/api/rota",{method:"POST",credentials:"same-origin",headers:{"content-type":"application/json","x-bap-panel":"1"},body:JSON.stringify({idler:g.siparisler.map(function(x){return x.id;}),sube:sube||""})})
+  fetch("/api/rota",{method:"POST",credentials:"same-origin",headers:{"content-type":"application/json","x-bap-panel":"1"},body:JSON.stringify({idler:g.siparisler.map(function(x){return x.id;}),sube:sube||"",teslimSayisi:g.siparisler.filter(function(x){return x.teslim;}).length})})
     .then(function(r){return r.json();}).then(function(d){ROTA[k]=d&&!d.hata?{durum:"tamam",veri:d}:{durum:"hata",mesaj:(d&&d.hata)||"Hesaplanamadı."};})
     .catch(function(){ROTA[k]={durum:"hata",mesaj:"Bağlantı koptu."};}).then(sonra);}
 function rotaSonucu(r,g){var V=r.veri,b=V.bacaklar;

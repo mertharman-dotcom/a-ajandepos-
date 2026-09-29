@@ -119,7 +119,7 @@ export default {
       try { govde = await request.json(); } catch (e) { return json({ hata: 'Geçersiz istek.' }, 400); }
       const idler = (Array.isArray(govde.idler) ? govde.idler : []).slice(0, 5).map(function (x) { return String(x).replace(/\D/g, '').slice(0, 20); });
       const sube = govde.sube === 'BAP Fikirtepe' || govde.sube === 'BAP Erenköy' ? govde.sube : '';
-      const ileti = JSON.stringify({ key: env.GAS_KEY, tur: 'rota', idler: idler, sube: sube });
+      const ileti = JSON.stringify({ key: env.GAS_KEY, tur: 'rota', idler: idler, sube: sube, teslimSayisi: Math.max(0, Math.min(10, parseInt(govde.teslimSayisi, 10) || 0)) });
       try {
         const r = await fetch(env.GAS_URL, { method: 'POST', headers: { 'content-type': 'application/json' }, body: ileti, redirect: 'follow' });
         const metin = await r.text();

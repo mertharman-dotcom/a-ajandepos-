@@ -1010,7 +1010,8 @@ function kesintiGir_(d) {
 
 /* ---------------- Kurye seferleri ve canlı rota ---------------- */
 
-// Şubelerin çıkış noktası (Google Haritalar'a verilen adres).
+// Şubelerin çıkış noktası (Google Haritalar'a verilen adres). En doğrusu koordinat: Google Haritalar'da şubenin kapısına
+// basılı tutunca çıkan "41.0xxxxx, 29.0xxxxx" değeri buraya adres yerine yazılabilir (ör. 'BAP Erenköy': '40.97351, 29.07623').
 var SUBE_KONUM = {
   'BAP Erenköy': 'Erenköy Mahallesi, Alpler Sokak No:7, 34738 Kadıköy/İstanbul',
   'BAP Fikirtepe': 'Evinpark Sitesi, Mandıra Caddesi, Fikirtepe, 34720 Kadıköy/İstanbul'
@@ -1114,7 +1115,8 @@ function rotaHesapla_(d) {
   var idler = (d.idler || []).map(siparisNo_).filter(String).slice(0, 5); if (!idler.length) return { hata: 'Sipariş seçilmedi.' };
   var zorla = SUBE_KONUM[d.sube] ? d.sube : '';  // panelden "Erenköy'den / Fikirtepe'den hesapla"
   var cache = CacheService.getScriptCache(), anahtar = 'rota_' + idler.slice().sort().join('_') + (zorla ? '_' + norm_(zorla) : ''), eski = cache.get(anahtar);
-  if (eski) { try { var o = JSON.parse(eski); o.onbellek = true; return o; } catch (e) { } }
+  // Saklanan sonuç, o sırada teslim edilmemiş siparişlerle hesaplandıysa ve panel artık teslimleri görüyorsa yeniden hesapla.
+  if (eski) { try { var o = JSON.parse(eski); if (!(+d.teslimSayisi > (o.teslimSayisi || 0))) { o.onbellek = true; return o; } } catch (e) { } }
   var ss = SpreadsheetApp.openById(KAYNAK.kurye.id);
   var s = sonSatirlar_(ss, 'Siparişler', 1500, ['Tarih', 'Sipariş ID', 'Adisyon No', 'Adres', 'Restorandan Çıktı', 'Teslim Saati', 'Mesafe (km)']);
   if (!s) return { hata: 'Siparişler sekmesi okunamadı.' };
@@ -1154,7 +1156,7 @@ function rotaHesapla_(d) {
     bacaklar: sonuc.bacak.map(function (b) { return { no: b.kime.no, mahalle: b.kime.mahalle, adres: b.adres, km: b.km, dk: b.dk, trafikli: b.trafikli }; }),
     toplamKm: km, surusDk: surus, teslimPayiDk: TESLIM_PAYI_DK * duraklar.length, kapatmaDk: surus + TESLIM_PAYI_DK * duraklar.length,
     fiiliDk: teslimli && ilkCik < 99999 ? Math.round(sonTes - ilkCik) : null, tabloKm: Math.round(duraklar.reduce(function (t, x) { return t + x.tabloKm; }, 0) * 10) / 10,
-    zaman: Utilities.formatDate(new Date(), TZ, 'HH:mm') };
+    zaman: Utilities.formatDate(new Date(), TZ, 'HH:mm'), teslimSayisi: duraklar.filter(function (x) { return x.tesDk !== null; }).length };
   try { cache.put(anahtar, JSON.stringify(out), 600); } catch (e) { }
   return out;
 }
