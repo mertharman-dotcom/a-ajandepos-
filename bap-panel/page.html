@@ -669,12 +669,12 @@ function kuryeTeslimat(a,K){var HD=K.hedef,D=KURYE_DONEM,G=K.genel[D];
 function kuryeKesinti(a,K){var L=K.kesintiler,ozet={};
   L.forEach(function(x){var o=ozet[x.ad]=ozet[x.ad]||{ad:x.ad,erken:0,kapanis:0,tl:0,gun:0,unutulmus:0};o.erken+=x.erken;o.kapanis+=x.kapanis;o.tl+=x.tl;o.gun++;if(x.unutulmus)o.unutulmus++;});
   var O=Object.keys(ozet).map(function(k){return ozet[k];}).sort(function(x,y){return (y.erken+y.kapanis)-(x.erken+x.kapanis);});
-  a.appendChild(el("div",{class:"bilgi",text:"Erken çevrimiçi: vardiyadan önce açık kalan süre; zaten ödenmiyor, ceza değil. Kapanış: son teslimden sonra makul çıkışı aşan süre. 2 saati aşan kapanış büyük ihtimalle çıkış yapmayı unutmaktır; tablodaki Kesinti İstisnaları sekmesine yazılarak düzeltilir. ₺ karşılığı saat ücretiyle hesaplanır ve bordroda zaten düşülmüştür."}));
-  a.appendChild(blok("Kurye bazında — son 30 gün",null,O.length?tablo([["Kurye"],["Gün",1],["Erken çevrimiçi",1],["Kapanış",1],["Toplam",1],["Karşılığı",1],["Unutulmuş çıkış",1]],O.map(function(x){
-    return [x.ad,String(x.gun),x.erken?x.erken+" dk":"—",x.kapanis?x.kapanis+" dk":"—",(x.erken+x.kapanis)+" dk",para(x.tl),x.unutulmus?el("span",{class:"etiket e-kotu",text:String(x.unutulmus)}):"—"];})):bos("Son 30 günde kesinti yok.")));
+  a.appendChild(el("div",{class:"bilgi",text:"Erken çevrimiçi: vardiyadan önce açık kalan süre; zaten ödenmiyor, ceza değil. Kapanış: son teslimden sonra makul çıkışı aşan süre. 2 saati aşan kapanış büyük ihtimalle çıkış yapmayı unutmaktır; tablodaki Kesinti İstisnaları sekmesine yazılarak düzeltilir. ₺ karşılığı yalnız kapanış için saat ücretiyle hesaplanır ve bordroda zaten düşülmüştür; erken çevrimiçi süre hiç ödenmediği için ₺ karşılığı yazılmaz."}));
+  a.appendChild(blok("Kurye bazında — son 30 gün",null,O.length?tablo([["Kurye"],["Gün",1],["Erken çevrimiçi",1],["Kapanış",1],["Toplam",1],["Kapanış karşılığı",1],["Unutulmuş çıkış",1]],O.map(function(x){
+    return [x.ad,String(x.gun),x.erken?x.erken+" dk":"—",x.kapanis?x.kapanis+" dk":"—",(x.erken+x.kapanis)+" dk",x.tl?para(x.tl):"—",x.unutulmus?el("span",{class:"etiket e-kotu",text:String(x.unutulmus)}):"—"];})):bos("Son 30 günde kesinti yok.")));
   var KS=L.filter(function(x){return x.erken+x.kapanis>=10;}).slice(0,60);
   a.appendChild(blok("Gün gün","Son 30 günde 10 dakikayı aşanlar, en yeniden eskiye. Gerekçenin tamamı için üzerine gel.",
-    KS.length?tablo([["Tarih"],["Kurye"],["Erken",1],["Kapanış",1],["Karşılığı",1],["Gerekçe"]],KS.map(function(x){return [gunAd(x.gun),x.ad,x.erken?x.erken+" dk":"—",x.kapanis?el("span",{class:"etiket "+(x.unutulmus?"e-kotu":"e-dikkat"),text:x.kapanis+" dk"}):"—",para(x.tl),
+    KS.length?tablo([["Tarih"],["Kurye"],["Erken",1],["Kapanış",1],["Kapanış karşılığı",1],["Gerekçe"]],KS.map(function(x){return [gunAd(x.gun),x.ad,x.erken?x.erken+" dk":"—",x.kapanis?el("span",{class:"etiket "+(x.unutulmus?"e-kotu":"e-dikkat"),text:x.kapanis+" dk"}):"—",x.tl?para(x.tl):"—",
       x.unutulmus?el("span",{title:x.neden,style:"color:var(--kotu)",text:"Çıkış unutulmuş olabilir"}):el("span",{title:x.neden,style:"color:var(--gri)",text:x.neden.length>90?x.neden.slice(0,90)+"…":x.neden})];})):bos("10 dakikayı aşan kesinti yok.")));}
 
 function kuryeBordro(a,K){var B=K.bordro||[];if(!B.length)return a.appendChild(bos("Bordro için mesai kaydı yok."));

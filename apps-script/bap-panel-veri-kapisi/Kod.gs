@@ -801,7 +801,7 @@ function kurye_() {
           durum: r[cm.durum] || '', netDk: net, canliDk: canli, acik: acik, neden: kodsuz_(r[cm.neden] || '') });
       }
       if (gun >= otuzBasi && (erken > 0 || kapanis > 0))
-        kesintiler.push({ gun: gun, ad: ad, erken: erken, kapanis: kapanis, tl: Math.round((erken + kapanis) / 60 * u.saat), unutulmus: kapanis >= 120, neden: kodsuz_(r[cm.neden] || '') });
+        kesintiler.push({ gun: gun, ad: ad, erken: erken, kapanis: kapanis, tl: Math.round(kapanis / 60 * u.saat), unutulmus: kapanis >= 120, neden: kodsuz_(r[cm.neden] || '') });
       if (seri[gun]) seri[gun].maliyet += mal.toplam;
       // Açık vardiyanın süresi henüz yazılmadı: saatte-paket oranına girmesin, paketleri hakedişe girsin.
       donemleri(gun).forEach(function (d) {
