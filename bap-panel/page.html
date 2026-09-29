@@ -680,7 +680,7 @@ function kuryeKesinti(a,K){var L=K.kesintiler,ozet={};
 function kuryeBordro(a,K){var B=K.bordro||[];if(!B.length)return a.appendChild(bos("Bordro için mesai kaydı yok."));
   if(KURYE_HAFTA>=B.length)KURYE_HAFTA=0;var H=B[KURYE_HAFTA];
   var sec=el("select",{class:"cevap-alan",style:"max-width:220px","aria-label":"Hafta",onchange:function(e){KURYE_HAFTA=+e.target.value;ciz();}},B.map(function(h,i){var o=el("option",{value:String(i),text:gunAd(h.hafta)+" – "+gunAd(h.bitis)+(i===0?" (bu hafta)":"")});if(i===KURYE_HAFTA)o.selected=true;return o;}));
-  var U=K.ucret,ucretYazi=[U.varsayilan.grup+": saat "+U.varsayilan.saat+" ₺, paket "+U.varsayilan.paket+" ₺, KDV %"+Math.round(U.varsayilan.kdv*100)].concat(Object.keys(U.kisiler).map(function(k){var x=U.kisiler[k];return k+" ("+x.grup+"): saat "+x.saat+" ₺, paket "+x.paket+" ₺"+(x.kdv?", KDV %"+Math.round(x.kdv*100):", KDV yok");})).join(" · ");
+  var U=K.ucret,ucretYazi=[U.varsayilan.grup+" (varsayılan): saat "+U.varsayilan.saat+" ₺, paket "+U.varsayilan.paket+" ₺"+(U.varsayilan.kdv?", KDV %"+Math.round(U.varsayilan.kdv*100):"")].concat(Object.keys(U.kisiler).map(function(k){var x=U.kisiler[k];return k+" ("+x.grup+"): "+x.saat+" ₺ + "+x.paket+" ₺"+(x.kdv?", KDV %"+Math.round(x.kdv*100):"");})).join(" · ")+(U.kaynak==="yedek"?" — ‘Kurye bilgiler’ sekmesi okunamadı, yedek ücretler kullanıldı.":"");
   a.appendChild(el("div",{class:"hafta-sec"},[el("strong",{text:"Hafta"}),sec,el("span",{style:"color:var(--gri);font-size:13px",text:ucretYazi})]));
   function top(l){return l.reduce(function(t,x){t.gun+=x.gun;t.netDk+=x.netDk;t.paket+=x.paket;t.kesintiDk+=x.kesintiDk;t.saat+=x.saat;t.paketTl+=x.paketTl;t.kdv+=x.kdv;t.toplam+=x.toplam;return t;},{gun:0,netDk:0,paket:0,kesintiDk:0,saat:0,paketTl:0,kdv:0,toplam:0});}
   function hucreler(x,ad,kalin){var ns=x.netDk>=60?Math.round(x.paket/(x.netDk/60)*100)/100:null;var f=function(v){return kalin?el("strong",{text:v}):v;};
@@ -692,7 +692,7 @@ function kuryeBordro(a,K){var B=K.bordro||[];if(!B.length)return a.appendChild(b
   satirlar.push(hucreler(top(H.kisiler),el("strong",{text:"Genel toplam"}),true));
   var tb=tablo([["Kurye"],["Gün",1],["Net süre",1],["Paket",1],["Pkt/sa",1],["Kesinti",1],["Saat hakedişi",1],["Paket hakedişi",1],["KDV",1],["Toplam",1]],satirlar);
   tb.querySelectorAll("tr").forEach(function(tr){if(tr.querySelector("td strong")&&tr.firstChild.querySelector("strong"))tr.style.background="var(--kum-acik)";});
-  a.appendChild(blok("Kurye hakedişi","Net süre üzerinden (kesintiler düşülmüş). Saat hakedişi = net saat × saat ücreti; paket hakedişi = paket × paket ücreti. Ücretler Kod.gs içindeki KURYE_UCRET'ten gelir.",tb));
+  a.appendChild(blok("Kurye hakedişi","Net süre üzerinden (kesintiler düşülmüş). Saat hakedişi = net saat × saat ücreti; paket hakedişi = paket × paket ücreti. Ücretler kurye tablosundaki ‘Kurye bilgiler’ sekmesinden gelir; Haddy tarafına %20 KDV eklenir.",tb));
   var T=top(H.kisiler);
   a.appendChild(el("div",{class:"rakamlar"},[rakam("Haftalık kurye maliyeti",para(T.toplam),"KDV dahil"),rakam("Paket başı",T.paket?para(T.toplam/T.paket):"—",T.paket+" paket"),rakam("Net saat",TL.format(Math.round(T.netDk/60))+" sa",T.netDk>=60?virgul(Math.round(T.paket/(T.netDk/60)*100)/100)+" paket/saat":null),rakam("Kesinti",T.kesintiDk+" dk")]));}
 

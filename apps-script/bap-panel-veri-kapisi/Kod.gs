@@ -678,15 +678,36 @@ var KURYE_DONEMLER = ['bugun', 'dun', 'yedi', 'ay', 'otuz'];
 // Mesafeye göre beklenen yol süresi (dk): 5 dk + km başına 2,5 dk (kurye panelindeki formül).
 function beklenenYol_(km) { return Math.round(5 + 2.5 * km); }
 
-// Kurye ücretleri. Listede adı olmayan kurye 'varsayilan' ile hesaplanır (Haddy).
-// saat: net saat başına ₺, paket: paket başına ₺, kdv: oran (0,20 = %20). Saat hakedişi kesintiler düşülmüş net süre üzerinden.
+// Kurye ücretleri 'Kurye bilgiler' sekmesinden okunur (Kurye Adı, Bordro, Saat ücreti, Paket başı ücret, SGK'lı).
+// Adı boş satır o bordro grubunun varsayılanıdır (ör. Haddy Kurye); listede olmayan kurye bu varsayılanla hesaplanır.
+// Haddy faturası KDV'li (%20), BAP bordrosunda KDV yok. Sekme okunamazsa aşağıdaki yedek kullanılır.
+// Saat hakedişi kesintiler düşülmüş net süre üzerinden.
 var KURYE_UCRET = {
   varsayilan: { grup: 'Haddy', saat: 235, paket: 25, kdv: 0.20 },
-  kisiler: { 'Kenan Aydemir': { grup: 'BAP', saat: 245, paket: 15, kdv: 0 } }
+  kisiler: { 'Kenan': { grup: 'BAP', saat: 245, paket: 15, kdv: 0 } },
+  kaynak: 'yedek'
 };
+var KURYE_KDV = { haddy: 0.20 };
+function kuryeUcretOku_(ss) {
+  var sh = ss.getSheetByName('Kurye bilgiler') || ss.getSheetByName('Kurye Bilgiler'); if (!sh || sh.getLastRow() < 2) return;
+  var v = sh.getDataRange().getDisplayValues(), b = v[0];
+  var c = { ad: kolon_(b, ['Kurye Adı', 'Kurye']), grup: kolon_(b, ['Bordro']), saat: kolon_(b, ['Saat ücreti']), paket: kolon_(b, ['Paket başı ücret', 'Paket başı']), sgk: kolon_(b, ['SGK']) };
+  if (c.grup < 0 || c.saat < 0) return;
+  var u = { varsayilan: null, kisiler: {}, kaynak: 'Kurye bilgiler' };
+  v.slice(1).forEach(function (r) {
+    var grup = String(r[c.grup] || '').trim(); if (!grup) return;
+    var ad = c.ad >= 0 ? String(r[c.ad] || '').trim() : '', kdv = /haddy/i.test(grup) ? KURYE_KDV.haddy : 0;
+    var x = { grup: grup.replace(/\s*kurye\s*$/i, ''), saat: sayi_(r[c.saat]), paket: c.paket >= 0 ? sayi_(r[c.paket]) : 0, kdv: kdv, sgk: c.sgk >= 0 && /^(true|evet|1)$/i.test(String(r[c.sgk]).trim()) };
+    if (ad) u.kisiler[ad] = x; else if (!u.varsayilan) u.varsayilan = x;
+  });
+  if (!u.varsayilan) u.varsayilan = KURYE_UCRET.varsayilan;
+  KURYE_UCRET = u;
+}
+// Tablodaki kısa ad ("Kenan") mesaideki tam adla ("Kenan Aydemir") eşleşir.
 function kuryeUcret_(ad) {
-  var k = KURYE_UCRET.kisiler, n = norm_(ad);
-  for (var a in k) if (norm_(a) === n) return k[a];
+  var k = KURYE_UCRET.kisiler, n = norm_(ad), a;
+  for (a in k) if (norm_(a) === n) return k[a];
+  for (a in k) if (norm_(a) && norm_(String(ad).split(/\s+/)[0]) === norm_(a)) return k[a];
   return KURYE_UCRET.varsayilan;
 }
 // Bir mesai satırının maliyeti (KDV dahil) ve kırılımı.
@@ -697,6 +718,7 @@ function kuryeMaliyet_(ad, netDk, paket) {
 
 function kurye_() {
   var ss = SpreadsheetApp.openById(KAYNAK.kurye.id);
+  try { kuryeUcretOku_(ss); } catch (err) { /* yedek ücretlerle devam */ }
   var simdi = simdi_(), bugun = isGunu_(simdi), ay = bugun.slice(0, 7), dun = gunEkle_(bugun, -1);
   var yediBasi = gunEkle_(bugun, -6), otuzBasi = gunEkle_(bugun, -29), ilkSeri = gunEkle_(bugun, -13);
   var out = { bugun: bugun, hedef: KURYE_HEDEF };
