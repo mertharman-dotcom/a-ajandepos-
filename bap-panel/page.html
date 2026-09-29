@@ -684,7 +684,12 @@ function kuryeTeslimat(a,K){var HD=K.hedef,D=KURYE_DONEM,G=K.genel[D];
 
 var KESINTI_FORM={kurye:"",tarih:"",tip:"TL",miktar:"",aciklama:"",durum:"",durumSinif:"",onayBekliyor:false,istekNo:yeniIstekNo(),gonderiliyor:false};
 // Elle kesinti formu: kurye tablosundaki Kesintiler sekmesine yazar; bordroda TL hakedişten, saat ödenen süreden düşülür.
-function kesintiFormu(K){var F=KESINTI_FORM;if(!F.tarih)F.tarih=bugunIst();var adlar=K.kuryeAdlari||[];
+// Kurye adları: veri kapısının listesi; yoksa (eski sürüm) panelde görünen bütün kurye adları.
+function kuryeAdListesi(K){if(K.kuryeAdlari&&K.kuryeAdlari.length)return K.kuryeAdlari;var o={};
+  ["bugun","dun","yedi","ay","otuz"].forEach(function(d){((K.kisiler||{})[d]||[]).forEach(function(x){o[x.ad]=1;});});
+  (K.bugunMesai||[]).forEach(function(x){o[x.ad]=1;});(K.bordro||[]).forEach(function(h){h.kisiler.forEach(function(x){o[x.ad]=1;});});
+  delete o["Atanmamış"];return Object.keys(o).sort(function(a,b){return a.localeCompare(b,"tr");});}
+function kesintiFormu(K){var F=KESINTI_FORM;if(!F.tarih)F.tarih=bugunIst();var adlar=kuryeAdListesi(K);
   var sec=el("select",{"aria-label":"Kurye"},[el("option",{value:"",text:"Kurye seç…"})].concat(adlar.map(function(x){return el("option",{value:x,text:x});})));sec.value=F.kurye;
   var tarih=el("input",{type:"date",value:F.tarih,max:bugunIst(),"aria-label":"Tarih"});
   var tip=el("select",{"aria-label":"Kesinti türü"},[el("option",{value:"TL",text:"Para (₺)"}),el("option",{value:"Saat",text:"Süre (dakika)"})]);tip.value=F.tip;
