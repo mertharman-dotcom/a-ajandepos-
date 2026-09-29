@@ -24,7 +24,10 @@ const HTML_HEADERS = {
 // Apps Script hata verdiğinde JSON yerine HTML hata sayfası döner; sayfadaki hata metnini kısaca çıkarır.
 function gasHatasi(metin) {
   const t = String(metin || '').replace(/<script[\s\S]*?<\/script>|<style[\s\S]*?<\/style>/gi, ' ').replace(/<[^>]+>/g, ' ')
-    .replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/&amp;/g, '&').replace(/\s+/g, ' ').trim();
+    .replace(/&nbsp;/g, ' ').replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/&amp;/g, '&').replace(/\s+/g, ' ').trim();
+  // "Sayfa bulunamadı / Drive dosyası açılamıyor": GAS_URL artık var olmayan bir dağıtımı gösteriyor.
+  if (/nicht gefunden|not found|bulunamad|kann derzeit nicht ge|unable to open|açılam/i.test(t))
+    return ' Apps Script adresi bulunamadı: Cloudflare\'deki GAS_URL silinmiş ya da arşivlenmiş bir dağıtımı gösteriyor. Apps Script\'te Dağıt › Dağıtımları yönet ekranındaki güncel Web uygulaması adresini (sonu /exec) GAS_URL\'ye yazın.';
   return t ? ' Google\'ın mesajı: ' + t.slice(0, 300) : '';
 }
 
