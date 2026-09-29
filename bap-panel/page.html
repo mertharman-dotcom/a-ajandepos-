@@ -682,7 +682,50 @@ function kuryeTeslimat(a,K){var HD=K.hedef,D=KURYE_DONEM,G=K.genel[D];
 
 }
 
+var KESINTI_FORM={kurye:"",tarih:"",tip:"TL",miktar:"",aciklama:"",durum:"",durumSinif:"",onayBekliyor:false,istekNo:yeniIstekNo(),gonderiliyor:false};
+// Elle kesinti formu: kurye tablosundaki Kesintiler sekmesine yazar; bordroda TL hakedişten, saat ödenen süreden düşülür.
+function kesintiFormu(K){var F=KESINTI_FORM;if(!F.tarih)F.tarih=bugunIst();var adlar=K.kuryeAdlari||[];
+  var sec=el("select",{"aria-label":"Kurye"},[el("option",{value:"",text:"Kurye seç…"})].concat(adlar.map(function(x){return el("option",{value:x,text:x});})));sec.value=F.kurye;
+  var tarih=el("input",{type:"date",value:F.tarih,max:bugunIst(),"aria-label":"Tarih"});
+  var tip=el("select",{"aria-label":"Kesinti türü"},[el("option",{value:"TL",text:"Para (₺)"}),el("option",{value:"Saat",text:"Süre (dakika)"})]);tip.value=F.tip;
+  var miktar=el("input",{type:"text",inputmode:"decimal",autocomplete:"off",value:F.miktar,"aria-label":"Miktar"});
+  var miktarEt=el("span",{text:""});
+  var acik=el("input",{type:"text",maxlength:"200",value:F.aciklama,placeholder:"Ne oldu? örn. kasa açığı, içecek unutuldu, geç kaldı",'aria-label':"Açıklama"});
+  var ipucu=el("div",{class:"odeme-ipucu"}),durum=el("span",{class:"cevap-durum "+(F.durumSinif||""),role:"status",text:F.durum});
+  var kaydet=el("button",{type:"submit",class:"dugme ana-dugme"},[F.onayBekliyor?"Yine de ekle":"Kesintiyi kaydet"]);
+  var vazgec=F.onayBekliyor?el("button",{type:"button",class:"dugme",onclick:function(){F.onayBekliyor=false;F.durum="";F.durumSinif="";ciz();}},["Vazgeç"]):null;
+  var alanlar=[sec,tarih,tip,miktar,acik,kaydet];if(F.gonderiliyor)alanlar.forEach(function(x){x.setAttribute("disabled","");});
+  function ucret(){var U=K.ucret||{},k=U.kisiler||{},n=normAd(F.kurye),i;for(i in k)if(normAd(i)===n||normAd(String(F.kurye).split(/\s+/)[0])===normAd(i))return k[i];return U.varsayilan||null;}
+  function ipucuYaz(){ipucu.textContent="";miktarEt.textContent=F.tip==="Saat"?"Kaç dakika":"Tutar (₺)";miktar.setAttribute("placeholder",F.tip==="Saat"?"örn. 30":"örn. 250");
+    var t=tutarOku(F.miktar),u=ucret();if(!(t>0))return;
+    if(F.tip==="Saat"){ipucu.appendChild(el("strong",{text:Math.round(t)+" dk ödenen süreden düşülecek"}));if(u&&F.kurye)ipucu.appendChild(el("span",{text:"≈ "+para(Math.round(t)/60*u.saat)+" ("+u.saat+" ₺/saat)"}));}
+    else ipucu.appendChild(el("strong",{text:para(t)+" hakedişten düşülecek"}));}
+  function sakla(){var once=[F.kurye,F.tarih,F.tip,F.miktar,F.aciklama].join("|");F.kurye=sec.value;F.tarih=tarih.value;F.tip=tip.value;F.miktar=miktar.value;F.aciklama=acik.value;
+    if(once!==[F.kurye,F.tarih,F.tip,F.miktar,F.aciklama].join("|")){F.istekNo=yeniIstekNo();if(F.onayBekliyor){F.onayBekliyor=false;kaydet.textContent="Kesintiyi kaydet";if(vazgec)vazgec.remove();durum.textContent="";F.durum="";}}}
+  [sec,tarih,tip,miktar,acik].forEach(function(x){x.addEventListener("input",function(){sakla();ipucuYaz();});x.addEventListener("change",function(){sakla();ipucuYaz();});});
+  ipucuYaz();
+  function gonder(ev){ev.preventDefault();if(F.gonderiliyor)return;var onay=F.onayBekliyor?"1":"";sakla();var t=tutarOku(F.miktar);
+    function hata(m,k){durum.textContent=m;durum.className="cevap-durum kotu";F.durum=m;F.durumSinif="kotu";if(k)k.focus();}
+    if(!F.kurye)return hata("Kuryeyi seç.",sec);if(!F.tarih)return hata("Tarihi seç.",tarih);if(F.tarih>bugunIst())return hata("İleri tarihli kesinti girilemez.",tarih);
+    if(!(t>0))return hata(F.tip==="Saat"?"Kaç dakika kesileceğini yaz.":"Geçerli bir tutar yaz.",miktar);if(!F.aciklama.trim())return hata("Kısa bir açıklama yaz.",acik);
+    F.gonderiliyor=true;alanlar.forEach(function(x){x.setAttribute("disabled","");});durum.className="cevap-durum";durum.textContent="Kaydediliyor…";
+    fetch("/api/kesinti",{method:"POST",credentials:"same-origin",headers:{"content-type":"application/json","x-bap-panel":"1"},body:JSON.stringify({istekNo:F.istekNo,kurye:F.kurye,tarih:F.tarih,tip:F.tip,miktar:String(t),aciklama:F.aciklama,onay:onay})})
+      .then(function(r){return r.json();}).then(function(d){F.gonderiliyor=false;
+        if(d&&d.tamam){F.durum="✓ "+d.kurye+" için "+(d.tip==="Saat"?d.miktar+" dk":para(d.miktar))+" kesinti kaydedildi ("+d.tarih+")."+(d.zatenKayitli?" (zaten kayıtlıydı)":"");F.durumSinif="iyi";F.onayBekliyor=false;F.miktar="";F.aciklama="";F.istekNo=yeniIstekNo();yukle(true);return;}
+        if(d&&d.tekrarMi){F.onayBekliyor=true;F.durum=d.hata;F.durumSinif="kotu";ciz();return;}
+        F.durum=(d&&d.hata)||"Kaydedilemedi.";F.durumSinif="kotu";ciz();})
+      .catch(function(){F.gonderiliyor=false;F.durum="Bağlantı koptu; kesinti yazılmış olabilir. ‘Şimdi yenile’ ile aşağıdaki listeden kontrol et, sonra gerekirse yeniden gönder (aynı gönderim iki kez yazılmaz).";F.durumSinif="kotu";ciz();});}
+  function etiket(ad,girdi,cls){return el("label",{class:cls||null},[ad,girdi]);}
+  return el("form",{class:"odeme-form",onsubmit:gonder},[
+    el("div",{class:"odeme-izgara"},[etiket("Kurye",sec,"ted"),etiket("Tarih",tarih),etiket("Tür",tip),el("label",null,[miktarEt,miktar]),etiket("Açıklama",acik,"genis"),el("div",{class:"genis"},[ipucu])]),
+    el("div",{class:"odeme-alt"},[kaydet,vazgec,durum])]);}
+
 function kuryeKesinti(a,K){var L=K.kesintiler,ozet={};
+  a.appendChild(blok("Kesinti gir","Kurye tablosundaki Kesintiler sekmesine yazılır. Para kesintisi haftalık hakedişten, süre kesintisi ödenen süreden düşülür (Bordro sekmesinde görünür). Yanlış girdiysen o satırı tablodan sil.",kesintiFormu(K)));
+  var E=K.elleKesinti||[];
+  a.appendChild(blok("Girilen kesintiler — son 60 gün","Kesintiler sekmesinden; panelden girilenlerin açıklamasında ‘(panel)’ yazar.",E.length?tablo([["Tarih"],["Kurye"],["Tür"],["Miktar",1],["Açıklama"]],E.map(function(x){
+    return [gunAd(x.gun),x.ad,x.tip==="Saat"?"Süre":"Para",x.tip==="Saat"?(x.dk||0)+" dk":para(x.tl),el("span",{title:x.not,style:"color:var(--gri)",text:x.not.length>80?x.not.slice(0,80)+"…":x.not})];})):bos("Son 60 günde girilmiş kesinti yok.")));
+  a.appendChild(el("h2",{style:"font-size:20px;margin:34px 0 10px",text:"Otomatik mesai kesintileri"}));
   L.forEach(function(x){var o=ozet[x.ad]=ozet[x.ad]||{ad:x.ad,erken:0,kapanis:0,tl:0,gun:0,unutulmus:0};o.erken+=x.erken;o.kapanis+=x.kapanis;o.tl+=x.tl;o.gun++;if(x.unutulmus)o.unutulmus++;});
   var O=Object.keys(ozet).map(function(k){return ozet[k];}).sort(function(x,y){return (y.erken+y.kapanis)-(x.erken+x.kapanis);});
   a.appendChild(el("div",{class:"bilgi",text:"Erken çevrimiçi: vardiyadan önce açık kalan süre; zaten ödenmiyor, ceza değil. Kapanış: son teslimden sonra makul çıkışı aşan süre. 2 saati aşan kapanış büyük ihtimalle çıkış yapmayı unutmaktır; tablodaki Kesinti İstisnaları sekmesine yazılarak düzeltilir. ₺ karşılığı yalnız kapanış için saat ücretiyle hesaplanır ve bordroda zaten düşülmüştür; erken çevrimiçi süre hiç ödenmediği için ₺ karşılığı yazılmaz."}));
@@ -770,7 +813,8 @@ function yukle(taze){if(YUKLENIYOR)return;YUKLENIYOR=true;if(VERI)ciz();
 window.addEventListener("hashchange",function(){var h=(location.hash||"#merkez").slice(1);if(h!==AKTIF){AKTIF=h;ciz();}});
 nav();yukle(false);setInterval(function(){if(document.hidden)return;
   // Ödeme formu yarım doldurulmuşken otomatik yenileme ekranı yeniden çizip odağı kaçırmasın.
-  if(AKTIF==="odeme"&&(ODEME_FORM.tutar||ODEME_FORM.aciklama||ODEME_FORM.gonderiliyor))return;yukle(false);},300000);
+  if(AKTIF==="odeme"&&(ODEME_FORM.tutar||ODEME_FORM.aciklama||ODEME_FORM.gonderiliyor))return;
+  if(AKTIF==="kurye"&&(KESINTI_FORM.miktar||KESINTI_FORM.aciklama||KESINTI_FORM.gonderiliyor))return;yukle(false);},300000);
 })();
 </script>
 </body>

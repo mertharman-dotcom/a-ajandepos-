@@ -38,6 +38,9 @@ Panelde **Kurye & Teslimat** bölümü (`#kurye`). **Kurye Net Çalışma Süres
   (yoksa açılır) olarak yazılır ve o sipariş listeden düşer; yanlış kapatılan satır o sekmeden silinirse yeniden açık görünür.
   **Kuryeden kes** ayrıca **Kesintiler** sekmesine TL kesinti yazar. Sipariş bilgisi tarayıcıdan değil Açık Hesaplar'dan okunur;
   aynı sipariş iki kez kapatılamaz.
+- Kesinti girişi (Kesintiler sekmesi): kurye, tarih, tür (para ₺ / süre dk), miktar ve açıklama. Kurye tablosunun
+  **Kesintiler** sekmesine kurye panelindeki biçimde yazılır (açıklamanın sonunda "(panel)"). Aynı gün + kurye + miktar
+  varsa önce onay ister; aynı gönderim iki kez yazılmaz. Yanlış kayıt tablodan silinir.
 - Bordro: Kesintiler sekmesindeki TL kesintiler "Para kesintisi" olarak düşülür (Saat tipi ödenen süreden); Haddy'de KDV
   kesinti sonrası tutar üzerinden — kurye panelindeki Haftalık Bordro & Hakediş ile aynı hesap.
 - Müşteri adı, telefonu, adresi ve sipariş içeriği panele gönderilmez.
