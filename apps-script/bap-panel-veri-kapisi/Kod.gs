@@ -997,9 +997,10 @@ function bordroVeri_(ss) {
   if (ps) {
     var v = ps.getDataRange().getDisplayValues(), b = v[0];
     var cA = kolon_(b, ['İsim Soyisim']), cG = kolon_(b, ['İşe Giriş']), cC = kolon_(b, ['İşten Çıkış']), cM = kolon_(b, ['Maaş']), cAk = kolon_(b, ['Aktif']),
-        cS = kolon_(b, ['SGK lı', 'SGK']), cSb = kolon_(b, ['Sube', 'Şube']), cI = kolon_(b, ['IBAN']), gor = {};
+        cS = kolon_(b, ['SGK lı', 'SGK']), cSb = kolon_(b, ['Sube', 'Şube']), cI = kolon_(b, ['IBAN']);
+    // Aynı isimle birden fazla satır olabilir (eski kayıt + yeniden işe giriş); hepsi alınır, ay için doğru olanı bordro_ seçer.
     v.slice(1).forEach(function (r) {
-      var ad = String(r[cA] || '').trim(), k = norm_(ad); if (!ad || gor[k]) return; gor[k] = 1; // aynı isimle çift kayıt: ilki
+      var ad = String(r[cA] || '').trim(), k = norm_(ad); if (!ad) return;
       V.personel.push({ ad: ad, k: k, giris: bordroIso_(r[cG]), cikis: bordroIso_(r[cC]), maas: sayi_(r[cM]), aktif: /^(true|evet|1)$/i.test(String(r[cAk]).trim()),
         sgk: /^(true|evet|1|ok)$/i.test(String(r[cS]).trim()), sube: cSb >= 0 ? String(r[cSb]).trim() : '', ibanVar: cI >= 0 && String(r[cI]).trim() !== '' });
     });
@@ -1011,13 +1012,25 @@ function bordro_(V, ay, bugun, planli) {
   var yil = +ay.slice(0, 4), aNo = +ay.slice(5, 7), gunSay = new Date(Date.UTC(yil, aNo, 0)).getUTCDate();
   var ilk = ay + '-01', son = ay + '-' + ('0' + gunSay).slice(-2), kadar = bugun < son ? bugun : son;
   function gunFark(a, b) { return b < a ? 0 : Math.round((Date.parse(b + 'T00:00:00Z') - Date.parse(a + 'T00:00:00Z')) / 86400000) + 1; }
-  var odenen = V.odenen[ay] || {}, kisiler = [], gorulen = {};
+  var odenen = V.odenen[ay] || {}, kisiler = [], gorulen = {}, grup = {};
+  // Aynı kişinin satırları: bu aya denk gelen, maaşı olan kayıtlar. Birden fazlaysa tarihsiz pasif (eski) kayıt elenir;
+  // yine birden fazlaysa (ör. ay içinde ayrılıp yeniden girme) her biri kendi tarih aralığıyla hesaplanır.
   V.personel.forEach(function (p) {
-    var P = V.pu[p.k], ayKaydi = P && Object.keys(P.gunler).some(function (d) { return d >= ilk && d <= son; });
+    if (!(p.maas > 0)) return;
     if ((p.giris && p.giris > son) || (p.cikis && p.cikis < ilk)) return;
+    (grup[p.k] = grup[p.k] || []).push(p);
+  });
+  Object.keys(grup).forEach(function (k) {
+    var l = grup[k];
+    if (l.length > 1) { var tarihli = l.filter(function (p) { return p.aktif || p.cikis; }); if (tarihli.length) l = tarihli; }
+    if (l.length > 1) { var aktif = l.filter(function (p) { return p.aktif; }), cikan = l.filter(function (p) { return !p.aktif && p.cikis; });
+      l = aktif.length ? [aktif[aktif.length - 1]].concat(cikan) : cikan; }
+    grup[k] = l;
+  });
+  V.personel.filter(function (p) { return (grup[p.k] || []).indexOf(p) >= 0; }).forEach(function (p) {
+    var P = V.pu[p.k], ayKaydi = P && Object.keys(P.gunler).some(function (d) { return d >= ilk && d <= son; });
     if (!p.aktif && !p.cikis && !ayKaydi) return;          // pasif ve bu ay kaydı yok
     if (!p.giris && !ayKaydi && ay < bugun.slice(0, 7) && !odenen[p.k]) return; // giriş tarihi bilinmiyor, o ay izi yok
-    if (!(p.maas > 0)) return;
     gorulen[p.k] = 1;
     var bas = p.giris && p.giris > ilk ? p.giris : ilk, bitis = p.cikis && p.cikis < son ? p.cikis : son;
     var gunluk = p.maas / gunSay, saatlik = gunluk / FAZLA_BOLEN;
