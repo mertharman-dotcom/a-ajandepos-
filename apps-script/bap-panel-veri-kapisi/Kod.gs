@@ -674,17 +674,20 @@ function puantajDuzelt_(d) {
   var degisim = [];
   if (yeniG !== null && yeni.giris !== eskiG) degisim.push('Giriş ' + (eskiG || 'boş') + '→' + yeni.giris);
   if (yeniC !== null && yeni.cikis !== eskiC) degisim.push('Çıkış ' + (eskiC || 'boş') + '→' + yeni.cikis);
-  if (!degisim.length) return { hata: 'Yazdığınız saatler tablodakiyle aynı.' };
+  // C/D sütunu tablodan elle değiştirilip Toplam/Fazla eski kaldıysa: aynı saatlerle gönderim yalnız yeniden hesaplar.
+  var yenidenHesap = !degisim.length && yeni.toplam !== undefined && sureSn_(yeni.toplam) !== sureSn_(eskiT);
+  if (!degisim.length && !yenidenHesap) return { hata: 'Yazdığınız saatler tablodakiyle aynı; toplam ve fazla mesai de zaten tutuyor.' };
+  if (yenidenHesap) degisim.push('Giriş/çıkış tablodan değiştirilmiş (' + yeni.giris + '–' + yeni.cikis + '), yeniden hesaplandı');
   if (yeni.toplam !== undefined) degisim.push('Toplam ' + (eskiT || 'boş') + '→' + yeni.toplam, 'Fazla ' + (eskiF || 'boş') + '→' + yeni.fazla);
   var iz = 'Elle düzeltme (Sahip, ' + damga + '): ' + degisim.join(', ') + ' — ' + gerekce;
 
   var satir = i + 1;
   function yaz(j, deger) { if (j >= 0) gs.getRange(satir, j + 1).setValue(deger); }
   yaz(c.gir, yeni.giris);
-  if (yeniC !== null) yaz(c.cik, yeni.cikis);
+  if (yeniC !== null && yeni.cikis !== eskiC) yaz(c.cik, yeni.cikis);
   if (yeni.toplam !== undefined) { yaz(c.top, yeni.toplam); yaz(c.faz, yeni.fazla); }
-  if (yeniG !== null) yaz(c.ga, 'Elle düzeltildi: ' + gerekce + ' (önce ' + (eskiG || 'boş') + ')');
-  if (yeniC !== null) yaz(c.ca, 'Elle düzeltildi: ' + gerekce + ' (önce ' + (eskiC || 'boş') + ')');
+  if (yeniG !== null && yeni.giris !== eskiG) yaz(c.ga, 'Elle düzeltildi: ' + gerekce + ' (önce ' + (eskiG || 'boş') + ')');
+  if (yeniC !== null && yeni.cikis !== eskiC) yaz(c.ca, 'Elle düzeltildi: ' + gerekce + ' (önce ' + (eskiC || 'boş') + ')');
   if (!offGunu) yaz(c.not, 'Elle Düzeltildi' + (yeni.fazla && sureSn_(yeni.fazla) > 0 ? ' + Fazla Mesai' : ''));
   var eskiMan = String(r[c.man] || '').trim();
   yaz(c.man, (eskiMan ? eskiMan + ' | ' : '') + iz);

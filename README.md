@@ -29,6 +29,8 @@ yeni giriş / çıkış saati ve gerekçe yazılır (ör. 11:57 okutulmuş giri�
 - **Ham Giriş / Ham Çıkış** (QR'ın gerçek saati) değişmez. Eski değerler, gerekçe ve tarih **Manuel** sütununa,
   **Islem_Loglari**'na ve **BAP Panel Cevapları**'na yazılır; geri almak için eski değer oradan okunur.
 - İzin / rapor / devamsızlık işli günler buradan düzeltilmez (yönetici paneli).
+- Giriş/çıkış (C/D) tablodan elle değiştirilip Toplam mesai / Fazla Mesai eski kalmışsa panel bu satırları
+  **toplam eski** diye işaretler; **Yeniden hesapla** ile toplam ve fazla mesai tablodaki saate göre yazılır.
 - Tam saate 15 dakikadan az kala yazılmış girişlerde (11:57 gibi) form tam saati önerir.
 
 ## Yayına alma
