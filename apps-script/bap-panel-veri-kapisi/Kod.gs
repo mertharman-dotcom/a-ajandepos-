@@ -737,7 +737,7 @@ function kurye_() {
   // Siparişler: süre aşamaları, gecikme sebebi, kurye başına paket
   var s = sonSatirlar_(ss, 'Siparişler', 6000, ['Tarih', 'Adisyon No', 'Kurye', 'Platform', 'Sipariş Saati', 'Atama (dk)', 'Hazırlık (dk)', 'Yol (dk)', 'Toplam (dk)', 'Mesafe (km)', 'Durum', 'Adres']);
   var seri = {}; for (var i = 0; i < 14; i++) seri[gunEkle_(ilkSeri, i)] = { adet: 0, dk: 0, n: 0, gec: 0, maliyet: 0 };
-  var saat = {}, dagilim = [0, 0, 0, 0, 0], platform = {}, enKotu = [], sonSiparisMs = null, mahalleSay = {};
+  var saat = {}, dagilim = [0, 0, 0, 0, 0], platform = {}, enKotu = [], sonSiparisMs = null, mahalleSay = {}, siparisGun = {};
   KURYE_DONEMLER.forEach(function (d) { mahalleSay[d] = {}; });
   if (s) {
     var c = { tarih: kolon_(s.b, ['Tarih']), no: kolon_(s.b, ['Adisyon No']), kurye: kolon_(s.b, ['Kurye']), plat: kolon_(s.b, ['Platform']), sip: kolon_(s.b, ['Sipariş Saati']),
@@ -754,6 +754,9 @@ function kurye_() {
       var mutfak = cikis > KURYE_HEDEF.cikis, kuryeden = km > 0 && yol > bekYol + KURYE_HEDEF.yolPay;
       var sebep = !gec ? '' : (mutfak && kuryeden ? 'ikisi' : mutfak ? 'mutfak' : kuryeden ? 'kurye' : 'diger');
       var ms = zaman_(String(r[c.tarih]).trim() + ' ' + String(r[c.sip] || '').trim());
+      // Mesai kontrolü için iş günü (gece 00-03 siparişleri önceki vardiyaya sayılır)
+      var isg = ms !== null ? isGunu_(ms) : gun;
+      if (isg >= otuzBasi && isg <= bugun && ad !== 'Atanmamış') { var gk = siparisGun[isg + '|' + norm_(ad)] = siparisGun[isg + '|' + norm_(ad)] || { gun: isg, ad: ad, paket: 0 }; gk.paket++; }
       if (ms !== null && (sonSiparisMs === null || ms > sonSiparisMs)) sonSiparisMs = ms;
       if (seri[gun]) { seri[gun].adet++; if (sureVar) { seri[gun].dk += top; seri[gun].n++; } if (gec) seri[gun].gec++; }
       donemleri(gun).forEach(function (d) {
@@ -796,7 +799,7 @@ function kurye_() {
   });
 
   // Günlük Mesai: bugün kim sahada; dönem bazında net saat, geç giriş, kesinti, maliyet; haftalık bordro
-  var m = sonSatirlar_(ss, 'Günlük Mesai', 1200), bugunMesai = [], kesintiler = [], kadro = {}, haftalar = {};
+  var mesaiGun = {}, m = sonSatirlar_(ss, 'Günlük Mesai', 1200), bugunMesai = [], kesintiler = [], kadro = {}, haftalar = {};
   var dow = (new Date(bugun + 'T00:00:00Z').getUTCDay() + 6) % 7, buHafta = gunEkle_(bugun, -dow), ilkHafta = gunEkle_(buHafta, -7 * 7);
   if (m) {
     var cm = { tarih: kolon_(m.b, ['Tarih']), kurye: kolon_(m.b, ['Kurye']), pg: kolon_(m.b, ['Planlı Giriş']), g: kolon_(m.b, ['Giriş']), pc: kolon_(m.b, ['Planlı Çıkış']),
@@ -806,6 +809,7 @@ function kurye_() {
       var gun = gunStr_(r[cm.tarih]); if (!gun || gun > bugun) return;
       var ad = String(r[cm.kurye] || '').trim(); if (!ad) return;
       var net = sureDk_(r[cm.net]), paket = sayi_(r[cm.paket]), gec = sayi_(r[cm.gec]), erken = sayi_(r[cm.ek]), kapanis = sayi_(r[cm.kk]);
+      mesaiGun[gun + '|' + norm_(ad)] = { net: net, acik: /açık/i.test(r[cm.durum] || '') || !!(r[cm.g] && !r[cm.cik]), durum: r[cm.durum] || '' };
       var acik = /açık/i.test(r[cm.durum] || '') || !!(r[cm.g] && !r[cm.cik]);
       var mal = kuryeMaliyet_(ad, acik ? 0 : net, paket), u = kuryeUcret_(ad);
       if (gun >= otuzBasi) kadro[ad] = u.grup;
@@ -835,6 +839,12 @@ function kurye_() {
   }
   bugunMesai.sort(function (a, b) { return String(a.giris || '99').localeCompare(String(b.giris || '99')); });
   out.bugunMesai = bugunMesai;
+  // Paketi olduğu halde mesai kaydı olmayan (ya da süresi 0 kalan) kurye-günleri: bordroya ne saat ne paket girer.
+  var mesaiAdlar = {}; Object.keys(mesaiGun).forEach(function (k) { mesaiAdlar[k.split('|')[1]] = 1; });
+  out.eksikMesai = Object.keys(siparisGun).map(function (k) { var x = siparisGun[k], mg = mesaiGun[k];
+    if (mg && (mg.net > 0 || mg.acik)) return null;
+    return { gun: x.gun, ad: x.ad, paket: x.paket, neden: mg ? 'Mesai satırı var ama süre 0 (' + (mg.durum || 'giriş yok') + ')' : (mesaiAdlar[norm_(x.ad)] ? 'O gün mesai satırı yok' : 'Bu isimle hiç mesai satırı yok (isim farklı yazılıyor olabilir)') };
+  }).filter(Boolean).sort(function (a, b) { return b.gun.localeCompare(a.gun) || b.paket - a.paket; }).slice(0, 40);
   var bugunAdlar = {}; bugunMesai.forEach(function (x) { bugunAdlar[norm_(x.ad)] = 1; });
   out.kadro = { sayi: Object.keys(kadro).length, off: Object.keys(kadro).filter(function (k) { return !bugunAdlar[norm_(k)]; }).sort(function (a, b) { return a.localeCompare(b, 'tr'); }) };
   out.kesintiler = kesintiler.sort(function (a, b) { return b.gun.localeCompare(a.gun) || (b.erken + b.kapanis) - (a.erken + a.kapanis); }).slice(0, 150);

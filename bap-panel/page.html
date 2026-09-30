@@ -759,6 +759,10 @@ function kuryeBordro(a,K){var B=K.bordro||[];if(!B.length)return a.appendChild(b
   var tb=tablo([["Kurye"],["Gün",1],["Net süre",1],["Paket",1],["Pkt/sa",1],["Kesinti",1],["Saat hakedişi",1],["Paket hakedişi",1],["Para kesintisi",1],["KDV",1],["Toplam",1]],satirlar);
   tb.querySelectorAll("tr").forEach(function(tr){if(tr.querySelector("td strong")&&tr.firstChild.querySelector("strong"))tr.style.background="var(--kum-acik)";});
   a.appendChild(blok("Kurye hakedişi","Net süre üzerinden (kesintiler düşülmüş). Saat hakedişi = net saat × saat ücreti; paket hakedişi = paket × paket ücreti. Para kesintisi kurye tablosundaki Kesintiler sekmesinden (panelden ‘Kuryeden kes’ denenler dahil); ayrıntı için üzerine gel. Haddy'de KDV kesinti düşüldükten sonraki tutar üzerinden. Ücretler kurye tablosundaki ‘Kurye bilgiler’ sekmesinden gelir.",tb));
+  var EM=(K.eksikMesai||[]).filter(function(x){return x.gun>=H.hafta&&x.gun<=H.bitis;}),EH=K.eksikMesai||[];
+  if(EH.length)a.appendChild(el("div",{class:"uyari"+(EM.length?" kotu":"")},[el("b",{text:(EM.length?"Bu hafta "+EM.length+" kurye-gününde":"Son 30 günde "+EH.length+" kurye-gününde")+" paket var ama mesai kaydı yok"}),
+    el("div",{text:"Bu günlerin saati ve paketi bordroya girmedi. Kaynak kurye sistemi: kurye o gün uygulamada giriş yapmamış, veri aktarılmamış ya da isim farklı yazılmış olabilir. Doğru mesaiyi kurye tablosuna girince bordroya kendiliğinden eklenir."}),
+    tablo([["Tarih"],["Kurye"],["Paket",1],["Neden"]],(EM.length?EM:EH).map(function(x){return [gunAd(x.gun),x.ad,String(x.paket),x.neden];}))]));
   var T=top(H.kisiler);
   a.appendChild(el("div",{class:"rakamlar"},[rakam("Haftalık kurye maliyeti",para(T.toplam),"KDV dahil"),rakam("Paket başı",T.paket?para(T.toplam/T.paket):"—",T.paket+" paket"),rakam("Net saat",TL.format(Math.round(T.netDk/60))+" sa",T.netDk>=60?virgul(Math.round(T.paket/(T.netDk/60)*100)/100)+" paket/saat":null),rakam("Kesinti",T.kesintiDk+" dk",T.paraKesinti?"ve "+para(T.paraKesinti)+" para kesintisi":null)]));}
 
