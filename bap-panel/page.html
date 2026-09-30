@@ -666,7 +666,7 @@ function bordroSayfa(a,p){var LB=p.bordro||[];if(!LB.length||!LB[0].kisiler)retu
     el("a",{href:p.yoneticiLink,target:"_blank",rel:"noopener",class:"dugme",style:"text-decoration:none;color:inherit;margin-left:auto",text:"Ödemeyi yönetici panelinden gir"})]));
   a.appendChild(el("div",{class:"bilgi",text:"Kural: günlük ücret = maaş / ayın gün sayısı, saatlik = günlük / 10. Ücretsiz izin ve devamsızlık günlük ücretten kesilir, rapor 3 günü aşarsa aşan gün kesilir, yıllık izin ödenir. Fazla mesai puantajdaki (düzelttiğin) Fazla Mesai sütununun yalnız artı süreleridir; eksik süre kesilmez. Resmi tatilde çalışılan her gün bir günlük ek. SGK'lıya asgari ücret ("+TL.format(B.asgariNet)+" ₺) bankadan, kalanı ‘diğer’. Yönetici panelindeki bordro eksik süreyi de kestiği için orada fazla mesai eksi görünebilir; aradaki fark bundandır."}));
   var fark=T.odenen-T.aySonu;
-  a.appendChild(el("div",{class:"rakamlar dortlu"},[rakam("Toplam baz maaş",para(T.maas),T.kisi+" kişi"),rakam("Normal mesai",para(T.normal),T.kesinti?"İzin/devamsızlık kesintisi −"+para(T.kesinti):"Kesinti yok"),
+  a.appendChild(el("div",{class:"rakamlar dortlu"},[rakam("Toplam baz maaş",para(T.maas),T.kisi+" kişi"+(T.tamMaas>T.maas+1?" · ay içi giriş/çıkış kıst; tam maaşlar "+para(T.tamMaas):"")),rakam("Normal mesai",para(T.normal),T.kesinti?"İzin/devamsızlık kesintisi −"+para(T.kesinti):"Kesinti yok"),
     rakam("Fazla mesai",para(T.fazla),"+"+dkYaz(T.fazlaDk)+(T.eksikDk?" · eksik "+dkYaz(T.eksikDk)+" kesilmedi":"")),rakam("Resmi tatil",para(T.resmi)),
     ]));
   a.appendChild(el("div",{class:"rakamlar dortlu"},[rakam(B.kapandi?"Ay toplamı":"Bugüne kadar",para(T.hakedis)),rakam("Ay sonu tahmini",para(T.aySonu)),rakam("Ödenen",para(T.odenen),"Odemeler sekmesi"),
@@ -679,7 +679,7 @@ function bordroSayfa(a,p){var LB=p.bordro||[];if(!LB.length||!LB[0].kisiler)retu
   function gunHucre(g,tl,ek){return g?iki(tl?tlIsaret(tl):"ödenir",g+" gün"+(ek||"")):"—";}
   var satirlar=B.kisiler.map(function(x){var f=x.odenen-x.aySonu;
     return [iki(el("span",null,[el("strong",{text:x.ad}),x.ayrildi?el("span",{class:"etiket e-notr",style:"margin-left:6px",text:"Ayrıldı "+tarihTr(x.cikis)}):null,x.giris?el("span",{class:"etiket e-notr",style:"margin-left:6px",text:"Giriş "+tarihTr(x.giris)}):null]),x.ucretliAy<B.gunSayisi?x.ucretliAy+" gün kıst":null),
-      x.sube,x.sgk?"SGK'lı":"—",iki(para(x.maas),TL.format(x.gunluk)+" ₺/gün"),iki(para(x.normal),x.ucretliGun+" gün"),
+      x.sube,x.sgk?"SGK'lı":"—",iki(para(x.baz),x.baz<x.maas-1?"tam "+para(x.maas)+" · "+x.ucretliAy+"/"+B.gunSayisi+" gün":TL.format(x.gunluk)+" ₺/gün"),iki(para(x.normal),x.ucretliGun+" gün"),
       x.fazla||x.eksikDk?iki(x.fazla?"+"+para(x.fazla):"—",(x.fazlaDk?"+"+dkYaz(x.fazlaDk):"")+(x.eksikDk?(x.fazlaDk?" · ":"")+"eksik "+dkYaz(x.eksikDk):"")+(x.gun.offCalisma?" · "+x.gun.offCalisma+" off günü":"")):"—",
       x.resmi?iki("+"+para(x.resmi),x.gun.resmi+" gün"):"—",gunHucre(x.gun.yi,0),gunHucre(x.gun.rap,x.raporTl,x.raporKesGun?" ("+x.raporKesGun+" kesilir)":""),gunHucre(x.gun.ui,x.ucretsizTl),gunHucre(x.gun.dev,x.devamsizTl),
       para(x.hakedis),el("strong",{text:para(x.aySonu)}),x.sgk?para(x.asgari):"—",para(x.diger),x.odenen?para(x.odenen):"—",

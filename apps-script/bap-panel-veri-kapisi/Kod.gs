@@ -1048,7 +1048,7 @@ function bordro_(V, ay, bugun, planli) {
     var fazla = fazSn / 3600 * saatlik, resmiTl = n.resmi * gunluk;
     var aySonu = normalAy + fazla + resmiTl, asgari = p.sgk ? Math.min(ASGARI_NET, aySonu) : 0;
     kisiler.push({ ad: p.ad, sube: p.sube, sgk: p.sgk, aktif: p.aktif, ayrildi: !!p.cikis && p.cikis <= son, cikis: p.cikis, giris: p.giris && p.giris >= ilk ? p.giris : '',
-      maas: Math.round(p.maas), gunluk: Math.round(gunluk), saatlik: Math.round(saatlik * 100) / 100, ucretliGun: ucretliBugune, ucretliAy: ucretliAy,
+      maas: Math.round(p.maas), baz: Math.round(gunluk * ucretliAy), gunluk: Math.round(gunluk), saatlik: Math.round(saatlik * 100) / 100, ucretliGun: ucretliBugune, ucretliAy: ucretliAy,
       gun: n, calisilanGun: n.calisilan, saat: Math.round(topSn / 360) / 10, fazlaDk: Math.round(fazSn / 60), eksikDk: Math.round(eksikSn / 60),
       yillikTl: Math.round(n.yi * gunluk), raporKesGun: raporKes, raporTl: -Math.round(raporKes * gunluk), ucretsizTl: -Math.round(n.ui * gunluk), devamsizTl: -Math.round(n.dev * gunluk),
       normal: Math.round(normal), fazla: Math.round(fazla), resmi: Math.round(resmiTl),
@@ -1059,8 +1059,8 @@ function bordro_(V, ay, bugun, planli) {
   var eksik = Object.keys(V.pu).filter(function (k) { return !gorulen[k] && Object.keys(V.pu[k].gunler).some(function (d) { return d >= ilk && d <= son; }); }).map(function (k) { return V.pu[k].ad; });
   kisiler.sort(function (a, b) { return String(a.sube).localeCompare(String(b.sube), 'tr') || a.ad.localeCompare(b.ad, 'tr'); });
 
-  function topla(l) { var t = { kisi: l.length, maas: 0, normal: 0, fazla: 0, resmi: 0, hakedis: 0, aySonu: 0, odenen: 0, kesinti: 0, eksikDk: 0, fazlaDk: 0 };
-    l.forEach(function (x) { t.maas += x.maas; t.normal += x.normal; t.fazla += x.fazla; t.resmi += x.resmi; t.hakedis += x.hakedis; t.aySonu += x.aySonu; t.odenen += x.odenen;
+  function topla(l) { var t = { kisi: l.length, maas: 0, tamMaas: 0, normal: 0, fazla: 0, resmi: 0, hakedis: 0, aySonu: 0, odenen: 0, kesinti: 0, eksikDk: 0, fazlaDk: 0 };
+    l.forEach(function (x) { t.maas += x.baz; t.tamMaas += x.maas; t.normal += x.normal; t.fazla += x.fazla; t.resmi += x.resmi; t.hakedis += x.hakedis; t.aySonu += x.aySonu; t.odenen += x.odenen;
       t.kesinti += -(x.ucretsizTl + x.devamsizTl + x.raporTl); t.eksikDk += x.eksikDk; t.fazlaDk += x.fazlaDk; }); return t; }
   var subeler = {}; kisiler.forEach(function (x) { (subeler[x.sube || 'Belirtilmemiş'] = subeler[x.sube || 'Belirtilmemiş'] || []).push(x); });
   var aktifler = V.personel.filter(function (p) { return p.aktif && p.maas > 0; });
