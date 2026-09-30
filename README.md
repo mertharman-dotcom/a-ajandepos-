@@ -50,7 +50,9 @@ IBAN, telefon ve şifre panele gönderilmez.
 
 **Avans ve masraf:** Bordro sekmesindeki formdan girilir, *BAP Personel › Avans_Masraf* sekmesine yeni satır olarak yazılır.
 Avans (personele verilen / yapılan ödeme) hakedişten düşer, masraf (personelin cebinden ödediği) eklenir:
-net ödenecek = ay sonu − avans + masraf. Durum 'Bekliyor' ya da 'Reddedildi' olan satırlar hesaba girmez.
+net hak ediş = ay sonu − avans + masraf ± geçen ay mahsubu (Tür 'Mahsup', tutar işaretli: eksik ödeme +, fazla ödeme −).
+Kalan ödenecek = net hak ediş − bu ay ödenen (Odemeler); asgari (banka) ve diğer kalandan bölünür.
+Durum 'Bekliyor' ya da 'Reddedildi' olan satırlar hesaba girmez.
 SGK işveren primi (`SGK_ISVEREN`) SGK'lı personel için ay içi giriş/çıkışta kıst hesaplanır.
 
 **Kurye bahşişi:** Açık hesapta 'Tahsil edildi' denince bahşiş sorulur; varsa *Kurye Net Çalışma Süresi › Tahsilatlar*

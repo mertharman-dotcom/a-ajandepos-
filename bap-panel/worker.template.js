@@ -130,7 +130,7 @@ export default {
       }
       let govde;
       try { govde = await request.json(); } catch (e) { return json({ hata: 'Geçersiz istek.' }, 400); }
-      const ileti = JSON.stringify({ key: env.GAS_KEY, tur: 'avans', avansTur: govde.tur === 'Masraf' ? 'Masraf' : 'Avans',
+      const ileti = JSON.stringify({ key: env.GAS_KEY, tur: 'avans', avansTur: govde.tur === 'Masraf' ? 'Masraf' : govde.tur === 'Mahsup' ? 'Mahsup' : 'Avans',
         personel: String(govde.personel || '').slice(0, 120), kalem: String(govde.kalem || '').slice(0, 40), tutar: String(govde.tutar || '').slice(0, 12),
         tarih: String(govde.tarih || '').slice(0, 10), aciklama: String(govde.aciklama || '').slice(0, 200), onay: govde.onay === '1' ? '1' : '' });
       try {

@@ -694,7 +694,7 @@ function bordroSayfa(a,p){var LB=p.bordro||[];if(!LB.length||!LB[0].kisiler)retu
     el("span",{style:"color:var(--gri);font-size:14px",text:B.kapandi?"Ay kapandı":("Bugüne kadar: "+tarihTr(B.kadar)+" · "+B.gunSayisi+" günlük ay")}),
     el("a",{href:p.yoneticiLink,target:"_blank",rel:"noopener",class:"dugme",style:"text-decoration:none;color:inherit;margin-left:auto",text:"Ödemeyi yönetici panelinden gir"})]));
   a.appendChild(el("div",{class:"bilgi",text:"Kural: günlük ücret = maaş / ayın gün sayısı, saatlik = günlük / 10. Ücretsiz izin ve devamsızlık günlük ücretten kesilir, rapor 3 günü aşarsa aşan gün kesilir, yıllık izin ödenir. Fazla mesai puantajdaki (düzelttiğin) Fazla Mesai sütununun yalnız artı süreleridir; eksik süre kesilmez. Resmi tatilde çalışılan her gün bir günlük ek. SGK'lıya asgari ücret ("+TL.format(B.asgariNet)+" ₺) bankadan, kalanı ‘diğer’. Yönetici panelindeki bordro eksik süreyi de kestiği için orada fazla mesai eksi görünebilir; aradaki fark bundandır."}));
-  var fark=T.odenen-T.net;
+  var kalanT=T.kalan;
   a.appendChild(el("div",{class:"rakamlar dortlu"},[rakam("Toplam baz maaş",para(T.maas),T.kisi+" kişi"+(T.tamMaas>T.maas+1?" · ay içi giriş/çıkış kıst; tam maaşlar "+para(T.tamMaas):"")),rakam("Normal mesai",para(T.normal),T.kesinti?"İzin/devamsızlık kesintisi −"+para(T.kesinti):"Kesinti yok"),
     rakam("Fazla mesai (toplam)",para(T.fazla),"+"+dkYaz(T.fazlaDk)+(T.eksikDk?" · eksik "+dkYaz(T.eksikDk)+" kesilmedi":"")),rakam("Resmi tatil",para(T.resmi))]));
   a.appendChild(el("div",{class:"rakamlar dortlu"},[
@@ -702,42 +702,44 @@ function bordroSayfa(a,p){var LB=p.bordro||[];if(!LB.length||!LB[0].kisiler)retu
     rakam("Off gününde çalışma",para(T.offTl),T.offGun+" gün · "+T.offKisi+" kişi · +"+dkYaz(T.offDk)),
     rakam("Uzamanın payı",T.fazla?"%"+Math.round(T.uzamaTl/T.fazla*100):"—","fazla mesainin"),
     rakam("Off çalışmanın payı",T.fazla?"%"+Math.round(T.offTl/T.fazla*100):"—","fazla mesainin",T.fazla&&T.offTl/T.fazla>0.5?"asagi":"")]));
-  a.appendChild(el("div",{class:"rakamlar dortlu"},[rakam(B.kapandi?"Ay toplamı":"Bugüne kadar",para(T.hakedis)),rakam("Ay sonu tahmini",para(T.aySonu),"avans/masraf öncesi"),rakam("Ödenen",para(T.odenen),"Odemeler sekmesi"),
-    rakam("Fark (ödenen − net)",tlIsaret(fark),fark<0?"ödenecek":"",fark<0?"asagi":"yukari")]));
+  a.appendChild(el("div",{class:"rakamlar dortlu"},[rakam(B.kapandi?"Ay toplamı":"Bugüne kadar",para(T.hakedis)),rakam("Ay sonu tahmini",para(T.aySonu),"avans/masraf öncesi"),rakam("Net hak ediş",para(T.net),"ay sonu − avans + masraf ± mahsup"),
+    rakam("Kalan ödenecek",para(kalanT),"net − bu ay ödenen ("+para(T.odenen)+")",kalanT>0?"asagi":"yukari")]));
   a.appendChild(el("div",{class:"rakamlar dortlu"},[rakam("Avans / verilen ödeme (−)",T.avans?"−"+para(T.avans):"0 ₺","hakedişten düşer"),
     rakam("Masraf (+)",T.masraf?"+"+para(T.masraf):"0 ₺","personelin cebinden ödediği; hakedişe eklenir"),
-    rakam("Net ödenecek",para(T.net),"ay sonu − avans + masraf"),rakam("Avans / masraf kaydı",String((B.avansKalemleri||[]).length),"bu ay, aşağıda")]));
+    rakam("Geçen ay mahsubu (±)",T.mahsup?tlIsaret(T.mahsup):"0 ₺","eksik ödenen +, fazla ödenen −"),rakam("Bu ay ödenen (−)",para(T.odenen),"Odemeler sekmesi; kalandan düşülür")]));
+  a.appendChild(el("div",{class:"rakamlar dortlu"},[rakam("Ödeme yapılan kişi",String(B.kisiler.filter(function(x){return x.odenen;}).length)+" / "+B.kisiler.length,"bu ay"),rakam("Asgari (banka)",para(T.asgari),"SGK'lılara, kalan ödenecekten"),rakam("Diğer",para(T.diger),"kalan − asgari"),
+    rakam("Avans / masraf / mahsup kaydı",String((B.avansKalemleri||[]).length),"bu ay, aşağıda")]));
   if(buAy)a.appendChild(el("div",{class:"rakamlar dortlu"},[rakam("Bugünkü personel gideri",para(B.bugunGider),"Bugün vardiyalı "+B.bugunKisi+" kişinin günlük ücreti"),rakam("Aylık maaş bütçesi",para(B.butce),"Aktif çalışanların baz maaşı"),
-    rakam("SGK işveren primi",para(T.sgkPrim),T.sgkKisi+" SGK'lı × "+TL.format(B.sgkIsveren)+" ₺ (ay içi giriş/çıkış kıst)"),rakam("Toplam işveren maliyeti",para(T.net+T.sgkPrim),"net ödenecek + SGK primi")]));
+    rakam("SGK işveren primi",para(T.sgkPrim),T.sgkKisi+" SGK'lı × "+TL.format(B.sgkIsveren)+" ₺ (ay içi giriş/çıkış kıst)"),rakam("Toplam işveren maliyeti",para(T.net+T.sgkPrim),"net hak ediş + SGK primi")]));
   a.appendChild(el("div",{class:"iki"},B.subeler.map(function(s){var t=s.toplam;return blok(s.ad+" ("+t.kisi+" kişi)",null,tablo([["Kalem"],["Tutar",1]],[
     ["Baz maaş",para(t.maas)],["Normal mesai",para(t.normal)],["Fazla mesai — günlük uzama",iki(para(t.uzamaTl),"+"+dkYaz(t.uzamaDk))],["Fazla mesai — off gününde",iki(para(t.offTl),t.offGun+" gün")],["Resmi tatil",para(t.resmi)],["İzin / devamsızlık kesintisi",t.kesinti?"−"+para(t.kesinti):"—"],
-    [B.kapandi?"Ay toplamı":"Bugüne kadar",para(t.hakedis)],["Ay sonu tahmini",para(t.aySonu)],["Avans (−)",t.avans?"−"+para(t.avans):"—"],["Masraf (+)",t.masraf?"+"+para(t.masraf):"—"],["Net ödenecek",el("strong",{text:para(t.net)})],["Ödenen",para(t.odenen)]]));})));
+    [B.kapandi?"Ay toplamı":"Bugüne kadar",para(t.hakedis)],["Ay sonu tahmini",para(t.aySonu)],["Avans (−)",t.avans?"−"+para(t.avans):"—"],["Masraf (+)",t.masraf?"+"+para(t.masraf):"—"],["Geçen ay mahsubu (±)",t.mahsup?tlIsaret(t.mahsup):"—"],["Net hak ediş",para(t.net)],["Bu ay ödenen (−)",t.odenen?"−"+para(t.odenen):"—"],["Kalan ödenecek",el("strong",{text:para(t.kalan)})]]));})));
   function gunHucre(g,tl,ek){return g?iki(tl?tlIsaret(tl):"ödenir",g+" gün"+(ek||"")):"—";}
-  var satirlar=B.kisiler.map(function(x){var f=x.odenen-x.net;
+  var satirlar=B.kisiler.map(function(x){var G=x.gecenAy;
     return [iki(el("span",null,[el("strong",{text:x.ad}),x.ayrildi?el("span",{class:"etiket e-notr",style:"margin-left:6px",text:"Ayrıldı "+tarihTr(x.cikis)}):null,x.giris?el("span",{class:"etiket e-notr",style:"margin-left:6px",text:"Giriş "+tarihTr(x.giris)}):null]),x.ucretliAy<B.gunSayisi?x.ucretliAy+" gün kıst":null),
       x.sube,x.sgk?"SGK'lı":"—",iki(para(x.baz),x.baz<x.maas-1?"tam "+para(x.maas)+" · "+x.ucretliAy+"/"+B.gunSayisi+" gün":TL.format(x.gunluk)+" ₺/gün"),iki(para(x.normal),x.ucretliGun+" gün"),
       x.uzamaTl||x.eksikDk?iki(x.uzamaTl?"+"+para(x.uzamaTl):"—",(x.uzamaDk?"+"+dkYaz(x.uzamaDk)+" · "+x.uzamaGun+" gün":"")+(x.eksikDk?(x.uzamaDk?" · ":"")+"eksik "+dkYaz(x.eksikDk):"")):"—",
       x.offTl?iki("+"+para(x.offTl),x.offGun+" gün · "+dkYaz(x.offDk)):"—",
       x.resmi?iki("+"+para(x.resmi),x.gun.resmi+" gün"):"—",gunHucre(x.gun.yi,0),gunHucre(x.gun.rap,x.raporTl,x.raporKesGun?" ("+x.raporKesGun+" kesilir)":""),gunHucre(x.gun.ui,x.ucretsizTl),gunHucre(x.gun.dev,x.devamsizTl),
       para(x.hakedis),para(x.aySonu),x.avans?"−"+para(x.avans):"—",x.masraf||x.masrafBekleyen?iki(x.masraf?"+"+para(x.masraf):"—",x.masrafBekleyen?para(x.masrafBekleyen)+" onay bekliyor":null):"—",
-      el("strong",{text:para(x.net)}),x.sgk?para(x.asgari):"—",para(x.diger),x.odenen?para(x.odenen):"—",
-      x.odenen?iki(tlIsaret(f),f<-1?"eksik ödendi":(f>1?"fazla ödendi":"tam")):"—"];});
-  var tb=tablo([["Personel"],["Şube"],["SGK"],["Baz maaş",1],["Normal mesai",1],["Fazla — uzama",1],["Fazla — off günü",1],["Resmi tatil (+)",1],["Yıllık izin",1],["Rapor",1],["Ücretsiz (−)",1],["Devamsız (−)",1],[B.kapandi?"Ay toplamı":"Bugüne kadar",1],["Ay sonu tahmini",1],["Avans (−)",1],["Masraf (+)",1],["Net ödenecek",1],["Asgari (banka)",1],["Diğer",1],["Ödenen",1],["Fark",1]],satirlar);
+      x.mahsup||(G&&Math.abs(G.fark)>1)?iki(x.mahsup?tlIsaret(x.mahsup):"—",G&&Math.abs(G.fark)>1?"geçen ay "+(G.fark<0?"eksik "+para(-G.fark):"fazla "+para(G.fark))+" ödendi":null):"—",
+      para(x.net),x.odenen?"−"+para(x.odenen):"—",el("strong",{text:para(x.kalan)}),x.sgk?para(x.asgari):"—",para(x.diger)];});
+  var tb=tablo([["Personel"],["Şube"],["SGK"],["Baz maaş",1],["Normal mesai",1],["Fazla — uzama",1],["Fazla — off günü",1],["Resmi tatil (+)",1],["Yıllık izin",1],["Rapor",1],["Ücretsiz (−)",1],["Devamsız (−)",1],[B.kapandi?"Ay toplamı":"Bugüne kadar",1],["Ay sonu tahmini",1],["Avans (−)",1],["Masraf (+)",1],["Mahsup (±)",1],["Net hak ediş",1],["Ödenen (−)",1],["Kalan ödenecek",1],["Asgari (banka)",1],["Diğer",1]],satirlar);
   var tt=tb.querySelector("table");tt.classList.add("sik");
-  tt.querySelector("tbody").appendChild(el("tr",{class:"toplam"},["Toplam","","",para(T.maas),para(T.normal),para(T.uzamaTl),para(T.offTl),para(T.resmi),"","","","",para(T.hakedis),para(T.aySonu),T.avans?"−"+para(T.avans):"",T.masraf?"+"+para(T.masraf):"",para(T.net),"","",para(T.odenen),tlIsaret(fark)].map(function(v,i){return el("td",{class:i>=3?"sag":null,text:v});})));
-  a.appendChild(blok("Personel bazlı hak ediş","IBAN, telefon ve şifre panele gelmez; ödemeyi yönetici panelinden gir. Ücretli gün = işe giriş / işten çıkış arası günler. Net ödenecek = ay sonu − avans + masraf.",tb));
+  tt.querySelector("tbody").appendChild(el("tr",{class:"toplam"},["Toplam","","",para(T.maas),para(T.normal),para(T.uzamaTl),para(T.offTl),para(T.resmi),"","","","",para(T.hakedis),para(T.aySonu),T.avans?"−"+para(T.avans):"",T.masraf?"+"+para(T.masraf):"",T.mahsup?tlIsaret(T.mahsup):"",para(T.net),T.odenen?"−"+para(T.odenen):"",para(T.kalan),para(T.asgari),para(T.diger)].map(function(v,i){return el("td",{class:i>=3?"sag":null,text:v});})));
+  a.appendChild(blok("Personel bazlı hak ediş","IBAN, telefon ve şifre panele gelmez; ödemeyi yönetici panelinden gir. Ücretli gün = işe giriş / işten çıkış arası günler. Net hak ediş = ay sonu − avans + masraf ± geçen ay mahsubu. Kalan ödenecek = net − bu ay ödenen; asgari (banka) ve diğer kalandan bölünür.",tb));
   a.appendChild(avansBlok(B,p));
   if(B.eksikPersonel&&B.eksikPersonel.length)a.appendChild(el("div",{class:"uyari kotu"},[el("b",{text:"Puantajda kaydı olup Personel listesinde maaşı bulunmayan: "+B.eksikPersonel.join(", ")}),el("div",{text:"Bu kişiler bordroya girmedi. Personel sekmesine adını birebir aynı yazıp maaşını gir."})]));
   if(p.bordroTrend&&p.bordroTrend.length)a.appendChild(blok("Aylık trend — ay sonu hak ediş","Giriş-çıkış kaydı olan aylar (QR sistemi öncesi aylar hesaplanmaz). Çubuğun üzerine gelince kırılım görünür.",bordroGrafik(p.bordroTrend)));}
 var AV_FORM={personel:"",tur:"Avans",kalem:"Avans",tutar:"",tarih:"",aciklama:"",durum:"",sinif:"",gonderiliyor:false,onay:false};
-var AV_KALEM={Avans:["Avans","Taksi ücreti","Elden ödeme","Diğer"],Masraf:["Taksi","Yemek","Malzeme alımı","Ulaşım","Diğer"]};
+var AV_KALEM={Avans:["Avans","Taksi ücreti","Elden ödeme","Diğer"],Masraf:["Taksi","Yemek","Malzeme alımı","Ulaşım","Diğer"],Mahsup:["Geçen ay eksik ödeme (+)","Geçen ay fazla ödeme (−)"]};
 function avansBlok(B,p){var F=AV_FORM;if(!F.tarih)F.tarih=bugunIst();
   var adlar={};B.kisiler.forEach(function(x){adlar[x.ad]=1;});((p.aktif&&p.aktif.liste)||[]).forEach(function(x){adlar[x.ad]=1;});
   var liste=Object.keys(adlar).sort(function(x,y){return x.localeCompare(y,"tr");});
   function sec(ad,deger,secenek,deg){var e=el("select",{class:"cevap-alan","aria-label":ad},secenek.map(function(o){var op=el("option",{value:o[0],text:o[1]});if(o[0]===deger)op.selected=true;return op;}));e.addEventListener("change",function(){deg(e.value);});return e;}
   var durum=el("span",{class:"cevap-durum "+(F.sinif||""),role:"status",text:F.durum||""});
-  var kisi=sec("Personel",F.personel,[["","Personel seç"]].concat(liste.map(function(x){return [x,x];})),function(v){F.personel=v;F.onay=false;});
-  var tur=sec("Tür",F.tur,[["Avans","Avans / verilen ödeme (−)"],["Masraf","Masraf — personel ödedi (+)"]],function(v){F.tur=v;F.kalem=AV_KALEM[v][0];F.onay=false;ciz();});
+  var kisi=sec("Personel",F.personel,[["","Personel seç"]].concat(liste.map(function(x){return [x,x];})),function(v){F.personel=v;F.onay=false;if(F.tur==="Mahsup")ciz();});
+  var tur=sec("Tür",F.tur,[["Avans","Avans / verilen ödeme (−)"],["Masraf","Masraf — personel ödedi (+)"],["Mahsup","Geçen ay mahsubu (±)"]],function(v){F.tur=v;F.kalem=AV_KALEM[v][0];F.onay=false;ciz();});
   var kalem=sec("Kalem",F.kalem,AV_KALEM[F.tur].map(function(x){return [x,x];}),function(v){F.kalem=v;});
   var tutar=el("input",{type:"text",inputmode:"decimal",class:"cevap-alan",placeholder:"Tutar (₺)",value:F.tutar,"aria-label":"Tutar"});tutar.addEventListener("input",function(){F.tutar=tutar.value;F.onay=false;});
   var tarih=el("input",{type:"date",class:"cevap-alan",value:F.tarih,"aria-label":"Tarih"});tarih.addEventListener("change",function(){F.tarih=tarih.value;F.onay=false;});
@@ -751,11 +753,15 @@ function avansBlok(B,p){var F=AV_FORM;if(!F.tarih)F.tarih=bugunIst();
         else if(d&&d.onayGerekli){F.durum=d.mesaj;F.sinif="kotu";F.onay=true;}
         else{F.durum=(d&&d.hata)||"Kaydedilemedi.";F.sinif="kotu";}ciz();})
       .catch(function(){F.gonderiliyor=false;F.durum="Bağlantı koptu; kayıt yazılmış olabilir. Paneli yenileyip kontrol et.";F.sinif="kotu";ciz();});}
-  var form=el("div",{class:"satir"},[el("div",{class:"odeme-izgara",style:"grid-template-columns:repeat(auto-fit,minmax(170px,1fr))"},[kisi,tur,kalem,tutar,tarih,acik]),el("div",{class:"odeme-alt"},[dug,durum])]);
+  // Mahsup seçilince kişinin geçen ay farkı gösterilir; tek tıkla forma doldurulur.
+  var ipucu=null;if(F.tur==="Mahsup"&&F.personel){var X=B.kisiler.filter(function(y){return y.ad===F.personel;})[0],G=X&&X.gecenAy;
+    ipucu=el("div",{class:"bilgi",style:"margin:10px 0 0"},G?[ayAd((VERI.personel.bordro[1]||{}).ay||"")+": net hak ediş "+para(G.net)+", ödenen "+para(G.odenen)+" → "+(Math.abs(G.fark)<=1?"fark yok.":(G.fark<0?"eksik ödendi "+para(-G.fark)+" (bu ay +)":"fazla ödendi "+para(G.fark)+" (bu ay −)"))+" ",
+      Math.abs(G.fark)>1?el("button",{type:"button",class:"dugme",style:"padding:3px 10px;font-size:13px",onclick:function(){F.tutar=String(Math.round(Math.abs(G.fark)));F.kalem=AV_KALEM.Mahsup[G.fark<0?0:1];F.aciklama="Geçen ay farkı";F.onay=false;ciz();}},["Forma doldur"]):null]:["Geçen ay için bu kişiye kayıtlı ödeme yok; farkı elle yaz."]);}
+  var form=el("div",{class:"satir"},[el("div",{class:"odeme-izgara",style:"grid-template-columns:repeat(auto-fit,minmax(170px,1fr))"},[kisi,tur,kalem,tutar,tarih,acik]),ipucu,el("div",{class:"odeme-alt"},[dug,durum])]);
   var K=B.avansKalemleri||[];
-  var tl=K.length?tablo([["Tarih"],["Personel"],["Tür"],["Kalem"],["Tutar",1],["Açıklama"],["Durum"]],K.map(function(x){return [tarihTr(x.gun),x.ad,el("span",{class:"etiket "+(x.tur==="Masraf"?"e-iyi":"e-dikkat"),text:x.tur==="Masraf"?"Masraf (+)":"Avans (−)"}),x.kalem,para(x.tutar),x.aciklama||"",
-    el("span",{class:"etiket "+(/bekliyor/i.test(x.durum)?"e-dikkat":(/red/i.test(x.durum)?"e-kotu":"e-notr")),text:x.durum})];})):bos("Bu ay avans ya da masraf kaydı yok.");
-  return blok("Avans ve masraflar","Avans: personele önceden verilen para ya da yapılan ödeme (taksi parası vb.) — hakedişten düşer. Masraf: personelin kendi cebinden ödediği, işletmenin borçlu olduğu tutar (parasını almadığı taksi vb.) — hakedişe eklenir. Kayıt BAP Personel › Avans_Masraf sekmesine yeni satır olarak yazılır; yanlışsa o satırı sil ya da Durum'a ‘Reddedildi’ yaz.",el("div",null,[form,tl]));}
+  var tl=K.length?tablo([["Tarih"],["Personel"],["Tür"],["Kalem"],["Tutar",1],["Açıklama"],["Durum"]],K.map(function(x){return [tarihTr(x.gun),x.ad,el("span",{class:"etiket "+(x.tur==="Masraf"?"e-iyi":x.tur==="Mahsup"?"e-notr":"e-dikkat"),text:x.tur==="Masraf"?"Masraf (+)":x.tur==="Mahsup"?"Mahsup (±)":"Avans (−)"}),x.kalem,x.tur==="Mahsup"?tlIsaret(x.tutar):para(x.tutar),x.aciklama||"",
+    el("span",{class:"etiket "+(/bekliyor/i.test(x.durum)?"e-dikkat":(/red/i.test(x.durum)?"e-kotu":"e-notr")),text:x.durum})];})):bos("Bu ay avans, masraf ya da mahsup kaydı yok.");
+  return blok("Avans, masraf ve mahsup","Avans: personele önceden verilen para ya da yapılan ödeme (taksi parası vb.) — hakedişten düşer. Masraf: personelin kendi cebinden ödediği, işletmenin borçlu olduğu tutar (parasını almadığı taksi vb.) — hakedişe eklenir. Mahsup: geçen ay eksik ödendiyse bu ay eklenir (+), fazla ödendiyse düşülür (−). Kayıt BAP Personel › Avans_Masraf sekmesine yeni satır olarak yazılır; yanlışsa o satırı sil ya da Durum'a ‘Reddedildi’ yaz.",el("div",null,[form,tl]));}
 
 function bordroGrafik(seri){var W=760,H=240,ust=26,alt=44,pd=20,bw=(W-pd*2)/seri.length;var max=Math.max.apply(null,seri.map(function(x){return Math.max(x.aySonu,x.odenen);}))||1;
   var ns="http://www.w3.org/2000/svg";var svg=document.createElementNS(ns,"svg");svg.setAttribute("viewBox","0 0 "+W+" "+H);svg.setAttribute("role","img");svg.setAttribute("aria-label","Aylara göre ay sonu hak ediş");
