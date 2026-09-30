@@ -786,12 +786,30 @@ function puantajSayfa(a,p){var L=p.puantaj||[];if(!L.length)return a.appendChild
   a.appendChild(el("div",{class:"hafta-sec"},[el("div",{class:"sekmeler",style:"margin:0"},aylar.map(function(m){return el("button",{type:"button","aria-pressed":PU_AY===m?"true":"false",onclick:function(){PU_AY=m;PU_ACIK=null;ciz();}},[ayAd(m)]);})),kisiSec,
     el("span",{style:"color:var(--gri);font-size:14px",text:ayAd(PU_AY)+" ayında çalışan "+kisiler.length+" kişi"})]));
   var satirlar=L.filter(function(x){return x.ad===PU_KISI&&x.gun.slice(0,7)===PU_AY;});
-  var topSn=0,fazSn=0,elle=0,oneri=0,eski=0;satirlar.forEach(function(x){var t=sn(x.toplam),f=sn(x.fazla);if(t>0)topSn+=t;if(f>0)fazSn+=f;if(x.elle)elle++;if(!x.elle&&!x.izin&&tamSaatOneri(x.giris))oneri++;if(toplamEski(x))eski++;});
+  var topSn=0,fazSn=0,eksikSn=0,elle=0,oneri=0,eski=0,calis=0,offGun=0,offCalis=0,hamSn=0,hamGun=0,hamEksik=0,hamTopSn=0,onceSn=0,elleFark=0;
+  satirlar.forEach(function(x){var t=sn(x.toplam),f=sn(x.fazla);if(t>0){topSn+=t;calis++;if(x.off)offCalis++;}else if(x.off)offGun++;if(f>0)fazSn+=f;else if(f<0)eksikSn+=-f;
+    if(x.elle)elle++;if(!x.elle&&!x.izin&&tamSaatOneri(x.giris))oneri++;if(toplamEski(x))eski++;
+    // QR'ın gerçek saatine göre süre (Ham Giriş / Ham Çıkış)
+    if(t>0){var hg=sn(x.hamGiris),hc=sn(x.hamCikis);if(hg!=null&&hc!=null){var h=hc-hg;if(h<=0)h+=86400;hamSn+=h;hamTopSn+=t;hamGun++;}else hamEksik++;}
+    // Elle düzeltme öncesi toplam: Manuel notundaki ilk "Toplam A→B"nin A'sı; not yoksa bugünkü toplam
+    var m=x.elle&&String(x.elle).match(/Toplam\s+(-*\d+:\d{2}(?::\d{2})?|boş)\s*→/),once=m?(m[1]==="boş"?0:sn(m[1])):t;if(once>0)onceSn+=once;if(m)elleFark+=(t>0?t:0)-(once>0?once:0);});
+  var PL=(p.puPlan&&p.puPlan[PU_AY]&&p.puPlan[PU_AY][normAd(PU_KISI)])||null,buAyMi=PU_AY===aylar[0];
+  var planSn=PL?(buAyMi?PL.snBugune:PL.sn):null,planGun=PL?(buAyMi?PL.gunBugune:PL.gun):0;
+  function sa(x){return dkYaz(Math.round(x/60));}
   var tumEski=ayL.filter(function(x){return toplamEski(x);});
   if(tumEski.length)a.appendChild(el("div",{class:"uyari kotu"},[el("b",{text:tumEski.length+" satırda giriş/çıkış tablodan değiştirilmiş, toplam / fazla mesai henüz yeniden hesaplanmamış"}),
     el("div",{text:"Tablo tetikleyicisi kuruluysa bu satırlar en geç bir saat içinde kendiliğinden hesaplanır; beklemek istemezsen ‘Yeniden hesapla’ya bas. Kişiler: "+Object.keys(tumEski.reduce(function(o,x){o[x.ad]=(o[x.ad]||0)+1;return o;},{})).map(function(k){return k+" ("+tumEski.filter(function(x){return x.ad===k;}).length+")";}).join(", ")})]));
-  a.appendChild(el("div",{class:"rakamlar"},[rakam("Çalışılan gün",String(satirlar.filter(function(x){return sn(x.toplam)>0;}).length)),rakam("Toplam saat",TL.format(Math.round(topSn/360)/10)+" sa"),rakam("Fazla mesai",dkYaz(fazSn/60),"bordroya giren pozitif süre"),
-    rakam("Elle düzeltilen",String(elle),"gün"),rakam("Toplamı eski kalan",String(eski),eski?"yeniden hesaplanmalı":"yok",eski?"asagi":""),rakam("Tam saate yakın giriş",String(oneri),oneri?"11:57 gibi; dokununca öneri gelir":"yok",oneri?"asagi":"")]));
+  a.appendChild(el("div",{class:"rakamlar dortlu"},[
+    rakam("Çalışılan gün",calis+" gün",offCalis?offCalis+"'i off gününde":"hepsi normal gün"),
+    rakam("Off günü",offGun+" gün",PL?"planda "+(buAyMi?PL.offBugune:PL.off)+" off":"çalışmadan geçen off"),
+    rakam("Planlanan süre",planSn!=null?sa(planSn):"—",PL?planGun+" vardiya günü"+(buAyMi?", bugüne kadar":""):"vardiya planında yok"),
+    rakam("Toplam süre",sa(topSn),"bordroya giren (yuvarlanmış)"+(planSn?" · plana göre "+(topSn>=planSn?"+":"−")+sa(Math.abs(topSn-planSn)):""),planSn?(topSn>=planSn?"yukari":"asagi"):""),
+    rakam("Normal mesai",sa(Math.max(0,topSn-fazSn)),"toplam − fazla mesai"),
+    rakam("Fazla mesai",sa(fazSn),"bordroya giren artı süre"+(eksikSn?" · eksik "+sa(eksikSn)+" (kesilmez)":"")),
+    rakam("QR gerçek giriş-çıkışa göre",hamGun?sa(hamSn):"—",hamGun?hamGun+" gün"+(hamEksik?", "+hamEksik+" günde QR çıkışı yok":"")+" · aynı günlerde yazılan "+sa(hamTopSn)+" (yuvarlama farkı "+(hamTopSn-hamSn>=0?"+":"−")+sa(Math.abs(hamTopSn-hamSn))+")":"QR saati yok"),
+    rakam("Elle düzeltme öncesi toplam",sa(onceSn),elle?elle+" gün düzeltildi · fark "+(elleFark>=0?"+":"−")+sa(Math.abs(elleFark)):"düzeltme yok")]));
+  a.appendChild(el("div",{class:"rakamlar dortlu"},[rakam("Elle düzeltilen",String(elle),"gün"),rakam("Toplamı eski kalan",String(eski),eski?"yeniden hesaplanmalı":"yok",eski?"asagi":""),rakam("Tam saate yakın giriş",String(oneri),oneri?"11:57 gibi; dokununca öneri gelir":"yok",oneri?"asagi":""),
+    rakam("İzin / rapor günü",String(satirlar.filter(function(x){return x.izin;}).length),"puantajda işaretli")]));
   var tb=el("table",{class:"tablo"},[el("thead",null,[el("tr",null,["Gün","Giriş","Çıkış","Toplam","Fazla","QR gerçek","Durum",""].map(function(h,k){return el("th",{class:k>=3&&k<=4?"sag":null,text:h});}))]),el("tbody")]);
   var govde=tb.querySelector("tbody");
   satirlar.forEach(function(x){var d=new Date(x.gun+"T00:00:00Z"),acik=PU_ACIK===x.gun,oneriSaat=!x.elle&&!x.izin?tamSaatOneri(x.giris):null;

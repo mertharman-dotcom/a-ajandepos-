@@ -930,6 +930,17 @@ function personel_() {
   }
   puantaj.sort(function (a, b) { return a.ad === b.ad ? (a.gun < b.gun ? 1 : -1) : String(a.ad).localeCompare(String(b.ad), 'tr'); });
   out.puantaj = puantaj;
+  // Kişi-ay planlanan süre (Vardiya sekmesinden): { 'YYYY-MM': { normAd: { sn, gun, off } } } — bu ay ve geçen ay, bugüne kadar ve ay sonuna kadar
+  try {
+    var pctx = { ss: ss, vardiya: null }; puVardiya_(pctx, '', '');
+    var puPlan = {}, gecAy = gunEkle_(ay + '-01', -1).slice(0, 7);
+    Object.keys(pctx.vardiya).forEach(function (key) {
+      var i = key.lastIndexOf('|'), k = key.slice(0, i), g = key.slice(i + 1), m = g.slice(0, 7); if (m !== ay && m !== gecAy) return;
+      var x = ((puPlan[m] = puPlan[m] || {})[k] = puPlan[m][k] || { sn: 0, gun: 0, off: 0, snBugune: 0, gunBugune: 0, offBugune: 0 }), v = pctx.vardiya[key];
+      if (v.off) { x.off++; if (g <= bugun) x.offBugune++; } else if (v.sn) { x.sn += v.sn; x.gun++; if (g <= bugun) { x.snBugune += v.sn; x.gunBugune++; } }
+    });
+    out.puPlan = puPlan;
+  } catch (err) { out.puPlan = null; }
   out.bugunKayit = bugunListe;
   out.plan = planli;
   out.vardiya = vardiyaPlani_(ss, bugun, out.bilgiler);
