@@ -846,13 +846,20 @@ function vardiyaSayfa(a,p){var V=p.vardiya;if(!V)return a.appendChild(bos("Vardi
   var gunB=["Pzt","Sal","Çar","Per","Cum","Cmt","Paz"].map(function(g,k){return [g+" "+(+gunTarih[k].slice(8,10))];});
   if(D)return vardiyaDuzen(a,V,D,gunB,gunTarih);
   if(!H.satirlar.length){a.appendChild(bos("Bu hafta için vardiya girilmemiş. Yukarıdaki ‘Bu haftanın vardiyasını gir’ ile girebilirsin."));return;}
-  var toplamSaat=H.satirlar.reduce(function(t,x){return t+x.planSaat;},0),gelmedi=0,gec=0;
+  var toplamSaat=H.satirlar.reduce(function(t,x){return t+x.planSaat;},0),gelmedi=0,gec=0,izSay={yi:{},ui:{},rap:{},dev:{}};
+  // İzin türü: puantajda işaretliyse o (rapor dahil), değilse plandaki yazı (Yıllık izin / Ücretsiz izin / Rapor).
+  function izTur(g,r){if(r&&r.iz)return r.iz;if(/y[ıi]ll[ıi]k/i.test(g))return "yi";if(/[üu]cretsiz/i.test(g))return "ui";if(/rapor/i.test(g))return "rap";return "";}
+  var IZ_AD={yi:"yıllık izin",ui:"ücretsiz izin",rap:"rapor",dev:"devamsız"};
   var satirlar=H.satirlar.map(function(x){return [el("strong",{text:x.ad}),x.sube||"",TL.format(x.planSaat)+" sa",String(x.off)].concat(x.gunler.map(function(g,k){var t=gunTarih[k],saat=/^\d{1,2}:\d{2}\s*-/.test(g);
       var cls=/^off$/i.test(g)?"off":(!saat&&g?"izin":"");var alt=null;var r=V.gercek[normAd(x.ad)+"|"+t];
-      if(t<=V.bugun&&saat){if(r&&r.g){alt=el("small",{class:r.gec?"asagi":"yukari",style:"color:var(--"+(r.gec?"dikkat":"iyi")+")",text:r.g+(r.c?"–"+r.c:" içeride")});if(r.gec)gec++;}else if(t<V.bugun){alt=el("small",{style:"color:var(--kotu)",text:"gelmedi"});gelmedi++;}else alt=el("small",{style:"color:var(--gri)",text:"henüz girmedi"});}
+      var iz=izTur(g,t<=V.bugun?r:null);if(izSay[iz]){izSay[iz][x.ad]=(izSay[iz][x.ad]||0)+1;}
+      if(iz&&r&&r.iz&&t<=V.bugun&&!(r.g)){alt=el("small",{style:"color:var(--"+(iz==="dev"?"kotu":"dikkat")+")",text:IZ_AD[iz]});if(iz==="dev"&&saat)gelmedi++;cls=cls||"izin";}
+      else if(t<=V.bugun&&saat){if(r&&r.g){alt=el("small",{class:r.gec?"asagi":"yukari",style:"color:var(--"+(r.gec?"dikkat":"iyi")+")",text:r.g+(r.c?"–"+r.c:" içeride")});if(r.gec)gec++;}else if(t<V.bugun){alt=el("small",{style:"color:var(--kotu)",text:"gelmedi"});gelmedi++;}else alt=el("small",{style:"color:var(--gri)",text:"henüz girmedi"});}
       else if(t<=V.bugun&&!saat&&r&&r.g)alt=el("small",{style:"color:var(--dikkat)",text:"planda yok, geldi "+r.g});
       var h=el("div",{class:"hucre "+cls},[g||"—",alt]);return h;}));});
-  a.appendChild(el("div",{class:"rakamlar"},[rakam("Planlanan toplam",TL.format(Math.round(toplamSaat))+" sa",H.satirlar.length+" kişi"),rakam("Off günü",String(H.satirlar.reduce(function(t,x){return t+x.off;},0))),rakam("İzinli gün",String(H.satirlar.reduce(function(t,x){return t+x.gunler.filter(function(g){return g&&!/^off$/i.test(g)&&!/^\d/.test(g);}).length;},0))),rakam("Gelmeyen (geçmiş günler)",String(gelmedi),null,gelmedi?"asagi":""),rakam("Geç giriş",String(gec),null,gec?"asagi":"")]));
+  function izRakam(ad,z){var o=izSay[z],k=Object.keys(o),top=k.reduce(function(t,n){return t+o[n];},0);
+    return rakam(ad,top+" gün",k.length?k.map(function(n){return n.split(" ")[0]+(o[n]>1?" "+o[n]:"");}).join(", "):"yok",(z==="ui"||z==="dev")&&top?"asagi":"");}
+  a.appendChild(el("div",{class:"rakamlar dortlu"},[rakam("Planlanan toplam",TL.format(Math.round(toplamSaat))+" sa",H.satirlar.length+" kişi"),rakam("Off günü",String(H.satirlar.reduce(function(t,x){return t+x.off;},0))),izRakam("Yıllık izin","yi"),izRakam("Ücretsiz izin","ui"),izRakam("Raporlu","rap"),izRakam("Devamsızlık","dev"),rakam("Gelmeyen (geçmiş günler)",String(gelmedi),null,gelmedi?"asagi":""),rakam("Geç giriş",String(gec),null,gec?"asagi":"")]));
   var tb=tablo([["Personel"],["Şube"],["Planlanan"],["Off"]].concat(gunB),satirlar);tb.classList.add("vardiya");
   var bi=gunTarih.indexOf(V.bugun);if(bi>=0){tb.querySelectorAll("tr").forEach(function(tr){var c=tr.children[4+bi];if(c)c.classList.add("bugun-sutun");});}
   a.appendChild(blok("Haftalık vardiya çizelgesi","Geçmiş günlerde hücrenin altında fiili giriş-çıkış yazar; kırmızı ‘gelmedi’ planlı olup giriş kaydı olmayan günlerdir. Bugünün sütunu mavi.",tb));}
