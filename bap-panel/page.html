@@ -805,7 +805,29 @@ function kuryeRota(a,K){var L=K.seferler||[],KN=K.subeKonum||{};var kap=el("div"
       return el("div",{class:"satir"},[ust2,meta,el("div",{style:"margin-top:8px"},[tb]),el("div",{style:"margin-top:8px"},[alt])]);}
     kap.appendChild(blok("Aktif seferler",aktif.length?"Yola çıkmamış ve yoldaki paketler.":null,aktif.length?el("div",{class:"liste"},aktif.map(kart)):bos("Şu an yolda ya da bekleyen paket yok.")));
     kap.appendChild(blok("Bugün tamamlananlar","Son 15 sefer. Canlı hesap şu anki trafiğe göredir; gerçekleşen süreyle karşılaştırmak içindir.",biten.length?el("div",{class:"liste"},biten.map(kart)):bos("Bugün tamamlanan sefer yok.")));}
-  ciz2();a.appendChild(kap);}
+  ciz2();a.appendChild(kap);a.appendChild(mahalleSureBlok(K));}
+
+// Mahalle bazlı gerçekleşen teslimat süreleri (sipariş → kapı), söz verilen süreyle karşılaştırmalı.
+var MAHS_DONEM="yedi",MAHS_SIRA="paket";
+function mahalleSureBlok(K){var M=K.mahalleSure;if(!M)return bos("Mahalle süreleri için veri kapısının yeni sürümü gerekiyor.");var kap=el("div");
+  function ciz3(){kap.textContent="";var ad={bugun:"Bugün",yedi:"Son 7 gün",ay:"Bu ay",otuz:"Son 30 gün"};
+    kap.appendChild(el("div",{class:"hafta-sec"},[el("div",{class:"sekmeler",style:"margin:0"},["bugun","yedi","ay","otuz"].map(function(k){return el("button",{type:"button","aria-pressed":MAHS_DONEM===k?"true":"false",onclick:function(){MAHS_DONEM=k;ciz3();}},[ad[k]]);})),
+      el("div",{class:"sekmeler",style:"margin:0 0 0 auto"},[["paket","En çok paket"],["yavas","En yavaş"],["soz","Sözü en çok aşan"]].map(function(x){return el("button",{type:"button","aria-pressed":MAHS_SIRA===x[0]?"true":"false",onclick:function(){MAHS_SIRA=x[0];ciz3();}},[x[1]]);}))]));
+    var l=(M[MAHS_DONEM]||[]).slice();
+    if(MAHS_SIRA==="yavas")l=l.filter(function(x){return x.paket>=3;}).sort(function(a,b){return (b.ort||0)-(a.ort||0);});
+    if(MAHS_SIRA==="soz")l=l.filter(function(x){return x.soz!=null&&x.paket>=3;}).sort(function(a,b){return (b.sozAsan||0)-(a.sozAsan||0);});
+    if(!l.length){kap.appendChild(bos("Bu dönemde mahallesi okunabilen teslimat yok."));return;}
+    var max=Math.max.apply(null,l.map(function(x){return x.ort||0;}))||1;
+    kap.appendChild(tablo([["Mahalle"],["Şube"],["Paket",1],["Ortalama teslim"],["Söz verilen",1],["Sözü aşan",1],["Restoranda",1],["Yolda",1],["Ort. km",1],["40 dk üstü",1]],l.slice(0,40).map(function(x){
+      var fark=x.soz!=null&&x.ort!=null?x.ort-x.soz:null,renk=fark==null?"var(--mavi)":(fark>0?"var(--kotu)":(x.ort>x.soz-5?"var(--dikkat)":"var(--iyi)"));
+      var cub=el("span",{style:"display:flex;align-items:center;gap:8px;min-width:170px"},[el("span",{style:"flex:1;height:8px;background:var(--mavi-acik);border-radius:4px;overflow:hidden;display:block"},[el("b",{style:"display:block;height:100%;background:"+renk+";width:"+Math.max(3,Math.round((x.ort||0)/max*100))+"%"})]),
+        el("strong",{style:"min-width:52px;text-align:right",title:"Medyan "+(x.medyan!=null?x.medyan+" dk":"—"),text:x.ort!=null?virgul(x.ort)+" dk":"—"})]);
+      return [x.ad,x.sube||"—",String(x.paket),cub,x.soz!=null?el("span",{title:x.sozMetin,text:x.soz+" dk"}):"—",
+        x.sozAsan!=null?el("span",{class:"etiket "+(x.sozAsan>=30?"e-kotu":x.sozAsan>=15?"e-dikkat":"e-iyi"),text:"%"+x.sozAsan}):"—",
+        x.cikis!=null?virgul(x.cikis)+" dk":"—",x.yol!=null?virgul(x.yol)+" dk":"—",virgul(x.km),x.gecOran?"%"+x.gecOran:"—"];})));
+    if(l.length>40)kap.appendChild(el("p",{style:"font-size:13px;color:var(--gri)",text:"İlk 40 mahalle gösteriliyor ("+l.length+" mahalle var)."}));}
+  ciz3();
+  return blok("Mahalle bazlı teslimat süreleri","Gerçekleşen süre: sipariş verildiği andan kapıya teslime kadar (restoranda + yolda). Söz verilen süre Genel Bilgiler › teslimat bölgelerinden, aralığın üst sınırı; ‘Sözü aşan’ o süreyi aşan paketlerin oranı. Çubuk kırmızıysa ortalama bile sözü aşıyor, sarıysa sınıra 5 dakikadan yakın. ‘Restoranda’ uzunsa sorun mutfakta ya da kurye beklemede, ‘Yolda’ uzunsa mesafe/kurye. Mahalle adresten okunur.",kap);}
 
 var HESAP_ISLEM={};// siparisId → {durum:"gidiyor"|"tamam"|"hata", islem, mesaj}
 function hesapKapat(x,islem,yenidenCiz){

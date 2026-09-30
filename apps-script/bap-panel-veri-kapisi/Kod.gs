@@ -735,13 +735,14 @@ function kurye_() {
     mesaiDk: 0, mesaiPaket: 0, gun: 0, gecGiris: 0, gecGirisDk: 0, erkenDk: 0, kapanisDk: 0, maliyet: 0 }; }
 
   // Siparişler: süre aşamaları, gecikme sebebi, kurye başına paket
-  var s = sonSatirlar_(ss, 'Siparişler', 6000, ['Tarih', 'Adisyon No', 'Kurye', 'Platform', 'Sipariş Saati', 'Atama (dk)', 'Hazırlık (dk)', 'Yol (dk)', 'Toplam (dk)', 'Mesafe (km)', 'Durum']);
+  var s = sonSatirlar_(ss, 'Siparişler', 6000, ['Tarih', 'Adisyon No', 'Kurye', 'Platform', 'Sipariş Saati', 'Atama (dk)', 'Hazırlık (dk)', 'Yol (dk)', 'Toplam (dk)', 'Mesafe (km)', 'Durum', 'Adres']);
   var seri = {}; for (var i = 0; i < 14; i++) seri[gunEkle_(ilkSeri, i)] = { adet: 0, dk: 0, n: 0, gec: 0, maliyet: 0 };
-  var saat = {}, dagilim = [0, 0, 0, 0, 0], platform = {}, enKotu = [], sonSiparisMs = null;
+  var saat = {}, dagilim = [0, 0, 0, 0, 0], platform = {}, enKotu = [], sonSiparisMs = null, mahalleSay = {};
+  KURYE_DONEMLER.forEach(function (d) { mahalleSay[d] = {}; });
   if (s) {
     var c = { tarih: kolon_(s.b, ['Tarih']), no: kolon_(s.b, ['Adisyon No']), kurye: kolon_(s.b, ['Kurye']), plat: kolon_(s.b, ['Platform']), sip: kolon_(s.b, ['Sipariş Saati']),
               at: kolon_(s.b, ['Atama (dk)']), hz: kolon_(s.b, ['Hazırlık (dk)']), yol: kolon_(s.b, ['Yol (dk)']), top: kolon_(s.b, ['Toplam (dk)']), km: kolon_(s.b, ['Mesafe (km)']),
-              durum: kolon_(s.b, ['Durum']) };
+              durum: kolon_(s.b, ['Durum']), adres: kolon_(s.b, ['Adres']) };
     s.v.forEach(function (r) {
       var gun = gunStr_(r[c.tarih]); if (!gun) return;
       if (c.durum >= 0 && /iptal|iade/i.test(r[c.durum])) return;
@@ -762,6 +763,8 @@ function kurye_() {
         var g = genel[d]; g.adet++; g.km += km;
         if (sureVar) { g.n++; g.at += at; g.cikis += cikis; g.yol += yol; g.top += top; }
         if (gec) { g.gec++; g[sebep]++; }
+        if (c.adres >= 0 && d !== 'dun') { var mn = mahalleAdi_(r[c.adres]); if (mn) { var mk = mahalleSay[d][norm_(mn)] = mahalleSay[d][norm_(mn)] || { ad: mn, paket: 0, n: 0, top: 0, cikis: 0, yol: 0, km: 0, gec: 0, sureler: [] };
+          mk.paket++; mk.km += km; if (sureVar) { mk.n++; mk.top += top; mk.cikis += cikis; mk.yol += yol; mk.sureler.push(top); if (gec) mk.gec++; } } }
       });
       if (gun >= yediBasi && gun <= bugun) {
         var h = parseInt(String(r[c.sip] || '').split(':')[0], 10);
@@ -780,6 +783,17 @@ function kurye_() {
   out.dagilim = ['20 dk ve altı', '21–30 dk', '31–40 dk', '41–60 dk', '60 dk üstü'].map(function (ad, j) { return { ad: ad, deger: dagilim[j] }; });
   out.platform = Object.keys(platform).map(function (k) { var p = platform[k]; return { ad: p.ad, adet: p.adet, gec: p.gec, ortDk: p.n ? Math.round(p.dk / p.n) : null }; }).sort(function (a, b) { return b.adet - a.adet; });
   out.enKotu = enKotu.sort(function (a, b) { return b.toplam - a.toplam; }).slice(0, 30);
+  // Mahalle bazlı gerçekleşen teslimat süreleri; Genel Bilgiler › Mahalle_Sube'deki söz verilen süreyle karşılaştırılır.
+  var soz = {}; try { soz = subeSozlugu_(); } catch (e) { soz = { sure: {}, mahalle: {} }; }
+  out.mahalleSure = {};
+  ['bugun', 'yedi', 'ay', 'otuz'].forEach(function (d) {
+    out.mahalleSure[d] = Object.keys(mahalleSay[d]).map(function (k) { var x = mahalleSay[d][k], o = function (t) { return x.n ? Math.round(t / x.n * 10) / 10 : null; };
+      var srt = x.sureler.sort(function (a, b) { return a - b; }), sz = (soz.sure || {})[k];
+      return { ad: x.ad, sube: ((soz.mahalle || {})[k] || '').replace('BAP ', ''), paket: x.paket, ort: o(x.top), medyan: srt.length ? Math.round(srt[Math.floor((srt.length - 1) / 2)]) : null,
+               cikis: o(x.cikis), yol: o(x.yol), km: Math.round(x.km / x.paket * 10) / 10, gecOran: x.n ? Math.round(x.gec / x.n * 100) : 0,
+               soz: sz ? sz.ust : null, sozMetin: sz ? sz.metin : '', sozAsan: sz ? Math.round(x.sureler.filter(function (t) { return t > sz.ust; }).length / (x.n || 1) * 100) : null };
+    }).sort(function (a, b) { return b.paket - a.paket; }).slice(0, 60);
+  });
 
   // Günlük Mesai: bugün kim sahada; dönem bazında net saat, geç giriş, kesinti, maliyet; haftalık bordro
   var m = sonSatirlar_(ss, 'Günlük Mesai', 1200), bugunMesai = [], kesintiler = [], kadro = {}, haftalar = {};
@@ -1044,8 +1058,8 @@ function saatDk_(s) { var m = String(s || '').match(/^(\d{1,2}):(\d{2})(?::(\d{2
 
 // Siparişin çıktığı şube: Adisyo'da (tarih + günlük sipariş no) → Ürün Çıkan Şube, yoksa Şube; bulunamazsa mahalle listesi.
 function subeSozlugu_() {
-  var cache = CacheService.getScriptCache(), c = cache.get('sube_sozluk_v1'); if (c) { try { return JSON.parse(c); } catch (e) { } }
-  var out = { no: {}, mahalle: {} };
+  var cache = CacheService.getScriptCache(), c = cache.get('sube_sozluk_v2'); if (c) { try { return JSON.parse(c); } catch (e) { } }
+  var out = { no: {}, mahalle: {}, sure: {} };
   try {
     var a = sonSatirlar_(SpreadsheetApp.openById(KAYNAK.siparis.id), 'Satıs Verileri', 1500, ['Sipariş No', 'Sipariş Tarihi', 'Şube', 'Ürün Çıkan Şube']);
     if (a) { var cn = kolon_(a.b, ['Sipariş No']), ct = kolon_(a.b, ['Sipariş Tarihi']), cs = kolon_(a.b, ['Şube']), cc = kolon_(a.b, ['Ürün Çıkan Şube']);
@@ -1054,9 +1068,12 @@ function subeSozlugu_() {
   } catch (e) { }
   try {
     var mh = SpreadsheetApp.openById(KAYNAK.menu.id).getSheetByName('Mahalle_Sube');
-    if (mh) mh.getDataRange().getDisplayValues().slice(1).forEach(function (r) { var sb = subeAnahtar_(r[2]); if (r[0] && /Erenköy|Fikirtepe/.test(sb)) out.mahalle[norm_(String(r[0]).replace(/\bmah(allesi)?\b\.?/i, ''))] = sb; });
+    // Sütunlar: Mahalle, Tam ad, Şube, Teslimat süresi ("30-40 dk" gibi; üst sınır söz verilen süre sayılır)
+    if (mh) mh.getDataRange().getDisplayValues().slice(1).forEach(function (r) { if (!r[0]) return; var k = norm_(String(r[0]).replace(/\bmah(allesi)?\b\.?/i, '')), sb = subeAnahtar_(r[2]);
+      if (/Erenköy|Fikirtepe/.test(sb)) out.mahalle[k] = sb;
+      var n = String(r[3] || '').match(/\d+/g); if (n) out.sure[k] = { metin: String(r[3]).trim(), ust: +n[n.length - 1] }; });
   } catch (e) { }
-  try { cache.put('sube_sozluk_v1', JSON.stringify(out), 600); } catch (e) { }
+  try { cache.put('sube_sozluk_v2', JSON.stringify(out), 600); } catch (e) { }
   return out;
 }
 function siparisSubesi_(soz, gun, no, mahalle) {

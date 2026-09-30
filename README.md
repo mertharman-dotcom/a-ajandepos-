@@ -44,6 +44,9 @@ Panelde **Kurye & Teslimat** bölümü (`#kurye`). **Kurye Net Çalışma Süres
   tamamlanmış seferde gerçekleşenle fark. Çıkış noktaları `SUBE_KONUM` (Erenköy: Alpler Sk. No:7; Fikirtepe: Mandıra Cd.
   Evinpark Sitesi). Şube: Adisyo'da tarih + günlük sipariş no → Ürün Çıkan Şube / Şube; yoksa Genel Bilgiler › Mahalle_Sube;
   o da yoksa Erenköy (panelde "?" ile işaretli). Hesap düğmeyle yapılır ve 10 dk saklanır (günlük Haritalar kotası için).
+- Mahalle bazlı teslimat süreleri (Seferler & rota altında): bugün / 7 gün / bu ay / 30 gün; paket, ortalama ve medyan
+  teslim (sipariş → kapı), restoranda / yolda kırılımı, ortalama km, 40 dk üstü oranı. Genel Bilgiler › Mahalle_Sube'deki
+  teslimat süresinin üst sınırı "söz verilen süre" sayılır; onu aşan paket oranı gösterilir. Mahalle Siparişler › Adres'ten okunur.
 - Kesinti girişi (Kesintiler sekmesi): kurye, tarih, tür (para ₺ / süre dk), miktar ve açıklama. Kurye tablosunun
   **Kesintiler** sekmesine kurye panelindeki biçimde yazılır (açıklamanın sonunda "(panel)"). Aynı gün + kurye + miktar
   varsa önce onay ister; aynı gönderim iki kez yazılmaz. Yanlış kayıt tablodan silinir.
