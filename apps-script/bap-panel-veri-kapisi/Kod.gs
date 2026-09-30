@@ -1035,21 +1035,23 @@ function bordro_(V, ay, bugun, planli) {
     var bas = p.giris && p.giris > ilk ? p.giris : ilk, bitis = p.cikis && p.cikis < son ? p.cikis : son;
     var gunluk = p.maas / gunSay, saatlik = gunluk / FAZLA_BOLEN;
     var ucretliBugune = gunFark(bas, kadar < bitis ? kadar : bitis), ucretliAy = gunFark(bas, bitis);
-    var n = { yi: 0, ui: 0, dev: 0, rap: 0, resmi: 0, off: 0, offCalisma: 0, calisilan: 0 }, fazSn = 0, eksikSn = 0, topSn = 0;
+    var n = { yi: 0, ui: 0, dev: 0, rap: 0, resmi: 0, off: 0, offCalisma: 0, calisilan: 0, uzamaGun: 0 }, fazSn = 0, eksikSn = 0, topSn = 0, uzamaSn = 0, offSn = 0;
     if (P) Object.keys(P.gunler).forEach(function (d) {
       if (d < bas || d > bitis) return; var x = P.gunler[d];
       ['yi', 'ui', 'dev', 'rap', 'resmi', 'off'].forEach(function (z) { if (x[z]) n[z]++; });
       if (x.off && x.top > 0) n.offCalisma++;
       if (x.top > 0) { n.calisilan++; topSn += x.top; }
-      if (x.faz > 0) fazSn += x.faz; else if (x.faz < 0) eksikSn += -x.faz;
+      // Fazla mesai iki ayrı iş: normal günde vardiyadan uzun kalma ve off gününde çağırıp çalıştırma.
+      if (x.faz > 0) { fazSn += x.faz; if (x.off) offSn += x.faz; else uzamaSn += x.faz; if (!x.off) n.uzamaGun++; } else if (x.faz < 0) eksikSn += -x.faz;
     });
     var raporKes = Math.max(0, n.rap - 3), kesGun = n.ui + n.dev + raporKes;
     var normal = Math.max(0, ucretliBugune - kesGun) * gunluk, normalAy = Math.max(0, ucretliAy - kesGun) * gunluk;
-    var fazla = fazSn / 3600 * saatlik, resmiTl = n.resmi * gunluk;
+    var fazla = fazSn / 3600 * saatlik, resmiTl = n.resmi * gunluk, uzamaTl = uzamaSn / 3600 * saatlik, offTl = offSn / 3600 * saatlik;
     var aySonu = normalAy + fazla + resmiTl, asgari = p.sgk ? Math.min(ASGARI_NET, aySonu) : 0;
     kisiler.push({ ad: p.ad, sube: p.sube, sgk: p.sgk, aktif: p.aktif, ayrildi: !!p.cikis && p.cikis <= son, cikis: p.cikis, giris: p.giris && p.giris >= ilk ? p.giris : '',
       maas: Math.round(p.maas), baz: Math.round(gunluk * ucretliAy), gunluk: Math.round(gunluk), saatlik: Math.round(saatlik * 100) / 100, ucretliGun: ucretliBugune, ucretliAy: ucretliAy,
       gun: n, calisilanGun: n.calisilan, saat: Math.round(topSn / 360) / 10, fazlaDk: Math.round(fazSn / 60), eksikDk: Math.round(eksikSn / 60),
+      uzamaDk: Math.round(uzamaSn / 60), uzamaTl: Math.round(uzamaTl), uzamaGun: n.uzamaGun, offDk: Math.round(offSn / 60), offTl: Math.round(offTl), offGun: n.offCalisma,
       yillikTl: Math.round(n.yi * gunluk), raporKesGun: raporKes, raporTl: -Math.round(raporKes * gunluk), ucretsizTl: -Math.round(n.ui * gunluk), devamsizTl: -Math.round(n.dev * gunluk),
       normal: Math.round(normal), fazla: Math.round(fazla), resmi: Math.round(resmiTl),
       hakedis: Math.round(normal + fazla + resmiTl), aySonu: Math.round(aySonu), asgari: Math.round(asgari), diger: Math.round(Math.max(0, aySonu - asgari)),
@@ -1059,9 +1061,10 @@ function bordro_(V, ay, bugun, planli) {
   var eksik = Object.keys(V.pu).filter(function (k) { return !gorulen[k] && Object.keys(V.pu[k].gunler).some(function (d) { return d >= ilk && d <= son; }); }).map(function (k) { return V.pu[k].ad; });
   kisiler.sort(function (a, b) { return String(a.sube).localeCompare(String(b.sube), 'tr') || a.ad.localeCompare(b.ad, 'tr'); });
 
-  function topla(l) { var t = { kisi: l.length, maas: 0, tamMaas: 0, normal: 0, fazla: 0, resmi: 0, hakedis: 0, aySonu: 0, odenen: 0, kesinti: 0, eksikDk: 0, fazlaDk: 0 };
+  function topla(l) { var t = { kisi: l.length, maas: 0, tamMaas: 0, normal: 0, fazla: 0, resmi: 0, hakedis: 0, aySonu: 0, odenen: 0, kesinti: 0, eksikDk: 0, fazlaDk: 0, uzamaTl: 0, uzamaDk: 0, offTl: 0, offDk: 0, offGun: 0, offKisi: 0, uzamaKisi: 0 };
     l.forEach(function (x) { t.maas += x.baz; t.tamMaas += x.maas; t.normal += x.normal; t.fazla += x.fazla; t.resmi += x.resmi; t.hakedis += x.hakedis; t.aySonu += x.aySonu; t.odenen += x.odenen;
-      t.kesinti += -(x.ucretsizTl + x.devamsizTl + x.raporTl); t.eksikDk += x.eksikDk; t.fazlaDk += x.fazlaDk; }); return t; }
+      t.kesinti += -(x.ucretsizTl + x.devamsizTl + x.raporTl); t.eksikDk += x.eksikDk; t.fazlaDk += x.fazlaDk;
+      t.uzamaTl += x.uzamaTl; t.uzamaDk += x.uzamaDk; t.offTl += x.offTl; t.offDk += x.offDk; t.offGun += x.offGun; if (x.offGun) t.offKisi++; if (x.uzamaDk) t.uzamaKisi++; }); return t; }
   var subeler = {}; kisiler.forEach(function (x) { (subeler[x.sube || 'Belirtilmemiş'] = subeler[x.sube || 'Belirtilmemiş'] || []).push(x); });
   var aktifler = V.personel.filter(function (p) { return p.aktif && p.maas > 0; });
   var bugunGider = 0;
