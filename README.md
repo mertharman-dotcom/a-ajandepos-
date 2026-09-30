@@ -48,6 +48,14 @@ fazla mesai = puantajdaki Fazla Mesai sütununun **yalnız artı** süreleri (ek
 Yönetici panelindeki (BAP OS) bordro eksik süreyi de kestiği için fazla mesai orada eksi görünebilir.
 IBAN, telefon ve şifre panele gönderilmez.
 
+**Avans ve masraf:** Bordro sekmesindeki formdan girilir, *BAP Personel › Avans_Masraf* sekmesine yeni satır olarak yazılır.
+Avans (personele verilen / yapılan ödeme) hakedişten düşer, masraf (personelin cebinden ödediği) eklenir:
+net ödenecek = ay sonu − avans + masraf. Durum 'Bekliyor' ya da 'Reddedildi' olan satırlar hesaba girmez.
+SGK işveren primi (`SGK_ISVEREN`) SGK'lı personel için ay içi giriş/çıkışta kıst hesaplanır.
+
+**Kurye bahşişi:** Açık hesapta 'Tahsil edildi' denince bahşiş sorulur; varsa *Kurye Net Çalışma Süresi › Tahsilatlar*
+sekmesinde 'Bahşiş (TL)' sütununa ayrı yazılır, hesap tutarına eklenmez. Açık hesaplar ekranında kurye bazında özetlenir.
+
 ## Kurye & teslimat ekranı
 
 Panelde **Kurye & Teslimat** bölümü (`#kurye`). **Kurye Net Çalışma Süresi** tablosunu yalnızca okur
