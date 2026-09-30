@@ -48,6 +48,52 @@ fazla mesai = puantajdaki Fazla Mesai sütununun **yalnız artı** süreleri (ek
 Yönetici panelindeki (BAP OS) bordro eksik süreyi de kestiği için fazla mesai orada eksi görünebilir.
 IBAN, telefon ve şifre panele gönderilmez.
 
+## Kurye & teslimat ekranı
+
+Panelde **Kurye & Teslimat** bölümü (`#kurye`). **Kurye Net Çalışma Süresi** tablosunu yalnızca okur
+(Siparişler, Günlük Mesai, Açık Hesaplar). Dönem: Bugün / Dün / Son 7 gün / Bu ay / Son 30 gün.
+
+- Süre aşamaları: kurye atama, restorandan çıkış, yol, teslim; 40 dk üstü teslimler.
+- Gecikmenin sebebi: mutfak (sipariş → çıkış 25 dk üstü), kurye (yol, mesafeye göre beklenenden 5 dk fazla), ikisi, diğer.
+  Ölçütler `Kod.gs` içindeki `KURYE_HEDEF`'te; beklenen yol `beklenenYol_(km)`.
+- Bugün vardiya: açık vardiyanın süresi girişten şu ana kadar sayılır; saatte paket yalnız kapanmış vardiyalardan.
+- Kurye karnesi, saat saat yük, son 14 gün, platformlar, en uzun süren teslimatlar (sebebe göre süzülür).
+- Kesintiler: erken çevrimiçi (ödenmeyen, ceza değil) ve kapanış ayrı; 2 saati aşan kapanış "çıkış unutulmuş olabilir".
+- Açık hesaplar: 'Ödenmez' siparişler hariç, dünden eski / bugün ayrı ve yaşa göre renkli. Trendyol'un kodlu ödemeleri de kapıda tahsil edilebildiği için listede kalır.
+- Sekmeler: Özet, Bordro, Teslimat analizi, Kesintiler, Açık hesaplar.
+- Bordro ve kurye maliyeti: ücretler kurye tablosunun **Kurye bilgiler** sekmesinden okunur (Kurye Adı, Bordro,
+  Saat ücreti, Paket başı ücret, SGK'lı). Adı boş satır o grubun varsayılanıdır (Haddy Kurye); listede olmayan kurye
+  onunla hesaplanır. Haddy tarafına %20 KDV eklenir, BAP'ta KDV yok. Saat hakedişi kesintiler düşülmüş net süre üzerinden.
+  Sekme okunamazsa `Kod.gs` içindeki `KURYE_UCRET` yedeği kullanılır.
+- Açık hesap kapatma: her satırda **Tahsil edildi** / **Kuryeden kes**. İkisi de kurye tablosuna **Tahsilatlar** sekmesi
+  (yoksa açılır) olarak yazılır ve o sipariş listeden düşer; yanlış kapatılan satır o sekmeden silinirse yeniden açık görünür.
+  **Kuryeden kes** ayrıca **Kesintiler** sekmesine TL kesinti yazar. Sipariş bilgisi tarayıcıdan değil Açık Hesaplar'dan okunur;
+  aynı sipariş iki kez kapatılamaz.
+  Kapatılan her hesap Adisyo › Satıs Verileri'nde de işlenir: sipariş (no + saat ile) bulunur ve **Ödeme Alındı** TRUE yapılır;
+  sonuç Tahsilatlar › **Adisyo Durumu** sütununa yazılır. Bulunamayan 3 gün yeniden denenir, sonra "elle kontrol" diye işaretlenir.
+  Eski kapatmalar için panelde "Şimdi Adisyo'ya işle" düğmesi var; saatlik `kuryeBoslariDoldur` tetikleyicisi de bunu çalıştırır.
+- Seferler & rota: bugünün siparişleri kurye bazında seferlere ayrılır (restorandan 5 dk içinde çıkanlar tek sefer; atanmış
+  ama yola çıkmamışlar ayrı grup). "Canlı süre ve km" Google Haritalar'dan (Apps Script Maps servisi, şu anki trafik)
+  şube → 1. → 2. → 3. teslimat bacaklarını hesaplar: gidilecek km, sürüş, paket kapatma süresi (sürüş + kapı başına 2 dk),
+  tamamlanmış seferde gerçekleşenle fark. Çıkış noktaları `SUBE_KONUM` (Erenköy: Alpler Sk. No:7; Fikirtepe: Mandıra Cd.
+  Evinpark Sitesi). Şube: Adisyo'da tarih + günlük sipariş no → Ürün Çıkan Şube / Şube; yoksa Genel Bilgiler › Mahalle_Sube;
+  o da yoksa Erenköy (panelde "?" ile işaretli). Hesap düğmeyle yapılır ve 10 dk saklanır (günlük Haritalar kotası için).
+- Mahalle bazlı teslimat süreleri (Seferler & rota altında): bugün / 7 gün / bu ay / 30 gün; paket, ortalama ve medyan
+  teslim (sipariş → kapı), restoranda / yolda kırılımı, ortalama km, 40 dk üstü oranı. Genel Bilgiler › Mahalle_Sube'deki
+  teslimat süresinin üst sınırı "söz verilen süre" sayılır; onu aşan paket oranı gösterilir. Mahalle Siparişler › Adres'ten okunur.
+- Kurye eşleştirme: Adisyo › Satıs Verileri'ndeki son 30 günün paket siparişleri kurye tablosundaki Siparişler ile
+  (günlük sipariş no + sipariş saati en fazla 20 dk farklı) eşleştirilir; kimin götürdüğünün kaynağı kurye sistemidir.
+  Adisyo'da Kurye boşsa **Hepsini doldur** ile yazılır; farklıysa sahip "Adisyo'yu düzelt" ya da "Böyle kalsın" der;
+  kurye sisteminde karşılığı yoksa kurye elle atanır ya da "Kurye yok" denir. Her yazma (önceki değerle) kurye tablosundaki
+  **Kurye Eşleştirme** sekmesine düşer. Boşları otomatik doldurmak için Apps Script'te `kuryeBoslariDoldur` fonksiyonuna
+  saatlik zaman tetikleyicisi eklenebilir.
+- Kesinti girişi (Kesintiler sekmesi): kurye, tarih, tür (para ₺ / süre dk), miktar ve açıklama. Kurye tablosunun
+  **Kesintiler** sekmesine kurye panelindeki biçimde yazılır (açıklamanın sonunda "(panel)"). Aynı gün + kurye + miktar
+  varsa önce onay ister; aynı gönderim iki kez yazılmaz. Yanlış kayıt tablodan silinir.
+- Bordro: Kesintiler sekmesindeki TL kesintiler "Para kesintisi" olarak düşülür (Saat tipi ödenen süreden); Haddy'de KDV
+  kesinti sonrası tutar üzerinden — kurye panelindeki Haftalık Bordro & Hakediş ile aynı hesap.
+- Müşteri adı, telefonu, adresi ve sipariş içeriği panele gönderilmez.
+
 ## Yayına alma
 
 1. **Apps Script** (BAP Panel Veri Kapısı): `apps-script/bap-panel-veri-kapisi/Kod.gs` içeriğini `Kod.gs` dosyasına yapıştır,
