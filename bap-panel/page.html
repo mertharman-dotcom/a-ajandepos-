@@ -903,9 +903,18 @@ function kuryeAcik(a,K){var A=K.acik;
   tabloCiz();
   a.appendChild(blok("Açık hesaplar","Önce en eskiler. Kuryeden parayı aldıysan ‘Tahsil edildi’, alamadıysan ‘Kuryeden kes’: tutar Kesintiler sekmesine yazılır ve haftalık bordrosundan düşülür. İkisi de kurye tablosundaki Tahsilatlar sekmesine kaydedilir; yanlış kapattıysan o satırı silmen yeterli. Müşteri adı gösterilmez.",kap));
   var KP=A.kapanan||[];
+  if(A.adisyoBekleyen){var ab=el("span",{class:"cevap-durum",style:"margin-left:10px"});
+    a.appendChild(el("div",{class:"uyari"},[el("b",{text:A.adisyoBekleyen+" kapatılan hesap Adisyo'ya henüz işlenmedi"}),
+      el("div",{text:"Adisyo sipariş dosyasında bu siparişlerin ‘Ödeme Alındı’ hücresi TRUE yapılınca orada da açık görünmez. Yeni kapattıkların otomatik işlenir; eskiler için düğmeye bas."}),
+      el("p",{style:"margin:8px 0 0"},[el("button",{type:"button",class:"dugme",onclick:function(ev){var btn=ev.target;btn.setAttribute("disabled","");ab.textContent="İşleniyor…";
+        fetch("/api/hesap",{method:"POST",credentials:"same-origin",headers:{"content-type":"application/json","x-bap-panel":"1"},body:JSON.stringify({islem:"adisyo"})})
+          .then(function(r){return r.json();}).then(function(d){var x=d&&d.adisyo;if(d&&d.tamam&&x){ab.textContent="✓ "+x.islenen+" işlendi"+(x.bulunamadi?", "+x.bulunamadi+" Adisyo'da bulunamadı":"")+(x.bekleyen?", "+x.bekleyen+" sonra yeniden denenecek":"");ab.className="cevap-durum iyi";setTimeout(function(){yukle(true);},1500);}
+            else{ab.textContent=(d&&d.hata)||"İşlenemedi.";ab.className="cevap-durum kotu";btn.removeAttribute("disabled");}})
+          .catch(function(){ab.textContent="Bağlantı koptu.";ab.className="cevap-durum kotu";btn.removeAttribute("disabled");});}},["Şimdi Adisyo'ya işle"]),ab])]));}
   a.appendChild(blok("Kimde ne kadar açık var","Dünden eski kayıtlar.",cubuklar(A.kisi)));
   a.appendChild(el("div",null,[
-    blok("Son kapatılanlar","Tahsilatlar sekmesinden; yeni kapattıkların ‘Şimdi yenile’den sonra burada görünür ve yukarıdaki toplamlardan düşer.",KP.length?tablo([["Zaman"],["Adisyon"],["Kurye"],["Tutar",1],["İşlem"]],KP.map(function(x){return [x.zaman,String(x.no||""),x.kurye,para(x.tutar),el("span",{class:"etiket "+(/kes/i.test(x.islem)?"e-dikkat":"e-iyi"),text:x.islem})];})):bos("Henüz panelden kapatılan yok."))]));}
+    blok("Son kapatılanlar","Tahsilatlar sekmesinden; yeni kapattıkların ‘Şimdi yenile’den sonra burada görünür ve yukarıdaki toplamlardan düşer. ‘Adisyo’ sütunu, Adisyo sipariş dosyasında ‘Ödeme Alındı’nın TRUE yapılıp yapılmadığını gösterir.",KP.length?tablo([["Zaman"],["Adisyon"],["Kurye"],["Tutar",1],["İşlem"],["Adisyo"]],KP.map(function(x){return [x.zaman,String(x.no||""),x.kurye,para(x.tutar),el("span",{class:"etiket "+(/kes/i.test(x.islem)?"e-dikkat":"e-iyi"),text:x.islem}),
+      x.adisyo?el("span",{class:"etiket "+(/TRUE/.test(x.adisyo)?"e-iyi":"e-kotu"),title:x.adisyo,text:/TRUE/.test(x.adisyo)?"ödendi işlendi":"bulunamadı"}):el("span",{class:"etiket e-notr",text:"bekliyor"})];})):bos("Henüz panelden kapatılan yok."))]));}
 
 var CIZ={genel:genelSayfa,merkez:merkez,ozet:ozet,satis:satis,kararlar:kararlar,ai:ai,
   finans:finansSayfa,

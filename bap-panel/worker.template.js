@@ -171,7 +171,7 @@ export default {
       let govde;
       try { govde = await request.json(); } catch (e) { return json({ hata: 'Geçersiz istek.' }, 400); }
       const ileti = JSON.stringify({ key: env.GAS_KEY, tur: 'hesap', siparisId: String(govde.siparisId || '').slice(0, 30),
-        islem: govde.islem === 'kes' ? 'kes' : 'tahsil', not: String(govde.not || '').slice(0, 200) });
+        islem: govde.islem === 'kes' ? 'kes' : govde.islem === 'adisyo' ? 'adisyo' : 'tahsil', not: String(govde.not || '').slice(0, 200) });
       try {
         const r = await fetch(env.GAS_URL, { method: 'POST', headers: { 'content-type': 'application/json' }, body: ileti, redirect: 'follow' });
         const metin = await r.text();

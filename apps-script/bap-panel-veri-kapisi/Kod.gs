@@ -903,7 +903,7 @@ function kurye_() {
   var tl = function (l) { return Math.round(l.reduce(function (t, x) { return t + x.tutar; }, 0)); };
   out.acik = { eski: { adet: eski.length, toplam: tl(eski), ayUstu: eski.filter(function (x) { return x.yas > 30; }).length },
                bugun: { adet: bugunkuler.length, toplam: tl(bugunkuler) }, haric: { adet: haric.adet, toplam: Math.round(haric.tutar) },
-               kisi: sirala_(eskiKisi), liste: eski.slice(0, 60).concat(bugunkuler.slice(0, 30)), kapanan: kapali.son };
+               kisi: sirala_(eskiKisi), liste: eski.slice(0, 60).concat(bugunkuler.slice(0, 30)), kapanan: kapali.son, adisyoBekleyen: kapali.adisyoBekleyen };
 
   out.genel = {};
   KURYE_DONEMLER.forEach(function (d) { var g = genel[d], o = function (t) { return g.n ? Math.round(t / g.n * 10) / 10 : null; };
@@ -944,10 +944,12 @@ var TAHSILAT_BASLIK = ['Sipariş Tarihi', 'Adisyon No', 'Sipariş ID', 'Kurye', 
 function tahsilatlar_(ss) {
   var t = sonSatirlar_(ss, 'Tahsilatlar', 5000), out = { idler: {}, son: [] }; if (!t) return out;
   var c = { id: kolon_(t.b, ['Sipariş ID']), no: kolon_(t.b, ['Adisyon No']), kurye: kolon_(t.b, ['Kurye']), tutar: kolon_(t.b, ['Tutar (TL)', 'Tutar']),
-            islem: kolon_(t.b, ['İşlem']), zaman: kolon_(t.b, ['Kayıt Zamanı']), tarih: kolon_(t.b, ['Sipariş Tarihi', 'Tarih']) };
+            islem: kolon_(t.b, ['İşlem']), zaman: kolon_(t.b, ['Kayıt Zamanı']), tarih: kolon_(t.b, ['Sipariş Tarihi', 'Tarih']), adisyo: kolon_(t.b, ['Adisyo Durumu']) };
+  out.adisyoBekleyen = 0;
   t.v.forEach(function (r) {
     var id = siparisNo_(r[c.id]); if (!id) return; out.idler[id] = 1;
-    out.son.push({ id: id, no: r[c.no], kurye: r[c.kurye], tutar: sayi_(r[c.tutar]), islem: r[c.islem], zaman: String(r[c.zaman] || '').slice(0, 16), tarih: r[c.tarih] });
+    var ad = c.adisyo >= 0 ? String(r[c.adisyo] || '') : ''; if (!ad) out.adisyoBekleyen++;
+    out.son.push({ id: id, no: r[c.no], kurye: r[c.kurye], tutar: sayi_(r[c.tutar]), islem: r[c.islem], zaman: String(r[c.zaman] || '').slice(0, 16), tarih: r[c.tarih], adisyo: ad });
   });
   out.son = out.son.reverse().slice(0, 15);
   return out;
@@ -956,6 +958,7 @@ function tahsilatlar_(ss) {
 // Panelden açık hesap kapatma: { siparisId, islem: 'tahsil' | 'kes', not }.
 // Sipariş bilgisi tarayıcıdan değil 'Açık Hesaplar' sekmesinden alınır. 'kes' ayrıca 'Kesintiler' sekmesine TL kesinti yazar (bordroda düşülür).
 function hesapKapat_(d) {
+  if (d.islem === 'adisyo') return { tamam: true, adisyo: tahsilatlariAdisyoyaIsle_() };
   var id = siparisNo_(d.siparisId), islem = d.islem === 'kes' ? 'kes' : d.islem === 'tahsil' ? 'tahsil' : '';
   if (!id || !islem) return { hata: 'Geçersiz istek.' };
   var ss = SpreadsheetApp.openById(KAYNAK.kurye.id);
@@ -981,7 +984,8 @@ function hesapKapat_(d) {
   }
   var ozet = kurye + ' — adisyon ' + r[ca.no] + ', ' + tutar + ' TL: ' + (islem === 'kes' ? 'kuryeden kesildi' : 'tahsil edildi');
   try { cevapKaydet_('Operasyon', 'Kurye Net Çalışma Süresi › Tahsilatlar', sh.getLastRow(), 'Açık hesap kapatıldı', ozet, damga.slice(0, 16)); } catch (err) { }
-  return { tamam: true, islem: islem, kurye: kurye, tutar: tutar };
+  var adisyo = null; try { adisyo = tahsilatlariAdisyoyaIsle_(); } catch (err) { adisyo = { hata: String(err.message || err) }; }
+  return { tamam: true, islem: islem, kurye: kurye, tutar: tutar, adisyo: adisyo };
 }
 
 // Panelden elle kesinti: { istekNo, kurye, tarih: 'yyyy-MM-dd', tip: 'Saat' | 'TL', miktar, aciklama, onay }.
@@ -1190,6 +1194,43 @@ function rotaHesapla_(d) {
   return out;
 }
 
+/* ---------------- Kapatılan açık hesapları Adisyo'ya işleme ---------------- */
+
+// Tahsilatlar sekmesinde 'Adisyo Durumu' sütunu boş olan her kayıt için Adisyo › Satıs Verileri'nde siparişi bulur
+// (kurye tablosundaki sipariş no + sipariş saati, en fazla 20 dk fark) ve 'Ödeme Alındı' hücresini TRUE yapar.
+// Sonuç Tahsilatlar › 'Adisyo Durumu' sütununa yazılır; bulunamayan bir sonraki çalışmada yeniden denenir (en fazla 3 gün).
+function tahsilatlariAdisyoyaIsle_() {
+  var ks = SpreadsheetApp.openById(KAYNAK.kurye.id), th = ks.getSheetByName('Tahsilatlar'); if (!th || th.getLastRow() < 2) return { islenen: 0 };
+  var lc = th.getLastColumn(), tb = th.getRange(1, 1, 1, lc).getDisplayValues()[0], ca = kolon_(tb, ['Adisyo Durumu']);
+  if (ca < 0) { lc++; th.getRange(1, lc).setValue('Adisyo Durumu'); ca = lc - 1; }
+  var ci = kolon_(tb, ['Sipariş ID']), cz = kolon_(tb, ['Kayıt Zamanı']), tv = th.getRange(2, 1, th.getLastRow() - 1, lc).getDisplayValues();
+  var bekleyen = []; tv.forEach(function (r, i) { if (!String(r[ca] || '').trim() && siparisNo_(r[ci])) bekleyen.push({ satir: i + 2, id: siparisNo_(r[ci]), zaman: zaman_(r[cz]) }); });
+  if (!bekleyen.length) return { islenen: 0 };
+  // Kurye sistemi: sipariş ID → sipariş anı ve adisyon no
+  var s = sonSatirlar_(ks, 'Siparişler', 8000, ['Tarih', 'Sipariş ID', 'Adisyon No', 'Sipariş Saati']), kmap = {};
+  if (s) { var cs = { t: kolon_(s.b, ['Tarih']), id: kolon_(s.b, ['Sipariş ID']), no: kolon_(s.b, ['Adisyon No']), sa: kolon_(s.b, ['Sipariş Saati']) };
+    s.v.forEach(function (r) { var id = siparisNo_(r[cs.id]); if (id) kmap[id] = { no: String(r[cs.no] || '').trim(), ms: zaman_(String(r[cs.t]).trim() + ' ' + String(r[cs.sa] || '').trim()) }; }); }
+  var as = SpreadsheetApp.openById(KAYNAK.siparis.id), ash = as.getSheetByName('Satıs Verileri'); if (!ash) throw new Error("Adisyo'da 'Satıs Verileri' yok");
+  var a = sonSatirlar_(as, 'Satıs Verileri', 8000, ['Sipariş ID', 'Sipariş No', 'Sipariş Tarihi', 'Ödeme Alındı']);
+  var son = ash.getLastRow(), ilk = son - a.v.length + 1, c = { id: kolon_(a.b, ['Sipariş ID']), no: kolon_(a.b, ['Sipariş No']), t: kolon_(a.b, ['Sipariş Tarihi']), od: kolon_(a.b, ['Ödeme Alındı']) };
+  if (c.od < 0) throw new Error("Adisyo'da 'Ödeme Alındı' sütunu bulunamadı");
+  var ano = {}; a.v.forEach(function (r, i) { var no = String(r[c.no] || '').trim(), ms = zaman_(r[c.t]); if (no && ms !== null) (ano[no] = ano[no] || []).push({ satir: ilk + i, ms: ms, id: String(r[c.id] || '').trim(), od: String(r[c.od] || '') }); });
+  var simdi = new Date().getTime(), n = 0, bulunamadi = 0;
+  bekleyen.forEach(function (b) {
+    var k = kmap[b.id], sonuc = '';
+    var aday = k && k.ms !== null ? (ano[k.no] || []).map(function (x) { return { x: x, f: Math.abs(x.ms - k.ms) }; }).filter(function (y) { return y.f <= 20 * 60000; }).sort(function (p, q) { return p.f - q.f; })[0] : null;
+    if (aday) {
+      var hucre = ash.getRange(aday.x.satir, c.id + 1);
+      if (String(hucre.getDisplayValue()).trim() !== aday.x.id) sonuc = ''; // satır kaydı; bir sonraki çalışmada yeniden denenir
+      else { var od = ash.getRange(aday.x.satir, c.od + 1), once = String(od.getDisplayValue()).toUpperCase();
+        if (once !== 'TRUE') od.setValue(true);
+        sonuc = 'Ödeme Alındı = TRUE (Adisyo ' + aday.x.id + (once === 'TRUE' ? ', zaten TRUE' : '') + ')'; n++; }
+    } else if (b.zaman !== null && simdi - b.zaman > 3 * 86400000) { sonuc = "Adisyo'da bulunamadı; elle kontrol edin"; bulunamadi++; }
+    if (sonuc) th.getRange(b.satir, ca + 1).setValue(sonuc);
+  });
+  return { islenen: n, bulunamadi: bulunamadi, bekleyen: bekleyen.length - n - bulunamadi };
+}
+
 /* ---------------- Adisyo ↔ kurye sistemi kurye eşleştirmesi ---------------- */
 
 // Adisyo 'Satıs Verileri'ndeki paket siparişlerini kurye tablosundaki 'Siparişler' ile eşleştirir
@@ -1293,7 +1334,8 @@ function kuryeEslestirIslem_(d, kaynak) {
 // Zamanlayıcıyla çalıştırılabilir (Tetikleyiciler › saatlik): Adisyo'da kuryesi boş paket siparişlerini doldurur.
 function kuryeBoslariDoldur() {
   var k = LockService.getScriptLock(); k.waitLock(20000);
-  try { var r = kuryeEslestirIslem_({ islem: 'doldur' }, 'Otomatik'); Logger.log('Doldurulan: ' + r.yazilan); }
+  try { var r = kuryeEslestirIslem_({ islem: 'doldur' }, 'Otomatik'); Logger.log('Doldurulan: ' + r.yazilan);
+    try { Logger.log('Adisyo ödeme: ' + JSON.stringify(tahsilatlariAdisyoyaIsle_())); } catch (e) { Logger.log(e); } }
   finally { k.releaseLock(); CacheService.getScriptCache().remove('panel_v1_n'); }
 }
 

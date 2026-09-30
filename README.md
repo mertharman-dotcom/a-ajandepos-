@@ -38,6 +38,9 @@ Panelde **Kurye & Teslimat** bölümü (`#kurye`). **Kurye Net Çalışma Süres
   (yoksa açılır) olarak yazılır ve o sipariş listeden düşer; yanlış kapatılan satır o sekmeden silinirse yeniden açık görünür.
   **Kuryeden kes** ayrıca **Kesintiler** sekmesine TL kesinti yazar. Sipariş bilgisi tarayıcıdan değil Açık Hesaplar'dan okunur;
   aynı sipariş iki kez kapatılamaz.
+  Kapatılan her hesap Adisyo › Satıs Verileri'nde de işlenir: sipariş (no + saat ile) bulunur ve **Ödeme Alındı** TRUE yapılır;
+  sonuç Tahsilatlar › **Adisyo Durumu** sütununa yazılır. Bulunamayan 3 gün yeniden denenir, sonra "elle kontrol" diye işaretlenir.
+  Eski kapatmalar için panelde "Şimdi Adisyo'ya işle" düğmesi var; saatlik `kuryeBoslariDoldur` tetikleyicisi de bunu çalıştırır.
 - Seferler & rota: bugünün siparişleri kurye bazında seferlere ayrılır (restorandan 5 dk içinde çıkanlar tek sefer; atanmış
   ama yola çıkmamışlar ayrı grup). "Canlı süre ve km" Google Haritalar'dan (Apps Script Maps servisi, şu anki trafik)
   şube → 1. → 2. → 3. teslimat bacaklarını hesaplar: gidilecek km, sürüş, paket kapatma süresi (sürüş + kapı başına 2 dk),
