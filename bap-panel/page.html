@@ -153,8 +153,7 @@ h1{font-size:34px;line-height:1.12;margin:0;font-weight:700;letter-spacing:-.015
 
 .tam-ad{display:block;color:var(--gri);font-size:12px}
 @media (max-width:760px){.tam-ad{display:none}}
-.tur-sekme{grid-template-columns:repeat(auto-fit,minmax(135px,1fr))}
-@media (max-width:760px){.tur-sekme{grid-template-columns:repeat(2,minmax(0,1fr))}.mob-gizle{display:none}.tuk-tablo td,.tuk-tablo th{padding:9px 8px}}
+@media (max-width:760px){.mob-gizle{display:none}.tuk-tablo td,.tuk-tablo th{padding:9px 8px}}
 .yukleniyor{padding:80px 0;color:var(--gri);font-size:15px}
 
 @media (max-width:1100px){ .iki{grid-template-columns:minmax(0,1fr)} }
@@ -391,13 +390,15 @@ function maliyetSayfa(a){
   D.subeler.forEach(function(s){if(TUK.sube!=="Tümü"&&s!==TUK.sube)return;var o=D.ozet[s];["ciro","siparis","hammadde","yariMamul","direkt","ambalaj"].forEach(function(x){oz[x]+=o[x];});oz.kapsamPay+=o.kapsam*o.ciro;});
   var toplam=oz.hammadde+oz.yariMamul+oz.direkt+oz.ambalaj,kapsam=oz.ciro?oz.kapsamPay/oz.ciro:100;
 
-  // Tür sekmeleri: her birinde o türün toplam tutarı
-  a.appendChild(el("div",{class:"rakamlar tur-sekme"},TUK_TURLER.map(function(t){var v=t[0]==="hepsi"?toplam:(t[0]==="urun"?null:oz[t[0]]);var sec=TUK.tur===t[0];
-    var d=el("button",{type:"button",class:"rakam",style:"all:unset;box-sizing:border-box;display:block;cursor:pointer;background:"+(sec?"var(--mavi-acik)":"var(--kagit)")+";padding:16px 18px","aria-pressed":sec?"true":"false",onclick:function(){TUK.tur=t[0];TUK.kat="";ciz();}},[
-      el("div",{class:"ad",style:sec?"color:var(--mavi-koyu);font-weight:600":null,text:t[1]}),el("div",{class:"deger",style:"font-size:22px",text:t[0]==="urun"?String(D.urunler.length):para(v)}),
-      el("div",{class:"not",text:t[0]==="urun"?"çeşit ürün, "+para(oz.ciro)+" ciro":(oz.ciro?"cironun "+yuzde(v,oz.ciro):"satış yok")})]);return d;})));
+  // Özet: dört kalem ve toplam maliyet (seçili tarih ve şube)
+  var KAL=[["hammadde","Hammadde"],["yariMamul","Yarı mamul"],["direkt","Direkt satış"],["ambalaj","Ambalaj"]];
+  a.appendChild(el("div",{class:"rakamlar"},KAL.map(function(k){return rakam(k[1],para(oz[k[0]]),"Maliyetin "+yuzde(oz[k[0]],toplam)+" · cironun "+yuzde(oz[k[0]],oz.ciro));})
+    .concat([rakam("Toplam maliyet",para(toplam),oz.ciro?"Cironun "+yuzde(toplam,oz.ciro)+" · "+para(oz.ciro)+" ciro, "+oz.siparis+" sipariş":"Bu tarihlerde kapanan sipariş yok")])));
+  // Liste türü
+  a.appendChild(el("div",{class:"hafta-sec"},[el("span",{style:"font-size:13px;color:var(--gri)",text:"Liste:"}),el("div",{class:"sekmeler",style:"margin:0",role:"group","aria-label":"Liste türü"},TUK_TURLER.map(function(t){
+    return el("button",{type:"button","aria-pressed":TUK.tur===t[0]?"true":"false",onclick:function(){TUK.tur=t[0];TUK.kat="";ciz();}},[t[1]]);}))]));
   if(oz.ciro&&kapsam<97)a.appendChild(el("div",{class:"uyari"+(kapsam<85?" kotu":"")},[el("b",{text:"Satılan ürünlerin cirosunun %"+(Math.round((100-kapsam)*10)/10).toLocaleString("tr-TR")+"'i reçeteyle eşleşmedi"}),
-    el("div",{text:"Bu ürünlerin malzemeleri listeye girmedi; gerçek tüketim biraz daha yüksek. Eşleşmeyen ürünler sayfanın altında."})]));
+    el("div",{text:"Bu ürünlerin malzemeleri listeye ve maliyete girmedi; gerçek maliyet biraz daha yüksek."}),el("p",{style:"margin:8px 0 0"},[el("button",{type:"button",class:"dugme",onclick:function(){var h=document.getElementById("eksikler");if(h)h.scrollIntoView({behavior:"smooth"});}},["Reçetesi ve fiyatı eksik olanları gör"])])]));
 
   if(TUK.tur==="urun")urunTablosu(a,D);else malzemeTablosu(a,D);
 
@@ -405,7 +406,7 @@ function maliyetSayfa(a){
     D.eslesmeyen.length?tablo([["Satıştaki ad"],["Adet",1],["Ciro",1]],D.eslesmeyen.map(function(x){return [x.ad,TL.format(x.adet),para(x.ciro)];})):bos("Satılan her ürünün reçetesi ya da direkt satış tanımı var."));
   var sag=blok("Tanımı ya da fiyatı eksik malzemeler","Reçetede geçen ama tanımı ya da alış fiyatı bulunamayan kalemler; tutara sıfır olarak girdiler.",
     D.eksikTanim.length?tablo([["Malzeme"],["Kullanan ürünler"]],D.eksikTanim.map(function(x){return [x.ad,x.urunler.join(", ")+(x.urunSayi>x.urunler.length?" ve "+(x.urunSayi-x.urunler.length)+" ürün daha":"")];})):bos("Bütün malzemelerin tanımı ve fiyatı var."));
-  a.appendChild(el("div",{class:"iki"},[sol,sag]));
+  a.appendChild(el("div",{class:"iki",id:"eksikler"},[sol,sag]));
   var t=D.tanimlar||{};a.appendChild(el("p",{style:"color:var(--gri);font-size:13px"},["Okunan tanımlar: "+[t.recete+" reçete",t.yariMamul+" yarı mamul",t.hammadde+" hammadde",t.direkt+" direkt satış ürünü",t.ambalaj+" ambalaj malzemesi",t.ambalajKurali+" ambalaj kuralı"].join(", ")+". Stok, Stok Takip dosyasındaki Sube_Stok sekmesinin mevcut stoğudur; ambalaj "+D.ambalajDepo+" depoda tutulur."]));}
 
 function yuzde(p,t){return t?"%"+(Math.round(p/t*1000)/10).toLocaleString("tr-TR"):"—";}
