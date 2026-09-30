@@ -39,6 +39,7 @@ function doGet(e) {
   if (!anahtar || p.key !== anahtar) return json_({ hata: 'yetkisiz' });
 
   var cache = CacheService.getScriptCache();
+  if (p.tur === 'tuketim') return tuketimCevap_(p, cache);
   if (!p.fresh) {
     var c = onbellekOku_(cache);
     if (c) return ContentService.createTextOutput(c).setMimeType(ContentService.MimeType.JSON);
@@ -49,17 +50,33 @@ function doGet(e) {
 }
 
 
+// Satış maliyeti ekranı: istenen tarih aralığının malzeme tüketimi (2 dakika önbellek).
+function tuketimCevap_(p, cache) {
+  var bas = String(p.bas || ''), bit = String(p.bit || ''), gun = /^\d{4}-\d{2}-\d{2}$/;
+  if (!gun.test(bas) || !gun.test(bit) || bas > bit) return json_({ hata: 'Tarih aralığı geçersiz.' });
+  if ((Date.parse(bit) - Date.parse(bas)) / 86400000 > 92) return json_({ hata: 'En fazla 3 aylık aralık seçilebilir.' });
+  var on = 'tuk_' + bas + '_' + bit + '_';
+  if (!p.fresh) { var c = onbellekOku_(cache, on); if (c) return ContentService.createTextOutput(c).setMimeType(ContentService.MimeType.JSON); }
+  var metin;
+  try { metin = JSON.stringify(tuketim_(bas, bit)); }
+  catch (err) { return json_({ hata: String((err && err.message) || err) }); }
+  onbellekYaz_(cache, metin, on);
+  return ContentService.createTextOutput(metin).setMimeType(ContentService.MimeType.JSON);
+}
+
 // Önbellek anahtar başına 100 KB sınırlı; büyük paket parçalara bölünür.
-function onbellekYaz_(cache, metin) {
+function onbellekYaz_(cache, metin, on) {
+  on = on || 'panel_v1_';
   var n = Math.ceil(metin.length / 90000), o = {};
   if (n > 9) return;
-  for (var i = 0; i < n; i++) o['panel_v1_' + i] = metin.substr(i * 90000, 90000);
-  o['panel_v1_n'] = String(n);
+  for (var i = 0; i < n; i++) o[on + i] = metin.substr(i * 90000, 90000);
+  o[on + 'n'] = String(n);
   cache.putAll(o, 120);
 }
-function onbellekOku_(cache) {
-  var n = +cache.get('panel_v1_n'); if (!n) return null;
-  var keys = []; for (var i = 0; i < n; i++) keys.push('panel_v1_' + i);
+function onbellekOku_(cache, on) {
+  on = on || 'panel_v1_';
+  var n = +cache.get(on + 'n'); if (!n) return null;
+  var keys = []; for (var i = 0; i < n; i++) keys.push(on + i);
   var o = cache.getAll(keys), s = '';
   for (i = 0; i < n; i++) { if (o[keys[i]] == null) return null; s += o[keys[i]]; }
   return s;
@@ -80,14 +97,20 @@ function testEt() {
   var v = paketHazirla_();
   Logger.log('Kaynak sayısı: ' + v.kaynaklar.length);
   Logger.log('Bugünkü ciro: ' + (v.satis ? v.satis.gun.bugun.ciro : 'yok'));
-  if (v.maliyet) {
-    var mb = v.maliyet.donemler.bugun.subeler[0];
-    Logger.log('Bugünkü maliyet: hammadde ' + mb.hammadde + ', yarı mamul ' + mb.yariMamul + ', direkt satış ' + mb.direkt + ', ambalaj ' + mb.ambalaj +
-               ' (ciroya oranı %' + mb.oran + ', eşleşen ciro %' + mb.kapsam + ')');
-    Logger.log('Maliyet tanımları: ' + JSON.stringify(v.maliyet.tanimlar));
-  }
   Logger.log('Bekleyen karar: ' + (v.hub ? v.hub.bekleyen.length : 'yok'));
   Logger.log('Hatalar: ' + JSON.stringify(v.hatalar));
+}
+
+// Satış maliyeti ekranını yayınlamadan önce çalıştırın: bugünün malzeme tüketimini günlüğe yazar.
+function testTuketim() {
+  var bugun = isGunu_(simdi_()), v = tuketim_(bugun, bugun);
+  Logger.log('Okunan tanımlar: ' + JSON.stringify(v.tanimlar));
+  v.subeler.forEach(function (s) { Logger.log(s + ': ' + JSON.stringify(v.ozet[s])); });
+  v.malzemeler.filter(function (m) { return Object.keys(m.kullanim).length; })
+    .sort(function (a, b) { var t = function (m) { return Object.keys(m.kullanim).reduce(function (x, s) { return x + m.kullanim[s][1]; }, 0); }; return t(b) - t(a); })
+    .slice(0, 15).forEach(function (m) { Logger.log(m.tur + ' · ' + m.ad + ' · ' + JSON.stringify(m.kullanim) + ' ' + m.birim + ' · stok ' + JSON.stringify(m.stok)); });
+  Logger.log('Reçetesi bulunamayan: ' + JSON.stringify(v.eslesmeyen.slice(0, 10)));
+  Logger.log('Tanımı / fiyatı eksik: ' + JSON.stringify(v.eksikTanim.slice(0, 10)));
 }
 
 /* ---------------- Paket ---------------- */
@@ -97,7 +120,7 @@ function paketHazirla_() {
   var out = {
     surum: 1,
     olusturma: Utilities.formatDate(simdi, TZ, "yyyy-MM-dd'T'HH:mm:ss"),
-    kaynaklar: [], satis: null, maliyet: null, nabiz: null, isKaydi: null, hub: null, finans: null, personel: null, genel: null, hatalar: []
+    kaynaklar: [], satis: null, nabiz: null, isKaydi: null, hub: null, finans: null, personel: null, genel: null, hatalar: []
   };
   Object.keys(KAYNAK).forEach(function (k) {
     var s = KAYNAK[k];
@@ -111,7 +134,6 @@ function paketHazirla_() {
     out.kaynaklar.push(r);
   });
   bolum_(out, 'satis', satis_);
-  bolum_(out, 'maliyet', maliyet_);
   bolum_(out, 'nabiz', nabiz_);
   bolum_(out, 'isKaydi', isKaydi_);
   bolum_(out, 'hub', hub_);
@@ -128,10 +150,8 @@ function bolum_(out, ad, fn) {
 
 /* ---------------- Satış ---------------- */
 
-// Sipariş tablosu bir kez okunur; satış ve maliyet bölümleri aynı satırları kullanır.
-var SIPARIS_ONBELLEK_ = null;
-function siparisVerisi_() {
-  if (SIPARIS_ONBELLEK_) return SIPARIS_ONBELLEK_;
+// Sipariş tablosu sondan okunur. enEski (yyyy-MM-dd) verilirse o güne ulaşana kadar geriye doğru parça parça okunur.
+function siparisVerisi_(enEski) {
   var sh = SpreadsheetApp.openById(KAYNAK.siparis.id).getSheetByName('Satıs Verileri');
   if (!sh) throw new Error("Sipariş dosyasında 'Satıs Verileri' sekmesi bulunamadı");
   var son = sh.getLastRow(), gen = sh.getLastColumn();
@@ -143,10 +163,14 @@ function siparisVerisi_() {
     urunler: kolon_(b, ['Ürünler']), adetler: kolon_(b, ['Ürün Adetleri']), fiyatlar: kolon_(b, ['Ürün Fiyatları']), kategoriler: kolon_(b, ['Ürün Kategorileri'])
   };
   if (c.tarih < 0 || c.tutar < 0 || c.durum < 0) throw new Error('Sipariş tablosunda tarih, tutar ya da durum sütunu bulunamadı');
-  // Ay başından bugüne maliyet için ~40 gün gerekir; günde birkaç yüz siparişe yeter.
-  var n = Math.min(9000, son - 1);
-  SIPARIS_ONBELLEK_ = { c: c, rows: n > 0 ? sh.getRange(son - n + 1, 1, n, gen).getValues() : [] };
-  return SIPARIS_ONBELLEK_;
+  var rows = [], alt = son, ilkGun = null;
+  while (alt > 1) {
+    var n = Math.min(5000, alt - 1), ust = alt - n + 1, v = sh.getRange(ust, 1, n, gen).getValues();
+    rows = v.concat(rows); alt = ust - 1;
+    for (var i = 0; i < v.length; i++) { var ms = zaman_(v[i][c.tarih]); if (ms !== null) { ilkGun = isGunu_(ms); break; } }
+    if (!enEski || (ilkGun && ilkGun < enEski) || rows.length >= 60000) break;
+  }
+  return { c: c, rows: rows, ilkGun: ilkGun, hepsi: alt <= 1 };
 }
 
 function satis_() {
@@ -225,161 +249,174 @@ function satis_() {
   };
 }
 
-/* ---------------- Satıştan maliyet (ürünün çıktığı şubeye göre) ----------------
- * Kapanan siparişlerdeki her ürün reçetesine açılır ve dört kaleme ayrılır:
- *   hammadde  : reçetede doğrudan kullanılan hammaddeler (Tbl_Hammaddeler, son alış fiyatı / paket içeriği)
- *   yariMamul : reçetedeki yarı mamuller (parti reçetesinin maliyeti / parti çıktısı)
- *   direkt    : olduğu gibi satılan ürünler, ör. içecekler (Direktsatisurunler)
+/* ---------------- Malzeme tüketimi (satıştan, ürünün çıktığı şubeye göre) ----------------
+ * Kapanan siparişlerdeki her ürün Stok Takip dosyasındaki reçetesine açılır ve malzeme malzeme toplanır:
+ *   hammadde  : reçetede doğrudan kullanılan hammaddeler (Tbl_Hammaddeler; miktar stok biriminde, fiyat son alış / paket içeriği)
+ *   yariMamul : reçetedeki yarı mamuller (gr ya da adet; fiyat parti reçetesi / parti çıktısı)
+ *   direkt    : olduğu gibi satılanlar, ör. içecekler (Direktsatisurunler; koli fiyatı / koli içeriği)
  *   ambalaj   : yalnız paket siparişlerde, Ambalaj_Kurallari'na göre (Ambalaj_Hammadde)
- * Maliyet siparişin 'Ürün Çıkan Şube'sine yazılır; boşsa siparişin geldiği şubeye. Tablolara hiçbir şey yazmaz.
+ * Tüketim siparişin 'Ürün Çıkan Şube'sine yazılır; boşsa geldiği şubeye. Yanına Sube_Stok'taki mevcut stok konur.
+ * Panel istediği tarih aralığını ayrıca ister (doGet tur=tuketim). Tablolara hiçbir şey yazmaz.
  * Satış adı reçetedeki addan farklıysa stok dosyasına 'Maliyet_Eslestirme' sekmesi eklenebilir: A satış adı, B reçetedeki ürün adı.
  */
 var MALIYET_ESLESTIRME_SEKME = 'Maliyet_Eslestirme';
 var SIFIR_MALIYET = { su: 1, sicaksu: 1, iliksu: 1, buz: 1 };
+var TUR_STOK_TIP = { hammadde: 'HM', yariMamul: 'YM', direkt: 'DS', ambalaj: 'AMB' };
+var AMBALAJ_DEPO = 'Merkez';
 
-function maliyet_() {
-  var sv = siparisVerisi_(), c = sv.c;
-  if (!sv.rows.length) return null;
+function tuketim_(bas, bit) {
+  var T = maliyetTanimlari_(), sv = siparisVerisi_(bas), c = sv.c;
   if (c.urunler < 0 || c.adetler < 0) throw new Error('Sipariş tablosunda Ürünler ya da Ürün Adetleri sütunu bulunamadı');
-  var T = maliyetTanimlari_();
-
-  var simdi = simdi_(), bugun = isGunu_(simdi), dun = gunEkle_(bugun, -1);
-  var dow = (new Date(bugun + 'T00:00:00Z').getUTCDay() + 6) % 7, haftaBasi = gunEkle_(bugun, -dow);
-  var yediBasi = gunEkle_(bugun, -6), ayBasi = bugun.slice(0, 8) + '01', ilkSeri = gunEkle_(bugun, -13);
-  var enEski = [ayBasi, ilkSeri, haftaBasi].sort()[0];
-  var DONEM = [['bugun', 'Bugün', bugun, bugun], ['dun', 'Dün', dun, dun], ['hafta', 'Bu hafta', haftaBasi, bugun],
-               ['yedi', 'Son 7 gün', yediBasi, bugun], ['ay', 'Bu ay', ayBasi, bugun]];
-  var don = {}; DONEM.forEach(function (d) { don[d[0]] = {}; });
-  var seri = {}; for (var i = 0; i < 14; i++) seri[gunEkle_(ilkSeri, i)] = {};
-  var eslesmeyen = {}, subeAdlari = {};
-
-  function kova(o, sube) {
-    return o[sube] = o[sube] || { ciro: 0, siparis: 0, kalemCiro: 0, eslesenCiro: 0, hammadde: 0, yariMamul: 0, direkt: 0, ambalaj: 0, urunler: {} };
-  }
+  var ozet = {}, kul = {}, urunSatis = {}, eslesmeyen = {}, subeler = {};
+  function oz(s) { return ozet[s] = ozet[s] || { ciro: 0, siparis: 0, kalemCiro: 0, eslesenCiro: 0, hammadde: 0, yariMamul: 0, direkt: 0, ambalaj: 0 }; }
 
   sv.rows.forEach(function (r) {
     var ms = zaman_(r[c.tarih]); if (ms === null) return;
-    var gun = isGunu_(ms); if (gun < enEski || gun > bugun) return;
+    var gun = isGunu_(ms); if (gun < bas || gun > bit) return;
     if (norm_(r[c.durum]) !== 'kapali') return;
-    var sube = subeKisa_(subeAnahtar_(c.cikan >= 0 ? r[c.cikan] : '') || subeAnahtar_(c.sube >= 0 ? r[c.sube] : '')) || 'Belirtilmemiş';
+    var s = subeKisa_(subeAnahtar_(c.cikan >= 0 ? r[c.cikan] : '') || subeAnahtar_(c.sube >= 0 ? r[c.sube] : '')) || 'Belirtilmemiş';
     var paket = c.tip < 0 || /paket/i.test(String(r[c.tip] || ''));
-    var hedef = [];
-    DONEM.forEach(function (d) { if (gun >= d[2] && gun <= d[3]) { hedef.push(kova(don[d[0]], sube)); hedef.push(kova(don[d[0]], 'Tümü')); } });
-    if (seri[gun]) hedef.push(kova(seri[gun], sube));
-    if (!hedef.length) return;
-    subeAdlari[sube] = 1;
-    var tutar = sayi_(r[c.tutar]);
-    hedef.forEach(function (k) { k.ciro += tutar; k.siparis++; });
-
+    subeler[s] = 1;
+    var o = oz(s); o.ciro += sayi_(r[c.tutar]); o.siparis++;
     var adlar = parca_(r[c.urunler]), adet = parca_(r[c.adetler]),
         fiyat = c.fiyatlar >= 0 ? parca_(r[c.fiyatlar]) : [], kat = c.kategoriler >= 0 ? parca_(r[c.kategoriler]) : [];
     adlar.forEach(function (u, j) {
       if (!u) return;
-      var a = sayi_(adet[j]) || 1, kc = a * sayi_(fiyat[j]);
-      var m = urunMaliyeti_(T, u, kat[j] || '');
-      var amb = paket ? m.ambalaj : 0, top = a * (m.hammadde + m.yariMamul + m.direkt + amb);
-      if (!m.bulundu && kc > 0 && gun >= yediBasi) {
-        var e = eslesmeyen[m.anahtar] = eslesmeyen[m.anahtar] || { ad: u, adet: 0, ciro: 0 }; e.adet += a; e.ciro += kc;
-      }
-      hedef.forEach(function (k) {
-        k.kalemCiro += kc; if (m.bulundu) k.eslesenCiro += kc;
-        k.hammadde += a * m.hammadde; k.yariMamul += a * m.yariMamul; k.direkt += a * m.direkt; k.ambalaj += a * amb;
-        if (top > 0 && m.bulundu) { var x = k.urunler[m.ad] = k.urunler[m.ad] || { ad: m.ad, adet: 0, ciro: 0, maliyet: 0 }; x.adet += a; x.ciro += kc; x.maliyet += top; }
+      var a = sayi_(adet[j]) || 1, kc = a * sayi_(fiyat[j]), m = urunAc_(T, u, kat[j] || '');
+      o.kalemCiro += kc; if (m.bulundu) o.eslesenCiro += kc;
+      if (!m.bulundu && kc > 0) { var e = eslesmeyen[m.anahtar] = eslesmeyen[m.anahtar] || { ad: u, adet: 0, ciro: 0 }; e.adet += a; e.ciro += kc; }
+      var liste = paket ? m.kalemler.concat(m.ambalaj) : m.kalemler, maliyet = 0;
+      liste.forEach(function (k) {
+        var x = kul[k.mk] = kul[k.mk] || {}, y = x[s] = x[s] || { miktar: 0, tutar: 0, urunler: {} };
+        y.miktar += a * k.miktar; y.tutar += a * k.tutar; y.urunler[m.ad] = (y.urunler[m.ad] || 0) + a * k.miktar;
+        o[T.mal[k.mk].tur] += a * k.tutar; maliyet += a * k.tutar;
       });
+      if (m.bulundu || maliyet > 0) {
+        var us = urunSatis[m.ad] = urunSatis[m.ad] || { ad: m.ad, kategori: m.kategori || kat[j] || '', subeler: {} };
+        var z = us.subeler[s] = us.subeler[s] || [0, 0, 0]; z[0] += a; z[1] += kc; z[2] += maliyet;
+      }
     });
   });
 
-  var subeler = Object.keys(subeAdlari).sort(function (a, b) { return (a === 'Belirtilmemiş') - (b === 'Belirtilmemiş') || a.localeCompare(b, 'tr'); });
-  function yuvarla(k, sube) {
-    k = k || kova({}, sube);
-    var toplam = k.hammadde + k.yariMamul + k.direkt + k.ambalaj;
-    return { sube: sube, ciro: Math.round(k.ciro), siparis: k.siparis,
-      hammadde: Math.round(k.hammadde), yariMamul: Math.round(k.yariMamul), direkt: Math.round(k.direkt), ambalaj: Math.round(k.ambalaj), toplam: Math.round(toplam),
-      oran: k.ciro ? Math.round(toplam / k.ciro * 1000) / 10 : 0,
-      kapsam: k.kalemCiro ? Math.round(k.eslesenCiro / k.kalemCiro * 1000) / 10 : 0,
-      urunler: Object.keys(k.urunler).map(function (a) { var x = k.urunler[a]; return { ad: x.ad, adet: Math.round(x.adet * 10) / 10, ciro: Math.round(x.ciro), maliyet: Math.round(x.maliyet) }; })
-        .sort(function (a, b) { return b.maliyet - a.maliyet; }).slice(0, 15) };
-  }
-  var donemler = {};
-  DONEM.forEach(function (d) {
-    donemler[d[0]] = { ad: d[1], bas: d[2], bit: d[3], subeler: ['Tümü'].concat(subeler).map(function (s) { return yuvarla(don[d[0]][s], s); }) };
-  });
+  var stok = subeStokHaritasi_();
+  var r2 = function (x) { return Math.round(x * 100) / 100; }, r3 = function (x) { return Math.round(x * 1000) / 1000; };
+  var malzemeler = Object.keys(T.mal).map(function (mk) {
+    var d = T.mal[mk], k = kul[mk] || {}, st = {}, stokTip = TUR_STOK_TIP[d.tur];
+    var yerler = d.tur === 'ambalaj' ? [AMBALAJ_DEPO] : ['Erenköy', 'Fikirtepe'].concat(Object.keys(subeler));
+    yerler.forEach(function (y) {
+      for (var i = 0; i < d.adlar.length; i++) { var v = stok[norm_(d.adlar[i]) + '|' + stokTip + '|' + norm_(y)]; if (v !== undefined) { st[y] = r3(v); break; } }
+    });
+    var kullanim = {}, urunler = {};
+    Object.keys(k).forEach(function (s) {
+      kullanim[s] = [r3(k[s].miktar), r2(k[s].tutar)];
+      Object.keys(k[s].urunler).forEach(function (u) { urunler[u] = (urunler[u] || 0) + k[s].urunler[u]; });
+    });
+    return { ad: d.ad, tamAd: d.tamAd, tur: d.tur, kategori: d.kategori, birim: d.birim, birimFiyat: r3(d.birimFiyat || 0), kullanim: kullanim, stok: st,
+             urunler: Object.keys(urunler).map(function (u) { return [u, r3(urunler[u])]; }).sort(function (a, b) { return b[1] - a[1]; }).slice(0, 8) };
+  }).filter(function (m) { return Object.keys(m.kullanim).length || Object.keys(m.stok).length; });
+
+  var sl = Object.keys(subeler).sort(function (a, b) { return (a === 'Belirtilmemiş') - (b === 'Belirtilmemiş') || a.localeCompare(b, 'tr'); });
+  var ozetCikti = {};
+  sl.forEach(function (s) { var o = ozet[s]; ozetCikti[s] = { ciro: Math.round(o.ciro), siparis: o.siparis, hammadde: r2(o.hammadde), yariMamul: r2(o.yariMamul), direkt: r2(o.direkt), ambalaj: r2(o.ambalaj),
+    kapsam: o.kalemCiro ? Math.round(o.eslesenCiro / o.kalemCiro * 1000) / 10 : 100 }; });
   return {
-    bugun: bugun, subeler: subeler, donemler: donemler,
-    seri: Object.keys(seri).sort().map(function (g) {
-      var o = { gun: g, subeler: {} };
-      subeler.forEach(function (s) { var x = yuvarla(seri[g][s], s); o.subeler[s] = { ciro: x.ciro, hammadde: x.hammadde, yariMamul: x.yariMamul, direkt: x.direkt, ambalaj: x.ambalaj }; });
-      return o;
-    }),
-    eslesmeyen: Object.keys(eslesmeyen).map(function (k) { var e = eslesmeyen[k]; return { ad: e.ad, adet: e.adet, ciro: Math.round(e.ciro) }; })
-      .sort(function (a, b) { return b.ciro - a.ciro; }).slice(0, 25),
+    bas: bas, bit: bit, gunSayisi: Math.round((Date.parse(bit) - Date.parse(bas)) / 86400000) + 1, okunanIlkGun: sv.ilkGun, eksikAralik: !sv.hepsi && sv.ilkGun > bas,
+    olusturma: Utilities.formatDate(new Date(), TZ, "yyyy-MM-dd'T'HH:mm:ss"), subeler: sl, ozet: ozetCikti, malzemeler: malzemeler,
+    urunler: Object.keys(urunSatis).map(function (k) { var u = urunSatis[k], o = {}; Object.keys(u.subeler).forEach(function (s) { var z = u.subeler[s]; o[s] = [r3(z[0]), Math.round(z[1]), r2(z[2])]; }); return { ad: u.ad, kategori: u.kategori, subeler: o }; }),
+    eslesmeyen: Object.keys(eslesmeyen).map(function (k) { var e = eslesmeyen[k]; return { ad: e.ad, adet: e.adet, ciro: Math.round(e.ciro) }; }).sort(function (a, b) { return b.ciro - a.ciro; }).slice(0, 30),
     eksikTanim: Object.keys(T.eksik).map(function (k) { var e = T.eksik[k]; return { ad: e.ad, urunler: Object.keys(e.urunler).slice(0, 6), urunSayi: Object.keys(e.urunler).length }; })
-      .sort(function (a, b) { return b.urunSayi - a.urunSayi; }).slice(0, 25),
-    tanimlar: T.sayilar, eslestirmeSekmesi: MALIYET_ESLESTIRME_SEKME
+      .sort(function (a, b) { return b.urunSayi - a.urunSayi; }).slice(0, 30),
+    tanimlar: T.sayilar, eslestirmeSekmesi: MALIYET_ESLESTIRME_SEKME, ambalajDepo: AMBALAJ_DEPO
   };
 }
 
-// Bir satış satırındaki ürünün BİR adedinin maliyeti (ambalaj ayrı; yalnız paket siparişte eklenir).
-function urunMaliyeti_(T, satisAdi, kategori) {
+// Sube_Stok: Urun_Adi, Tip, Sube, Mevcut_Stok → { 'ad|TIP|sube': mevcut }
+function subeStokHaritasi_() {
+  var v = sekme_(SpreadsheetApp.openById(KAYNAK.stok.id), ['Sube_Stok']), h = {};
+  if (v.length < 2) return h;
+  var b = v[0].map(String), cA = tamKolon_(b, ['Urun_Adi'], 0), cT = tamKolon_(b, ['Tip'], 1), cS = tamKolon_(b, ['Sube', 'Şube'], 2), cM = tamKolon_(b, ['Mevcut_Stok'], 3);
+  v.slice(1).forEach(function (r) {
+    if (!String(r[cA]).trim()) return;
+    h[norm_(r[cA]) + '|' + String(r[cT] || '').trim().toUpperCase() + '|' + norm_(r[cS])] = sayi_(r[cM]);
+  });
+  return h;
+}
+
+// Bir satış satırındaki ürünün BİR adedinin malzemeleri: [{ mk, miktar (malzemenin biriminde), tutar }]. Ambalaj ayrı listede.
+function urunAc_(T, satisAdi, kategori) {
   var anahtar = norm_(satisAdi), memo = anahtar + '|' + norm_(kategori);
   if (T.urunMemo[memo]) return T.urunMemo[memo];
-  var m = { anahtar: anahtar, ad: satisAdi, hammadde: 0, yariMamul: 0, direkt: 0, ambalaj: 0, bulundu: false };
+  var m = { anahtar: anahtar, ad: satisAdi, kategori: '', bulundu: false, kalemler: [], ambalaj: [] };
   var rk = T.eslestir[anahtar] || (T.recete[anahtar] ? anahtar : null) || benzer_(T, anahtar, 'r');
   if (rk && T.recete[rk]) {
-    var rc = T.recete[rk]; m.ad = rc.ad; m.bulundu = true;
-    rc.bilesenler.forEach(function (b) {
-      var s = bilesenMaliyeti_(T, b.ad, b.miktar, b.birim, b.tip, 0, rc.ad);
-      if (s) m[s.kalem] += s.tutar;
-    });
+    var rc = T.recete[rk]; m.ad = rc.ad; m.kategori = T.urunKategori[rk] || ''; m.bulundu = true;
+    rc.bilesenler.forEach(function (b) { var s = bilesen_(T, b.ad, b.miktar, b.birim, b.tip, 0, rc.ad); if (s) m.kalemler.push(s); });
   } else {
     var dk = T.ds[anahtar] ? anahtar : benzer_(T, anahtar, 'd'), ds = dk ? T.ds[dk] : null;
-    if (ds) { m.ad = ds.ad; m.direkt = ds.birimFiyat; m.bulundu = ds.birimFiyat > 0; if (!m.bulundu) eksikEkle_(T, ds.ad + ' (alış fiyatı yok)', satisAdi); }
+    if (ds) {
+      m.ad = ds.ad; m.bulundu = true;
+      m.kalemler.push({ mk: malKaydet_(T, 'direkt', ds), miktar: 1, tutar: ds.birimFiyat });
+      if (!(ds.birimFiyat > 0)) eksikEkle_(T, ds.ad + ' (alış fiyatı yok)', satisAdi);
+    }
   }
   // Ambalaj: önce ürüne özel kural, yoksa ürünün kategorisine ait kural.
-  var rkat = rk && T.recete[rk] ? T.urunKategori[rk] : '';
-  var kural = (rk && T.ambUrun[rk]) || T.ambUrun[anahtar] || (rkat && T.ambKat[norm_(rkat)]) || T.ambKat[norm_(kategori)] || [];
+  var kural = (rk && T.ambUrun[rk]) || T.ambUrun[anahtar] || (m.kategori && T.ambKat[norm_(m.kategori)]) || T.ambKat[norm_(kategori)] || [];
   kural.forEach(function (x) {
     var p = T.amb[norm_(x.malzeme)];
-    if (p && p.birimFiyat > 0) m.ambalaj += x.miktar * p.birimFiyat; else eksikEkle_(T, x.malzeme + ' (ambalaj)', m.ad);
+    if (!p) { eksikEkle_(T, x.malzeme + ' (ambalaj tanımı yok)', m.ad); return; }
+    if (!(p.birimFiyat > 0)) eksikEkle_(T, x.malzeme + ' (alış fiyatı yok)', m.ad);
+    m.ambalaj.push({ mk: malKaydet_(T, 'ambalaj', p), miktar: x.miktar, tutar: x.miktar * p.birimFiyat });
   });
   T.urunMemo[memo] = m;
   return m;
 }
 
-// Reçetedeki bir satırın tutarı ve hangi kaleme yazılacağı.
-function bilesenMaliyeti_(T, ad, miktar, birim, tip, derin, urun) {
+// Reçetedeki bir satır: hangi malzeme, malzemenin biriminde ne kadar, kaç lira.
+function bilesen_(T, ad, miktar, birim, tip, derin, urun) {
   if (!ad || !(miktar > 0)) return null;
   var n = norm_(ad);
-  if (SIFIR_MALIYET[n]) return { kalem: 'hammadde', tutar: 0 };
+  if (SIFIR_MALIYET[n]) return null;
   var ym = T.ym[n], hm = T.hm[n], ds = T.ds[n];
   if (ym && (tip === 'YM' || !hm)) {
-    var t = ymKullanim_(T, ym, miktar, birim, derin, urun);
-    return t === null ? null : { kalem: 'yariMamul', tutar: t };
+    var q = ymMiktar_(ym, miktar, birim), bf = ymBirimFiyat_(T, ym, derin, urun);
+    return { mk: malKaydet_(T, 'yariMamul', ym, bf), miktar: q, tutar: bf === null ? 0 : q * bf };
   }
-  if (hm && hm.birimFiyat > 0) return { kalem: 'hammadde', tutar: cevir_(miktar, birim, hm.birim) * hm.birimFiyat };
-  if (ds && ds.birimFiyat > 0) return { kalem: 'direkt', tutar: miktar * ds.birimFiyat };
-  eksikEkle_(T, ad + (hm || ds ? ' (alış fiyatı yok)' : ''), urun);
+  if (hm) {
+    if (!(hm.birimFiyat > 0)) eksikEkle_(T, ad + ' (alış fiyatı yok)', urun);
+    var qh = cevir_(miktar, birim, hm.birim);
+    return { mk: malKaydet_(T, 'hammadde', hm), miktar: qh, tutar: qh * hm.birimFiyat };
+  }
+  if (ds) {
+    if (!(ds.birimFiyat > 0)) eksikEkle_(T, ad + ' (alış fiyatı yok)', urun);
+    return { mk: malKaydet_(T, 'direkt', ds), miktar: miktar, tutar: miktar * ds.birimFiyat };
+  }
+  eksikEkle_(T, ad + ' (tanımı yok)', urun);
   return null;
 }
 
-function ymKullanim_(T, ym, m, birim, derin, urun) {
-  var bf = ymBirimFiyat_(T, ym, derin, urun); if (bf === null) return null;
-  var fa = birimAile_(birim), ag = ym.birimAgir || ym.porsiyonAgir;
-  if (ym.gram) {
-    if (fa && fa[0] === 'k') return m * fa[1] * bf;
-    return (ag > 0 ? m * ag : m) * bf;
-  }
-  if (!fa || fa[0] === 'a') return m * bf;
-  return (ag > 0 ? m * fa[1] / ag : 1) * bf; // adetle takip edilen yarı mamul gramla yazılmışsa: bir adetin ağırlığına böl
+function malKaydet_(T, tur, x, ymFiyat) {
+  var mk = tur + '|' + norm_(x.tamAd || x.ad);
+  if (!T.mal[mk]) T.mal[mk] = { tur: tur, ad: x.ad, tamAd: x.tamAd || x.ad, kategori: x.kategori || '', adlar: [x.tamAd, x.ad].filter(Boolean),
+    birim: tur === 'yariMamul' ? (x.gram ? 'gr' : 'adet') : (tur === 'hammadde' ? (x.birim || 'adet') : 'adet'),
+    birimFiyat: tur === 'yariMamul' ? ymFiyat : x.birimFiyat };
+  return mk;
 }
 
-// Yarı mamulün çıktı biriminin (gr ya da adet) maliyeti: parti reçetesi toplamı / parti çıktısı.
+// Reçetede yazılan miktarı yarı mamulün takip birimine (gr ya da adet) çevirir.
+function ymMiktar_(ym, m, birim) {
+  var fa = birimAile_(birim), ag = ym.birimAgir || ym.porsiyonAgir;
+  if (ym.gram) { if (fa && fa[0] === 'k') return m * fa[1]; return ag > 0 ? m * ag : m; }
+  if (!fa || fa[0] === 'a') return m;
+  return ag > 0 ? m * fa[1] / ag : 1; // adetle takip edilen yarı mamul gramla yazılmışsa: bir adetin ağırlığına böl
+}
+
+// Yarı mamulün takip biriminin (gr ya da adet) maliyeti: parti reçetesi toplamı / parti çıktısı.
 function ymBirimFiyat_(T, ym, derin, urun) {
   if (ym.fiyat !== undefined) return ym.fiyat;
   if (derin > 4 || ym.hesaplaniyor) return null;
   ym.hesaplaniyor = true;
   var parti = 0;
-  ym.bilesenler.forEach(function (b) { var s = bilesenMaliyeti_(T, b.ad, b.miktar, b.birim, '', derin + 1, ym.ad); if (s) parti += s.tutar; });
+  ym.bilesenler.forEach(function (b) { var s = bilesen_(T, b.ad, b.miktar, b.birim, '', derin + 1, ym.ad); if (s) parti += s.tutar; });
   ym.hesaplaniyor = false;
   if (!ym.bilesenler.length) { eksikEkle_(T, ym.ad + ' (yarı mamul reçetesi yok)', urun); return ym.fiyat = null; }
   if (!(ym.baz > 0)) { eksikEkle_(T, ym.ad + ' (parti çıktısı yazılmamış)', urun); return ym.fiyat = null; }
@@ -388,12 +425,12 @@ function ymBirimFiyat_(T, ym, derin, urun) {
 
 function maliyetTanimlari_() {
   var ss = SpreadsheetApp.openById(KAYNAK.stok.id);
-  var T = { recete: {}, receteAnahtar: [], urunKategori: {}, hm: {}, ym: {}, ds: {}, dsAnahtar: [], amb: {}, ambUrun: {}, ambKat: {},
+  var T = { recete: {}, receteAnahtar: [], urunKategori: {}, hm: {}, ym: {}, ds: {}, dsAnahtar: [], amb: {}, ambUrun: {}, ambKat: {}, mal: {},
             eslestir: {}, urunMemo: {}, eksik: {}, benzerMemo: {}, ikiliMemo: {}, sayilar: {} };
 
   sekme_(ss, ['Ürün_Listesi', 'Urun_Listesi']).slice(1).forEach(function (r) { if (String(r[0]).trim()) T.urunKategori[norm_(r[0])] = String(r[1] || '').trim(); });
 
-  // Hammadde ve ambalaj tabloları: B tam ad, C kısa ad, E sipariş aktif, H paket içeriği, I ölçü birimi, J son alış fiyatı (paket).
+  // Hammadde ve ambalaj tabloları: B tam ad, C kısa ad, E sipariş aktif, G kategori, H paket içeriği, I ölçü birimi, J son alış fiyatı (paket).
   T.sayilar.hammadde = fiyatTablosu_(sekme_(ss, ['Tbl_Hammaddeler']), T.hm);
   T.sayilar.ambalaj = fiyatTablosu_(sekme_(ss, ['Ambalaj_Hammadde']), T.amb);
 
@@ -402,14 +439,17 @@ function maliyetTanimlari_() {
   if (dv.length > 1) {
     var db = dv[0].map(String);
     var cU = tamKolon_(db, ['Urun_adi'], 1), cK = tamKolon_(db, ['Hammadde_Adi', 'Hammadde_Adı'], 2), cA = tamKolon_(db, ['Tedarikçi Sipariş Aktif'], 4),
-        cF = tamKolon_(db, ['Son Alış Fiyatı', 'Son_Alis_Fiyati'], 9), cO = tamKolon_(db, ['Ölçü_Birimi', 'Olcu_Birimi'], 8), cKi = tamKolon_(db, ['Koli_Icerik', 'Koli_İçerik'], 15);
+        cG = tamKolon_(db, ['Kategori'], 6), cF = tamKolon_(db, ['Son Alış Fiyatı', 'Son_Alis_Fiyati'], 9), cO = tamKolon_(db, ['Ölçü_Birimi', 'Olcu_Birimi'], 8),
+        cKi = tamKolon_(db, ['Koli_Icerik', 'Koli_İçerik'], 15);
     dv.slice(1).forEach(function (r) {
       var tam = String(r[cU] || '').trim(), kisa = String(r[cK] || '').trim(); if (!tam && !kisa) return;
       // Koli içeriği yazılmamışsa addan okunur: "...1X24...", "20Lİ".
       var bol = sayi_(r[cKi]), mm = tam.match(/(?:^|\D)1\s*[xX*]\s*(\d{1,3})(?!\d)/) || tam.match(/(\d{1,3})\s*L[İIiı](?![A-Za-zçğıöşüÇĞİÖŞÜ])/);
       if (!(bol > 1)) bol = mm ? +mm[1] : (sayi_(r[cO]) > 1 ? sayi_(r[cO]) : 1);
       var f = sayi_(r[cF]);
-      var x = { ad: kisa || tam, birimFiyat: f > 0 ? f / bol : 0, aktif: !/^(false|yanlış|yanlis|hayır|hayir|0)$/i.test(String(r[cA]).trim()) };
+      // Aynı içecek birden çok satırda olabilir (tedarikçi / koli); malzeme kısa adıyla tek kalem sayılır.
+      var x = { ad: kisa || tam, tamAd: kisa || tam, kategori: String(r[cG] || '').trim() || 'İçecek', birimFiyat: f > 0 ? f / bol : 0,
+                aktif: !/^(false|yanlış|yanlis|hayır|hayir|0)$/i.test(String(r[cA]).trim()) };
       [tam, kisa].forEach(function (a) { if (a) enIyi_(T.ds, norm_(a), x); });
       dn++;
     });
@@ -422,12 +462,12 @@ function maliyetTanimlari_() {
   if (yv.length > 1) {
     var yb = yv[0].map(String);
     var yT = tamKolon_(yb, ['Cikti_Tipi', 'Çıktı_Tipi'], 1), yB = tamKolon_(yb, ['Baz_Miktar', 'Baz_Miktari', 'Parti_Miktari'], 2),
-        yA = tamKolon_(yb, ['Birim_Agirlik', 'Birim_Ağırlık'], 3), yP = tamKolon_(yb, ['Porsiyon_Agirlik', 'Porsiyon_Ağırlık'], 4);
+        yA = tamKolon_(yb, ['Birim_Agirlik', 'Birim_Ağırlık'], 3), yP = tamKolon_(yb, ['Porsiyon_Agirlik', 'Porsiyon_Ağırlık'], 4), yK = tamKolon_(yb, ['Kategori'], 6);
     yv.slice(1).forEach(function (r) {
       var ad = String(r[0] || '').trim(); if (!ad) return;
       var tip = birimAile_(r[yT]), baz = sayi_(r[yB]);
       T.ym[norm_(ad)] = { ad: ad, gram: !!(tip && tip[0] === 'k'), baz: tip && tip[0] === 'k' ? baz * tip[1] : baz,
-                          birimAgir: sayi_(r[yA]), porsiyonAgir: sayi_(r[yP]), bilesenler: [] };
+                          birimAgir: sayi_(r[yA]), porsiyonAgir: sayi_(r[yP]), kategori: String(r[yK] || '').trim(), bilesenler: [] };
     });
   }
   var yr = sekme_(ss, ['Tbl_YariMamulRecete']);
@@ -435,7 +475,7 @@ function maliyetTanimlari_() {
     var rb = yr[0].map(String), rH = tamKolon_(rb, ['Hammadde', 'Hammadde_Adı', 'Hammadde_Adi'], 1), rM = tamKolon_(rb, ['Miktar', 'Baz_Miktar'], 2), rBr = tamKolon_(rb, ['Birim'], 3);
     yr.slice(1).forEach(function (r) {
       var ad = String(r[0] || '').trim(), h = String(r[rH] || '').trim(); if (!ad || !h) return;
-      var k = norm_(ad), y = T.ym[k] = T.ym[k] || { ad: ad, gram: false, baz: 0, birimAgir: 0, porsiyonAgir: 0, bilesenler: [] };
+      var k = norm_(ad), y = T.ym[k] = T.ym[k] || { ad: ad, gram: false, baz: 0, birimAgir: 0, porsiyonAgir: 0, kategori: '', bilesenler: [] };
       y.bilesenler.push({ ad: h, miktar: sayi_(r[rM]), birim: String(r[rBr] || '').trim() });
     });
   }
@@ -457,8 +497,8 @@ function maliyetTanimlari_() {
   T.sayilar.recete = T.receteAnahtar.length;
 
   // Ambalaj kuralları: Kosul_Tipi (Urun / Kategori), Eslesme, malzeme, miktar
-  var av = sekme_(ss, ['Ambalaj_Kurallari']), kn = 0;
-  av.slice(1).forEach(function (r) {
+  var kn = 0;
+  sekme_(ss, ['Ambalaj_Kurallari']).slice(1).forEach(function (r) {
     var es = String(r[1] || '').trim(), mz = String(r[2] || '').trim(); if (!es || !mz) return;
     var h = /^[uü]r[uü]n$/i.test(String(r[0] || '').trim()) ? T.ambUrun : T.ambKat, k = norm_(es);
     (h[k] = h[k] || []).push({ malzeme: mz, miktar: sayi_(r[3]) || 1 }); kn++;
@@ -470,6 +510,12 @@ function maliyetTanimlari_() {
     var s = norm_(r[0]), u = norm_(r[1]); if (s && u) T.eslestir[s] = u;
   });
   T.sayilar.eslestirme = Object.keys(T.eslestir).length;
+
+  // Tüketimi olmasa da stok listesinde görünsünler diye bütün tanımlı malzemeler kaydedilir.
+  Object.keys(T.hm).forEach(function (k) { malKaydet_(T, 'hammadde', T.hm[k]); });
+  Object.keys(T.amb).forEach(function (k) { malKaydet_(T, 'ambalaj', T.amb[k]); });
+  Object.keys(T.ds).forEach(function (k) { malKaydet_(T, 'direkt', T.ds[k]); });
+  Object.keys(T.ym).forEach(function (k) { var y = T.ym[k]; malKaydet_(T, 'yariMamul', y, ymBirimFiyat_(T, y, 0, y.ad)); });
   return T;
 }
 
@@ -478,7 +524,7 @@ function fiyatTablosu_(v, hedef) {
   v.slice(1).forEach(function (r) {
     var tam = String(r[1] || '').trim(), kisa = String(r[2] || '').trim(); if (!tam && !kisa) return;
     var ic = sayi_(r[7]) || 1, f = sayi_(r[9]);
-    var x = { ad: kisa || tam, birim: String(r[8] || '').trim(), birimFiyat: f > 0 ? f / ic : 0,
+    var x = { ad: kisa || tam, tamAd: tam || kisa, kategori: String(r[6] || '').trim(), birim: String(r[8] || '').trim(), birimFiyat: f > 0 ? f / ic : 0,
               aktif: !/^(false|yanlış|yanlis|hayır|hayir|0)$/i.test(String(r[4]).trim()) };
     [tam, kisa].forEach(function (a) { if (a) enIyi_(hedef, norm_(a), x); });
     n++;

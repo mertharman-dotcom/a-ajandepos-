@@ -17,7 +17,6 @@
   --iyi-z:#E4F0E7; --dikkat-z:#F6ECD9; --kotu-z:#F5E1DC;
   --yazi:"Onest", "Segoe UI", system-ui, -apple-system, Roboto, Arial, sans-serif;
   --r-kucuk:6px; --r:12px;
-  --s1:#2a78d6; --s2:#eb6834; --s3:#1baf7a; --s4:#eda100;
 }
 @media (prefers-color-scheme: dark){
   :root{
@@ -26,7 +25,6 @@
     --murekkep:#ECE8E1; --gri:#A8A29A; --cizgi:#3A3D42;
     --iyi:#7CC293; --dikkat:#E0B462; --kotu:#EC8C78;
     --iyi-z:#223329; --dikkat-z:#3A3021; --kotu-z:#3D2622;
-    --s1:#3987e5; --s2:#d95926; --s3:#199e70; --s4:#c98500;
   }
 }
 *{box-sizing:border-box}
@@ -153,22 +151,10 @@ h1{font-size:34px;line-height:1.12;margin:0;font-weight:700;letter-spacing:-.015
 .cevap-durum.iyi{color:var(--iyi);font-weight:600} .cevap-durum.kotu{color:var(--kotu)}
 @media (max-width:760px){.odeme-izgara{grid-template-columns:1fr 1fr}.odeme-izgara .ted{grid-column:1/-1}}
 
-/* Satış maliyeti */
-.lejant{display:flex;gap:16px;flex-wrap:wrap;font-size:13px;color:var(--murekkep);margin:0 0 10px}
-.lejant span{display:inline-flex;align-items:center;gap:6px}
-.lejant i{width:10px;height:10px;border-radius:3px;display:inline-block}
-.yigin{display:flex;height:14px;border-radius:4px;overflow:hidden;background:var(--kum-acik);gap:2px}
-.yigin b{display:block;height:100%}
-.yigin-satir{display:grid;grid-template-columns:minmax(90px,140px) 1fr auto;gap:12px;align-items:center;padding:10px 18px;font-size:14px;border-top:1px solid var(--cizgi)}
-.yigin-satir:first-child{border-top:0}
-.yigin-satir .sayi{font-weight:600;min-width:120px;text-align:right}
-.grafik rect.kalem{transition:opacity .15s}
-.grafik-kaydir{overflow-x:auto}
-@media (max-width:760px){.yigin-satir{grid-template-columns:1fr auto;padding:10px 12px}.yigin-satir .yigin{grid-column:1/-1;grid-row:2}.yigin-satir .sayi{min-width:0}.grafik-kaydir svg{min-width:640px}}
-.grafik g.gun:hover rect.kalem{opacity:.8}
-.ipucu{position:fixed;pointer-events:none;z-index:20;background:var(--kagit);border:1px solid var(--cizgi);border-radius:8px;padding:8px 10px;font-size:12.5px;box-shadow:0 4px 14px rgba(0,0,0,.12);min-width:190px}
-.ipucu div{display:flex;justify-content:space-between;gap:14px}
-.ipucu i{width:9px;height:9px;border-radius:2px;display:inline-block;margin-right:6px}
+.tam-ad{display:block;color:var(--gri);font-size:12px}
+@media (max-width:760px){.tam-ad{display:none}}
+.tur-sekme{grid-template-columns:repeat(auto-fit,minmax(135px,1fr))}
+@media (max-width:760px){.tur-sekme{grid-template-columns:repeat(2,minmax(0,1fr))}.mob-gizle{display:none}.tuk-tablo td,.tuk-tablo th{padding:9px 8px}}
 .yukleniyor{padding:80px 0;color:var(--gri);font-size:15px}
 
 @media (max-width:1100px){ .iki{grid-template-columns:minmax(0,1fr)} }
@@ -343,74 +329,139 @@ function ai(a){var hb=VERI.hub;a.appendChild(ust("Yapay zeka ekibi","Claude, Gem
     blok("Görev durumları",null,cubuklar(hb.gorevDurum.map(function(x){return {ad:DURUM[x.ad]||x.ad,deger:x.deger};}),function(v){return String(v);}))]));
   var ik=VERI.isKaydi;if(ik&&ik.sonKayitlar.length)a.appendChild(blok("Departmanların son işleri","Ortak iş kaydındaki en yeni satırlar.",el("div",{class:"liste"},ik.sonKayitlar.map(function(k){return el("div",{class:"satir"},[el("h3",{text:k.departman+(k.ajan?", "+k.ajan:"")}),el("p",{text:k.ne}),el("div",{class:"meta"},[el("span",{text:k.zaman}),k.denetci?el("span",{text:"Denetçi: "+k.denetci}):null])]);}))));}
 
-/* ---- Satış maliyeti: satılan ürünlerin reçeteye göre maliyeti, ürünün çıktığı şubeye göre ---- */
-var MAL_DONEM="bugun",MAL_SUBE="Tümü";
-var MAL_KALEM=[["hammadde","Hammadde","var(--s1)"],["yariMamul","Yarı mamul","var(--s2)"],["direkt","Direkt satış","var(--s3)"],["ambalaj","Ambalaj","var(--s4)"]];
-function yuzde(p,t){return t?"%"+(Math.round(p/t*1000)/10).toLocaleString("tr-TR"):"—";}
-function lejant(){return el("div",{class:"lejant"},MAL_KALEM.map(function(k){return el("span",null,[el("i",{style:"background:"+k[2]}),k[1]]);}));}
+/* ---- Satış maliyeti: seçilen tarih aralığında satışlardan çıkan malzeme tüketimi ve stok durumu ---- */
+var TUK={bas:"",bit:"",tur:"hammadde",sube:"Tümü",kat:"",ara:"",hepsi:false,sira:"tutar",artan:false};
+var TUK_ONB={},TUK_YUK=null,TUK_HATA="";
+var TUK_TURLER=[["hammadde","Hammadde"],["yariMamul","Yarı mamul"],["direkt","Direkt satış"],["ambalaj","Ambalaj"],["hepsi","Hepsi"],["urun","Satılan ürünler"]];
+var TUR_AD={hammadde:"Hammadde",yariMamul:"Yarı mamul",direkt:"Direkt satış",ambalaj:"Ambalaj"};
+// İş günü 10:00'da başlar, gece 03:00'te kapanır: gece yarısından sonraki siparişler önceki güne sayılır.
+function isGunuBugun(){try{return new Intl.DateTimeFormat("en-CA",{timeZone:"Europe/Istanbul",year:"numeric",month:"2-digit",day:"2-digit"}).format(new Date(Date.now()-3*36e5));}catch(e){return new Date(Date.now()-3*36e5).toISOString().slice(0,10);}}
+function gunKaydir(g,k){return new Date(Date.parse(g+"T00:00:00Z")+k*864e5).toISOString().slice(0,10);}
+function tukGetir(taze){var k=TUK.bas+"_"+TUK.bit;if(TUK_YUK===k)return;TUK_YUK=k;TUK_HATA="";
+  fetch("/api/tuketim?bas="+TUK.bas+"&bit="+TUK.bit+(taze?"&fresh=1":""),{cache:"no-store",credentials:"same-origin"}).then(function(r){return r.json();})
+    .then(function(d){if(!d||!d.malzemeler){TUK_HATA=(d&&d.hata)||"Veri alınamadı.";return;}d._alindi=Date.now();TUK_ONB[k]=d;})
+    .catch(function(){TUK_HATA="Bağlantı kurulamadı. İnternetini kontrol edip yeniden dene.";})
+    .then(function(){if(TUK_YUK===k)TUK_YUK=null;if(AKTIF==="maliyet")ciz();});}
+function birimNorm(b){return normAd(b);}
+// Miktarı okunur birimle yazar: 2450 gr → 2,45 kg; 0,12 kg → 120 gr.
+function miktarYaz(q,b){var n=birimNorm(b),f=function(x,d){return x.toLocaleString("tr-TR",{maximumFractionDigits:d});};
+  if(q==null||isNaN(q))return "—";var neg=q<0,a=Math.abs(q),s;
+  if(n==="gr"||n==="g"||n==="gram")s=a>=1000?f(a/1000,2)+" kg":f(a,0)+" gr";
+  else if(n==="ml")s=a>=1000?f(a/1000,2)+" lt":f(a,0)+" ml";
+  else if(n==="kg")s=a<1&&a>0?f(a*1000,0)+" gr":f(a,2)+" kg";
+  else if(n==="lt"||n==="l"||n==="litre")s=a<1&&a>0?f(a*1000,0)+" ml":f(a,2)+" lt";
+  else s=f(a,a<10?1:0)+" "+(b||"adet");
+  return (neg?"−":"")+s;}
+function tukSatir(m,sube){var q=0,t=0,sk=m.kullanim||{};Object.keys(sk).forEach(function(s){if(sube==="Tümü"||s===sube){q+=sk[s][0];t+=sk[s][1];}});
+  var st=null,yer="";if(m.tur==="ambalaj"){var dep=Object.keys(m.stok)[0];if(dep){st=m.stok[dep];yer=dep+" depo";}}
+  else if(sube==="Tümü"){Object.keys(m.stok).forEach(function(s){st=(st||0)+m.stok[s];});}
+  else if(m.stok[sube]!=null)st=m.stok[sube];
+  return {m:m,miktar:q,tutar:t,stok:st,yer:yer};}
 
-function maliyetSayfa(a){var M=VERI.maliyet;
-  a.appendChild(ust("Satış maliyeti","Kapanan siparişlerdeki her ürün reçetesine açılır; maliyet ürünün çıktığı şubeye yazılır. Fiyatlar tedarikçiden son alış fiyatıdır, ambalaj yalnız paket siparişte eklenir."));
-  a.appendChild(nabizSeridi(["satis","stok"]));var h=hatalarKutusu(["maliyet","satis"]);if(h)a.appendChild(h);
-  if(!M){if(!h)a.appendChild(bos("Maliyet verisi henüz yok. Veri kapısı yeni sürüm olarak yayınlandı mı?"));return;}
-  var D=M.donemler[MAL_DONEM]||M.donemler.bugun;
-  if(!D.subeler.some(function(x){return x.sube===MAL_SUBE;}))MAL_SUBE="Tümü";
-  var S=D.subeler.filter(function(x){return x.sube===MAL_SUBE;})[0];
-  a.appendChild(el("div",{class:"hafta-sec"},[
-    el("div",{class:"sekmeler",style:"margin:0",role:"group","aria-label":"Dönem"},["bugun","dun","hafta","yedi","ay"].map(function(k){return el("button",{type:"button","aria-pressed":MAL_DONEM===k?"true":"false",onclick:function(){MAL_DONEM=k;ciz();}},[M.donemler[k].ad]);})),
-    el("div",{class:"sekmeler",style:"margin:0 0 0 auto",role:"group","aria-label":"Şube"},D.subeler.map(function(x){return el("button",{type:"button","aria-pressed":MAL_SUBE===x.sube?"true":"false",onclick:function(){MAL_SUBE=x.sube;ciz();}},[x.sube==="Tümü"?"İki şube":x.sube]);}))]));
-  var aralik=D.bas===D.bit?tarihTr(D.bas):tarihTr(D.bas)+" – "+tarihTr(D.bit);
-  a.appendChild(el("div",{class:"rakamlar"},MAL_KALEM.map(function(k){return rakam(k[1],para(S[k[0]]),"Maliyetin "+yuzde(S[k[0]],S.toplam)+" · cironun "+yuzde(S[k[0]],S.ciro));})
-    .concat([rakam("Toplam maliyet",para(S.toplam),S.ciro?"Cironun %"+S.oran.toLocaleString("tr-TR")+" · "+para(S.ciro)+" ciro, "+S.siparis+" sipariş":"Bu dönemde kapanan sipariş yok")])));
-  if(S.ciro&&S.kapsam<97)a.appendChild(el("div",{class:"uyari"+(S.kapsam<85?" kotu":"")},[el("b",{text:"Satılan ürünlerin cirosunun %"+(Math.round((100-S.kapsam)*10)/10).toLocaleString("tr-TR")+"'i reçeteyle eşleşmedi"}),
-    el("div",{text:"Bu ürünlerin maliyeti yukarıdaki rakamlara girmedi; gerçek maliyet biraz daha yüksek. Eşleşmeyen ürünler sayfanın altında listeleniyor."})]));
+function maliyetSayfa(a){
+  var bugun=isGunuBugun();if(!TUK.bas){TUK.bas=bugun;TUK.bit=bugun;}
+  a.appendChild(ust("Satış maliyeti","Seçtiğin tarihlerde satılan ürünler reçeteye açılır; hangi malzemeden ne kadar kullanıldığı, kaç liralık olduğu ve stokta ne kaldığı görünür. Tüketim ürünün çıktığı şubeye yazılır."));
+  a.appendChild(nabizSeridi(["satis","stok"]));
 
-  // Şube karşılaştırması: tablo + ciroya göre yığılmış çubuk
-  var sube=D.subeler.filter(function(x){return x.sube!=="Tümü";}).concat(D.subeler.filter(function(x){return x.sube==="Tümü";}));
-  var tb=tablo([["Şube"],["Sipariş",1],["Ciro",1]].concat(MAL_KALEM.map(function(k){return [k[1],1];})).concat([["Toplam",1],["Ciroya oranı",1]]),
-    sube.map(function(x){var ad=x.sube==="Tümü"?el("strong",{text:"İki şube"}):x.sube;return [ad,String(x.siparis),para(x.ciro)].concat(MAL_KALEM.map(function(k){return para(x[k[0]]);})).concat([el("strong",{text:para(x.toplam)}),x.ciro?"%"+x.oran.toLocaleString("tr-TR"):"—"]);}));
-  var ymax=Math.max.apply(null,sube.map(function(x){return x.ciro?x.toplam/x.ciro:0;}).concat([0.01]));
-  var yig=el("div",{class:"liste"},sube.map(function(x){var b=el("div",{class:"yigin",role:"img","aria-label":x.sube+": maliyet cironun %"+x.oran});
-    MAL_KALEM.forEach(function(k){if(x.ciro&&x[k[0]]>0)b.appendChild(el("b",{title:k[1]+": "+para(x[k[0]])+" (cironun "+yuzde(x[k[0]],x.ciro)+")",style:"background:"+k[2]+";width:"+(x[k[0]]/x.ciro/ymax*100)+"%"}));});
-    return el("div",{class:"yigin-satir"},[el("span",{text:x.sube==="Tümü"?"İki şube":x.sube}),b,el("span",{class:"sayi",text:x.ciro?"cironun %"+x.oran.toLocaleString("tr-TR"):"—"})]);}));
-  a.appendChild(blok("Şubelere göre ("+D.ad.toLowerCase()+", "+aralik+")","Mutfak şubesi: ürünün fiilen çıktığı şube; boşsa siparişin geldiği şube. Çubuk, her kalemin ciroya oranını gösterir.",el("div",null,[lejant(),yig,el("div",{style:"height:14px"}),tb])));
+  // Tarih aralığı
+  var basI=el("input",{type:"date",value:TUK.bas,max:bugun,"aria-label":"Başlangıç tarihi",class:"cevap-alan",style:"max-width:170px"});
+  var bitI=el("input",{type:"date",value:TUK.bit,max:bugun,"aria-label":"Bitiş tarihi",class:"cevap-alan",style:"max-width:170px"});
+  function tarihDegis(){var b=basI.value,e=bitI.value;if(!b||!e)return;if(b>e){var x=b;b=e;e=x;}TUK.bas=b;TUK.bit=e;ciz();}
+  basI.addEventListener("change",tarihDegis);bitI.addEventListener("change",tarihDegis);
+  var dow=(new Date(bugun+"T00:00:00Z").getUTCDay()+6)%7;
+  var hizli=[["Bugün",bugun,bugun],["Dün",gunKaydir(bugun,-1),gunKaydir(bugun,-1)],["Bu hafta",gunKaydir(bugun,-dow),bugun],["Son 7 gün",gunKaydir(bugun,-6),bugun],["Bu ay",bugun.slice(0,8)+"01",bugun],["Son 30 gün",gunKaydir(bugun,-29),bugun]];
+  a.appendChild(el("div",{class:"hafta-sec"},[el("label",{style:"display:flex;align-items:center;gap:6px;font-size:13px;color:var(--gri)"},["Başlangıç",basI]),el("label",{style:"display:flex;align-items:center;gap:6px;font-size:13px;color:var(--gri)"},["Bitiş",bitI]),
+    el("div",{class:"sekmeler",style:"margin:0",role:"group","aria-label":"Hazır aralıklar"},hizli.map(function(h){return el("button",{type:"button","aria-pressed":TUK.bas===h[1]&&TUK.bit===h[2]?"true":"false",onclick:function(){TUK.bas=h[1];TUK.bit=h[2];ciz();}},[h[0]]);}))]));
 
-  a.appendChild(blok("Son 14 gün"+(MAL_SUBE==="Tümü"?"":" — "+MAL_SUBE),"Her sütun bir iş günü; en sağdaki bugün. Sütunun üstünde toplam maliyet ve cironun yüzde kaçı olduğu, altında günün cirosu yazar. Üzerine gelince kalemler açılır.",maliyetGrafik(M.seri,MAL_SUBE)));
+  var k=TUK.bas+"_"+TUK.bit,D=TUK_ONB[k];
+  if(!D){if(!TUK_HATA||TUK_YUK)tukGetir(false);
+    if(TUK_HATA&&!TUK_YUK){a.appendChild(el("div",{class:"uyari kotu"},[el("b",{text:"Tüketim verisi alınamadı"}),el("div",{text:TUK_HATA}),el("p",{style:"margin:8px 0 0"},[el("button",{type:"button",class:"dugme",onclick:function(){TUK_HATA="";ciz();}},["Yeniden dene"])])]));}
+    else a.appendChild(el("div",{class:"yukleniyor",style:"padding:40px 0",text:"Satışlar reçetelere açılıyor…"}));return;}
+  // Bugünü kapsayan aralık 5 dakikada bir tazelenir.
+  if(D.bit>=bugun&&Date.now()-D._alindi>300000)tukGetir(true);
 
-  var ur=S.urunler||[];
-  a.appendChild(blok("En çok maliyet çıkaran ürünler","Seçili dönem ve şubede; ambalaj dahil.",ur.length?tablo([["Ürün"],["Adet",1],["Ciro",1],["Maliyet",1],["Maliyet oranı",1]],ur.map(function(x){return [x.ad,TL.format(x.adet),para(x.ciro),para(x.maliyet),x.ciro?yuzde(x.maliyet,x.ciro):"—"];})):bos("Bu dönemde maliyeti hesaplanan ürün yok.")));
+  // Şube
+  var subeler=["Tümü"].concat(D.subeler);if(subeler.indexOf(TUK.sube)<0)TUK.sube="Tümü";
+  a.appendChild(el("div",{class:"hafta-sec"},[el("div",{class:"sekmeler",style:"margin:0",role:"group","aria-label":"Şube"},subeler.map(function(s){return el("button",{type:"button","aria-pressed":TUK.sube===s?"true":"false",onclick:function(){TUK.sube=s;ciz();}},[s==="Tümü"?"İki şube":s]);})),
+    el("span",{style:"font-size:13px;color:var(--gri);margin-left:auto",text:(D.bas===D.bit?tarihTr(D.bas):tarihTr(D.bas)+" – "+tarihTr(D.bit)+" ("+D.gunSayisi+" gün)")+" · hesaplandı "+String(D.olusturma||"").slice(11,16)}),
+    el("button",{type:"button",class:"dugme",onclick:function(){delete TUK_ONB[k];tukGetir(true);ciz();}},["Yenile"])]));
+  if(D.eksikAralik)a.appendChild(el("div",{class:"uyari"},[el("b",{text:"Sipariş tablosunda "+tarihTr(D.okunanIlkGun)+" öncesi okunamadı"}),el("div",{text:"Aralığın başı eksik hesaplanmış olabilir; daha kısa bir aralık seç."})]));
 
-  var sol=blok("Reçetesi bulunamayan satışlar","Son 7 gün, bütün şubeler. Adı reçetedekinden farklıysa stok dosyasına '"+M.eslestirmeSekmesi+"' sekmesi açıp A sütununa satış adını, B sütununa reçetedeki adı yaz.",
-    M.eslesmeyen.length?tablo([["Satıştaki ad"],["Adet",1],["Ciro",1]],M.eslesmeyen.map(function(x){return [x.ad,TL.format(x.adet),para(x.ciro)];})):bos("Son 7 günde satılan her ürünün reçetesi ya da direkt satış tanımı var."));
-  var sag=blok("Fiyatı ya da tanımı eksik malzemeler","Reçetede geçen ama fiyatı bulunamayan kalemler; maliyete sıfır olarak girdiler.",
-    M.eksikTanim.length?tablo([["Malzeme"],["Kullanan ürünler"]],M.eksikTanim.map(function(x){return [x.ad,x.urunler.join(", ")+(x.urunSayi>x.urunler.length?" ve "+(x.urunSayi-x.urunler.length)+" ürün daha":"")];})):bos("Bütün malzemelerin fiyatı var."));
+  var oz={ciro:0,siparis:0,hammadde:0,yariMamul:0,direkt:0,ambalaj:0,kapsamPay:0};
+  D.subeler.forEach(function(s){if(TUK.sube!=="Tümü"&&s!==TUK.sube)return;var o=D.ozet[s];["ciro","siparis","hammadde","yariMamul","direkt","ambalaj"].forEach(function(x){oz[x]+=o[x];});oz.kapsamPay+=o.kapsam*o.ciro;});
+  var toplam=oz.hammadde+oz.yariMamul+oz.direkt+oz.ambalaj,kapsam=oz.ciro?oz.kapsamPay/oz.ciro:100;
+
+  // Tür sekmeleri: her birinde o türün toplam tutarı
+  a.appendChild(el("div",{class:"rakamlar tur-sekme"},TUK_TURLER.map(function(t){var v=t[0]==="hepsi"?toplam:(t[0]==="urun"?null:oz[t[0]]);var sec=TUK.tur===t[0];
+    var d=el("button",{type:"button",class:"rakam",style:"all:unset;box-sizing:border-box;display:block;cursor:pointer;background:"+(sec?"var(--mavi-acik)":"var(--kagit)")+";padding:16px 18px","aria-pressed":sec?"true":"false",onclick:function(){TUK.tur=t[0];TUK.kat="";ciz();}},[
+      el("div",{class:"ad",style:sec?"color:var(--mavi-koyu);font-weight:600":null,text:t[1]}),el("div",{class:"deger",style:"font-size:22px",text:t[0]==="urun"?String(D.urunler.length):para(v)}),
+      el("div",{class:"not",text:t[0]==="urun"?"çeşit ürün, "+para(oz.ciro)+" ciro":(oz.ciro?"cironun "+yuzde(v,oz.ciro):"satış yok")})]);return d;})));
+  if(oz.ciro&&kapsam<97)a.appendChild(el("div",{class:"uyari"+(kapsam<85?" kotu":"")},[el("b",{text:"Satılan ürünlerin cirosunun %"+(Math.round((100-kapsam)*10)/10).toLocaleString("tr-TR")+"'i reçeteyle eşleşmedi"}),
+    el("div",{text:"Bu ürünlerin malzemeleri listeye girmedi; gerçek tüketim biraz daha yüksek. Eşleşmeyen ürünler sayfanın altında."})]));
+
+  if(TUK.tur==="urun")urunTablosu(a,D);else malzemeTablosu(a,D);
+
+  var sol=blok("Reçetesi bulunamayan satışlar","Seçili tarihlerde, bütün şubeler. Adı reçetedekinden farklıysa stok dosyasına '"+D.eslestirmeSekmesi+"' sekmesi açıp A sütununa satıştaki adı, B sütununa reçetedeki adı yaz.",
+    D.eslesmeyen.length?tablo([["Satıştaki ad"],["Adet",1],["Ciro",1]],D.eslesmeyen.map(function(x){return [x.ad,TL.format(x.adet),para(x.ciro)];})):bos("Satılan her ürünün reçetesi ya da direkt satış tanımı var."));
+  var sag=blok("Tanımı ya da fiyatı eksik malzemeler","Reçetede geçen ama tanımı ya da alış fiyatı bulunamayan kalemler; tutara sıfır olarak girdiler.",
+    D.eksikTanim.length?tablo([["Malzeme"],["Kullanan ürünler"]],D.eksikTanim.map(function(x){return [x.ad,x.urunler.join(", ")+(x.urunSayi>x.urunler.length?" ve "+(x.urunSayi-x.urunler.length)+" ürün daha":"")];})):bos("Bütün malzemelerin tanımı ve fiyatı var."));
   a.appendChild(el("div",{class:"iki"},[sol,sag]));
-  var t=M.tanimlar||{};a.appendChild(el("p",{class:"aciklama",style:"color:var(--gri);font-size:13px"},["Okunan tanımlar: "+[t.recete+" reçete",t.yariMamul+" yarı mamul",t.hammadde+" hammadde",t.direkt+" direkt satış ürünü",t.ambalaj+" ambalaj malzemesi",t.ambalajKurali+" ambalaj kuralı"].join(", ")+"."]));}
+  var t=D.tanimlar||{};a.appendChild(el("p",{style:"color:var(--gri);font-size:13px"},["Okunan tanımlar: "+[t.recete+" reçete",t.yariMamul+" yarı mamul",t.hammadde+" hammadde",t.direkt+" direkt satış ürünü",t.ambalaj+" ambalaj malzemesi",t.ambalajKurali+" ambalaj kuralı"].join(", ")+". Stok, Stok Takip dosyasındaki Sube_Stok sekmesinin mevcut stoğudur; ambalaj "+D.ambalajDepo+" depoda tutulur."]));}
 
-function maliyetGrafik(seri,sube){if(!seri||!seri.length)return bos("Grafik için veri yok.");
-  var gunler=seri.map(function(g){var o={gun:g.gun,ciro:0,hammadde:0,yariMamul:0,direkt:0,ambalaj:0};Object.keys(g.subeler).forEach(function(s){if(sube!=="Tümü"&&s!==sube)return;var x=g.subeler[s];o.ciro+=x.ciro;MAL_KALEM.forEach(function(k){o[k[0]]+=x[k[0]];});});o.toplam=o.hammadde+o.yariMamul+o.direkt+o.ambalaj;return o;});
-  var W=760,H=260,ust=30,alt=40,p=20,bw=(W-p*2)/gunler.length,max=Math.max.apply(null,gunler.map(function(x){return x.toplam;}))||1;
-  var ns="http://www.w3.org/2000/svg",svg=document.createElementNS(ns,"svg");svg.setAttribute("viewBox","0 0 "+W+" "+H);svg.setAttribute("role","img");svg.setAttribute("aria-label","Son 14 günün maliyeti, kalemlere göre");
-  function yaz(par,x,y,t,cls){var e=document.createElementNS(ns,"text");e.setAttribute("x",x);e.setAttribute("y",y);e.setAttribute("text-anchor","middle");if(cls)e.setAttribute("class",cls);e.textContent=t;par.appendChild(e);}
-  var ip=el("div",{class:"ipucu",hidden:""});
-  var taban=document.createElementNS(ns,"line");taban.setAttribute("x1",p);taban.setAttribute("x2",W-p);taban.setAttribute("y1",H-alt);taban.setAttribute("y2",H-alt);taban.setAttribute("stroke","var(--cizgi)");svg.appendChild(taban);
-  gunler.forEach(function(x,i){var g=document.createElementNS(ns,"g");g.setAttribute("class","gun");var x0=p+i*bw+5,w=Math.max(2,bw-10),y=H-alt;
-    var hit=document.createElementNS(ns,"rect");hit.setAttribute("x",p+i*bw);hit.setAttribute("y",0);hit.setAttribute("width",bw);hit.setAttribute("height",H);hit.setAttribute("fill","transparent");g.appendChild(hit);
-    var dolu=MAL_KALEM.filter(function(k){return x[k[0]]>0;});
-    dolu.forEach(function(k,j){var hh=(H-ust-alt)*x[k[0]]/max;var r=document.createElementNS(ns,"rect");var yy=y-hh;
-      r.setAttribute("x",x0);r.setAttribute("y",yy+(j>0?0:0));r.setAttribute("width",w);r.setAttribute("height",Math.max(0,hh-(j<dolu.length-1?2:0)));
-      if(j===dolu.length-1)r.setAttribute("rx",3);r.setAttribute("fill",k[2]);r.setAttribute("class","kalem");g.appendChild(r);y=yy;});
-    if(x.toplam>0){yaz(g,x0+w/2,y-14,kisa(x.toplam),"deger-yazi");if(x.ciro)yaz(g,x0+w/2,y-4,"%"+Math.round(x.toplam/x.ciro*100),"adet-yazi");}
-    var d=new Date(x.gun+"T00:00:00Z");yaz(g,x0+w/2,H-alt+16,GUNLER[d.getUTCDay()]+" "+d.getUTCDate());yaz(g,x0+w/2,H-alt+30,kisa(x.ciro),"adet-yazi");
-    function goster(ev){ip.textContent="";ip.appendChild(el("div",null,[el("strong",{text:gunAd(x.gun)}),el("span",{text:x.ciro?"cironun %"+(Math.round(x.toplam/x.ciro*1000)/10).toLocaleString("tr-TR"):""})]));
-      MAL_KALEM.forEach(function(k){ip.appendChild(el("div",null,[el("span",null,[el("i",{style:"background:"+k[2]}),k[1]]),el("span",{text:para(x[k[0]])})]));});
-      ip.appendChild(el("div",{style:"border-top:1px solid var(--cizgi);margin-top:4px;padding-top:4px"},[el("span",{text:"Toplam maliyet"}),el("strong",{text:para(x.toplam)})]));
-      ip.appendChild(el("div",null,[el("span",{text:"Ciro"}),el("span",{text:para(x.ciro)})]));
-      ip.hidden=false;var px=Math.min(ev.clientX+14,window.innerWidth-ip.offsetWidth-8),py=Math.max(8,ev.clientY-ip.offsetHeight-10);ip.style.left=px+"px";ip.style.top=py+"px";}
-    g.addEventListener("mousemove",goster);g.addEventListener("mouseleave",function(){ip.hidden=true;});g.addEventListener("click",goster);
-    svg.appendChild(g);});
-  var kay=el("div",{class:"grafik-kaydir"},[svg]);requestAnimationFrame(function(){kay.scrollLeft=kay.scrollWidth;});
-  return el("div",{class:"grafik"},[lejant(),kay,ip]);}
+function yuzde(p,t){return t?"%"+(Math.round(p/t*1000)/10).toLocaleString("tr-TR"):"—";}
+function siraBaslik(ad,alan,sag,yenile){var ok=TUK.sira===alan?(TUK.artan?" ▲":" ▼"):"";
+  return el("th",{class:sag?"sag":null,"aria-sort":TUK.sira===alan?(TUK.artan?"ascending":"descending"):null},[el("button",{type:"button",style:"all:unset;cursor:pointer",onclick:function(){if(TUK.sira===alan)TUK.artan=!TUK.artan;else{TUK.sira=alan;TUK.artan=alan==="ad"||alan==="gun";}yenile();}},[ad+ok])]);}
+
+function malzemeTablosu(a,D){
+  var liste=D.malzemeler.filter(function(m){return TUK.tur==="hepsi"||m.tur===TUK.tur;});
+  var kats={};liste.forEach(function(m){kats[m.kategori||"Kategorisiz"]=1;});kats=Object.keys(kats).sort(function(x,y){return x.localeCompare(y,"tr");});
+  if(TUK.kat&&kats.indexOf(TUK.kat)<0)TUK.kat="";
+  var sec=el("select",{class:"cevap-alan",style:"max-width:240px","aria-label":"Kategori"},[el("option",{value:"",text:"Bütün kategoriler ("+kats.length+")"})].concat(kats.map(function(x){return el("option",{value:x,text:x});})));sec.value=TUK.kat;
+  sec.addEventListener("change",function(){TUK.kat=sec.value;doldur();});
+  var ara=el("input",{type:"search",class:"cevap-alan",style:"max-width:220px",placeholder:"Malzeme ara…",value:TUK.ara,"aria-label":"Malzeme ara"});
+  ara.addEventListener("input",function(){TUK.ara=ara.value;doldur();});
+  var kut=el("input",{type:"checkbox"});kut.checked=TUK.hepsi;kut.addEventListener("change",function(){TUK.hepsi=kut.checked;doldur();});
+  a.appendChild(el("div",{class:"hafta-sec"},[sec,ara,el("label",{style:"display:flex;align-items:center;gap:6px;font-size:13.5px"},[kut,"Bu tarihlerde kullanılmayanları da göster"])]));
+  var govde=el("div");a.appendChild(govde);
+  function doldur(){govde.textContent="";var q=normAd(TUK.ara);
+    var sat=liste.filter(function(m){return (!TUK.kat||(m.kategori||"Kategorisiz")===TUK.kat)&&(!q||normAd(m.ad+" "+m.tamAd).indexOf(q)>=0);})
+      .map(function(m){var r=tukSatir(m,TUK.sube);r.gunluk=r.miktar/D.gunSayisi;r.gun=r.stok!=null&&r.gunluk>0?r.stok/r.gunluk:null;return r;})
+      .filter(function(r){return TUK.hepsi||r.miktar>0;});
+    var yon=TUK.artan?1:-1;
+    sat.sort(function(x,y){var f=TUK.sira;if(f==="ad")return yon*x.m.ad.localeCompare(y.m.ad,"tr");var vx=x[f],vy=y[f];if(vx==null&&vy==null)return 0;if(vx==null)return 1;if(vy==null)return -1;return yon*(vx-vy)||y.tutar-x.tutar;});
+    var toplamT=sat.reduce(function(t,r){return t+r.tutar;},0);
+    var hepsi=TUK.tur==="hepsi",depo=TUK.tur==="ambalaj";
+    // Sütunlar: 0 malzeme, 1 kullanılan, 2 stok, 3 kaç gün, 4 tutar, 5 pay, 6 kategori, 7 ürünler
+    var bas=[siraBaslik("Malzeme","ad",0,doldur),siraBaslik("Kullanılan","miktar",1,doldur),siraBaslik(depo?"Stok ("+D.ambalajDepo+")":"Stok"+(TUK.sube==="Tümü"?" (iki şube)":" ("+TUK.sube+")"),"stok",1,doldur),
+      siraBaslik("Kaç gün yeter","gun",1,doldur),siraBaslik("Tutar","tutar",1,doldur),el("th",{class:"sag",text:"Pay"}),el("th",{text:hepsi?"Tür / kategori":"Kategori"}),el("th",{text:"En çok kullanan ürünler"})];
+    if(!sat.length){govde.appendChild(bos(TUK.hepsi?"Bu filtreyle malzeme yok.":"Bu tarihlerde bu türde kullanılan malzeme yok. Kullanılmayanları görmek için kutuyu işaretle."));return;}
+    var satirlar=sat.map(function(r){var m=r.m,st;
+      if(r.stok==null)st=el("span",{style:"color:var(--gri)",text:"stok kaydı yok"});
+      else if(r.stok<0)st=el("span",{class:"etiket e-kotu",title:"Stok eksiye düşmüş: sayım ya da alış girilmemiş olabilir",text:miktarYaz(r.stok,m.birim)});
+      else st=miktarYaz(r.stok,m.birim);
+      // İki şube seçiliyken toplamın yanında şube şube stok (birinde eksi varsa toplam onu gizlemesin).
+      if(r.stok!=null&&TUK.sube==="Tümü"&&m.tur!=="ambalaj"&&Object.keys(m.stok).length>1)st=el("span",null,[st,Object.keys(m.stok).map(function(s){return el("small",{style:"display:block;font-size:11.5px;color:"+(m.stok[s]<0?"var(--kotu)":"var(--gri)"),text:s+" "+miktarYaz(m.stok[s],m.birim)});})].reduce(function(x,y){return x.concat(y);},[]));
+      var gun=r.gun==null?"—":(r.gun<0?el("span",{class:"etiket e-kotu",text:"stok yok"}):el("span",{class:"etiket "+(r.gun<2?"e-kotu":(r.gun<5?"e-dikkat":"e-iyi")),text:r.gun>=100?"100+ gün":(Math.round(r.gun*10)/10).toLocaleString("tr-TR")+" gün"}));
+      var ur=(m.urunler||[]).slice(0,3).map(function(u){return u[0]+" ("+miktarYaz(u[1],m.birim)+")";}).join(", ");
+      return [el("span",{title:m.tamAd},[el("strong",{text:m.ad}),m.tamAd&&m.tamAd!==m.ad?el("small",{class:"tam-ad",text:m.tamAd}):null]),
+        r.miktar?miktarYaz(r.miktar,m.birim):"—",st,gun,r.tutar?kurus(Math.round(r.tutar*100)/100):"—",r.tutar?yuzde(r.tutar,toplamT):"—",
+        hepsi?TUR_AD[m.tur]+(m.kategori?" · "+m.kategori:""):(m.kategori||"—"),
+        el("span",{style:"font-size:13px;color:var(--gri)",text:ur})];});
+    satirlar.push([el("strong",{text:"Toplam ("+sat.length+" malzeme)"}),"","","",el("strong",{text:para(toplamT)}),"","",""]);
+    var GIZ={5:1,6:1,7:1};bas.forEach(function(h,i){if(GIZ[i])h.classList.add("mob-gizle");});
+    var tb=el("div",{class:"liste kaydir"},[el("table",{class:"tablo tuk-tablo"},[el("thead",null,[el("tr",null,bas)]),el("tbody",null,satirlar.map(function(r){return el("tr",null,r.map(function(c,i){var td=el("td",{class:((i>=1&&i<=5)?"sag":"")+(GIZ[i]?" mob-gizle":"")||null});if(c&&c.nodeType)td.appendChild(c);else td.textContent=c==null?"":String(c);return td;}));}))])]);
+    govde.appendChild(blok(TUK.tur==="hepsi"?"Bütün malzemeler":TUR_AD[TUK.tur],"Kullanılan: seçili tarihlerde satılan ürünlerin reçetesinden hesaplanan miktar. Kaç gün yeter: bugünkü stok ÷ bu tarihlerdeki günlük ortalama kullanım. Başlığa dokununca sıralanır.",tb));}
+  doldur();}
+
+function urunTablosu(a,D){
+  var kats={};D.urunler.forEach(function(u){kats[u.kategori||"Kategorisiz"]=1;});kats=Object.keys(kats).sort(function(x,y){return x.localeCompare(y,"tr");});
+  if(TUK.kat&&kats.indexOf(TUK.kat)<0)TUK.kat="";
+  var sec=el("select",{class:"cevap-alan",style:"max-width:240px","aria-label":"Kategori"},[el("option",{value:"",text:"Bütün kategoriler"})].concat(kats.map(function(x){return el("option",{value:x,text:x});})));sec.value=TUK.kat;
+  sec.addEventListener("change",function(){TUK.kat=sec.value;ciz();});
+  a.appendChild(el("div",{class:"hafta-sec"},[sec]));
+  var sat=D.urunler.filter(function(u){return !TUK.kat||(u.kategori||"Kategorisiz")===TUK.kat;}).map(function(u){var o=[0,0,0];Object.keys(u.subeler).forEach(function(s){if(TUK.sube==="Tümü"||s===TUK.sube){var z=u.subeler[s];o[0]+=z[0];o[1]+=z[1];o[2]+=z[2];}});return {u:u,adet:o[0],ciro:o[1],maliyet:o[2]};})
+    .filter(function(r){return r.adet>0;}).sort(function(x,y){return y.adet-x.adet;});
+  a.appendChild(blok("Satılan ürünler","Seçili tarihlerde ve şubede; maliyet reçete + paket siparişlerde ambalaj.",sat.length?tablo([["Ürün"],["Kategori"],["Adet",1],["Ciro",1],["Maliyet",1],["Maliyet oranı",1]],sat.map(function(r){return [r.u.ad,r.u.kategori||"—",TL.format(r.adet),para(r.ciro),para(r.maliyet),r.ciro?yuzde(r.maliyet,r.ciro):"—"];})):bos("Bu tarihlerde satış yok.")));}
 
 var AY_AD=["Ocak","Şubat","Mart","Nisan","Mayıs","Haziran","Temmuz","Ağustos","Eylül","Ekim","Kasım","Aralık"];
 function ayAd(a){var m=+String(a).slice(5,7);return m?AY_AD[m-1]:a;}

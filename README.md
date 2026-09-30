@@ -19,21 +19,27 @@ Finans / Alımlar sayfalarındaki tedarikçi borcundan düşülür.
 
 ## Satış maliyeti ekranı
 
-Panelde **Satış Maliyeti** bölümü (`#maliyet`). Adisyo'dan gelen kapanmış siparişlerdeki her ürün
-**BAP Stok Takip Sistemi**'ndeki reçetesine açılır ve dört kaleme ayrılır:
+Panelde **Satış Maliyeti** bölümü (`#maliyet`). Seçilen tarih aralığında Adisyo'dan gelen kapanmış siparişlerdeki
+her ürün **BAP Stok Takip Sistemi**'ndeki reçetesine açılır ve **malzeme malzeme** listelenir:
 
-| Kalem | Nereden hesaplanır |
+- **Tür:** Hammadde, Yarı mamul, Direkt satış, Ambalaj, Hepsi ya da Satılan ürünler (adet, ciro, maliyet).
+- **Filtre:** tarih aralığı (başlangıç–bitiş ya da hazır: bugün, dün, bu hafta, son 7 gün, bu ay, son 30 gün), şube, kategori, ad araması.
+- **Her malzeme için:** kullanılan miktar (gr / kg / ml / lt / adet), stok (Sube_Stok mevcut stok), kaç gün yeteceği,
+  tutar, toplam içindeki payı ve en çok kullanan ürünler. Başlığa dokununca sıralanır.
+
+| Tür | Nereden hesaplanır |
 |---|---|
-| Hammadde | `Tbl_Receteler`'de doğrudan kullanılan hammaddeler × `Tbl_Hammaddeler` son alış fiyatı / paket içeriği |
-| Yarı mamul | Reçetedeki yarı mamuller: `Tbl_YariMamulRecete` parti maliyeti / parti çıktısı (`Tbl_YariMamul tablosuna Cikti_Tipi`) |
-| Direkt satış | İçecek gibi olduğu gibi satılanlar: `Direktsatisurunler` koli fiyatı / koli içeriği |
-| Ambalaj | Yalnız paket siparişte, `Ambalaj_Kurallari` (önce ürün, yoksa kategori kuralı) × `Ambalaj_Hammadde` fiyatı |
+| Hammadde | `Tbl_Receteler`'de doğrudan kullanılan hammaddeler; miktar stok biriminde, fiyat `Tbl_Hammaddeler` son alış / paket içeriği |
+| Yarı mamul | Reçetedeki yarı mamuller (gr ya da adet); fiyat `Tbl_YariMamulRecete` parti maliyeti / parti çıktısı |
+| Direkt satış | `Direktsatisurunler`; koli fiyatı / koli içeriği |
+| Ambalaj | Yalnız paket siparişte, `Ambalaj_Kurallari` (önce ürün, yoksa kategori) × `Ambalaj_Hammadde`; stok Merkez depoda |
 
-- Maliyet siparişin **Ürün Çıkan Şube**'sine yazılır; boşsa siparişin geldiği şubeye.
-- Dönemler: bugün, dün, bu hafta, son 7 gün, bu ay; ayrıca son 14 günün kalemlere göre grafiği ve cironun yüzdesi.
-- Reçetesi bulunamayan satışlar ve fiyatı olmayan malzemeler sayfanın altında listelenir (maliyete sıfır girerler).
+- Tüketim siparişin **Ürün Çıkan Şube**'sine yazılır; boşsa siparişin geldiği şubeye.
+- Kaç gün yeter = bugünkü stok ÷ seçili tarihlerdeki günlük ortalama kullanım.
+- Reçetesi bulunamayan satışlar ve tanımı/fiyatı eksik malzemeler sayfanın altında listelenir.
   Satış adı reçetedekinden farklıysa stok dosyasına `Maliyet_Eslestirme` sekmesi açılır: A satış adı, B reçetedeki ürün adı.
-- Yalnız okur; hiçbir tabloya yazmaz. Panel 5 dakikada bir, veri kapısı 2 dakikalık önbellekle yenilenir.
+- Aralık panelden ayrıca istenir (`/api/tuketim`, en fazla 3 ay, 2 dakika önbellek); bugünü içeren aralık 5 dakikada bir tazelenir.
+- Yalnız okur; hiçbir tabloya yazmaz. Yayınlamadan önce Apps Script'te `testTuketim` çalıştırılıp günlüğe bakılır.
 
 ## Yayına alma
 

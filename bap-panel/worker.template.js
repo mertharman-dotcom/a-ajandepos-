@@ -62,6 +62,30 @@ export default {
       }
     }
 
+    if (url.pathname === '/api/tuketim') {
+      // Satış maliyeti ekranı: seçilen tarih aralığının malzeme tüketimi ve stok durumu.
+      if (!env.GAS_URL || !env.GAS_KEY) {
+        return json({ hata: 'Veri kapısı ayarları eksik: Cloudflare ayarlarına GAS_URL ve GAS_KEY girilmeli.' }, 500);
+      }
+      const hedef = new URL(env.GAS_URL);
+      hedef.searchParams.set('key', env.GAS_KEY);
+      hedef.searchParams.set('tur', 'tuketim');
+      hedef.searchParams.set('bas', String(url.searchParams.get('bas') || '').slice(0, 10));
+      hedef.searchParams.set('bit', String(url.searchParams.get('bit') || '').slice(0, 10));
+      if (url.searchParams.get('fresh')) hedef.searchParams.set('fresh', '1');
+      try {
+        const r = await fetch(hedef.toString(), { redirect: 'follow' });
+        const metin = await r.text();
+        let veri;
+        try { veri = JSON.parse(metin); }
+        catch (e) { return json({ hata: 'Veri kapısı beklenmeyen bir cevap verdi. Apps Script yeni sürüm olarak yayınlandı mı?' }, 502); }
+        if (veri && veri.hata === 'yetkisiz') return json({ hata: 'Veri kapısı anahtarı eşleşmiyor.' }, 502);
+        return json(veri, 200);
+      } catch (e) {
+        return json({ hata: 'Veri kapısına ulaşılamadı. Biraz sonra yeniden deneyin.' }, 502);
+      }
+    }
+
     if (url.pathname === '/api/cevap' && request.method === 'POST') {
       // Yalnızca panelin kendisinden gelen istek kabul edilir (başka siteden gönderilemez).
       if (request.headers.get('x-bap-panel') !== '1' || (request.headers.get('origin') || url.origin) !== url.origin) {
