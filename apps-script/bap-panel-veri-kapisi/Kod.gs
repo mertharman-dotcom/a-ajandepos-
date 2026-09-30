@@ -1738,7 +1738,7 @@ function kurye_() {
   var kapali = tahsilatlar_(ss), a = sonSatirlar_(ss, 'Açık Hesaplar', 2000), acikL = [], haric = { adet: 0, tutar: 0 };
   if (a) {
     var ca = { tarih: kolon_(a.b, ['Tarih']), no: kolon_(a.b, ['Adisyon No']), id: kolon_(a.b, ['Sipariş ID']), plat: kolon_(a.b, ['Platform']), kurye: kolon_(a.b, ['Kurye']),
-               odeme: kolon_(a.b, ['Ödeme Yöntemi']), tutar: kolon_(a.b, ['Tutar (TL)', 'Tutar']), durum: kolon_(a.b, ['Durum']) };
+               odeme: kolon_(a.b, ['Ödeme Yöntemi']), tutar: kolon_(a.b, ['Tutar (TL)', 'Tutar']), durum: kolon_(a.b, ['Durum']), teslim: kolon_(a.b, ['Teslim Saati']) };
     a.v.forEach(function (r) {
       var gun = gunStr_(r[ca.tarih]); if (!gun) return;
       var odeme = String(r[ca.odeme] || '').trim(), tutar = sayi_(r[ca.tutar]), id = siparisNo_(r[ca.id]);
@@ -1746,16 +1746,22 @@ function kurye_() {
       if (/ödenmez|odenmez/i.test(odeme)) { haric.adet++; haric.tutar += tutar; return; }
       var yas = Math.round((Date.parse(bugun + 'T00:00:00Z') - Date.parse(gun + 'T00:00:00Z')) / 86400000);
       acikL.push({ id: id, gun: gun, yas: yas, no: r[ca.no], platform: r[ca.plat] || '', kurye: String(r[ca.kurye] || '').trim() || 'Atanmamış', odeme: odeme, tutar: tutar,
-        durum: r[ca.durum] || '' });
+        durum: r[ca.durum] || '', teslim: ca.teslim >= 0 ? String(r[ca.teslim] || '').trim() : '' });
     });
   }
+  // Kasada Adisyo'ya 'Ödeme Alındı' işlenmiş olanlar açık sayılmaz; Pluxee çekimi bulunanlar işaretlenir.
+  var adisyoOdendi = [], kanitHata = '';
+  try { var kn = acikKanit_(ss, acikL); acikL = acikL.filter(function (x) { if (x.adisyo === 'odendi') { adisyoOdendi.push(x); return false; } return true; }); }
+  catch (err) { kanitHata = String(err.message || err); }
   acikL.sort(function (x, y) { return y.yas - x.yas || y.tutar - x.tutar; });
   var eski = acikL.filter(function (x) { return x.yas > 0; }), bugunkuler = acikL.filter(function (x) { return x.yas <= 0; });
   var eskiKisi = {}; eski.forEach(function (x) { topla_(eskiKisi, x.kurye, x.tutar); });
   var tl = function (l) { return Math.round(l.reduce(function (t, x) { return t + x.tutar; }, 0)); };
   out.acik = { eski: { adet: eski.length, toplam: tl(eski), ayUstu: eski.filter(function (x) { return x.yas > 30; }).length },
                bugun: { adet: bugunkuler.length, toplam: tl(bugunkuler) }, haric: { adet: haric.adet, toplam: Math.round(haric.tutar) },
-               kisi: sirala_(eskiKisi), liste: eski.slice(0, 60).concat(bugunkuler.slice(0, 30)), kapanan: kapali.son, adisyoBekleyen: kapali.adisyoBekleyen };
+               kisi: sirala_(eskiKisi), liste: eski.slice(0, 60).concat(bugunkuler.slice(0, 30)), kapanan: kapali.son, adisyoBekleyen: kapali.adisyoBekleyen,
+               adisyoOdendi: { adet: adisyoOdendi.length, toplam: tl(adisyoOdendi), liste: adisyoOdendi.slice(0, 40) },
+               pluxee: kn ? kn.pluxee : null, kanitHata: kanitHata };
 
   out.genel = {};
   KURYE_DONEMLER.forEach(function (d) { var g = genel[d], o = function (t) { return g.n ? Math.round(t / g.n * 10) / 10 : null; };
@@ -1777,6 +1783,51 @@ function kurye_() {
     }).sort(function (x, y) { return y.paket - x.paket || y.netSaat - x.netSaat; });
   });
   return out;
+}
+
+// Açık hesapları iki kanıta karşı kontrol eder (hiçbir şey yazmaz):
+//  1) Adisyo › Satıs Verileri 'Ödeme Alındı' = TRUE → kasada ödendi işlenmiş (x.adisyo = 'odendi' | 'acik' | '' bulunamadı).
+//     Eşleşme: kurye tablosundaki sipariş no + sipariş saati, en fazla 20 dk fark (tahsilatlariAdisyoyaIsle_ ile aynı kural).
+//  2) Pluxee siparişleri için kurye dosyasındaki 'Pluxee' sekmesinde aynı tutarda, teslimden en fazla 3 saat uzak çekim (x.pluxee).
+var TR_AY = { oca: 0, sub: 1, şub: 1, mar: 2, nis: 3, may: 4, haz: 5, tem: 6, agu: 7, ağu: 7, eyl: 8, eki: 9, kas: 10, ara: 11 };
+function acikKanit_(ks, liste) {
+  if (!liste.length) return { pluxee: null };
+  // Kurye sistemi: sipariş ID → sipariş anı ve adisyon no
+  var s = sonSatirlar_(ks, 'Siparişler', 9000, ['Tarih', 'Sipariş ID', 'Adisyon No', 'Sipariş Saati']), kmap = {};
+  if (s) { var cs = { t: kolon_(s.b, ['Tarih']), id: kolon_(s.b, ['Sipariş ID']), no: kolon_(s.b, ['Adisyon No']), sa: kolon_(s.b, ['Sipariş Saati']) };
+    s.v.forEach(function (r) { var id = siparisNo_(r[cs.id]); if (id) kmap[id] = { no: String(r[cs.no] || '').trim(), ms: zaman_(String(r[cs.t]).trim() + ' ' + String(r[cs.sa] || '').trim()) }; }); }
+  var as = SpreadsheetApp.openById(KAYNAK.siparis.id);
+  var a = sonSatirlar_(as, 'Satıs Verileri', 12000, ['Sipariş ID', 'Sipariş No', 'Sipariş Tarihi', 'Ödeme Alındı']);
+  if (a) {
+    var c = { no: kolon_(a.b, ['Sipariş No']), t: kolon_(a.b, ['Sipariş Tarihi']), od: kolon_(a.b, ['Ödeme Alındı']) }, ano = {}, enEski = null;
+    if (c.od < 0) throw new Error("Adisyo'da 'Ödeme Alındı' sütunu bulunamadı");
+    a.v.forEach(function (r) { var no = String(r[c.no] || '').trim(), ms = zaman_(r[c.t]); if (!no || ms === null) return; if (enEski === null || ms < enEski) enEski = ms;
+      (ano[no] = ano[no] || []).push({ ms: ms, od: /^true$/i.test(String(r[c.od] || '').trim()) }); });
+    liste.forEach(function (x) {
+      var k = kmap[x.id]; x.adisyo = '';
+      if (!k || k.ms === null) return;
+      var aday = (ano[k.no] || []).map(function (y) { return { y: y, f: Math.abs(y.ms - k.ms) }; }).filter(function (z) { return z.f <= 20 * 60000; }).sort(function (p, q) { return p.f - q.f; })[0];
+      if (aday) x.adisyo = aday.y.od ? 'odendi' : 'acik';
+      else if (enEski !== null && k.ms < enEski) x.adisyo = 'eski';
+    });
+  }
+  // Pluxee çekimleri
+  var px = sonSatirlar_(ks, 'Pluxee', 3000), cekim = [], sonCekim = null;
+  if (px) {
+    var cz = kolon_(px.b, ['İşlem Zamanı']), ct = kolon_(px.b, ['Tutar (TL)', 'Tutar']);
+    px.v.forEach(function (r) { var m = String(r[cz] || '').trim().match(/^(\d{1,2})\s+(\S+)\s+(\d{4})\s+(\d{1,2}):(\d{2})/); if (!m) return;
+      var ay = TR_AY[m[2].toLocaleLowerCase('tr-TR').slice(0, 3)]; if (ay === undefined) ay = TR_AY[norm_(m[2]).slice(0, 3)]; if (ay === undefined) return;
+      var ms = Date.UTC(+m[3], ay, +m[1], +m[4], +m[5]); cekim.push({ ms: ms, tutar: sayi_(r[ct]), zaman: m[4] + ':' + m[5], kullanildi: false });
+      if (sonCekim === null || ms > sonCekim) sonCekim = ms; });
+    liste.filter(function (x) { return /pluxee|sodexo/i.test(x.odeme); }).forEach(function (x) {
+      var t = String(x.teslim || '').match(/(\d{1,2}):(\d{2})/), ref = Date.parse(x.gun + 'T00:00:00Z') + (t ? ((+t[1]) * 60 + (+t[2])) * 60000 : 20 * 3600000);
+      if (t && +t[1] < 4) ref += 86400000; // gece yarısından sonra teslim
+      var b = cekim.filter(function (y) { return !y.kullanildi && Math.abs(y.tutar - x.tutar) < 0.5 && Math.abs(y.ms - ref) <= 3 * 3600000; })
+        .sort(function (p, q) { return Math.abs(p.ms - ref) - Math.abs(q.ms - ref); })[0];
+      if (b) { b.kullanildi = true; x.pluxee = b.zaman; }
+    });
+  }
+  return { pluxee: sonCekim === null ? null : { son: new Date(sonCekim).toISOString().slice(0, 16).replace('T', ' '), adet: cekim.length } };
 }
 
 // "46.847.362" ve "46847362" aynı sipariş: yalnız rakamlar.
