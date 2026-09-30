@@ -1027,8 +1027,8 @@ function kesintiGir_(d) {
 // Şubelerin çıkış noktası (Google Haritalar'a verilen adres). En doğrusu koordinat: Google Haritalar'da şubenin kapısına
 // basılı tutunca çıkan "41.0xxxxx, 29.0xxxxx" değeri buraya adres yerine yazılabilir (ör. 'BAP Erenköy': '40.97351, 29.07623').
 var SUBE_KONUM = {
-  'BAP Erenköy': 'Erenköy Mahallesi, Alpler Sokak No:7, 34738 Kadıköy/İstanbul',
-  'BAP Fikirtepe': 'Evinpark Sitesi, Mandıra Caddesi, Fikirtepe, 34720 Kadıköy/İstanbul'
+  'BAP Erenköy': 'Erenköy Mahallesi, Alpler Sokak No:7A, 34738 Kadıköy/İstanbul',
+  'BAP Fikirtepe': 'Evinpark Sitesi C Blok, Mandıra Caddesi, Fikirtepe Mahallesi, 34720 Kadıköy/İstanbul'
 };
 var SEFER_ARALIK_DK = 5;   // aynı kuryenin bu kadar dakika içinde restorandan çıkan siparişleri tek sefer
 var TESLIM_PAYI_DK = 2;    // her kapıda paketi teslim etmek için eklenen süre
