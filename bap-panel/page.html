@@ -150,6 +150,8 @@ h1{font-size:34px;line-height:1.12;margin:0;font-weight:700;letter-spacing:-.015
 .odeme-alt{display:flex;align-items:center;gap:12px;margin-top:16px;flex-wrap:wrap}
 .cevap-durum.iyi{color:var(--iyi);font-weight:600} .cevap-durum.kotu{color:var(--kotu)}
 @media (max-width:760px){.odeme-izgara{grid-template-columns:1fr 1fr}.odeme-izgara .ted{grid-column:1/-1}}
+.rakamlar.dort{grid-template-columns:repeat(4,minmax(0,1fr))}
+@media (max-width:760px){.rakamlar.dort{grid-template-columns:1fr 1fr}}
 
 .yukleniyor{padding:80px 0;color:var(--gri);font-size:15px}
 
@@ -562,12 +564,313 @@ function odemeSekme(a,G){var O=G.odeme||[],grup={};O.forEach(function(x){(grup[x
   a.appendChild(el("div",{class:"iki"},[blok("Ödeme yöntemleri",O.length+" alt yöntem, "+Object.keys(grup).length+" grup. Online olanlar takip dışıdır.",tablo([["Grup"],["Alt yöntemler"]],Object.keys(grup).sort().map(function(g){return [el("strong",{text:g}),grup[g].map(function(x){return x.ad+(x.online?" (online)":"");}).join(", ")];}))),
     blok("Santral ve arama ayarları",null,(G.santral||[]).length?tablo([["Ayar"],["Değer"]],G.santral.map(function(x){return [x.ayar,x.deger];})):bos("Ayar bulunamadı."))]));}
 
+/* ---------------- Kurye ve teslimat ---------------- */
+var KURYE_DONEM="yedi",KURYE_SEBEP="",KURYE_SEKME="ozet",KURYE_HAFTA=0;
+var KD_AD={bugun:"Bugün",dun:"Dün",yedi:"Son 7 gün",ay:"Bu ay",otuz:"Son 30 gün"};
+var SEBEP_AD={mutfak:"Mutfak",kurye:"Kurye",ikisi:"İkisi birden",diger:"Diğer"};
+var SEBEP_RENK={mutfak:"var(--dikkat)",kurye:"var(--kotu)",ikisi:"var(--mavi-koyu)",diger:"var(--gri)"};
+function virgul(n){return n==null?"—":String(n).replace(".",",");}
+function dkEtiket(dk,iyi,kotu){if(dk==null)return "—";var c=dk<=iyi?"e-iyi":(dk<=kotu?"e-dikkat":"e-kotu");return el("span",{class:"etiket "+c,text:virgul(dk)+" dk"});}
+function kuryeDurum(d){var c=/tamam/i.test(d)?"e-iyi":(/açık/i.test(d)?"e-notr":(/kesinti|yok/i.test(d)?"e-dikkat":"e-notr"));return el("span",{class:"etiket "+c,text:d||"—"});}
+function saatDk(dk){return dk>0?Math.floor(dk/60)+" sa "+(dk%60)+" dk":"—";}
+function svgYap(W,H,etiket){var ns="http://www.w3.org/2000/svg",svg=document.createElementNS(ns,"svg");svg.setAttribute("viewBox","0 0 "+W+" "+H);svg.setAttribute("role","img");svg.setAttribute("aria-label",etiket);
+  svg.yaz=function(x,y,t,cls,renk){var e=document.createElementNS(ns,"text");e.setAttribute("x",x);e.setAttribute("y",y);e.setAttribute("text-anchor","middle");if(cls)e.setAttribute("class",cls);if(renk)e.setAttribute("style","fill:"+renk);e.textContent=t;svg.appendChild(e);};
+  svg.sutun=function(x,y,w,h,renk,baslik){var r=document.createElementNS(ns,"rect");r.setAttribute("x",x);r.setAttribute("y",y);r.setAttribute("width",Math.max(2,w));r.setAttribute("height",Math.max(h,1));r.setAttribute("rx",3);r.setAttribute("fill",renk);var t=document.createElementNS(ns,"title");t.textContent=baslik;r.appendChild(t);svg.appendChild(r);};
+  return svg;}
+
+// Saatlik yük: sütun = son 7 günün saat başına ortalama sipariş adedi, üstünde ortalama teslim süresi.
+function saatlikGrafik(l,hedef){if(!l||!l.length)return bos("Son 7 günde sipariş yok.");var W=760,H=230,ust=30,alt=34,p=16,bw=(W-p*2)/l.length;var max=Math.max.apply(null,l.map(function(x){return x.gunluk;}))||1;
+  var svg=svgYap(W,H,"Saat başına ortalama sipariş ve teslim süresi");
+  l.forEach(function(x,i){var h=Math.round((H-ust-alt)*x.gunluk/max),cx=p+i*bw+bw/2,yavas=x.ortDk!=null&&x.ortDk>hedef;
+    svg.sutun(p+i*bw+4,H-alt-h,bw-8,h,yavas?"var(--kotu)":"var(--mavi)",("0"+x.saat).slice(-2)+":00 — günde ortalama "+virgul(x.gunluk)+" sipariş"+(x.ortDk!=null?", ortalama teslim "+x.ortDk+" dk":""));
+    svg.yaz(cx,H-alt-h-16,virgul(x.gunluk),"deger-yazi");if(x.ortDk!=null)svg.yaz(cx,H-alt-h-4,x.ortDk+" dk","adet-yazi",yavas?"var(--kotu)":null);svg.yaz(cx,H-alt+16,("0"+x.saat).slice(-2));});
+  return el("div",{class:"grafik"},[svg]);}
+
+// 14 gün: sütun = paket adedi (koyu kısmı geciken), üstünde ortalama teslim süresi.
+function kuryeSeri(seri,hedef){if(!seri||!seri.length)return bos("Grafik için veri yok.");var W=760,H=240,ust=30,alt=40,p=20,bw=(W-p*2)/seri.length;var max=Math.max.apply(null,seri.map(function(x){return x.adet;}))||1;
+  var svg=svgYap(W,H,"Son 14 günün paket adedi ve teslim süresi");
+  seri.forEach(function(x,i){var h=Math.round((H-ust-alt)*x.adet/max),hg=Math.round((H-ust-alt)*x.gec/max),cx=p+i*bw+bw/2,bas=gunAd(x.gun)+": "+x.adet+" paket, "+x.gec+" geciken"+(x.ortDk!=null?", ortalama teslim "+x.ortDk+" dk":"");
+    svg.sutun(p+i*bw+4,H-alt-h,bw-8,h,i===seri.length-1?"var(--mavi-koyu)":"var(--mavi)",bas);if(hg)svg.sutun(p+i*bw+4,H-alt-hg,bw-8,hg,"var(--kotu)",bas);
+    svg.yaz(cx,H-alt-h-16,String(x.adet),"deger-yazi");if(x.ortDk!=null)svg.yaz(cx,H-alt-h-4,x.ortDk+" dk","adet-yazi",x.ortDk>hedef?"var(--kotu)":null);
+    var d=new Date(x.gun+"T00:00:00Z");svg.yaz(cx,H-alt+16,GUNLER[d.getUTCDay()]+" "+d.getUTCDate());});
+  return el("div",{class:"grafik"},[svg]);}
+
+// 14 gün kurye maliyeti: sütun = günün maliyeti, altında paket başı maliyet.
+function maliyetSeri(seri){if(!seri||!seri.length)return bos("Grafik için veri yok.");var W=760,H=240,ust=26,alt=40,p=20,bw=(W-p*2)/seri.length;var max=Math.max.apply(null,seri.map(function(x){return x.maliyet;}))||1;
+  var svg=svgYap(W,H,"Son 14 günün kurye maliyeti");
+  seri.forEach(function(x,i){var h=Math.round((H-ust-alt)*x.maliyet/max),cx=p+i*bw+bw/2,pb=x.adet?Math.round(x.maliyet/x.adet):null;
+    svg.sutun(p+i*bw+4,H-alt-h,bw-8,h,i===seri.length-1?"var(--mavi-koyu)":"var(--mavi)",gunAd(x.gun)+": "+para(x.maliyet)+(pb?", paket başı "+para(pb):""));
+    svg.yaz(cx,H-alt-h-6,kisa(x.maliyet),"deger-yazi");var d=new Date(x.gun+"T00:00:00Z");svg.yaz(cx,H-alt+16,GUNLER[d.getUTCDay()]+" "+d.getUTCDate());if(pb)svg.yaz(cx,H-alt+30,pb+" ₺/pk","adet-yazi");});
+  return el("div",{class:"grafik"},[svg]);}
+
+// 14 gün paket başı kurye maliyeti; kesikli çizgi kapanmış günlerin ortalaması. Bugün soluk: açık vardiyaların saati henüz yok.
+function paketBasiSeri(seri){var l=(seri||[]).map(function(x){return {gun:x.gun,pb:x.adet?Math.round(x.maliyet/x.adet):null};});
+  var kapali=l.slice(0,-1).filter(function(x){return x.pb;});if(!kapali.length)return bos("Grafik için veri yok.");
+  var ort=Math.round(kapali.reduce(function(t,x){return t+x.pb;},0)/kapali.length);
+  var W=760,H=250,ust=36,alt=34,p=20,bw=(W-p*2)/l.length;var max=Math.max.apply(null,l.map(function(x){return x.pb||0;}).concat([ort]))||1;
+  var svg=svgYap(W,H,"Son 14 günün paket başı kurye maliyeti");
+  l.forEach(function(x,i){var son=i===l.length-1,v=x.pb||0,h=Math.round((H-ust-alt)*v/max),cx=p+i*bw+bw/2;
+    var renk=son?"var(--cizgi)":(v>ort*1.15?"var(--kotu)":"var(--mavi)");
+    svg.sutun(p+i*bw+4,H-alt-h,bw-8,h,renk,gunAd(x.gun)+": paket başı "+(x.pb?para(x.pb):"—")+(son?" (vardiyalar kapanmadı, eksik)":""));
+    if(x.pb)svg.yaz(cx,H-alt-h-6,x.pb+" ₺","deger-yazi",son?"var(--gri)":null);var d=new Date(x.gun+"T00:00:00Z");svg.yaz(cx,H-alt+16,GUNLER[d.getUTCDay()]+" "+d.getUTCDate());});
+  var y=H-alt-Math.round((H-ust-alt)*ort/max),ns="http://www.w3.org/2000/svg",ln=document.createElementNS(ns,"line");
+  ln.setAttribute("x1",p);ln.setAttribute("x2",W-p);ln.setAttribute("y1",y);ln.setAttribute("y2",y);ln.setAttribute("stroke","var(--murekkep)");ln.setAttribute("stroke-dasharray","4 4");ln.setAttribute("stroke-width","1");ln.setAttribute("opacity",".55");svg.appendChild(ln);
+  var t=document.createElementNS(ns,"text");t.setAttribute("x",W-p);t.setAttribute("y",12);t.setAttribute("text-anchor","end");t.setAttribute("class","adet-yazi");t.textContent="- - - kapanmış günlerin ortalaması: "+ort+" ₺";svg.appendChild(t);
+  return el("div",{class:"grafik"},[svg]);}
+
+// Gecikmelerin sebebe göre dağılımı: tek yatay şerit + açıklamalı satırlar.
+function sebepBlok(G){var S=G.sebep,top=G.gec;if(!top)return bos("Bu dönemde geciken teslimat yok.");
+  var serit=el("div",{style:"display:flex;height:16px;border-radius:8px;overflow:hidden;margin:4px 18px 12px"},["mutfak","ikisi","kurye","diger"].map(function(k){return S[k]?el("span",{title:SEBEP_AD[k]+": "+S[k],style:"background:"+SEBEP_RENK[k]+";width:"+(S[k]/top*100)+"%"}):null;}));
+  return el("div",{class:"liste",style:"padding-top:14px"},[serit].concat(["mutfak","ikisi","kurye","diger"].map(function(k){
+    return el("div",{class:"cubuk"},[el("span",null,[el("i",{style:"display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:7px;background:"+SEBEP_RENK[k]}),SEBEP_AD[k]]),el("span",{style:"color:var(--gri);font-size:13px",text:{mutfak:"Restorandan geç çıktı, yol normal",ikisi:"Hem geç çıktı hem yolda uzadı",kurye:"Zamanında çıktı, yolda uzadı",diger:"Tek başına sınırı aşmayan birikim"}[k]}),el("span",{class:"sayi",text:S[k]+" (%"+Math.round(S[k]/top*100)+")"})]);})));}
+
+function kuryeSayfa(a){var K=VERI.kurye;a.appendChild(ust("Kurye ve teslimat",K&&K.sonSiparis?"Kaynak: Kurye Net Çalışma Süresi tablosu. Son sipariş kaydı: "+K.sonSiparis+".":null));a.appendChild(nabizSeridi("kurye"));var h=hatalarKutusu(["kurye"]);if(h)a.appendChild(h);if(!K)return;
+  var HD=K.hedef,D=KURYE_DONEM,G=K.genel[D],A=K.acik;
+  var aktifSefer=(K.seferler||[]).filter(function(g){return g.durum!=="tamamlandı";}).length;
+  var SK=[["ozet","Özet"],["rota","Seferler & rota"+(aktifSefer?" ("+aktifSefer+" aktif)":"")],["bordro","Bordro"],["teslimat","Teslimat analizi"],["kesinti","Kesintiler"],["acik","Açık hesaplar ("+A.eski.adet+")"]];
+  a.appendChild(el("div",{class:"sekmeler",style:"border-bottom:1px solid var(--cizgi);padding-bottom:12px;margin-bottom:16px"},SK.map(function(k){return el("button",{type:"button","aria-pressed":KURYE_SEKME===k[0]?"true":"false",onclick:function(){KURYE_SEKME=k[0];ciz();}},[k[1]]);})));
+  if(KURYE_SEKME==="rota")return kuryeRota(a,K);if(KURYE_SEKME==="bordro")return kuryeBordro(a,K);if(KURYE_SEKME==="kesinti")return kuryeKesinti(a,K);if(KURYE_SEKME==="acik")return kuryeAcik(a,K);
+  a.appendChild(el("div",{class:"sekmeler"},["bugun","dun","yedi","ay","otuz"].map(function(k){return el("button",{type:"button","aria-pressed":D===k?"true":"false",onclick:function(){KURYE_DONEM=k;ciz();}},[KD_AD[k]]);})));
+  if(KURYE_SEKME==="teslimat")return kuryeTeslimat(a,K);
+  var oran=G.adet?Math.round(G.gec/G.adet*100):0;
+  a.appendChild(el("div",{class:"rakamlar dort"},[
+    rakam("Paket",TL.format(G.adet),D==="yedi"||D==="otuz"?"günde ortalama "+Math.round(G.adet/(D==="yedi"?7:30)):TL.format(G.km)+" km"),
+    rakam("Kurye atama",G.atama!=null?virgul(G.atama)+" dk":"—","sipariş → kurye atandı"),
+    rakam("Restorandan çıkış",G.cikis!=null?virgul(G.cikis)+" dk":"—","sipariş → paket yola çıktı",G.cikis>HD.cikis?"asagi":""),
+    rakam("Yol",G.yol!=null?virgul(G.yol)+" dk":"—","çıkış → teslim"),
+    rakam("Teslim",G.toplam!=null?virgul(G.toplam)+" dk":"—","sipariş → kapıda",G.toplam>HD.toplam?"asagi":""),
+    rakam(HD.toplam+" dk üstü",TL.format(G.gec),G.adet?"paketlerin %"+oran+"'i":null,oran>10?"asagi":""),
+    rakam("Kurye maliyeti",para(G.maliyet),G.paketBasi?"paket başı "+para(G.paketBasi)+", KDV dahil":"KDV dahil"),
+    rakam("Açık hesap",para(A.eski.toplam),A.eski.adet+" kayıt dünden eski",A.eski.adet?"asagi":"")]));
+
+  // Bugün sahada kim var
+  var M=K.bugunMesai,planli=M.filter(function(x){return x.plan;}).length,giren=M.filter(function(x){return x.giris;}).length,sahada=M.filter(function(x){return x.acik&&x.giris;}).length,gelmedi=M.filter(function(x){return x.plan&&!x.giris;}).length,gecGelen=M.filter(function(x){return x.gecDk>0;}).length;
+  a.appendChild(blok("Bugün vardiya","Planlı "+planli+", giriş yapan "+giren+", şu an sahada "+sahada+(gelmedi?", gelmeyen "+gelmedi:"")+(gecGelen?", geç giren "+gecGelen:"")+". Kadro (son 30 günde çalışan) "+K.kadro.sayi+(K.kadro.off.length?"; bugün kaydı olmayan: "+K.kadro.off.join(", "):"")+". Vardiyası açık kuryenin süresi girişten şu ana kadar sayılır; tablo vardiya kapanınca net süreyi yazar.",
+    M.length?tablo([["Kurye"],["Plan"],["Giriş"],["Çıkış"],["Geç",1],["Paket",1],["Süre",1],["Saatte paket",1],["Durum"]],M.map(function(x){
+      var d=kuryeDurum(x.durum);if(x.neden)d.setAttribute("title",x.neden);var dk=x.acik?x.canliDk:x.netDk,ps=dk>=60?Math.round(x.paket/(dk/60)*10)/10:null;
+      return [x.ad,x.plan||"—",x.giris||el("span",{style:"color:var(--kotu)",text:x.plan?"gelmedi":"—"}),x.cikis||(x.acik&&x.giris?"sahada":"—"),x.gecDk>0?el("span",{class:"etiket "+(x.gecDk>15?"e-kotu":"e-dikkat"),text:x.gecDk+" dk"}):"—",String(x.paket||0),
+        x.acik?el("span",{title:"Vardiya sürüyor",text:saatDk(dk)+" ↻"}):saatDk(dk),ps!=null?el("span",{class:ps<1.5?"etiket e-dikkat":null,text:virgul(ps)}):"—",d];})):bos("Bugün için mesai kaydı yok.")));
+
+  // Kurye karnesi
+  var l=K.kisiler[D]||[];
+  a.appendChild(blok("Kurye karnesi — "+KD_AD[D],"Paket, süre ve km Siparişler sekmesinden; net saat, geç giriş ve kesinti Günlük Mesai'den. Saatte paket yalnız kapanmış vardiyalardan hesaplanır. ‘Erken çevrimiçi’ vardiyadan önce açık kalan ve zaten ödenmeyen süredir, ceza değildir. Kapanış: son teslimden sonra makul çıkışı aşan süre.",
+    l.length?tablo([["Kurye"],["Paket",1],["Net saat",1],["Saatte paket",1],["Ort. teslim",1],["Ort. yol",1],["Geciken",1],["Yolda geciken",1],["Geç giriş",1],["Erken çevrimiçi",1],["Kapanış",1],["Maliyet",1],["Paket başı",1]],l.map(function(x){
+      return [x.ad,String(x.paket),x.netSaat?virgul(x.netSaat):"—",x.paketSaat!=null?el("span",{class:x.paketSaat<1.5?"etiket e-dikkat":null,text:virgul(x.paketSaat)}):"—",dkEtiket(x.ortDk,30,HD.toplam),x.ortYol!=null?x.ortYol+" dk":"—",
+        String(x.gec),x.kuryeGec?el("span",{class:"etiket e-kotu",text:String(x.kuryeGec)}):"0",x.gecGiris?x.gecGiris+" kez, "+x.gecGirisDk+" dk":"—",x.erkenDk?x.erkenDk+" dk":"—",x.kapanisDk?el("span",{class:x.kapanisDk>=120?"etiket e-kotu":null,text:x.kapanisDk+" dk"}):"—",para(x.maliyet),x.paketBasi?para(x.paketBasi):"—"];})):bos("Bu dönemde kayıt yok.")));
+
+  a.appendChild(blok("Son 14 gün","Sütun paket adedi, kırmızı kısmı "+HD.toplam+" dakikayı aşan teslimatlar; üstünde ortalama teslim süresi. En koyu sütun bugün.",kuryeSeri(K.seri,HD.toplam)));
+  a.appendChild(blok("Kurye maliyeti — son 14 gün","Saat ücreti × net süre + paket ücreti, Haddy tarafında KDV dahil. Altında paket başı maliyet. Açık vardiyanın yalnız paketleri sayılır; saati vardiya kapanınca eklenir.",maliyetSeri(K.seri)));
+  a.appendChild(blok("Paket başı kurye maliyeti — son 14 gün","Günün kurye maliyeti ÷ o gün teslim edilen paket. Kesikli çizgi kapanmış günlerin ortalaması; ortalamayı %15'ten fazla aşan günler kırmızı: ya kurye fazla ya sipariş az. Bugün gri, çünkü açık vardiyaların saati henüz eklenmedi.",paketBasiSeri(K.seri)));
+}
+
+
+function kuryeTeslimat(a,K){var HD=K.hedef,D=KURYE_DONEM,G=K.genel[D];
+  // Gecikmeler neden oluyor
+  a.appendChild(el("div",{class:"iki"},[
+    blok("Gecikme neden oluyor",KD_AD[D]+", "+HD.toplam+" dakikayı aşan "+G.gec+" teslimat. Mutfak: sipariş → çıkış "+HD.cikis+" dakikayı aştı. Kurye: yol süresi mesafeye göre beklenenden "+HD.yolPay+" dakikadan fazla uzun.",sebepBlok(G)),
+    blok("Teslim süresi dağılımı","Son 7 günde paketlerin sipariş-teslim süresi.",cubuklar(K.dagilim,function(n){return n+" paket";}))]));
+
+  a.appendChild(blok("Hangi saatte sıkışıyoruz","Son 7 günün saat başına günlük ortalama sipariş adedi; sütunun üstünde o saatteki ortalama teslim süresi. Kırmızı sütunlar ortalaması "+HD.toplam+" dakikayı aşan saatlerdir: o saatlere kurye ya da mutfak desteği gerekir.",saatlikGrafik(K.saatlik,HD.toplam)));
+  a.appendChild(blok("Platformlar","Son 7 gün.",K.platform.length?tablo([["Platform"],["Paket",1],["Ort. teslim",1],["Geciken",1]],K.platform.map(function(p){return [p.ad,String(p.adet),dkEtiket(p.ortDk,30,HD.toplam),p.gec+" (%"+(p.adet?Math.round(p.gec/p.adet*100):0)+")"];})):bos("Kayıt yok.")));
+
+  // En uzun süren teslimatlar
+  var ek=el("div");(function ekCiz(){ek.textContent="";
+    ek.appendChild(el("div",{class:"sekmeler"},[["","Tümü"],["mutfak","Mutfak"],["kurye","Kurye"],["ikisi","İkisi birden"],["diger","Diğer"]].map(function(s){return el("button",{type:"button","aria-pressed":KURYE_SEBEP===s[0]?"true":"false",onclick:function(){KURYE_SEBEP=s[0];ekCiz();}},[s[1]]);})));
+    var L=K.enKotu.filter(function(x){return !KURYE_SEBEP||x.sebep===KURYE_SEBEP;}).slice(0,15);
+    ek.appendChild(L.length?tablo([["Tarih"],["Saat"],["Adisyon"],["Platform"],["Kurye"],["Km",1],["Çıkış",1],["Yol / beklenen",1],["Toplam",1],["Sebep"]],L.map(function(x){
+      return [gunAd(x.gun),x.saat,String(x.no||""),x.platform,x.kurye,virgul(x.km),el("span",{class:x.cikis>HD.cikis?"etiket e-dikkat":null,text:x.cikis+" dk"}),el("span",{class:x.yol>x.bekYol+HD.yolPay?"etiket e-kotu":null,text:x.yol+" / "+x.bekYol+" dk"}),x.toplam+" dk",el("span",{class:"etiket",style:"background:var(--kum-acik);color:"+SEBEP_RENK[x.sebep],text:SEBEP_AD[x.sebep]})];})):bos("Bu sebeple geciken teslimat yok."));})();
+  a.appendChild(blok("En uzun süren teslimatlar","Son 7 günün en yavaş teslimatları, en uzundan kısaya. Sebebe göre süz.",ek));
+
+}
+
+var KESINTI_FORM={kurye:"",tarih:"",tip:"TL",miktar:"",aciklama:"",durum:"",durumSinif:"",onayBekliyor:false,istekNo:yeniIstekNo(),gonderiliyor:false};
+// Elle kesinti formu: kurye tablosundaki Kesintiler sekmesine yazar; bordroda TL hakedişten, saat ödenen süreden düşülür.
+// Kurye adları: veri kapısının listesi; yoksa (eski sürüm) panelde görünen bütün kurye adları.
+function kuryeAdListesi(K){if(K.kuryeAdlari&&K.kuryeAdlari.length)return K.kuryeAdlari;var o={};
+  ["bugun","dun","yedi","ay","otuz"].forEach(function(d){((K.kisiler||{})[d]||[]).forEach(function(x){o[x.ad]=1;});});
+  (K.bugunMesai||[]).forEach(function(x){o[x.ad]=1;});(K.bordro||[]).forEach(function(h){h.kisiler.forEach(function(x){o[x.ad]=1;});});
+  delete o["Atanmamış"];return Object.keys(o).sort(function(a,b){return a.localeCompare(b,"tr");});}
+function kesintiFormu(K){var F=KESINTI_FORM;if(!F.tarih)F.tarih=bugunIst();var adlar=kuryeAdListesi(K);
+  var sec=el("select",{"aria-label":"Kurye"},[el("option",{value:"",text:"Kurye seç…"})].concat(adlar.map(function(x){return el("option",{value:x,text:x});})));sec.value=F.kurye;
+  var tarih=el("input",{type:"date",value:F.tarih,max:bugunIst(),"aria-label":"Tarih"});
+  var tip=el("select",{"aria-label":"Kesinti türü"},[el("option",{value:"TL",text:"Para (₺)"}),el("option",{value:"Saat",text:"Süre (dakika)"})]);tip.value=F.tip;
+  var miktar=el("input",{type:"text",inputmode:"decimal",autocomplete:"off",value:F.miktar,"aria-label":"Miktar"});
+  var miktarEt=el("span",{text:""});
+  var acik=el("input",{type:"text",maxlength:"200",value:F.aciklama,placeholder:"Ne oldu? örn. kasa açığı, içecek unutuldu, geç kaldı",'aria-label':"Açıklama"});
+  var ipucu=el("div",{class:"odeme-ipucu"}),durum=el("span",{class:"cevap-durum "+(F.durumSinif||""),role:"status",text:F.durum});
+  var kaydet=el("button",{type:"submit",class:"dugme ana-dugme"},[F.onayBekliyor?"Yine de ekle":"Kesintiyi kaydet"]);
+  var vazgec=F.onayBekliyor?el("button",{type:"button",class:"dugme",onclick:function(){F.onayBekliyor=false;F.durum="";F.durumSinif="";ciz();}},["Vazgeç"]):null;
+  var alanlar=[sec,tarih,tip,miktar,acik,kaydet];if(F.gonderiliyor)alanlar.forEach(function(x){x.setAttribute("disabled","");});
+  function ucret(){var U=K.ucret||{},k=U.kisiler||{},n=normAd(F.kurye),i;for(i in k)if(normAd(i)===n||normAd(String(F.kurye).split(/\s+/)[0])===normAd(i))return k[i];return U.varsayilan||null;}
+  function ipucuYaz(){ipucu.textContent="";miktarEt.textContent=F.tip==="Saat"?"Kaç dakika":"Tutar (₺)";miktar.setAttribute("placeholder",F.tip==="Saat"?"örn. 30":"örn. 250");
+    var t=tutarOku(F.miktar),u=ucret();if(!(t>0))return;
+    if(F.tip==="Saat"){ipucu.appendChild(el("strong",{text:Math.round(t)+" dk ödenen süreden düşülecek"}));if(u&&F.kurye)ipucu.appendChild(el("span",{text:"≈ "+para(Math.round(t)/60*u.saat)+" ("+u.saat+" ₺/saat)"}));}
+    else ipucu.appendChild(el("strong",{text:para(t)+" hakedişten düşülecek"}));}
+  function sakla(){var once=[F.kurye,F.tarih,F.tip,F.miktar,F.aciklama].join("|");F.kurye=sec.value;F.tarih=tarih.value;F.tip=tip.value;F.miktar=miktar.value;F.aciklama=acik.value;
+    if(once!==[F.kurye,F.tarih,F.tip,F.miktar,F.aciklama].join("|")){F.istekNo=yeniIstekNo();if(F.onayBekliyor){F.onayBekliyor=false;kaydet.textContent="Kesintiyi kaydet";if(vazgec)vazgec.remove();durum.textContent="";F.durum="";}}}
+  [sec,tarih,tip,miktar,acik].forEach(function(x){x.addEventListener("input",function(){sakla();ipucuYaz();});x.addEventListener("change",function(){sakla();ipucuYaz();});});
+  ipucuYaz();
+  function gonder(ev){ev.preventDefault();if(F.gonderiliyor)return;var onay=F.onayBekliyor?"1":"";sakla();var t=tutarOku(F.miktar);
+    function hata(m,k){durum.textContent=m;durum.className="cevap-durum kotu";F.durum=m;F.durumSinif="kotu";if(k)k.focus();}
+    if(!F.kurye)return hata("Kuryeyi seç.",sec);if(!F.tarih)return hata("Tarihi seç.",tarih);if(F.tarih>bugunIst())return hata("İleri tarihli kesinti girilemez.",tarih);
+    if(!(t>0))return hata(F.tip==="Saat"?"Kaç dakika kesileceğini yaz.":"Geçerli bir tutar yaz.",miktar);if(!F.aciklama.trim())return hata("Kısa bir açıklama yaz.",acik);
+    F.gonderiliyor=true;alanlar.forEach(function(x){x.setAttribute("disabled","");});durum.className="cevap-durum";durum.textContent="Kaydediliyor…";
+    fetch("/api/kesinti",{method:"POST",credentials:"same-origin",headers:{"content-type":"application/json","x-bap-panel":"1"},body:JSON.stringify({istekNo:F.istekNo,kurye:F.kurye,tarih:F.tarih,tip:F.tip,miktar:String(t),aciklama:F.aciklama,onay:onay})})
+      .then(function(r){return r.json();}).then(function(d){F.gonderiliyor=false;
+        if(d&&d.tamam){F.durum="✓ "+d.kurye+" için "+(d.tip==="Saat"?d.miktar+" dk":para(d.miktar))+" kesinti kaydedildi ("+d.tarih+")."+(d.zatenKayitli?" (zaten kayıtlıydı)":"");F.durumSinif="iyi";F.onayBekliyor=false;F.miktar="";F.aciklama="";F.istekNo=yeniIstekNo();yukle(true);return;}
+        if(d&&d.tekrarMi){F.onayBekliyor=true;F.durum=d.hata;F.durumSinif="kotu";ciz();return;}
+        F.durum=(d&&d.hata)||"Kaydedilemedi.";F.durumSinif="kotu";ciz();})
+      .catch(function(){F.gonderiliyor=false;F.durum="Bağlantı koptu; kesinti yazılmış olabilir. ‘Şimdi yenile’ ile aşağıdaki listeden kontrol et, sonra gerekirse yeniden gönder (aynı gönderim iki kez yazılmaz).";F.durumSinif="kotu";ciz();});}
+  function etiket(ad,girdi,cls){return el("label",{class:cls||null},[ad,girdi]);}
+  return el("form",{class:"odeme-form",onsubmit:gonder},[
+    el("div",{class:"odeme-izgara"},[etiket("Kurye",sec,"ted"),etiket("Tarih",tarih),etiket("Tür",tip),el("label",null,[miktarEt,miktar]),etiket("Açıklama",acik,"genis"),el("div",{class:"genis"},[ipucu])]),
+    el("div",{class:"odeme-alt"},[kaydet,vazgec,durum])]);}
+
+function kuryeKesinti(a,K){var L=K.kesintiler,ozet={};
+  a.appendChild(blok("Kesinti gir","Kurye tablosundaki Kesintiler sekmesine yazılır. Para kesintisi haftalık hakedişten, süre kesintisi ödenen süreden düşülür (Bordro sekmesinde görünür). Yanlış girdiysen o satırı tablodan sil.",kesintiFormu(K)));
+  var E=K.elleKesinti||[];
+  a.appendChild(blok("Girilen kesintiler — son 60 gün","Kesintiler sekmesinden; panelden girilenlerin açıklamasında ‘(panel)’ yazar.",E.length?tablo([["Tarih"],["Kurye"],["Tür"],["Miktar",1],["Açıklama"]],E.map(function(x){
+    return [gunAd(x.gun),x.ad,x.tip==="Saat"?"Süre":"Para",x.tip==="Saat"?(x.dk||0)+" dk":para(x.tl),el("span",{title:x.not,style:"color:var(--gri)",text:x.not.length>80?x.not.slice(0,80)+"…":x.not})];})):bos("Son 60 günde girilmiş kesinti yok.")));
+  a.appendChild(el("h2",{style:"font-size:20px;margin:34px 0 10px",text:"Otomatik mesai kesintileri"}));
+  L.forEach(function(x){var o=ozet[x.ad]=ozet[x.ad]||{ad:x.ad,erken:0,kapanis:0,tl:0,gun:0,unutulmus:0};o.erken+=x.erken;o.kapanis+=x.kapanis;o.tl+=x.tl;o.gun++;if(x.unutulmus)o.unutulmus++;});
+  var O=Object.keys(ozet).map(function(k){return ozet[k];}).sort(function(x,y){return (y.erken+y.kapanis)-(x.erken+x.kapanis);});
+  a.appendChild(el("div",{class:"bilgi",text:"Erken çevrimiçi: vardiyadan önce açık kalan süre; zaten ödenmiyor, ceza değil. Kapanış: son teslimden sonra makul çıkışı aşan süre. 2 saati aşan kapanış büyük ihtimalle çıkış yapmayı unutmaktır; tablodaki Kesinti İstisnaları sekmesine yazılarak düzeltilir. ₺ karşılığı yalnız kapanış için saat ücretiyle hesaplanır ve bordroda zaten düşülmüştür; erken çevrimiçi süre hiç ödenmediği için ₺ karşılığı yazılmaz."}));
+  a.appendChild(blok("Kurye bazında — son 30 gün",null,O.length?tablo([["Kurye"],["Gün",1],["Erken çevrimiçi",1],["Kapanış",1],["Toplam",1],["Kapanış karşılığı",1],["Unutulmuş çıkış",1]],O.map(function(x){
+    return [x.ad,String(x.gun),x.erken?x.erken+" dk":"—",x.kapanis?x.kapanis+" dk":"—",(x.erken+x.kapanis)+" dk",x.tl?para(x.tl):"—",x.unutulmus?el("span",{class:"etiket e-kotu",text:String(x.unutulmus)}):"—"];})):bos("Son 30 günde kesinti yok.")));
+  var KS=L.filter(function(x){return x.erken+x.kapanis>=10;}).slice(0,60);
+  a.appendChild(blok("Gün gün","Son 30 günde 10 dakikayı aşanlar, en yeniden eskiye. Gerekçenin tamamı için üzerine gel.",
+    KS.length?tablo([["Tarih"],["Kurye"],["Erken",1],["Kapanış",1],["Kapanış karşılığı",1],["Gerekçe"]],KS.map(function(x){return [gunAd(x.gun),x.ad,x.erken?x.erken+" dk":"—",x.kapanis?el("span",{class:"etiket "+(x.unutulmus?"e-kotu":"e-dikkat"),text:x.kapanis+" dk"}):"—",x.tl?para(x.tl):"—",
+      x.unutulmus?el("span",{title:x.neden,style:"color:var(--kotu)",text:"Çıkış unutulmuş olabilir"}):el("span",{title:x.neden,style:"color:var(--gri)",text:x.neden.length>90?x.neden.slice(0,90)+"…":x.neden})];})):bos("10 dakikayı aşan kesinti yok.")));}
+
+function kuryeBordro(a,K){var B=K.bordro||[];if(!B.length)return a.appendChild(bos("Bordro için mesai kaydı yok."));
+  if(KURYE_HAFTA>=B.length)KURYE_HAFTA=0;var H=B[KURYE_HAFTA];
+  var sec=el("select",{class:"cevap-alan",style:"max-width:220px","aria-label":"Hafta",onchange:function(e){KURYE_HAFTA=+e.target.value;ciz();}},B.map(function(h,i){var o=el("option",{value:String(i),text:gunAd(h.hafta)+" – "+gunAd(h.bitis)+(i===0?" (bu hafta)":"")});if(i===KURYE_HAFTA)o.selected=true;return o;}));
+  var U=K.ucret,ucretYazi=[U.varsayilan.grup+" (varsayılan): saat "+U.varsayilan.saat+" ₺, paket "+U.varsayilan.paket+" ₺"+(U.varsayilan.kdv?", KDV %"+Math.round(U.varsayilan.kdv*100):"")].concat(Object.keys(U.kisiler).map(function(k){var x=U.kisiler[k];return k+" ("+x.grup+"): "+x.saat+" ₺ + "+x.paket+" ₺"+(x.kdv?", KDV %"+Math.round(x.kdv*100):"");})).join(" · ")+(U.kaynak==="yedek"?" — ‘Kurye bilgiler’ sekmesi okunamadı, yedek ücretler kullanıldı.":"");
+  a.appendChild(el("div",{class:"hafta-sec"},[el("strong",{text:"Hafta"}),sec,el("span",{style:"color:var(--gri);font-size:13px",text:ucretYazi})]));
+  function top(l){return l.reduce(function(t,x){t.gun+=x.gun;t.netDk+=x.netDk;t.paket+=x.paket;t.kesintiDk+=x.kesintiDk;t.ekDk+=x.ekDk||0;t.saat+=x.saat;t.paketTl+=x.paketTl;t.paraKesinti+=x.paraKesinti||0;t.kdv+=x.kdv;t.toplam+=x.toplam;return t;},{gun:0,netDk:0,paket:0,kesintiDk:0,ekDk:0,saat:0,paketTl:0,paraKesinti:0,kdv:0,toplam:0});}
+  function hucreler(x,ad,kalin){var ns=x.netDk>=60?Math.round(x.paket/(x.netDk/60)*100)/100:null;var f=function(v){return kalin?el("strong",{text:v}):v;};
+    var pk=x.paraKesinti?(kalin?f("−"+para(x.paraKesinti)):el("span",{title:x.kesintiNot||"",style:"color:var(--kotu)",text:"−"+para(x.paraKesinti)})):"—";
+    return [ad,f(String(x.gun)),f(saatDk(x.netDk)),f(String(x.paket)),ns!=null?f(virgul(ns)):"—",(x.kesintiDk||x.ekDk)?f((x.kesintiDk+(x.ekDk||0))+" dk"):"—",f(para(x.saat)),f(para(x.paketTl)),pk,x.kdv?f(para(x.kdv)):"—",el("strong",{text:para(x.toplam)})];}
+  var gruplar={};H.kisiler.forEach(function(x){(gruplar[x.grup]=gruplar[x.grup]||[]).push(x);});
+  var satirlar=[];Object.keys(gruplar).sort().forEach(function(g){var l=gruplar[g];
+    l.forEach(function(x){satirlar.push(hucreler(x,x.acik?el("span",null,[x.ad+" ",el("span",{class:"etiket e-notr",title:"Vardiyası açık: bugünkü paketler sayıldı, saati vardiya kapanınca eklenecek",text:"vardiya açık"})]):x.ad,false));});
+    satirlar.push(hucreler(top(l),el("strong",{text:g+" toplamı"}),true));});
+  satirlar.push(hucreler(top(H.kisiler),el("strong",{text:"Genel toplam"}),true));
+  var tb=tablo([["Kurye"],["Gün",1],["Net süre",1],["Paket",1],["Pkt/sa",1],["Kesinti",1],["Saat hakedişi",1],["Paket hakedişi",1],["Para kesintisi",1],["KDV",1],["Toplam",1]],satirlar);
+  tb.querySelectorAll("tr").forEach(function(tr){if(tr.querySelector("td strong")&&tr.firstChild.querySelector("strong"))tr.style.background="var(--kum-acik)";});
+  a.appendChild(blok("Kurye hakedişi","Net süre üzerinden (kesintiler düşülmüş). Saat hakedişi = net saat × saat ücreti; paket hakedişi = paket × paket ücreti. Para kesintisi kurye tablosundaki Kesintiler sekmesinden (panelden ‘Kuryeden kes’ denenler dahil); ayrıntı için üzerine gel. Haddy'de KDV kesinti düşüldükten sonraki tutar üzerinden. Ücretler kurye tablosundaki ‘Kurye bilgiler’ sekmesinden gelir.",tb));
+  var T=top(H.kisiler);
+  a.appendChild(el("div",{class:"rakamlar"},[rakam("Haftalık kurye maliyeti",para(T.toplam),"KDV dahil"),rakam("Paket başı",T.paket?para(T.toplam/T.paket):"—",T.paket+" paket"),rakam("Net saat",TL.format(Math.round(T.netDk/60))+" sa",T.netDk>=60?virgul(Math.round(T.paket/(T.netDk/60)*100)/100)+" paket/saat":null),rakam("Kesinti",T.kesintiDk+" dk",T.paraKesinti?"ve "+para(T.paraKesinti)+" para kesintisi":null)]));}
+
+var ROTA={};// sipariş kümesi → {durum:"gidiyor"|"tamam"|"hata", veri, mesaj}
+function rotaAnahtar(g){return g.siparisler.map(function(x){return x.id;}).filter(String).sort().join("_");}
+function rotaIste(g,sonra,sube){var k=rotaAnahtar(g);if(!k)return;ROTA[k]={durum:"gidiyor"};sonra();
+  fetch("/api/rota",{method:"POST",credentials:"same-origin",headers:{"content-type":"application/json","x-bap-panel":"1"},body:JSON.stringify({idler:g.siparisler.map(function(x){return x.id;}),sube:sube||"",teslimSayisi:g.siparisler.filter(function(x){return x.teslim;}).length})})
+    .then(function(r){return r.json();}).then(function(d){ROTA[k]=d&&!d.hata?{durum:"tamam",veri:d}:{durum:"hata",mesaj:(d&&d.hata)||"Hesaplanamadı."};})
+    .catch(function(){ROTA[k]={durum:"hata",mesaj:"Bağlantı koptu."};}).then(sonra);}
+function rotaSonucu(r,g){var V=r.veri,b=V.bacaklar;
+  var kisaAdr=function(t){return String(t||"").replace(/\b\d{5}\s*/,"").replace(/\/?İstanbul$/,"").replace(/,\s*$/,"");};
+  var satirlar=b.map(function(x,i){return [String(i+1),(i===0?(V.sube||"Şube").replace("BAP ","")+" şube":"Durak "+i)+" → "+x.mahalle,"Adisyon "+x.no,el("span",{style:"color:var(--gri);font-size:13px",text:kisaAdr(x.adres)}),virgul(x.km)+" km",x.dk+" dk"+(x.trafikli?"":" *")];});
+  var fark=V.fiiliDk!=null?V.fiiliDk-V.kapatmaDk:null;
+  return el("div",{style:"margin-top:10px"},[
+    el("p",{style:"font-size:13.5px;margin:0 0 8px"},[el("strong",{text:"Çıkış: "+(V.sube||"").replace("BAP ","")+" şube"}),V.elle?" (elle seçildi)":(/varsay/.test(V.subeKaynak)?" (şube bulunamadı, varsayıldı)":/mahalle/.test(V.subeKaynak)?" (şube kısmen mahalleden tahmin)":""),
+      el("span",{style:"color:var(--gri)",text:" — Google'ın bulduğu başlangıç: "+kisaAdr(V.baslangic||V.cikis)})]),
+    tablo([["#"],["Bacak"],["Sipariş"],["Google'ın bulduğu adres"],["Km",1],["Canlı süre",1]],satirlar),
+    el("div",{class:"rakamlar dort",style:"margin:12px 0 4px"},[rakam("Gidilecek km",virgul(V.toplamKm)+" km",V.tabloKm?"tabloda "+virgul(V.tabloKm)+" km (her sipariş şubeden ayrı)":null),
+      rakam("Sürüş (şu anki trafik)",V.surusDk+" dk",V.sira),rakam("Paket kapatma süresi",V.kapatmaDk+" dk","sürüş + kapıda "+V.teslimPayiDk+" dk"),
+      V.fiiliDk!=null?rakam("Gerçekleşen",V.fiiliDk+" dk",(fark>0?"+":"")+fark+" dk tahmine göre",fark>10?"asagi":(fark<=0?"yukari":"")):rakam("Hesaplandı",V.zaman,V.onbellek?"son 10 dk içindeki hesap":"az önce")]),
+    b.some(function(x){return !x.trafikli;})?el("p",{style:"font-size:12.5px;color:var(--gri)",text:"* trafik bilgisi gelmedi, normal süre yazıldı."}):null]);}
+
+function kuryeRota(a,K){var L=K.seferler||[],KN=K.subeKonum||{};var kap=el("div");
+  function ciz2(){kap.textContent="";
+    var aktif=L.filter(function(g){return g.durum!=="tamamlandı";}),biten=L.filter(function(g){return g.durum==="tamamlandı";}).slice(0,15);
+    kap.appendChild(el("div",{class:"bilgi"},["Aynı kurye "+5+" dakika içinde restorandan çıktıysa siparişler tek sefer sayılır; yola çıkmamış ama kuryeye atanmış siparişler de birlikte görünür. ‘Canlı süre ve km’ Google Haritalar'dan şu anki trafikle şube → 1. teslimat → 2. teslimat … bacaklarını hesaplar. Çıkış noktaları: ",
+      el("strong",{text:"Erenköy"})," "+(KN["BAP Erenköy"]||"")+"; ",el("strong",{text:"Fikirtepe"})," "+(KN["BAP Fikirtepe"]||"")+". Teslim edilmiş seferde gerçek teslim sırası, edilmemişte en kısa sıra kullanılır. Adres gösterilmez, yalnız mahalle; bacağın üzerine gelince Haritalar'ın bulduğu sokak görünür."]));
+    if(K.seferHata)kap.appendChild(el("div",{class:"uyari kotu"},[el("b",{text:"Seferler okunamadı"}),el("div",{text:K.seferHata})]));
+    var hepsi=aktif.filter(function(g){var r=ROTA[rotaAnahtar(g)];return !r||r.durum==="hata";});
+    if(hepsi.length>1)kap.appendChild(el("p",null,[el("button",{type:"button",class:"dugme ana-dugme",onclick:function(){hepsi.forEach(function(g){rotaIste(g,ciz2);});}},["Aktif "+hepsi.length+" seferin hepsini hesapla"])]));
+    function kart(g){var k=rotaAnahtar(g),r=ROTA[k];var et={"yola çıkmadı":"e-dikkat","yolda":"e-notr","tamamlandı":"e-iyi"}[g.durum];
+      var tahmini=g.siparisler.some(function(x){return x.subeKaynak!=="Adisyo";});
+      var ust2=el("h3",null,[g.kurye+" ",el("span",{class:"etiket "+et,text:g.durum})," ",el("span",{class:"etiket e-notr",text:g.siparisler.length+" paket"})]);
+      var meta=el("div",{class:"meta"},[el("span",{text:(g.sube||"").replace("BAP ","")+" şubeden"+(tahmini?" (şube kısmen tahmini)":"")}),g.cikti?el("span",{text:"Çıkış "+g.cikti}):null,g.fiiliDk!=null?el("span",{text:"Son teslim "+g.fiiliDk+" dk sonra"}):null]);
+      var tb=tablo([["Adisyon"],["Platform"],["Mahalle"],["Km (tablo)",1],["Çıktı"],["Teslim"],["Şube"]],g.siparisler.map(function(x){
+        return [String(x.no||""),x.platform,x.mahalle,virgul(x.km),x.cikti||"—",x.teslim||"—",el("span",{title:x.subeKaynak==="Adisyo"?"Adisyo'daki ürün çıkan şube":x.subeKaynak==="mahalle"?"Mahalle listesinden tahmin":"Bulunamadı, Erenköy varsayıldı",style:x.subeKaynak==="Adisyo"?null:"color:var(--dikkat)",text:x.sube.replace("BAP ","")+(x.subeKaynak==="Adisyo"?"":" ?")})];}));
+      var alt;if(!k)alt=el("p",{class:"cevap-durum",text:"Sipariş numarası yok, hesaplanamaz."});
+      else if(r&&r.durum==="gidiyor")alt=el("p",{class:"cevap-durum",text:"Google Haritalar'dan hesaplanıyor…"});
+      else if(r&&r.durum==="tamam"){var dig=r.veri.sube==="BAP Erenköy"?"BAP Fikirtepe":"BAP Erenköy";
+        alt=el("div",null,[rotaSonucu(r,g),el("span",{style:"display:flex;gap:8px;flex-wrap:wrap"},[
+          el("button",{type:"button",class:"dugme",style:"padding:4px 10px;font-size:13px",onclick:function(){rotaIste(g,ciz2,r.veri.elle?r.veri.sube:"");}},["Yeniden hesapla"]),
+          el("button",{type:"button",class:"dugme",style:"padding:4px 10px;font-size:13px",title:"Şube yanlış tahmin edildiyse",onclick:function(){rotaIste(g,ciz2,dig);}},[dig.replace("BAP ","")+"'den hesapla"])])]);}
+      else alt=el("div",null,[el("button",{type:"button",class:"dugme",onclick:function(){rotaIste(g,ciz2);}},["Canlı süre ve km hesapla"]),r&&r.durum==="hata"?el("span",{class:"cevap-durum kotu",style:"margin-left:10px",text:r.mesaj}):null]);
+      return el("div",{class:"satir"},[ust2,meta,el("div",{style:"margin-top:8px"},[tb]),el("div",{style:"margin-top:8px"},[alt])]);}
+    kap.appendChild(blok("Aktif seferler",aktif.length?"Yola çıkmamış ve yoldaki paketler.":null,aktif.length?el("div",{class:"liste"},aktif.map(kart)):bos("Şu an yolda ya da bekleyen paket yok.")));
+    kap.appendChild(blok("Bugün tamamlananlar","Son 15 sefer. Canlı hesap şu anki trafiğe göredir; gerçekleşen süreyle karşılaştırmak içindir.",biten.length?el("div",{class:"liste"},biten.map(kart)):bos("Bugün tamamlanan sefer yok.")));}
+  ciz2();a.appendChild(kap);a.appendChild(mahalleSureBlok(K));}
+
+// Mahalle bazlı gerçekleşen teslimat süreleri (sipariş → kapı), söz verilen süreyle karşılaştırmalı.
+var MAHS_DONEM="yedi",MAHS_SIRA="paket";
+function mahalleSureBlok(K){var M=K.mahalleSure;if(!M)return bos("Mahalle süreleri için veri kapısının yeni sürümü gerekiyor.");var kap=el("div");
+  function ciz3(){kap.textContent="";var ad={bugun:"Bugün",yedi:"Son 7 gün",ay:"Bu ay",otuz:"Son 30 gün"};
+    kap.appendChild(el("div",{class:"hafta-sec"},[el("div",{class:"sekmeler",style:"margin:0"},["bugun","yedi","ay","otuz"].map(function(k){return el("button",{type:"button","aria-pressed":MAHS_DONEM===k?"true":"false",onclick:function(){MAHS_DONEM=k;ciz3();}},[ad[k]]);})),
+      el("div",{class:"sekmeler",style:"margin:0 0 0 auto"},[["paket","En çok paket"],["yavas","En yavaş"],["soz","Sözü en çok aşan"]].map(function(x){return el("button",{type:"button","aria-pressed":MAHS_SIRA===x[0]?"true":"false",onclick:function(){MAHS_SIRA=x[0];ciz3();}},[x[1]]);}))]));
+    var l=(M[MAHS_DONEM]||[]).slice();
+    if(MAHS_SIRA==="yavas")l=l.filter(function(x){return x.paket>=3;}).sort(function(a,b){return (b.ort||0)-(a.ort||0);});
+    if(MAHS_SIRA==="soz")l=l.filter(function(x){return x.soz!=null&&x.paket>=3;}).sort(function(a,b){return (b.sozAsan||0)-(a.sozAsan||0);});
+    if(!l.length){kap.appendChild(bos("Bu dönemde mahallesi okunabilen teslimat yok."));return;}
+    var max=Math.max.apply(null,l.map(function(x){return x.ort||0;}))||1;
+    kap.appendChild(tablo([["Mahalle"],["Şube"],["Paket",1],["Ortalama teslim"],["Söz verilen",1],["Sözü aşan",1],["Restoranda",1],["Yolda",1],["Ort. km",1],["40 dk üstü",1]],l.slice(0,40).map(function(x){
+      var fark=x.soz!=null&&x.ort!=null?x.ort-x.soz:null,renk=fark==null?"var(--mavi)":(fark>0?"var(--kotu)":(x.ort>x.soz-5?"var(--dikkat)":"var(--iyi)"));
+      var cub=el("span",{style:"display:flex;align-items:center;gap:8px;min-width:170px"},[el("span",{style:"flex:1;height:8px;background:var(--mavi-acik);border-radius:4px;overflow:hidden;display:block"},[el("b",{style:"display:block;height:100%;background:"+renk+";width:"+Math.max(3,Math.round((x.ort||0)/max*100))+"%"})]),
+        el("strong",{style:"min-width:52px;text-align:right",title:"Medyan "+(x.medyan!=null?x.medyan+" dk":"—"),text:x.ort!=null?virgul(x.ort)+" dk":"—"})]);
+      return [x.ad,x.sube||"—",String(x.paket),cub,x.soz!=null?el("span",{title:x.sozMetin,text:x.soz+" dk"}):"—",
+        x.sozAsan!=null?el("span",{class:"etiket "+(x.sozAsan>=30?"e-kotu":x.sozAsan>=15?"e-dikkat":"e-iyi"),text:"%"+x.sozAsan}):"—",
+        x.cikis!=null?virgul(x.cikis)+" dk":"—",x.yol!=null?virgul(x.yol)+" dk":"—",virgul(x.km),x.gecOran?"%"+x.gecOran:"—"];})));
+    if(l.length>40)kap.appendChild(el("p",{style:"font-size:13px;color:var(--gri)",text:"İlk 40 mahalle gösteriliyor ("+l.length+" mahalle var)."}));}
+  ciz3();
+  return blok("Mahalle bazlı teslimat süreleri","Gerçekleşen süre: sipariş verildiği andan kapıya teslime kadar (restoranda + yolda). Söz verilen süre Genel Bilgiler › teslimat bölgelerinden, aralığın üst sınırı; ‘Sözü aşan’ o süreyi aşan paketlerin oranı. Çubuk kırmızıysa ortalama bile sözü aşıyor, sarıysa sınıra 5 dakikadan yakın. ‘Restoranda’ uzunsa sorun mutfakta ya da kurye beklemede, ‘Yolda’ uzunsa mesafe/kurye. Mahalle adresten okunur.",kap);}
+
+var HESAP_ISLEM={};// siparisId → {durum:"gidiyor"|"tamam"|"hata", islem, mesaj}
+function hesapKapat(x,islem,yenidenCiz){
+  var soru=islem==="kes"?x.kurye+" için "+para(x.tutar)+" tutarında kesinti yazılacak ve haftalık bordrosundan düşülecek.\n\nAdisyon "+x.no+" ("+gunAd(x.gun)+", "+x.odeme+"). Onaylıyor musun?"
+    :"Adisyon "+x.no+" — "+x.kurye+", "+para(x.tutar)+" ("+x.odeme+") tahsil edildi olarak kapatılacak. Onaylıyor musun?";
+  if(!window.confirm(soru))return;
+  HESAP_ISLEM[x.id]={durum:"gidiyor",islem:islem};yenidenCiz();
+  fetch("/api/hesap",{method:"POST",credentials:"same-origin",headers:{"content-type":"application/json","x-bap-panel":"1"},body:JSON.stringify({siparisId:x.id,islem:islem})})
+    .then(function(r){return r.json();}).then(function(d){
+      if(d&&d.tamam)HESAP_ISLEM[x.id]={durum:"tamam",islem:islem,mesaj:d.zatenKapali?"Zaten kapatılmıştı":(islem==="kes"?"Kuryeden kesildi":"Tahsil edildi")};
+      else HESAP_ISLEM[x.id]={durum:"hata",islem:islem,mesaj:(d&&d.hata)||"Kaydedilemedi."};
+    }).catch(function(){HESAP_ISLEM[x.id]={durum:"hata",islem:islem,mesaj:"Bağlantı koptu; kayıt yazılmış olabilir. Paneli yenileyip kontrol et."};})
+    .then(yenidenCiz);}
+
+function kuryeAcik(a,K){var A=K.acik;
+  a.appendChild(el("div",{class:"rakamlar"},[rakam("Dünden eski açık",para(A.eski.toplam),A.eski.adet+" kayıt",A.eski.adet?"asagi":""),rakam("Bir aydan eski",String(A.eski.ayUstu),A.eski.ayUstu?"tahsil edilmedi ya da işaretlenmedi":null,A.eski.ayUstu?"asagi":""),
+    rakam("Bugün açık",para(A.bugun.toplam),A.bugun.adet+" kayıt; gün kapanmadan normal"),rakam("Hariç tutulan",para(A.haric.toplam),A.haric.adet+" ‘Ödenmez’ sipariş (işletme/personel)")]));
+  var kap=el("div");
+  function tabloCiz(){kap.textContent="";
+    kap.appendChild(A.liste.length?tablo([["Tarih"],["Adisyon"],["Kurye"],["Ödeme"],["Tutar",1],["Durum"],["Kapat"]],A.liste.map(function(x){
+      var yas=x.yas<=0?el("span",{class:"etiket e-notr",text:"bugün"}):el("span",{class:"etiket "+(x.yas>30?"e-kotu":x.yas>3?"e-dikkat":"e-notr"),text:x.yas+" gün"});
+      var st=HESAP_ISLEM[x.id],islemHucre;
+      if(!x.id)islemHucre=el("span",{style:"color:var(--gri);font-size:13px",text:"sipariş no yok"});
+      else if(st&&st.durum==="gidiyor")islemHucre=el("span",{class:"cevap-durum",text:"Kaydediliyor…"});
+      else if(st&&st.durum==="tamam")islemHucre=el("span",{class:"etiket "+(st.islem==="kes"?"e-dikkat":"e-iyi"),text:"✓ "+st.mesaj});
+      else islemHucre=el("span",{style:"display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-start"},[
+        el("button",{type:"button",class:"dugme",style:"padding:4px 10px;font-size:13px",onclick:function(){hesapKapat(x,"tahsil",tabloCiz);}},["Tahsil edildi"]),
+        el("button",{type:"button",class:"dugme",style:"padding:4px 10px;font-size:13px",title:"Tutarı Kesintiler sekmesine yazar, bordrodan düşülür",onclick:function(){hesapKapat(x,"kes",tabloCiz);}},["Kuryeden kes"]),
+        st&&st.durum==="hata"?el("span",{class:"cevap-durum kotu",style:"flex-basis:100%",text:st.mesaj}):null]);
+      return [el("span",null,[gunAd(x.gun)+" ",yas]),String(x.no||""),x.kurye,x.odeme,para(x.tutar),x.durum,islemHucre];})):bos("Açık hesap yok."));}
+  tabloCiz();
+  a.appendChild(blok("Açık hesaplar","Önce en eskiler. Kuryeden parayı aldıysan ‘Tahsil edildi’, alamadıysan ‘Kuryeden kes’: tutar Kesintiler sekmesine yazılır ve haftalık bordrosundan düşülür. İkisi de kurye tablosundaki Tahsilatlar sekmesine kaydedilir; yanlış kapattıysan o satırı silmen yeterli. Müşteri adı gösterilmez.",kap));
+  var KP=A.kapanan||[];
+  a.appendChild(blok("Kimde ne kadar açık var","Dünden eski kayıtlar.",cubuklar(A.kisi)));
+  a.appendChild(el("div",null,[
+    blok("Son kapatılanlar","Tahsilatlar sekmesinden; yeni kapattıkların ‘Şimdi yenile’den sonra burada görünür ve yukarıdaki toplamlardan düşer.",KP.length?tablo([["Zaman"],["Adisyon"],["Kurye"],["Tutar",1],["İşlem"]],KP.map(function(x){return [x.zaman,String(x.no||""),x.kurye,para(x.tutar),el("span",{class:"etiket "+(/kes/i.test(x.islem)?"e-dikkat":"e-iyi"),text:x.islem})];})):bos("Henüz panelden kapatılan yok."))]));}
+
 var CIZ={genel:genelSayfa,merkez:merkez,ozet:ozet,satis:satis,kararlar:kararlar,ai:ai,
   finans:finansSayfa,
   odeme:toptanciOdemeSayfa,
   alim:alimSayfa,
   stok:kaynakBolumu("stok","Ürün, stok ve hazırlık","Stok seviyeleri, reçetesiz satışlar ve menü buraya gelecek."),
-  kurye:kaynakBolumu("kurye","Kurye ve teslimat","Kurye çalışma süreleri, kesintiler ve açık hesaplar buraya gelecek."),
+  kurye:kuryeSayfa,
   personel:personelSayfa,
   musteri:kaynakBolumu("musteri","Müşteri ilişkileri","Puanlar, yorumlar ve şikâyetler buraya gelecek.")};
 
@@ -583,7 +886,8 @@ function yukle(taze){if(YUKLENIYOR)return;YUKLENIYOR=true;if(VERI)ciz();
 window.addEventListener("hashchange",function(){var h=(location.hash||"#merkez").slice(1);if(h!==AKTIF){AKTIF=h;ciz();}});
 nav();yukle(false);setInterval(function(){if(document.hidden)return;
   // Ödeme formu yarım doldurulmuşken otomatik yenileme ekranı yeniden çizip odağı kaçırmasın.
-  if(AKTIF==="odeme"&&(ODEME_FORM.tutar||ODEME_FORM.aciklama||ODEME_FORM.gonderiliyor))return;yukle(false);},300000);
+  if(AKTIF==="odeme"&&(ODEME_FORM.tutar||ODEME_FORM.aciklama||ODEME_FORM.gonderiliyor))return;
+  if(AKTIF==="kurye"&&(KESINTI_FORM.miktar||KESINTI_FORM.aciklama||KESINTI_FORM.gonderiliyor))return;yukle(false);},300000);
 })();
 </script>
 </body>
