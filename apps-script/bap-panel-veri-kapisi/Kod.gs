@@ -555,10 +555,123 @@ function personel_() {
     ov.slice(1).forEach(function (r) { if (r[oA]) { var x = odAy[r[oA]] = odAy[r[oA]] || { ay: r[oA], tutar: 0, kisi: 0 }; x.tutar += sayi_(r[oT]); x.kisi++; } });
   }
   out.odemeler = Object.keys(odAy).sort().slice(-6).map(function (k) { var x = odAy[k]; x.tutar = Math.round(x.tutar); return x; });
+
+  // Bordro: bu ay ve geçen ay ayrıntılı, son 6 ay özet (sahibin onayladığı kural; IBAN, şifre, telefon gönderilmez)
+  var bv = bordroVeri_(ss), gecenAy = gunEkle_(ay + '-01', -1).slice(0, 7);
+  out.bordro = [ay, gecenAy].map(function (a) { return bordro_(bv, a, bugun, planli); });
+  out.bordroTrend = [];
+  for (var t = 5; t >= 0; t--) {
+    var m = ay; for (var z = 0; z < t; z++) m = gunEkle_(m + '-01', -1).slice(0, 7);
+    if (!bv.aylar[m]) continue; // puantajı olmayan ay (QR sistemi öncesi) hesaplanmaz
+    var B = bordro_(bv, m, bugun, planli);
+    out.bordroTrend.push({ ay: m, normal: B.toplam.normal, fazla: B.toplam.fazla, resmi: B.toplam.resmi, aySonu: B.toplam.aySonu, odenen: B.toplam.odenen, kisi: B.kisiler.length });
+  }
   return out;
 }
 
+/* ---------------- Bordro ----------------
+ * Sahibin onayladığı kural (İK envanteri, 17.09.2026):
+ *  - Günlük ücret = aylık maaş / ayın gün sayısı; saatlik ücret = günlük / 10.
+ *  - Normal mesai = günlük × ücretli gün (işe giriş / işten çıkış arası, bugüne kadar). Ay ortası giriş-çıkışta kıst.
+ *  - Ücretsiz izin ve devamsızlık günleri günlük ücretten kesilir; rapor 3 günü aşarsa aşan günler kesilir.
+ *  - Fazla mesai: puantajdaki Fazla Mesai sütununun YALNIZ pozitif süreleri × saatlik. Eksik süre kesilmez.
+ *    (Off gününde çalışma puantajda zaten tamamı fazla mesai olarak yazılıdır.)
+ *  - Resmi tatilde çalışılan her gün için bir günlük ek.
+ *  - SGK'lı personele asgari ücret bankadan, kalanı "diğer" olarak ödenir.
+ * Aynı kişi aynı güne birden fazla satır varsa en üstteki (en yeni) kullanılır.
+ */
+var ASGARI_NET = 28076;      // 2026 net asgari ücret (SGK'lı personelin bankadan ödenen kısmı)
+var SGK_ISVEREN = 7845;      // kişi başı aylık SGK işveren payı
+var FAZLA_BOLEN = 10;        // saatlik = günlük / 10
 
+function bordroIso_(s) { var ms = zaman_(s); return ms === null ? '' : new Date(ms).toISOString().slice(0, 10); }
+
+// Bordro için gereken sekmeleri bir kez okur.
+function bordroVeri_(ss) {
+  var V = { tatil: {}, pu: {}, aylar: {}, odenen: {}, personel: [] };
+  var rt = ss.getSheetByName('Resmi_tatiller');
+  if (rt) rt.getDataRange().getDisplayValues().slice(1).forEach(function (r) { var d = bordroIso_(r[1]); if (d) V.tatil[d] = r[0]; });
+  var gs = ss.getSheetByName('Personel_Giris_Cİkis') || ss.getSheetByName('Personel_Giris_Cikis');
+  if (gs) {
+    var g = gs.getDataRange().getDisplayValues(), c = puKolonlar_(g[0]), cRt = kolon_(g[0], ['Resmi Tatil Çalışma']);
+    g.slice(1).forEach(function (r) {
+      var d = bordroIso_(r[c.gun]); if (!d || !r[c.ad]) return;
+      var k = norm_(r[c.ad]), x = V.pu[k] = V.pu[k] || { ad: r[c.ad], gunler: {} };
+      if (x.gunler[d]) return; // aynı güne mükerrer satır: en üstteki (en yeni) kullanılır
+      function f(j) { return j >= 0 && String(r[j]).trim() !== ''; }
+      var top = sureSn_(r[c.top]);
+      x.gunler[d] = { top: top, faz: sureSn_(r[c.faz]), off: f(c.off), yi: f(c.yi), ui: f(c.ui), dev: f(c.dev), rap: f(c.rap), resmi: f(cRt) || (!!V.tatil[d] && top > 0) };
+      V.aylar[d.slice(0, 7)] = 1;
+    });
+  }
+  var os = ss.getSheetByName('Odemeler');
+  if (os) { var ov = os.getDataRange().getDisplayValues(), ob = ov[0], oA = kolon_(ob, ['Ay']), oP = kolon_(ob, ['Personel']), oT = kolon_(ob, ['Tutar']);
+    ov.slice(1).forEach(function (r) { var a = String(r[oA]).trim(); if (a && r[oP]) { var o = V.odenen[a] = V.odenen[a] || {}, k = norm_(r[oP]); o[k] = (o[k] || 0) + sayi_(r[oT]); } }); }
+  var ps = ss.getSheetByName('Personel');
+  if (ps) {
+    var v = ps.getDataRange().getDisplayValues(), b = v[0];
+    var cA = kolon_(b, ['İsim Soyisim']), cG = kolon_(b, ['İşe Giriş']), cC = kolon_(b, ['İşten Çıkış']), cM = kolon_(b, ['Maaş']), cAk = kolon_(b, ['Aktif']),
+        cS = kolon_(b, ['SGK lı', 'SGK']), cSb = kolon_(b, ['Sube', 'Şube']), cI = kolon_(b, ['IBAN']), gor = {};
+    v.slice(1).forEach(function (r) {
+      var ad = String(r[cA] || '').trim(), k = norm_(ad); if (!ad || gor[k]) return; gor[k] = 1; // aynı isimle çift kayıt: ilki
+      V.personel.push({ ad: ad, k: k, giris: bordroIso_(r[cG]), cikis: bordroIso_(r[cC]), maas: sayi_(r[cM]), aktif: /^(true|evet|1)$/i.test(String(r[cAk]).trim()),
+        sgk: /^(true|evet|1|ok)$/i.test(String(r[cS]).trim()), sube: cSb >= 0 ? String(r[cSb]).trim() : '', ibanVar: cI >= 0 && String(r[cI]).trim() !== '' });
+    });
+  }
+  return V;
+}
+
+function bordro_(V, ay, bugun, planli) {
+  var yil = +ay.slice(0, 4), aNo = +ay.slice(5, 7), gunSay = new Date(Date.UTC(yil, aNo, 0)).getUTCDate();
+  var ilk = ay + '-01', son = ay + '-' + ('0' + gunSay).slice(-2), kadar = bugun < son ? bugun : son;
+  function gunFark(a, b) { return b < a ? 0 : Math.round((Date.parse(b + 'T00:00:00Z') - Date.parse(a + 'T00:00:00Z')) / 86400000) + 1; }
+  var odenen = V.odenen[ay] || {}, kisiler = [], gorulen = {};
+  V.personel.forEach(function (p) {
+    var P = V.pu[p.k], ayKaydi = P && Object.keys(P.gunler).some(function (d) { return d >= ilk && d <= son; });
+    if ((p.giris && p.giris > son) || (p.cikis && p.cikis < ilk)) return;
+    if (!p.aktif && !p.cikis && !ayKaydi) return;          // pasif ve bu ay kaydı yok
+    if (!p.giris && !ayKaydi && ay < bugun.slice(0, 7) && !odenen[p.k]) return; // giriş tarihi bilinmiyor, o ay izi yok
+    if (!(p.maas > 0)) return;
+    gorulen[p.k] = 1;
+    var bas = p.giris && p.giris > ilk ? p.giris : ilk, bitis = p.cikis && p.cikis < son ? p.cikis : son;
+    var gunluk = p.maas / gunSay, saatlik = gunluk / FAZLA_BOLEN;
+    var ucretliBugune = gunFark(bas, kadar < bitis ? kadar : bitis), ucretliAy = gunFark(bas, bitis);
+    var n = { yi: 0, ui: 0, dev: 0, rap: 0, resmi: 0, off: 0, offCalisma: 0, calisilan: 0 }, fazSn = 0, eksikSn = 0, topSn = 0;
+    if (P) Object.keys(P.gunler).forEach(function (d) {
+      if (d < bas || d > bitis) return; var x = P.gunler[d];
+      ['yi', 'ui', 'dev', 'rap', 'resmi', 'off'].forEach(function (z) { if (x[z]) n[z]++; });
+      if (x.off && x.top > 0) n.offCalisma++;
+      if (x.top > 0) { n.calisilan++; topSn += x.top; }
+      if (x.faz > 0) fazSn += x.faz; else if (x.faz < 0) eksikSn += -x.faz;
+    });
+    var raporKes = Math.max(0, n.rap - 3), kesGun = n.ui + n.dev + raporKes;
+    var normal = Math.max(0, ucretliBugune - kesGun) * gunluk, normalAy = Math.max(0, ucretliAy - kesGun) * gunluk;
+    var fazla = fazSn / 3600 * saatlik, resmiTl = n.resmi * gunluk;
+    var aySonu = normalAy + fazla + resmiTl, asgari = p.sgk ? Math.min(ASGARI_NET, aySonu) : 0;
+    kisiler.push({ ad: p.ad, sube: p.sube, sgk: p.sgk, aktif: p.aktif, ayrildi: !!p.cikis && p.cikis <= son, cikis: p.cikis, giris: p.giris && p.giris >= ilk ? p.giris : '',
+      maas: Math.round(p.maas), gunluk: Math.round(gunluk), saatlik: Math.round(saatlik * 100) / 100, ucretliGun: ucretliBugune, ucretliAy: ucretliAy,
+      gun: n, calisilanGun: n.calisilan, saat: Math.round(topSn / 360) / 10, fazlaDk: Math.round(fazSn / 60), eksikDk: Math.round(eksikSn / 60),
+      yillikTl: Math.round(n.yi * gunluk), raporKesGun: raporKes, raporTl: -Math.round(raporKes * gunluk), ucretsizTl: -Math.round(n.ui * gunluk), devamsizTl: -Math.round(n.dev * gunluk),
+      normal: Math.round(normal), fazla: Math.round(fazla), resmi: Math.round(resmiTl),
+      hakedis: Math.round(normal + fazla + resmiTl), aySonu: Math.round(aySonu), asgari: Math.round(asgari), diger: Math.round(Math.max(0, aySonu - asgari)),
+      ibanVar: p.ibanVar, odenen: Math.round(odenen[p.k] || 0) });
+  });
+  // Puantajda bu ay kaydı olup personel listesinde (ya da maaşı) olmayanlar
+  var eksik = Object.keys(V.pu).filter(function (k) { return !gorulen[k] && Object.keys(V.pu[k].gunler).some(function (d) { return d >= ilk && d <= son; }); }).map(function (k) { return V.pu[k].ad; });
+  kisiler.sort(function (a, b) { return String(a.sube).localeCompare(String(b.sube), 'tr') || a.ad.localeCompare(b.ad, 'tr'); });
+
+  function topla(l) { var t = { kisi: l.length, maas: 0, normal: 0, fazla: 0, resmi: 0, hakedis: 0, aySonu: 0, odenen: 0, kesinti: 0, eksikDk: 0, fazlaDk: 0 };
+    l.forEach(function (x) { t.maas += x.maas; t.normal += x.normal; t.fazla += x.fazla; t.resmi += x.resmi; t.hakedis += x.hakedis; t.aySonu += x.aySonu; t.odenen += x.odenen;
+      t.kesinti += -(x.ucretsizTl + x.devamsizTl + x.raporTl); t.eksikDk += x.eksikDk; t.fazlaDk += x.fazlaDk; }); return t; }
+  var subeler = {}; kisiler.forEach(function (x) { (subeler[x.sube || 'Belirtilmemiş'] = subeler[x.sube || 'Belirtilmemiş'] || []).push(x); });
+  var aktifler = V.personel.filter(function (p) { return p.aktif && p.maas > 0; });
+  var bugunGider = 0;
+  if (ay === bugun.slice(0, 7)) (planli || []).forEach(function (p) { if (!p.calisacak) return; var x = kisiler.filter(function (y) { return norm_(y.ad) === norm_(p.ad); })[0]; if (x) bugunGider += x.gunluk; });
+  return { ay: ay, gunSayisi: gunSay, kadar: kadar, kapandi: bugun > son, kisiler: kisiler, toplam: topla(kisiler),
+    subeler: Object.keys(subeler).sort().map(function (k) { return { ad: k, toplam: topla(subeler[k]) }; }), eksikPersonel: eksik,
+    butce: Math.round(aktifler.reduce(function (s, p) { return s + p.maas; }, 0)), sgkSayi: aktifler.filter(function (p) { return p.sgk; }).length, sgkIsveren: SGK_ISVEREN,
+    bugunGider: Math.round(bugunGider), bugunKisi: (planli || []).filter(function (p) { return p.calisacak; }).length, asgariNet: ASGARI_NET };
+}
 
 // Vardiya çizelgesi: 4 hafta geri, 2 hafta ileri. Geçmiş günlerde fiili giriş-çıkış da eklenir.
 function vardiyaPlani_(ss, bugun, bilgiler) {

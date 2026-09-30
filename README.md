@@ -35,6 +35,19 @@ Hesap kuralı:
 - Yalnız giriş var, çıkış yok → geçmiş günse not düşülür, toplam değiştirilmez.
 - Ham Giriş / Ham Çıkış (QR'ın gerçek saati) hiç değişmez. Eski değerler **Manuel** sütununa ve **Islem_Loglari**'na yazılır.
 
+## Bordro
+
+Panelde **Personel › Bordro** sekmesi: bu ay ve geçen ay; üstte toplamlar, şube kırılımı, kişi bazlı tablo
+(baz maaş, normal mesai, fazla mesai, resmi tatil, yıllık izin, rapor, ücretsiz izin, devamsızlık, bugüne kadar,
+ay sonu tahmini, asgari/diğer, ödenen, fark) ve giriş-çıkış kaydı olan aylar için trend.
+
+Kural (İK envanteri, 17.09.2026): günlük = maaş / ayın gün sayısı, saatlik = günlük / 10; ücretsiz izin ve
+devamsızlık kesilir, rapor 3 günü aşarsa aşan gün kesilir, yıllık izin ödenir; kıst giriş/çıkış;
+fazla mesai = puantajdaki Fazla Mesai sütununun **yalnız artı** süreleri (eksik süre kesilmez); resmi tatilde
+çalışılan gün +1 günlük; SGK'lıya asgari ücret bankadan (`ASGARI_NET`), kalanı "diğer".
+Yönetici panelindeki (BAP OS) bordro eksik süreyi de kestiği için fazla mesai orada eksi görünebilir.
+IBAN, telefon ve şifre panele gönderilmez.
+
 ## Yayına alma
 
 1. **Apps Script** (BAP Panel Veri Kapısı): `apps-script/bap-panel-veri-kapisi/Kod.gs` içeriğini `Kod.gs` dosyasına yapıştır,
