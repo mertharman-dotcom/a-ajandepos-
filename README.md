@@ -94,7 +94,27 @@ Panelde **Kurye & Teslimat** bölümü (`#kurye`). **Kurye Net Çalışma Süres
   kesinti sonrası tutar üzerinden — kurye panelindeki Haftalık Bordro & Hakediş ile aynı hesap.
 - Müşteri adı, telefonu, adresi ve sipariş içeriği panele gönderilmez.
 
+## Vardiya girişi
+
+Panelde **Personel › Vardiya planı** sekmesi. Son 4 hafta ile önümüzdeki 4 hafta seçilip
+*Bu haftanın vardiyasını gir / düzenle* ile her kişi için gün gün vardiya seçilir.
+Kayıt **BAP Personel › Vardiya** sekmesine, yönetici panelinin yazdığı biçimle yazılır
+(Hafta, İsim Soyisim, Şube, Planlanan, Off, Pzt…Paz); QR giriş-çıkış bu planı kullanır.
+
+- Seçenekler BAP_Personel uygulamasındaki `VARDIYALAR` listesiyle birebir aynıdır (Cum/Cmt/Paz gece kapanışlı seçenekler dahil).
+  O listeye yeni vardiya eklenirse `Kod.gs › VARDIYA_SECENEK/VARDIYA_HAFTA_*` ve `page.html › VARD_*` da güncellenmeli.
+- Yalnız değişen kişinin o haftaki satırı güncellenir ya da sona eklenir; satır silinmez.
+- Siz düzenlerken aynı kişinin vardiyası başka yerden değiştirildiyse kayıt reddedilir (üzerine yazmaz).
+
 ## Yayına alma
+
+> **Adres değişmesin:** Apps Script'te hiçbir zaman *Yeni dağıtım* yapmayın ve eski dağıtımı arşivlemeyin.
+> Her güncellemede *Dağıtımları yönet › mevcut dağıtımı düzenle (kalem) › Sürüm: Yeni sürüm › Dağıt*.
+> Yeni dağıtım yeni bir `/exec` adresi üretir; eski adres arşivlenince panel
+> "Apps Script adresi bulunamadı" hatası verir.
+>
+> **Depo canlıyla aynı olmalı:** Kod başka bir yerden (doğrudan Apps Script / Cloudflare ekranından) değiştirilirse
+> önce buraya alınmalı; yoksa buradan yayınlamak o değişiklikleri siler.
 
 1. **Apps Script** (BAP Panel Veri Kapısı): `apps-script/bap-panel-veri-kapisi/Kod.gs` içeriğini `Kod.gs` dosyasına yapıştır,
    kaydet → *Dağıt › Dağıtımları yönet* → mevcut dağıtımı düzenle → *Sürüm: Yeni sürüm* → Dağıt.

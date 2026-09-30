@@ -8,7 +8,9 @@
  *        fazla mesai, açıklama ve Manuel hücrelerini günceller (Ham Giriş/Çıkış değişmez). Kurye açık hesabı kapatılınca 'Kurye Net Çalışma Süresi › Tahsilatlar'
  *        sekmesine (kuryeden kesilirse ayrıca 'Kesintiler' sekmesine) yeni satır ekler; panelden girilen kurye
  *        kesintisi 'Kesintiler' sekmesine yeni satır olarak yazılır. Kurye eşleştirmesinde Adisyo 'Satıs Verileri' › Kurye
- *        hücresi yazılır (yalnız boş olan ya da sahibin onayladığı); önceki değer 'Kurye Eşleştirme' sekmesine düşer. Başka hiçbir hücreyi değiştirmez, hiçbir şey silmez.
+ *        hücresi yazılır (yalnız boş olan ya da sahibin onayladığı); önceki değer 'Kurye Eşleştirme' sekmesine düşer.
+ *        Panelden girilen vardiya 'Personel › Vardiya' sekmesinde o kişinin o haftaki satırına yazılır (yoksa sona eklenir).
+ *        Başka hiçbir hücreyi değiştirmez, hiçbir şey silmez.
  * Gizlilik: Müşteri adı, telefonu, adresi ve personel kişisel bilgisi dışarı verilmez; yalnız toplamlar döner.
  * Erişim: Yalnızca doğru anahtarla gelen isteğe cevap verir. Anahtar koda yazılmaz, Komut Dosyası Özelliklerinde durur.
  *
@@ -681,7 +683,7 @@ function bordro_(V, ay, bugun, planli) {
 function vardiyaPlani_(ss, bugun, bilgiler) {
   var vs = ss.getSheetByName('Vardiya'); if (!vs) return null;
   var dow = (new Date(bugun + 'T00:00:00Z').getUTCDay() + 6) % 7, buHafta = gunEkle_(bugun, -dow);
-  var ilk = gunEkle_(buHafta, -28), son = gunEkle_(buHafta, 14);
+  var ilk = gunEkle_(buHafta, -28), son = gunEkle_(buHafta, 28);
   var subeHar = {}; (bilgiler && bilgiler.liste || []).forEach(function (p) { subeHar[norm_(p.ad)] = p.degerler && p.degerler['Sube'] || ''; });
   var v = vs.getDataRange().getDisplayValues(), b = v[0];
   var cH = kolon_(b, ['Hafta (Pazartesi)', 'Hafta']), cI = kolon_(b, ['İsim Soyisim']), cS = kolon_(b, ['Şube', 'Sube']);
@@ -961,6 +963,104 @@ function puantajTaramasi() {
     if (islenen.length) CacheService.getScriptCache().remove('panel_v1_n');
     Logger.log(islenen.length ? islenen.length + ' satır yeniden hesaplandı:\n' + islenen.join('\n') : 'Toplamı eski kalan satır yok.');
   } finally { kilit.releaseLock(); }
+}
+
+/* ---------------- Vardiya girişi (panelden) ---------------- */
+
+// BAP_Personel uygulamasındaki VARDIYALAR ile birebir aynı olmalı: QR giriş-çıkış vardiyayı bu metinden tanır
+// (yazım farkı olursa kişi "vardiya atanmamış" sayılır). [başlangıç, bitiş, saat]
+var VARDIYA_SECENEK = {
+  '11:00-21:00': 10, '12:00-22:00': 10, '13:00-23:00': 10, '14:00-24:00': 10, '16:00-02:00': 10,
+  '11:00-22:00': 11, '12:00-23:00': 11, '13:00-24:00': 11,
+  '11:00-23:00': 12, '12:00-01:00': 12, '13:00-02:00': 12,
+  'Off': 0, 'Yıllık izin': 0, 'Ücretsiz izin': 0
+};
+var VARDIYA_HAFTA_ICI = ['11:00-21:00', '12:00-22:00', '13:00-23:00', '11:00-22:00', '12:00-23:00', '11:00-23:00', 'Off', 'Yıllık izin', 'Ücretsiz izin'];
+var VARDIYA_HAFTA_SONU = ['11:00-21:00', '12:00-22:00', '13:00-23:00', '14:00-24:00', '16:00-02:00', '11:00-22:00', '12:00-23:00', '13:00-24:00',
+                          '11:00-23:00', '12:00-01:00', '13:00-02:00', 'Off', 'Yıllık izin', 'Ücretsiz izin'];
+
+// Panel POST ile { key, tur: 'vardiya', hafta: 'yyyy-MM-dd' (Pazartesi), satirlar: [{ ad, gunler: [7] }], onceki: { ad: [7] } } gönderir.
+// Yalnız gönderilen kişilerin o haftaki satırı güncellenir ya da sona eklenir; başka satıra dokunulmaz, hiçbir satır silinmez.
+// Yazım biçimi BAP_Personel › vardiyaCizelgeKaydet ile aynıdır (Hafta, İsim, Şube, Planlanan, Off, Pzt…Paz).
+function vardiyaGir_(d) {
+  var hafta = String(d.hafta || '');
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(hafta) || new Date(hafta + 'T00:00:00Z').getUTCDay() !== 1) return { hata: 'Hafta bir Pazartesi tarihi olmalı.' };
+  var bugun = isGunu_(simdi_()), dow = (new Date(bugun + 'T00:00:00Z').getUTCDay() + 6) % 7, buHafta = gunEkle_(bugun, -dow);
+  if (hafta < gunEkle_(buHafta, -28) || hafta > gunEkle_(buHafta, 28)) return { hata: 'Panelden yalnız son 4 hafta ile önümüzdeki 4 hafta düzenlenebilir.' };
+  var gelen = Array.isArray(d.satirlar) ? d.satirlar.slice(0, 80) : [];
+  if (!gelen.length) return { hata: 'Kaydedilecek vardiya yok.' };
+  var onceki = d.onceki && typeof d.onceki === 'object' ? d.onceki : {};
+
+  var ss = SpreadsheetApp.openById(KAYNAK.personel.id);
+  var vs = ss.getSheetByName('Vardiya');
+  if (!vs) return { hata: "Personel tablosunda 'Vardiya' sekmesi bulunamadı." };
+  var v = vs.getDataRange().getDisplayValues(), b = v[0];
+  var cH = kolon_(b, ['Hafta (Pazartesi)', 'Hafta']), cI = kolon_(b, ['İsim Soyisim']), cS = kolon_(b, ['Şube', 'Sube']),
+      cP = kolon_(b, ['Planlanan']), cO = kolon_(b, ['Off']);
+  var gc = ['Pzt', 'Sal', 'Çar', 'Per', 'Cum', 'Cmt', 'Paz'].map(function (g) { return kolon_(b, [g]); });
+  if (cH < 0 || cI < 0 || gc.some(function (i) { return i < 0; })) return { hata: 'Vardiya sekmesinin başlıkları beklenen gibi değil (Hafta, İsim Soyisim, Pzt…Paz).' };
+
+  // Bu haftanın mevcut satırları (kişi başına satır numaraları)
+  var mevcut = {};
+  for (var i = 1; i < v.length; i++) {
+    var ms = zaman_(v[i][cH]); if (ms === null || !String(v[i][cI]).trim()) continue;
+    if (new Date(ms).toISOString().slice(0, 10) !== hafta) continue;
+    (mevcut[norm_(v[i][cI])] = mevcut[norm_(v[i][cI])] || []).push(i);
+  }
+  // Personel listesi: ad doğrulaması ve şube
+  var ps = ss.getSheetByName('Personel'), kisi = {};
+  if (ps) {
+    var pv = ps.getDataRange().getDisplayValues(), pb = pv[0], pA = kolon_(pb, ['İsim Soyisim']), pS = kolon_(pb, ['Sube', 'Şube']);
+    pv.slice(1).forEach(function (r) { var ad = String(r[pA] || '').trim(); if (ad) kisi[norm_(ad)] = { ad: ad, sube: pS >= 0 ? String(r[pS] || '').trim() : '' }; });
+  }
+
+  var guncelle = [], ekle = [], gorulen = {};
+  for (var j = 0; j < gelen.length; j++) {
+    var ad = String(gelen[j] && gelen[j].ad || '').replace(/\s+/g, ' ').trim(), n = norm_(ad);
+    if (!n || gorulen[n]) continue; gorulen[n] = true;
+    var satirNo = mevcut[n] || [];
+    if (!kisi[n] && !satirNo.length) return { hata: ad + ' personel listesinde yok.' };
+    var eski = satirNo.length ? gc.map(function (c) { return String(v[satirNo[0]][c] || '').trim(); }) : ['', '', '', '', '', '', ''];
+    // Başka yerden (yönetici paneli / tablo) bu arada değiştirildiyse üzerine yazma.
+    var gordugu = Array.isArray(onceki[ad]) ? onceki[ad].map(function (x) { return String(x || '').trim(); }) : ['', '', '', '', '', '', ''];
+    if (gordugu.join('|') !== eski.join('|')) return { hata: ad + ' için bu haftanın vardiyası siz düzenlerken başka yerden değiştirilmiş. Sayfayı yenileyip yeniden girin.', cakisma: true };
+    var gunler = [], saat = 0, off = 0;
+    for (var k = 0; k < 7; k++) {
+      var g = String(gelen[j].gunler && gelen[j].gunler[k] || '').trim();
+      var izinli = (k >= 4 ? VARDIYA_HAFTA_SONU : VARDIYA_HAFTA_ICI).indexOf(g) >= 0;
+      // Tabloda eskiden kalmış farklı bir değer değiştirilmeden bırakılabilir.
+      if (g && !izinli && g !== eski[k]) return { hata: ad + ' — ' + ['Pzt', 'Sal', 'Çar', 'Per', 'Cum', 'Cmt', 'Paz'][k] + ': "' + g + '" geçerli bir vardiya değil.' };
+      gunler.push(g);
+      if (g === 'Off') off++; else if (VARDIYA_SECENEK[g]) saat += VARDIYA_SECENEK[g];
+    }
+    if (gunler.join('|') === eski.join('|')) continue;
+    if (satirNo.length) satirNo.forEach(function (s) { guncelle.push({ satir: s + 1, gunler: gunler, saat: saat, off: off }); });
+    else if (gunler.some(function (x) { return x; })) ekle.push({ ad: kisi[n].ad, sube: kisi[n].sube, gunler: gunler, saat: saat, off: off });
+  }
+  if (!guncelle.length && !ekle.length) return { tamam: true, degisen: 0 };
+
+  var gMin = Math.min.apply(null, gc), gMax = Math.max.apply(null, gc);
+  var bitisik = gMax - gMin === 6 && gc.every(function (c, x) { return c === gMin + x; });
+  guncelle.forEach(function (u) {
+    if (bitisik) vs.getRange(u.satir, gMin + 1, 1, 7).setValues([u.gunler]);
+    else gc.forEach(function (c, x) { vs.getRange(u.satir, c + 1).setValue(u.gunler[x]); });
+    if (cP >= 0) vs.getRange(u.satir, cP + 1).setValue(u.saat);
+    if (cO >= 0) vs.getRange(u.satir, cO + 1).setValue(u.off);
+  });
+  if (ekle.length) {
+    var genislik = b.length, yeni = ekle.map(function (x) {
+      var r = []; for (var q = 0; q < genislik; q++) r.push('');
+      r[cH] = hafta; r[cI] = x.ad; if (cS >= 0) r[cS] = x.sube; if (cP >= 0) r[cP] = x.saat; if (cO >= 0) r[cO] = x.off;
+      gc.forEach(function (c, z) { r[c] = x.gunler[z]; });
+      return r;
+    });
+    vs.getRange(vs.getLastRow() + 1, 1, yeni.length, genislik).setValues(yeni);
+  }
+  var kisiSay = Object.keys(gorulen).length, degisen = guncelle.length + ekle.length;
+  var damga = Utilities.formatDate(new Date(), TZ, 'dd.MM.yyyy HH:mm:ss');
+  var log = ss.getSheetByName('Islem_Loglari');
+  if (log) { log.insertRowAfter(1); log.getRange(2, 1, 1, 5).setValues([[damga, 'Yönetici (panel)', 'VARDIYA_KAYDEDILDI', hafta + ' haftası, ' + degisen + ' kişi değişti', '-']]); }
+  return { tamam: true, degisen: degisen, kisi: kisiSay };
 }
 
 // Personel bilgileri: hassas alanların DEĞERİ gönderilmez, yalnız dolu/eksik bilgisi gönderilir.
@@ -1765,6 +1865,11 @@ function doPost(e) {
     var kh = LockService.getScriptLock(); kh.waitLock(20000);
     try { return json_(hesapKapat_(d)); }
     finally { kh.releaseLock(); CacheService.getScriptCache().remove('panel_v1_n'); }
+  }
+  if (d.tur === 'vardiya') {
+    var kv = LockService.getScriptLock(); kv.waitLock(20000);
+    try { return json_(vardiyaGir_(d)); }
+    finally { kv.releaseLock(); CacheService.getScriptCache().remove('panel_v1_n'); }
   }
   if (d.tur === 'odeme') {
     var k = LockService.getScriptLock(); k.waitLock(20000);

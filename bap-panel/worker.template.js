@@ -25,9 +25,15 @@ const HTML_HEADERS = {
 function gasHatasi(metin) {
   const t = String(metin || '').replace(/<script[\s\S]*?<\/script>|<style[\s\S]*?<\/style>/gi, ' ').replace(/<[^>]+>/g, ' ')
     .replace(/&nbsp;/g, ' ').replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/&amp;/g, '&').replace(/\s+/g, ' ').trim();
+  // Betiğin kendi hatası ("… (satır 12, dosya "Kod")"): adres doğru, sorun kodda. Bunu "adres yok" sanmamak için önce bakılır.
+  if (/\((satır|line|Zeile)\s*\d+/i.test(t))
+    return ' Apps Script çalışırken hata verdi (adres doğru): ' + t.slice(0, 300);
   // "Sayfa bulunamadı / Drive dosyası açılamıyor": GAS_URL artık var olmayan bir dağıtımı gösteriyor.
   if (/nicht gefunden|not found|bulunamad|kann derzeit nicht ge|unable to open|açılam/i.test(t))
-    return ' Apps Script adresi bulunamadı: Cloudflare\'deki GAS_URL silinmiş ya da arşivlenmiş bir dağıtımı gösteriyor. Apps Script\'te Dağıt › Dağıtımları yönet ekranındaki güncel Web uygulaması adresini (sonu /exec) GAS_URL\'ye yazın.';
+    return ' Apps Script adresi bulunamadı: Cloudflare\'deki GAS_URL silinmiş ya da arşivlenmiş bir dağıtımı gösteriyor. Apps Script\'te Dağıt › Dağıtımları yönet ekranındaki güncel Web uygulaması adresini (sonu /exec) GAS_URL\'ye yazın. Sonraki güncellemelerde “Yeni dağıtım” değil, mevcut dağıtımı düzenleyip “Yeni sürüm” seçin; adres böylece hiç değişmez.';
+  // Google giriş sayfası: yayın "Erişimi olanlar: Herkes" değil.
+  if (/sign in|oturum aç|anmelden|accounts\.google/i.test(t))
+    return ' Apps Script yayını giriş istiyor: Dağıt › Dağıtımları yönet › düzenle ekranında "Erişimi olanlar: Herkes" seçin.';
   return t ? ' Google\'ın mesajı: ' + t.slice(0, 300) : '';
 }
 
@@ -61,7 +67,10 @@ export default {
         let veri;
         try { veri = JSON.parse(metin); }
         catch (e) {
-          return json({ hata: 'Veri kapısı beklenmeyen bir cevap verdi. Apps Script yayınında "Erişimi olanlar: Herkes" seçili mi, adres /exec ile mi bitiyor, kontrol edin.' + gasHatasi(metin) }, 502);
+          const neden = gasHatasi(metin);
+          // Neden belliyse yalnız onu göster; değilse genel kontrol listesi.
+          return json({ hata: /bulunamadı|hata verdi|giriş istiyor/.test(neden) ? neden.trim()
+            : 'Veri kapısı beklenmeyen bir cevap verdi (HTTP ' + r.status + '). Apps Script yayınında "Erişimi olanlar: Herkes" seçili mi, adres /exec ile mi bitiyor, kontrol edin.' + neden }, 502);
         }
         if (veri && veri.hata === 'yetkisiz') {
           return json({ hata: 'Veri kapısı anahtarı eşleşmiyor. Cloudflare GAS_KEY ile Apps Script anahtarı aynı olmalı.' }, 502);
@@ -179,6 +188,27 @@ export default {
         try { return json(JSON.parse(metin), 200); }
         catch (e) { return json({ belirsiz: true, hata: 'Veri kapısı beklenmeyen bir cevap verdi; kesinti yazılmış olabilir. Paneli yenileyip kontrol edin.' + gasHatasi(metin) }, 502); }
       } catch (e) { return json({ belirsiz: true, hata: 'Veri kapısına ulaşılamadı; kesinti yazılmış olabilir. Paneli yenileyip kontrol edin.' }, 502); }
+    }
+
+    if (url.pathname === '/api/vardiya' && request.method === 'POST') {
+      // Vardiya girişi: yalnızca panelin kendisinden gelen istek kabul edilir.
+      if (request.headers.get('x-bap-panel') !== '1' || (request.headers.get('origin') || url.origin) !== url.origin) {
+        return json({ hata: 'İzin verilmeyen istek.' }, 403);
+      }
+      let govde;
+      try { govde = await request.json(); } catch (e) { return json({ hata: 'Geçersiz istek.' }, 400); }
+      const gunler = function (g) { return (Array.isArray(g) ? g : []).slice(0, 7).map(function (x) { return String(x || '').slice(0, 20); }); };
+      const satirlar = (Array.isArray(govde.satirlar) ? govde.satirlar : []).slice(0, 80)
+        .map(function (x) { return { ad: String((x && x.ad) || '').slice(0, 80), gunler: gunler(x && x.gunler) }; });
+      const onceki = {};
+      if (govde.onceki && typeof govde.onceki === 'object') satirlar.forEach(function (x) { if (Array.isArray(govde.onceki[x.ad])) onceki[x.ad] = gunler(govde.onceki[x.ad]); });
+      const ileti = JSON.stringify({ key: env.GAS_KEY, tur: 'vardiya', hafta: String(govde.hafta || '').slice(0, 10), satirlar: satirlar, onceki: onceki });
+      try {
+        const r = await fetch(env.GAS_URL, { method: 'POST', headers: { 'content-type': 'application/json' }, body: ileti, redirect: 'follow' });
+        const metin = await r.text();
+        try { return json(JSON.parse(metin), 200); }
+        catch (e) { return json({ belirsiz: true, hata: 'Veri kapısı beklenmeyen bir cevap verdi; vardiya yazılmış olabilir. Paneli yenileyip kontrol edin.' + gasHatasi(metin) }, 502); }
+      } catch (e) { return json({ belirsiz: true, hata: 'Veri kapısına ulaşılamadı; vardiya yazılmış olabilir. Paneli yenileyip kontrol edin.' }, 502); }
     }
 
     if (url.pathname === '/api/hesap' && request.method === 'POST') {
