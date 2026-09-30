@@ -17,27 +17,32 @@ Finans / Alımlar sayfalarındaki tedarikçi borcundan düşülür.
 - Mevcut satırlara dokunmaz, hiçbir şey silmez. Yanlış kaydı tablodan düzeltin.
 - Her giriş ayrıca **BAP Panel Cevapları** tablosuna iz olarak düşer.
 
-## Puantaj düzeltme ekranı
+## Puantaj düzeltme
 
-Panelde **Personel › Puantaj düzeltme** sekmesi. Kişi ve ay seçilir, günün yanındaki **Düzelt** ile
-yeni giriş / çıkış saati ve gerekçe yazılır (ör. 11:57 okutulmuş giriş → 12:00).
+Giriş/çıkış iki yoldan düzeltilir; ikisi de aynı hesabı yapar ve bordro (puantajdan hesaplandığı için) buna göre çıkar.
 
-- Düzeltme **BAP Personel › Personel_Giris_Cikis** sekmesinde o günün satırına yazılır: Mesai Giriş / Mesai Çıkış,
-  Toplam mesai, Fazla Mesai, açıklamalar ve Gün Genel Notu. Bordro puantajdan hesaplandığı için bordroya yansır.
-- Fazla mesai, sistemin o gün kullandığı vardiya süresi (eski toplam − eski fazla) korunarak yeniden hesaplanır;
-  off gününde çalışılan sürenin tamamıdır.
-- **Ham Giriş / Ham Çıkış** (QR'ın gerçek saati) değişmez. Eski değerler, gerekçe ve tarih **Manuel** sütununa,
-  **Islem_Loglari**'na ve **BAP Panel Cevapları**'na yazılır; geri almak için eski değer oradan okunur.
-- İzin / rapor / devamsızlık işli günler buradan düzeltilmez (yönetici paneli).
-- Giriş/çıkış (C/D) tablodan elle değiştirilip Toplam mesai / Fazla Mesai eski kalmışsa panel bu satırları
-  **toplam eski** diye işaretler; **Yeniden hesapla** ile toplam ve fazla mesai tablodaki saate göre yazılır.
-- Tam saate 15 dakikadan az kala yazılmış girişlerde (11:57 gibi) form tam saati önerir.
+**1) E-tablodan:** *BAP Personel › Personel_Giris_Cikis* sekmesinde C (Mesai Giriş) ya da D (Mesai Çıkış) değiştirilir.
+Satır kendiliğinden yeniden hesaplanır ve **Gün Genel Notu = "Tablodan Güncellendi"** yazar.
+Tetikleyicinin kaçırdığı satırları (toplu yapıştırma vb.) saatlik tarama yakalar.
+
+**2) Panelden:** *Personel › Puantaj düzeltme* sekmesinde günün yanındaki **Düzelt** (gerekçe zorunlu) → "Elle Düzeltildi".
+
+Hesap kuralı:
+- C ve D dolu → Toplam = çıkış − giriş. Off gününde fazla mesai = toplamın tamamı; diğer günlerde
+  Fazla = Toplam − vardiya süresi (sistemin o satırda kullandığı süre → yoksa Vardiya sekmesi → yoksa kişinin en sık vardiyası).
+  Yıllık izin / rapor / ücretsiz izin / devamsızlık işareti varsa kalkar.
+- C ve D ikisi de silinirse → vardiya planında off ise OFF, çalışma günüyse **Devamsızlık** işaretlenir.
+- Yalnız giriş var, çıkış yok → geçmiş günse not düşülür, toplam değiştirilmez.
+- Ham Giriş / Ham Çıkış (QR'ın gerçek saati) hiç değişmez. Eski değerler **Manuel** sütununa ve **Islem_Loglari**'na yazılır.
 
 ## Yayına alma
 
 1. **Apps Script** (BAP Panel Veri Kapısı): `apps-script/bap-panel-veri-kapisi/Kod.gs` içeriğini `Kod.gs` dosyasına yapıştır,
    kaydet → *Dağıt › Dağıtımları yönet* → mevcut dağıtımı düzenle → *Sürüm: Yeni sürüm* → Dağıt.
-   (Adres değişmez; Cloudflare'deki `GAS_URL` aynı kalır.)
+   (Adres değişmez; Cloudflare'deki `GAS_URL` aynı kalır.) `appsscript.json` da güncellendiyse onu da yapıştırın
+   (*Proje ayarları › "appsscript.json" dosyasını düzenleyicide göster*).
+   Tablo tetikleyicisi için bir kez **`tabloTetikleyicisiKur`** fonksiyonunu çalıştırın; izin ister, sonra
+   daha önce elle değiştirilmiş satırları tarayıp yürütme günlüğüne listeler.
 2. **Cloudflare Worker** (bap-panel): `node bap-panel/build.js` → oluşan `bap-panel/worker.js` içeriğini
    Workers › bap-panel › *Edit code* ekranına yapıştır → *Deploy*.
 
