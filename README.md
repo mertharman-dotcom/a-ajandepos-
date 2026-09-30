@@ -47,6 +47,12 @@ Panelde **Kurye & Teslimat** bölümü (`#kurye`). **Kurye Net Çalışma Süres
 - Mahalle bazlı teslimat süreleri (Seferler & rota altında): bugün / 7 gün / bu ay / 30 gün; paket, ortalama ve medyan
   teslim (sipariş → kapı), restoranda / yolda kırılımı, ortalama km, 40 dk üstü oranı. Genel Bilgiler › Mahalle_Sube'deki
   teslimat süresinin üst sınırı "söz verilen süre" sayılır; onu aşan paket oranı gösterilir. Mahalle Siparişler › Adres'ten okunur.
+- Kurye eşleştirme: Adisyo › Satıs Verileri'ndeki son 30 günün paket siparişleri kurye tablosundaki Siparişler ile
+  (günlük sipariş no + sipariş saati en fazla 20 dk farklı) eşleştirilir; kimin götürdüğünün kaynağı kurye sistemidir.
+  Adisyo'da Kurye boşsa **Hepsini doldur** ile yazılır; farklıysa sahip "Adisyo'yu düzelt" ya da "Böyle kalsın" der;
+  kurye sisteminde karşılığı yoksa kurye elle atanır ya da "Kurye yok" denir. Her yazma (önceki değerle) kurye tablosundaki
+  **Kurye Eşleştirme** sekmesine düşer. Boşları otomatik doldurmak için Apps Script'te `kuryeBoslariDoldur` fonksiyonuna
+  saatlik zaman tetikleyicisi eklenebilir.
 - Kesinti girişi (Kesintiler sekmesi): kurye, tarih, tür (para ₺ / süre dk), miktar ve açıklama. Kurye tablosunun
   **Kesintiler** sekmesine kurye panelindeki biçimde yazılır (açıklamanın sonunda "(panel)"). Aynı gün + kurye + miktar
   varsa önce onay ister; aynı gönderim iki kez yazılmaz. Yanlış kayıt tablodan silinir.

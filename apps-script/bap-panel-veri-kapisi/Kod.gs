@@ -6,7 +6,8 @@
  *        'BAP Panel Cevapları' tablosuna kayıt düşer. Toptancı ödemesi girilince 'Kolaybi Fatura Ham Veri › Odemeler'
  *        sekmesinin sonuna yeni satır ekler. Kurye açık hesabı kapatılınca 'Kurye Net Çalışma Süresi › Tahsilatlar'
  *        sekmesine (kuryeden kesilirse ayrıca 'Kesintiler' sekmesine) yeni satır ekler; panelden girilen kurye
- *        kesintisi 'Kesintiler' sekmesine yeni satır olarak yazılır. Başka hiçbir hücreyi değiştirmez, hiçbir şey silmez.
+ *        kesintisi 'Kesintiler' sekmesine yeni satır olarak yazılır. Kurye eşleştirmesinde Adisyo 'Satıs Verileri' › Kurye
+ *        hücresi yazılır (yalnız boş olan ya da sahibin onayladığı); önceki değer 'Kurye Eşleştirme' sekmesine düşer. Başka hiçbir hücreyi değiştirmez, hiçbir şey silmez.
  * Gizlilik: Müşteri adı, telefonu, adresi ve personel kişisel bilgisi dışarı verilmez; yalnız toplamlar döner.
  * Erişim: Yalnızca doğru anahtarla gelen isteğe cevap verir. Anahtar koda yazılmaz, Komut Dosyası Özelliklerinde durur.
  *
@@ -910,6 +911,7 @@ function kurye_() {
       sebep: { mutfak: g.mutfak, kurye: g.kurye, ikisi: g.ikisi, diger: g.diger } }; });
   out.seri = Object.keys(seri).sort().map(function (k) { var x = seri[k]; return { gun: k, adet: x.adet, ortDk: x.n ? Math.round(x.dk / x.n) : null, gec: x.gec, maliyet: Math.round(x.maliyet) }; });
   out.ucret = KURYE_UCRET;
+  try { out.eslestirme = kuryeEslestirme_(); } catch (err) { out.eslestirme = { hata: String(err.message || err) }; }
   try { out.seferler = seferler_(ss, bugun); } catch (err) { out.seferler = []; out.seferHata = String(err.message || err); }
   out.subeKonum = SUBE_KONUM;
   out.kisiler = {};
@@ -1188,6 +1190,113 @@ function rotaHesapla_(d) {
   return out;
 }
 
+/* ---------------- Adisyo ↔ kurye sistemi kurye eşleştirmesi ---------------- */
+
+// Adisyo 'Satıs Verileri'ndeki paket siparişlerini kurye tablosundaki 'Siparişler' ile eşleştirir
+// (günlük sipariş no + sipariş saati en fazla 20 dk farklı). Kurye sistemi kimin götürdüğünün kaynağıdır.
+// bos: Adisyo'da kurye boş, kurye sisteminde var → doldurulur. farkli: ikisi farklı → sahibin onayı.
+// eslesmeyen: Adisyo'da paket siparişi, kurye sisteminde karşılığı yok → sahip kuryeyi seçer.
+var ESLESTIRME_GUN = 30;
+
+function ayniKurye_(a, b) {
+  var x = norm_(a), y = norm_(b); if (!x || !y) return false; if (x === y) return true;
+  var ax = String(a).trim().split(/\s+/).map(norm_), by = String(b).trim().split(/\s+/).map(norm_);
+  return ax.indexOf(by[0]) >= 0 || by.indexOf(ax[0]) >= 0;
+}
+
+function kuryeEslestirme_() {
+  var simdi = simdi_(), bugun = isGunu_(simdi), bas = gunEkle_(bugun, -ESLESTIRME_GUN);
+  // Kurye sistemi: sipariş no → [{ms, kurye, platform}]
+  var ks = sonSatirlar_(SpreadsheetApp.openById(KAYNAK.kurye.id), 'Siparişler', 6000, ['Tarih', 'Adisyon No', 'Kurye', 'Platform', 'Sipariş Saati', 'Durum']);
+  var kno = {}, kAdlar = {};
+  if (ks) { var ck = { tarih: kolon_(ks.b, ['Tarih']), no: kolon_(ks.b, ['Adisyon No']), kurye: kolon_(ks.b, ['Kurye']), plat: kolon_(ks.b, ['Platform']), sip: kolon_(ks.b, ['Sipariş Saati']), durum: kolon_(ks.b, ['Durum']) };
+    ks.v.forEach(function (r) { var no = String(r[ck.no] || '').trim(), ms = zaman_(String(r[ck.tarih]).trim() + ' ' + String(r[ck.sip] || '').trim()); if (!no || ms === null) return;
+      if (/iptal|iade/i.test(r[ck.durum] || '')) return; var ad = String(r[ck.kurye] || '').trim(); if (ad) kAdlar[ad] = 1;
+      (kno[no] = kno[no] || []).push({ ms: ms, kurye: ad, platform: r[ck.plat] || '' }); }); }
+  // Adisyo
+  var ss = SpreadsheetApp.openById(KAYNAK.siparis.id), sh = ss.getSheetByName('Satıs Verileri'); if (!sh) throw new Error("Adisyo dosyasında 'Satıs Verileri' yok");
+  var son = sh.getLastRow(), k = Math.min(6000, son - 1);
+  var ok = sonSatirlar_(ss, 'Satıs Verileri', 6000, ['Sipariş ID', 'Sipariş No', 'Sipariş Tarihi', 'Sipariş Tipi', 'Masa Siparişi', 'Sipariş Kanalı', 'Şube', 'Kurye', 'Durum']);
+  if (!ok) return { bos: [], farkli: [], eslesmeyen: [], ozet: { paket: 0, eslesen: 0, bos: 0, farkli: 0, eslesmeyen: 0 }, kuryeler: [] };
+  var b = ok.b;
+  var c = { id: kolon_(b, ['Sipariş ID']), no: kolon_(b, ['Sipariş No']), tarih: kolon_(b, ['Sipariş Tarihi']), tip: kolon_(b, ['Sipariş Tipi', 'Masa Siparişi']), kanal: kolon_(b, ['Sipariş Kanalı']),
+            sube: kolon_(b, ['Şube']), kurye: kolon_(b, ['Kurye']), durum: kolon_(b, ['Durum']) };
+  if (c.id < 0 || c.no < 0 || c.tarih < 0 || c.kurye < 0) throw new Error("Adisyo'da Sipariş ID, Sipariş No, Sipariş Tarihi ya da Kurye sütunu bulunamadı");
+  var ilk = son - k + 1, v = ok.v; // satır kaysa bile yazarken Sipariş ID ile doğrulanır
+  var karar = eslestirmeKararlari_(), adisyoYazim = {}, out = { bos: [], farkli: [], eslesmeyen: [], ozet: { paket: 0, eslesen: 0 }, kuryeler: [] };
+  v.forEach(function (r) { var a = String(r[c.kurye] || '').trim(); if (a) { var f = norm_(a.split(/\s+/)[0]); adisyoYazim[f] = adisyoYazim[f] || {}; adisyoYazim[f][a] = (adisyoYazim[f][a] || 0) + 1; } });
+  function yazim(ad) { var f = adisyoYazim[norm_(String(ad).split(/\s+/)[0])]; if (f) return Object.keys(f).sort(function (x, y) { return f[y] - f[x]; })[0];
+    var t = String(ad).trim(); return t.charAt(0).toLocaleUpperCase('tr-TR') + t.slice(1); }
+  v.forEach(function (r, i) {
+    var ms = zaman_(r[c.tarih]); if (ms === null) return; var gun = isGunu_(ms); if (gun < bas || gun > bugun) return;
+    if (c.tip >= 0 && !/paket/i.test(r[c.tip] || '')) return;
+    if (c.durum >= 0 && /iptal|iade/i.test(r[c.durum] || '')) return;
+    var no = String(r[c.no] || '').trim(), id = String(r[c.id] || '').trim(); if (!no || !id) return;
+    out.ozet.paket++;
+    var aday = (kno[no] || []).map(function (x) { return { x: x, fark: Math.abs(x.ms - ms) }; }).filter(function (y) { return y.fark <= 20 * 60000; }).sort(function (p, q) { return p.fark - q.fark; })[0];
+    var adisyo = String(r[c.kurye] || '').trim();
+    var kayit = { id: id, satir: ilk + i, no: no, tarih: new Date(ms).toISOString().slice(0, 16).replace('T', ' '), kanal: r[c.kanal] || '', sube: subeAnahtar_(r[c.sube] || '').replace('BAP ', ''), adisyo: adisyo };
+    if (!aday || !aday.x.kurye) { if (!adisyo && !karar[id]) out.eslesmeyen.push(kayit); return; }
+    kayit.kurye = aday.x.kurye; kayit.oneri = yazim(aday.x.kurye);
+    if (!adisyo) out.bos.push(kayit);
+    else if (!ayniKurye_(adisyo, aday.x.kurye)) { if (!karar[id]) out.farkli.push(kayit); }
+    else out.ozet.eslesen++;
+  });
+  var tum = {}; Object.keys(kAdlar).forEach(function (a) { tum[yazim(a)] = 1; }); Object.keys(adisyoYazim).forEach(function (f) { tum[yazim(f)] = 1; });
+  out.kuryeler = Object.keys(tum).sort(function (x, y) { return x.localeCompare(y, 'tr'); });
+  ['bos', 'farkli', 'eslesmeyen'].forEach(function (k2) { out.ozet[k2] = out[k2].length; out[k2].sort(function (x, y) { return y.tarih.localeCompare(x.tarih); }); });
+  out.eslesmeyen = out.eslesmeyen.slice(0, 80); out.farkli = out.farkli.slice(0, 80);
+  return out;
+}
+
+// "Böyle kalsın" denen siparişler kurye tablosundaki 'Kurye Eşleştirme' sekmesinde tutulur (bir daha sorulmaz).
+function eslestirmeKaydi_() {
+  var ss = SpreadsheetApp.openById(KAYNAK.kurye.id), sh = ss.getSheetByName('Kurye Eşleştirme');
+  if (!sh) { sh = ss.insertSheet('Kurye Eşleştirme'); sh.appendRow(['Zaman', 'Adisyo Sipariş ID', 'Sipariş No', 'Sipariş Tarihi', 'Adisyo Kuryesi (önce)', 'Yeni Kurye', 'İşlem', 'Kaynak']); sh.setFrozenRows(1); }
+  return sh;
+}
+function eslestirmeKararlari_() {
+  var out = {}, t = sonSatirlar_(SpreadsheetApp.openById(KAYNAK.kurye.id), 'Kurye Eşleştirme', 5000); if (!t) return out;
+  var ci = kolon_(t.b, ['Adisyo Sipariş ID']), cl = kolon_(t.b, ['İşlem']);
+  t.v.forEach(function (r) { if (/kalsın|kalsin/i.test(r[cl] || '')) out[String(r[ci]).trim()] = 1; });
+  return out;
+}
+// Adisyo'da tek siparişin Kurye hücresini yazar; satır kaymışsa Sipariş ID ile bulur. Önceki değeri kayıt sekmesine düşer.
+function adisyoKuryeYaz_(sh, c, kayit, yeni, islem, kaynak, iz) {
+  var satir = kayit.satir, idHuc = satir >= 2 && satir <= sh.getLastRow() ? String(sh.getRange(satir, c.id + 1).getDisplayValue()).trim() : '';
+  if (idHuc !== kayit.id) { var son = sh.getLastRow(), k = Math.min(8000, son - 1), ids = sh.getRange(son - k + 1, c.id + 1, k, 1).getDisplayValues(); satir = -1;
+    for (var i = ids.length - 1; i >= 0; i--) if (String(ids[i][0]).trim() === kayit.id) { satir = son - k + 1 + i; break; } }
+  if (satir < 2) return false;
+  var hucre = sh.getRange(satir, c.kurye + 1), once = String(hucre.getDisplayValue()).trim();
+  hucre.setValue(yeni);
+  iz.appendRow([Utilities.formatDate(new Date(), TZ, 'dd.MM.yyyy HH:mm:ss'), "'" + kayit.id, kayit.no, kayit.tarih, once, yeni, islem, kaynak]);
+  return true;
+}
+
+// Panelden: { islem: 'doldur' | 'duzelt' | 'kalsin' | 'ata', id, kurye }. 'doldur' bütün boşları kurye sistemindeki adla doldurur.
+function kuryeEslestirIslem_(d, kaynak) {
+  var e = kuryeEslestirme_(), sh = SpreadsheetApp.openById(KAYNAK.siparis.id).getSheetByName('Satıs Verileri'), iz = eslestirmeKaydi_();
+  var b = sh.getRange(1, 1, 1, sh.getLastColumn()).getDisplayValues()[0], c = { id: kolon_(b, ['Sipariş ID']), kurye: kolon_(b, ['Kurye']) };
+  var bul = function (l) { return l.filter(function (x) { return x.id === String(d.id || '').trim(); })[0]; };
+  if (d.islem === 'doldur') { var n = 0; e.bos.forEach(function (x) { if (adisyoKuryeYaz_(sh, c, x, x.oneri, 'Boş dolduruldu', kaynak || 'Panel', iz)) n++; }); return { tamam: true, yazilan: n }; }
+  if (d.islem === 'duzelt') { var f = bul(e.farkli); if (!f) return { hata: 'Bu sipariş artık farklı görünmüyor; paneli yenileyin.' };
+    return adisyoKuryeYaz_(sh, c, f, f.oneri, 'Farklı: kurye sistemine göre düzeltildi', 'Panel', iz) ? { tamam: true } : { hata: "Sipariş Adisyo'da bulunamadı." }; }
+  if (d.islem === 'kalsin') { var g = bul(e.farkli) || bul(e.eslesmeyen); if (!g) return { hata: 'Sipariş listede yok; paneli yenileyin.' };
+    iz.appendRow([Utilities.formatDate(new Date(), TZ, 'dd.MM.yyyy HH:mm:ss'), "'" + g.id, g.no, g.tarih, g.adisyo, g.adisyo, 'Böyle kalsın', 'Panel']); return { tamam: true }; }
+  if (d.islem === 'ata') { var h = bul(e.eslesmeyen) || bul(e.farkli); if (!h) return { hata: 'Sipariş listede yok; paneli yenileyin.' };
+    var ad = String(d.kurye || '').replace(/\s+/g, ' ').trim().slice(0, 40); if (!ad) return { hata: 'Kurye seçin.' };
+    if (e.kuryeler.map(norm_).indexOf(norm_(ad)) < 0) return { hata: 'Bu kurye listede yok.' };
+    return adisyoKuryeYaz_(sh, c, h, ad, 'Elle atandı', 'Panel', iz) ? { tamam: true } : { hata: "Sipariş Adisyo'da bulunamadı." }; }
+  return { hata: 'Geçersiz işlem.' };
+}
+
+// Zamanlayıcıyla çalıştırılabilir (Tetikleyiciler › saatlik): Adisyo'da kuryesi boş paket siparişlerini doldurur.
+function kuryeBoslariDoldur() {
+  var k = LockService.getScriptLock(); k.waitLock(20000);
+  try { var r = kuryeEslestirIslem_({ islem: 'doldur' }, 'Otomatik'); Logger.log('Doldurulan: ' + r.yazilan); }
+  finally { k.releaseLock(); CacheService.getScriptCache().remove('panel_v1_n'); }
+}
+
 function gz_() { return { maliyet: 0, mesaiPaket: 0, adet: 0, km: 0, n: 0, at: 0, cikis: 0, yol: 0, top: 0, gec: 0, mutfak: 0, kurye: 0, ikisi: 0, diger: 0 }; }
 
 // "29.09.2026" → "2026-09-29"
@@ -1220,6 +1329,11 @@ function doPost(e) {
   var d; try { d = JSON.parse(e.postData.contents); } catch (err) { return json_({ hata: 'Geçersiz istek' }); }
   var anahtar = PropertiesService.getScriptProperties().getProperty('PANEL_KEY');
   if (!anahtar || d.key !== anahtar) return json_({ hata: 'yetkisiz' });
+  if (d.tur === 'eslestir') {
+    var ke = LockService.getScriptLock(); ke.waitLock(25000);
+    try { return json_(kuryeEslestirIslem_(d)); } catch (err) { return json_({ hata: String(err.message || err) }); }
+    finally { ke.releaseLock(); CacheService.getScriptCache().remove('panel_v1_n'); }
+  }
   if (d.tur === 'rota') {
     try { return json_(rotaHesapla_(d)); } catch (err) { return json_({ hata: String(err.message || err) }); }
   }

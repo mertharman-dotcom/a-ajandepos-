@@ -627,9 +627,10 @@ function sebepBlok(G){var S=G.sebep,top=G.gec;if(!top)return bos("Bu dönemde ge
 function kuryeSayfa(a){var K=VERI.kurye;a.appendChild(ust("Kurye ve teslimat",K&&K.sonSiparis?"Kaynak: Kurye Net Çalışma Süresi tablosu. Son sipariş kaydı: "+K.sonSiparis+".":null));a.appendChild(nabizSeridi("kurye"));var h=hatalarKutusu(["kurye"]);if(h)a.appendChild(h);if(!K)return;
   var HD=K.hedef,D=KURYE_DONEM,G=K.genel[D],A=K.acik;
   var aktifSefer=(K.seferler||[]).filter(function(g){return g.durum!=="tamamlandı";}).length;
-  var SK=[["ozet","Özet"],["rota","Seferler & rota"+(aktifSefer?" ("+aktifSefer+" aktif)":"")],["bordro","Bordro"],["teslimat","Teslimat analizi"],["kesinti","Kesintiler"],["acik","Açık hesaplar ("+A.eski.adet+")"]];
+  var ES=K.eslestirme||{},esSay=ES.ozet?(ES.ozet.bos+ES.ozet.farkli+ES.ozet.eslesmeyen):0;
+  var SK=[["ozet","Özet"],["rota","Seferler & rota"+(aktifSefer?" ("+aktifSefer+" aktif)":"")],["eslestirme","Kurye eşleştirme"+(esSay?" ("+esSay+")":"")],["bordro","Bordro"],["teslimat","Teslimat analizi"],["kesinti","Kesintiler"],["acik","Açık hesaplar ("+A.eski.adet+")"]];
   a.appendChild(el("div",{class:"sekmeler",style:"border-bottom:1px solid var(--cizgi);padding-bottom:12px;margin-bottom:16px"},SK.map(function(k){return el("button",{type:"button","aria-pressed":KURYE_SEKME===k[0]?"true":"false",onclick:function(){KURYE_SEKME=k[0];ciz();}},[k[1]]);})));
-  if(KURYE_SEKME==="rota")return kuryeRota(a,K);if(KURYE_SEKME==="bordro")return kuryeBordro(a,K);if(KURYE_SEKME==="kesinti")return kuryeKesinti(a,K);if(KURYE_SEKME==="acik")return kuryeAcik(a,K);
+  if(KURYE_SEKME==="rota")return kuryeRota(a,K);if(KURYE_SEKME==="eslestirme")return kuryeEslestirme(a,K);if(KURYE_SEKME==="bordro")return kuryeBordro(a,K);if(KURYE_SEKME==="kesinti")return kuryeKesinti(a,K);if(KURYE_SEKME==="acik")return kuryeAcik(a,K);
   a.appendChild(el("div",{class:"sekmeler"},["bugun","dun","yedi","ay","otuz"].map(function(k){return el("button",{type:"button","aria-pressed":D===k?"true":"false",onclick:function(){KURYE_DONEM=k;ciz();}},[KD_AD[k]]);})));
   if(KURYE_SEKME==="teslimat")return kuryeTeslimat(a,K);
   var oran=G.adet?Math.round(G.gec/G.adet*100):0;
@@ -832,6 +833,43 @@ function mahalleSureBlok(K){var M=K.mahalleSure;if(!M)return bos("Mahalle sürel
     if(l.length>40)kap.appendChild(el("p",{style:"font-size:13px;color:var(--gri)",text:"İlk 40 mahalle gösteriliyor ("+l.length+" mahalle var)."}));}
   ciz3();
   return blok("Mahalle bazlı teslimat süreleri","Gerçekleşen süre: sipariş verildiği andan kapıya teslime kadar (restoranda + yolda). Söz verilen süre Genel Bilgiler › teslimat bölgelerinden, aralığın üst sınırı; ‘Sözü aşan’ o süreyi aşan paketlerin oranı. Çubuk kırmızıysa ortalama bile sözü aşıyor, sarıysa sınıra 5 dakikadan yakın. ‘Restoranda’ uzunsa sorun mutfakta ya da kurye beklemede, ‘Yolda’ uzunsa mesafe/kurye. Mahalle adresten okunur.",kap);}
+
+// Adisyo ↔ kurye sistemi kurye eşleştirmesi
+var ESL={};// sipariş id → {durum, mesaj}
+function eslGonder(govde,anahtar,sonra){if(anahtar)ESL[anahtar]={durum:"gidiyor"};sonra();
+  return fetch("/api/eslestir",{method:"POST",credentials:"same-origin",headers:{"content-type":"application/json","x-bap-panel":"1"},body:JSON.stringify(govde)})
+    .then(function(r){return r.json();}).then(function(d){if(anahtar)ESL[anahtar]=d&&d.tamam?{durum:"tamam",mesaj:govde.islem==="kalsin"?"Böyle kalacak":"Adisyo'ya yazıldı"}:{durum:"hata",mesaj:(d&&d.hata)||"Kaydedilemedi."};return d;})
+    .catch(function(){if(anahtar)ESL[anahtar]={durum:"hata",mesaj:"Bağlantı koptu; yazılmış olabilir."};return null;}).then(function(d){sonra();return d;});}
+function kuryeEslestirme(a,K){var E=K.eslestirme;
+  if(!E)return a.appendChild(bos("Eşleştirme için veri kapısının yeni sürümü gerekiyor."));
+  if(E.hata)return a.appendChild(el("div",{class:"uyari kotu"},[el("b",{text:"Eşleştirme yapılamadı"}),el("div",{text:E.hata})]));
+  var O=E.ozet,kap=el("div");
+  a.appendChild(el("div",{class:"bilgi",text:"Adisyo'daki son "+30+" günün paket siparişleri, kurye tablosundaki Siparişler ile günlük sipariş numarası ve sipariş saatiyle (en fazla 20 dk fark) eşleştirilir. Kimin götürdüğünün kaynağı kurye sistemidir. Boş olanlar doldurulur; farklı olanlar senin onayını bekler. Her yazma kurye tablosundaki ‘Kurye Eşleştirme’ sekmesine önceki değeriyle kaydedilir, oradan geri alınabilir."}));
+  a.appendChild(el("div",{class:"rakamlar"},[rakam("Paket siparişi",TL.format(O.paket),"son 30 gün, Adisyo"),rakam("Tutarlı",TL.format(O.eslesen),O.paket?"%"+Math.round(O.eslesen/O.paket*100):null),
+    rakam("Kuryesi boş",String(O.bos),O.bos?"kurye sisteminden doldurulacak":"yok",O.bos?"asagi":""),rakam("Farklı",String(O.farkli),O.farkli?"onayını bekliyor":"yok",O.farkli?"asagi":""),
+    rakam("Kurye sisteminde yok",String(O.eslesmeyen),O.eslesmeyen?"kuryeyi sen seç":"yok",O.eslesmeyen?"asagi":"")]));
+  function durumHucre(x,dugmeler){var st=ESL[x.id];if(st&&st.durum==="gidiyor")return el("span",{class:"cevap-durum",text:"Kaydediliyor…"});
+    if(st&&st.durum==="tamam")return el("span",{class:"etiket e-iyi",text:"✓ "+st.mesaj});
+    return el("span",{style:"display:flex;gap:6px;flex-wrap:wrap;align-items:center"},dugmeler.concat(st&&st.durum==="hata"?[el("span",{class:"cevap-durum kotu",style:"flex-basis:100%",text:st.mesaj})]:[]));}
+  var kucuk="padding:4px 10px;font-size:13px";
+  function ciz4(){kap.textContent="";
+    // Boşlar
+    var dolduruluyor=ESL.__doldur;
+    kap.appendChild(blok("Adisyo'da kuryesi boş ("+E.bos.length+")","Kurye sisteminde kimin götürdüğü belli. ‘Hepsini doldur’ bunları Adisyo'daki Kurye sütununa yazar.",E.bos.length?el("div",null,[
+      el("p",null,[el("button",{type:"button",class:"dugme ana-dugme",disabled:dolduruluyor&&dolduruluyor.durum==="gidiyor"?"":null,onclick:function(){if(!window.confirm(E.bos.length+" siparişin Adisyo'daki boş Kurye hücresi kurye sistemindeki adla doldurulacak. Onaylıyor musun?"))return;
+        eslGonder({islem:"doldur"},"__doldur",ciz4).then(function(d){if(d&&d.tamam){ESL.__doldur={durum:"tamam",mesaj:d.yazilan+" sipariş dolduruldu"};ciz4();yukle(true);}});}},["Hepsini doldur ("+E.bos.length+")"]),
+        dolduruluyor?el("span",{class:"cevap-durum "+(dolduruluyor.durum==="hata"?"kotu":dolduruluyor.durum==="tamam"?"iyi":""),style:"margin-left:10px",text:dolduruluyor.durum==="gidiyor"?"Yazılıyor…":dolduruluyor.mesaj}):null]),
+      tablo([["Tarih"],["Sipariş no"],["Kanal"],["Şube"],["Yazılacak kurye"]],E.bos.slice(0,60).map(function(x){return [x.tarih,x.no,x.kanal,x.sube,el("strong",{text:x.oneri})];}))]):bos("Adisyo'da kuryesi boş paket siparişi yok.")));
+    // Farklılar
+    kap.appendChild(blok("İki tabloda farklı kurye ("+E.farkli.length+")","Kurye sistemine göre düzeltmek Adisyo'daki adı değiştirir. ‘Böyle kalsın’ dersen bir daha sorulmaz.",E.farkli.length?tablo([["Tarih"],["Sipariş no"],["Kanal"],["Adisyo'da"],["Kurye sisteminde"],["Karar"]],E.farkli.map(function(x){
+      return [x.tarih,x.no,x.kanal,x.adisyo,el("strong",{text:x.kurye}),durumHucre(x,[el("button",{type:"button",class:"dugme",style:kucuk,onclick:function(){eslGonder({islem:"duzelt",id:x.id},x.id,ciz4);}},["Adisyo'yu "+x.oneri+" yap"]),
+        el("button",{type:"button",class:"dugme",style:kucuk,onclick:function(){eslGonder({islem:"kalsin",id:x.id},x.id,ciz4);}},["Böyle kalsın"])])];})):bos("İki tabloda farklı kurye yazan sipariş yok.")));
+    // Eşleşmeyenler
+    kap.appendChild(blok("Kurye sisteminde karşılığı yok ("+E.eslesmeyen.length+")","Adisyo'da paket siparişi var, kuryesi boş, kurye tablosunda da bulunamadı (kurye uygulamaya girmemiş ya da gel-al olabilir). Kuryeyi seçip ata; kurye değilse ‘Kurye yok’ de.",E.eslesmeyen.length?tablo([["Tarih"],["Sipariş no"],["Kanal"],["Şube"],["Kurye"]],E.eslesmeyen.map(function(x){
+      var sec=el("select",{class:"cevap-alan",style:"max-width:170px;padding:4px 8px","aria-label":"Kurye"},[el("option",{value:"",text:"Seç…"})].concat((E.kuryeler||[]).map(function(k){return el("option",{value:k,text:k});})));
+      return [x.tarih,x.no,x.kanal,x.sube,durumHucre(x,[sec,el("button",{type:"button",class:"dugme",style:kucuk,onclick:function(){if(!sec.value){ESL[x.id]={durum:"hata",mesaj:"Kurye seç."};ciz4();return;}eslGonder({islem:"ata",id:x.id,kurye:sec.value},x.id,ciz4);}},["Ata"]),
+        el("button",{type:"button",class:"dugme",style:kucuk,onclick:function(){eslGonder({islem:"kalsin",id:x.id},x.id,ciz4);}},["Kurye yok"])])];})):bos("Kurye sisteminde karşılığı olmayan paket siparişi yok.")));}
+  ciz4();a.appendChild(kap);}
 
 var HESAP_ISLEM={};// siparisId → {durum:"gidiyor"|"tamam"|"hata", islem, mesaj}
 function hesapKapat(x,islem,yenidenCiz){
