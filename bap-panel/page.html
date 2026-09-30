@@ -622,6 +622,30 @@ function personelSayfa(a){var p=VERI.personel;a.appendChild(ust("Personel","Giri
   if(PERS_SEKME==="puantaj")return puantajSayfa(a,p);
   if(PERS_SEKME==="bordro")return bordroSayfa(a,p);
   personelGenel(a,p);}
+var GD_TARIH="";
+// Vardiya planı: istenen gün seçilir. Bugün canlı (p.plan); diğer günler vardiya çizelgesinden (4 hafta geri, 2 hafta ileri),
+// geçmiş günlerde fiili giriş-çıkışla birlikte.
+function gunPlanBlok(p){var V=p.vardiya,bugun=p.bugun;if(!GD_TARIH)GD_TARIH=bugun;
+  var enAz=V&&V.haftalar.length?V.haftalar[0].hafta:bugun,enCok=V&&V.haftalar.length?new Date(Date.parse(V.haftalar[V.haftalar.length-1].hafta+"T00:00:00Z")+6*864e5).toISOString().slice(0,10):bugun;
+  function git(k){var t=new Date(Date.parse(GD_TARIH+"T00:00:00Z")+k*864e5).toISOString().slice(0,10);if(t<enAz||t>enCok)return;GD_TARIH=t;ciz();}
+  var giris=el("input",{type:"date",class:"cevap-alan",style:"max-width:170px",value:GD_TARIH,min:enAz,max:enCok,"aria-label":"Tarih"});
+  giris.addEventListener("change",function(){if(giris.value){GD_TARIH=giris.value;ciz();}});
+  var geri=el("button",{type:"button",class:"dugme",style:"padding:6px 10px","aria-label":"Önceki gün",onclick:function(){git(-1);}},["‹"]),ileri=el("button",{type:"button",class:"dugme",style:"padding:6px 10px","aria-label":"Sonraki gün",onclick:function(){git(1);}},["›"]);
+  if(GD_TARIH<=enAz)geri.setAttribute("disabled","");if(GD_TARIH>=enCok)ileri.setAttribute("disabled","");
+  var sec=el("div",{class:"hafta-sec",style:"margin:0 0 10px"},[geri,giris,ileri,GD_TARIH!==bugun?el("button",{type:"button",class:"dugme",onclick:function(){GD_TARIH=bugun;ciz();}},["Bugün"]):null]);
+  var d=new Date(GD_TARIH+"T00:00:00Z"),baslik=(GD_TARIH===bugun?"Bugünün":GUNLER[d.getUTCDay()]+" "+d.getUTCDate()+" "+AYLAR[d.getUTCMonth()])+" vardiya planı";
+  var icerik;
+  if(GD_TARIH===bugun){icerik=p.plan.length?tablo([["Personel"],["Plan"],["Durum"]],p.plan.map(function(x){return [x.ad,x.plan,x.calisacak?(x.geldi?el("span",{class:"etiket e-iyi",text:"geldi "+x.giris}):el("span",{class:"etiket e-kotu",text:"henüz girmedi"})):el("span",{class:"etiket e-notr",text:"çalışmıyor"})];})):bos("Bu haftanın vardiya planı bulunamadı.");}
+  else{var dow=(d.getUTCDay()+6)%7,hafta=new Date(Date.parse(GD_TARIH+"T00:00:00Z")-dow*864e5).toISOString().slice(0,10),H=V?V.haftalar.filter(function(h){return h.hafta===hafta;})[0]:null;
+    var gecmis=GD_TARIH<bugun;
+    icerik=H&&H.satirlar.length?tablo([["Personel"],["Şube"],["Plan"],[gecmis?"Gerçekleşen":"Durum"]],H.satirlar.filter(function(x){return String(x.gunler[dow]||"").trim();}).map(function(x){
+      var plan=String(x.gunler[dow]||"").trim(),saat=/^\d{1,2}:\d{2}\s*-/.test(plan),r=V.gercek[normAd(x.ad)+"|"+GD_TARIH],durum;
+      if(!gecmis)durum=el("span",{class:"etiket e-notr",text:saat?"planlandı":"çalışmıyor"});
+      else if(r&&r.g)durum=el("span",{class:"etiket "+(r.gec?"e-dikkat":"e-iyi"),title:r.t?"toplam "+r.t:null,text:(saat?"":"planda yok, ")+r.g+(r.c?"–"+r.c:" (çıkış yok)")+(r.gec?" · geç":"")});
+      else durum=saat?el("span",{class:"etiket e-kotu",text:"gelmedi"}):el("span",{class:"etiket e-notr",text:"çalışmadı"});
+      return [x.ad,x.sube||"",plan,durum];})):bos("Bu tarihin haftası için vardiya planı yok.");}
+  return blok(baslik,"Tarih seçerek geçmiş ya da gelecek bir günün planına bak ("+tarihTr(enAz)+" – "+tarihTr(enCok)+"). Geçmiş günlerde QR giriş-çıkışı da görünür.",el("div",null,[sec,icerik]));}
+
 function personelGenel(a,p){
   var icerde=p.bugunKayit.filter(function(x){return x.giris&&!x.cikis;}).length;var calisacak=p.plan.filter(function(x){return x.calisacak;});var gelmeyen=calisacak.filter(function(x){return !x.geldi;});
   var sonOd=p.odemeler.length?p.odemeler[p.odemeler.length-1]:null;
@@ -631,7 +655,7 @@ function personelGenel(a,p){
   a.appendChild(el("p",null,[el("a",{href:p.yoneticiLink,target:"_blank",rel:"noopener",class:"dugme",style:"display:inline-block;text-decoration:none;color:inherit;margin-bottom:22px",text:"Yönetici paneli (bordro, giriş-çıkış düzeltme)"})]));
   a.appendChild(el("div",{class:"iki"},[blok("Bugün giriş-çıkış","QR ile okutulan kayıtlar; saatler vardiyaya göre yuvarlanmış halidir.",p.bugunKayit.length?tablo([["Personel"],["Şube"],["Giriş"],["Çıkış"],["Durum"]],p.bugunKayit.map(function(x){
       var e=/uyumsuz|geç/i.test(x.not+x.girisNot)?"e-dikkat":(/fazla/i.test(x.not)?"e-notr":"e-iyi");return [x.ad,x.sube,x.giris,x.cikis||el("span",{class:"etiket e-notr",text:"içeride"}),el("span",{class:"etiket "+e,title:[x.girisNot,x.cikisNot].filter(Boolean).join(" / "),text:x.not||"—"})];})):bos("Bugün henüz giriş kaydı yok.")),
-    blok("Bugünün vardiya planı",null,p.plan.length?tablo([["Personel"],["Plan"],["Durum"]],p.plan.map(function(x){return [x.ad,x.plan,x.calisacak?(x.geldi?el("span",{class:"etiket e-iyi",text:"geldi "+x.giris}):el("span",{class:"etiket e-kotu",text:"henüz girmedi"})):el("span",{class:"etiket e-notr",text:"çalışmıyor"})];})):bos("Bu haftanın vardiya planı bulunamadı."))]));
+    gunPlanBlok(p)]));
   var AK=p.ay.kisiler,top=function(k){return AK.reduce(function(t,x){return t+(x[k]||0);},0);};
   var ozetSat=AK.map(function(x){return [x.ad,String(x.gun),dkYaz(x.toplamDk||x.saat*60),x.normalDk!=null?dkYaz(x.normalDk):"—",x.fazlaDk?iki("+"+dkYaz(x.fazlaDk),x.offCalisma?x.offCalisma+" off günü dahil":null):"—",x.eksikDk?dkYaz(x.eksikDk):"—",x.gec?String(x.gec):"—",
     x.yi?x.yi+" gün":"—",x.ui?x.ui+" gün":"—",x.rap?x.rap+" gün":"—",x.dev?x.dev+" gün":"—",x.sgk?"SGK'lı":(x.sgk===false?"—":"?"),x.sgkPrim?para(x.sgkPrim):"—"];});
