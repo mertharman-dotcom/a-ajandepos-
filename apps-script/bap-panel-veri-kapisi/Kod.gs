@@ -4,7 +4,8 @@
  * Ne yapar: Panel verisini tablolardan OKUR ve özet olarak panele verir.
  * Yazma: Yalnızca sahibin panelden verdiği cevabı yazar (doPost): ilgili sorunun Cevap hücresine ekler ve
  *        'BAP Panel Cevapları' tablosuna kayıt düşer. Toptancı ödemesi girilince 'Kolaybi Fatura Ham Veri › Odemeler'
- *        sekmesinin sonuna yeni satır ekler. Başka hiçbir hücreyi değiştirmez, hiçbir şey silmez.
+ *        sekmesinin sonuna yeni satır ekler. Puantaj düzeltmesinde yalnız o günün satırındaki giriş/çıkış, toplam,
+ *        fazla mesai, açıklama ve Manuel hücrelerini günceller (Ham Giriş/Çıkış değişmez). Hiçbir şey silmez.
  * Gizlilik: Müşteri adı, telefonu, adresi ve personel kişisel bilgisi dışarı verilmez; yalnız toplamlar döner.
  * Erişim: Yalnızca doğru anahtarla gelen isteğe cevap verir. Anahtar koda yazılmaz, Komut Dosyası Özelliklerinde durur.
  *
@@ -497,16 +498,19 @@ function personel_() {
 
   // Giriş-çıkış kayıtları: bugün ve bu ay
   var gs = ss.getSheetByName('Personel_Giris_Cİkis') || ss.getSheetByName('Personel_Giris_Cikis');
-  var bugunListe = [], ayKisi = {};
+  var bugunListe = [], ayKisi = {}, puantaj = [];
   if (gs) {
     var g = gs.getDataRange().getDisplayValues(), gb = g[0];
     var c = { gun: kolon_(gb, ['Kayıt Okutma (Gün)', 'Kayıt Okutma']), ad: kolon_(gb, ['İsim Soyisim']), gir: kolon_(gb, ['Mesai Giriş']), cik: kolon_(gb, ['Mesai Çıkış']),
               not: kolon_(gb, ['Gün Genel Notu']), ga: kolon_(gb, ['Giriş Açıklaması']), ca: kolon_(gb, ['Çıkış Açıklaması']), top: kolon_(gb, ['Toplam mesai']),
               faz: kolon_(gb, ['Fazla Mesai']), gps: kolon_(gb, ['Gps']), off: kolon_(gb, ['OFF Günü']), yi: kolon_(gb, ['Yıllık İzin']), rap: kolon_(gb, ['Rapor']),
-              ui: kolon_(gb, ['Ücretsiz İzin']), dev: kolon_(gb, ['Devamsızlık']) };
-    g.slice(1).forEach(function (r) {
+              ui: kolon_(gb, ['Ücretsiz İzin']), dev: kolon_(gb, ['Devamsızlık']),
+              hg: kolon_(gb, ['Ham Giriş']), hc: kolon_(gb, ['Ham Çıkış']), man: kolon_(gb, ['Manuel']) };
+    var puIlk = gunEkle_(ay + '-01', -1).slice(0, 7) + '-01'; // geçen ayın 1'i
+    g.slice(1).forEach(function (r, i) {
       var ms = zaman_(r[c.gun]); if (ms === null || !r[c.ad]) return;
       var gun = new Date(ms).toISOString().slice(0, 10);
+      if (gun >= puIlk && gun <= bugun) puantaj.push(puantajSatir_(r, c, i + 2, gun));
       // Gps sütunu bazen ham koordinat içerir; yalnız şube adı çıkarılır, koordinat panele gönderilmez.
       var sbGps = subeAnahtar_(r[c.gps] || ''); sbGps = /Erenköy|Fikirtepe/.test(sbGps) ? sbGps.replace('BAP ', '') : '';
       if (gun === bugun) bugunListe.push({ ad: r[c.ad], sube: sbGps, giris: r[c.gir] || '', cikis: r[c.cik] || '', not: r[c.not] || '',
@@ -536,6 +540,8 @@ function personel_() {
       planli.push({ ad: r[cI], plan: plan, calisacak: /\d{1,2}:\d{2}/.test(plan), geldi: !!kayit, giris: kayit ? kayit.giris : '', sube: (cS2 >= 0 && r[cS2]) || (kayit ? kayit.sube : '') });
     });
   }
+  puantaj.sort(function (a, b) { return a.ad === b.ad ? (a.gun < b.gun ? 1 : -1) : String(a.ad).localeCompare(String(b.ad), 'tr'); });
+  out.puantaj = puantaj;
   out.bugunKayit = bugunListe;
   out.plan = planli;
   out.vardiya = vardiyaPlani_(ss, bugun, out.bilgiler);
@@ -585,6 +591,110 @@ function vardiyaPlani_(ss, bugun, bilgiler) {
     });
   }
   return { buHafta: buHafta, bugun: bugun, haftalar: Object.keys(haftalar).sort().map(function (h) { return { hafta: h, satirlar: haftalar[h] }; }), gercek: gercek };
+}
+
+/* ---------------- Puantaj elle düzeltme ----------------
+ * Bordro, yönetici panelinde her açılışta puantaj satırlarından hesaplanır. Bu yüzden düzeltme ayrı bir yere değil,
+ * doğrudan günün satırına yazılır: Mesai Giriş / Mesai Çıkış, Toplam mesai ve Fazla Mesai birlikte güncellenir.
+ * Ham Giriş / Ham Çıkış (QR'ın gerçek saati) DEĞİŞTİRİLMEZ; eski değerler Manuel sütununa ve işlem kaydına yazılır.
+ */
+function puantajSatir_(r, c, satir, gun) {
+  function al(i) { return i >= 0 ? String(r[i] || '').trim() : ''; }
+  function saatKismi(s) { var m = String(s || '').match(/(\d{1,2}:\d{2}(?::\d{2})?)\s*$/); return m ? m[1] : ''; }
+  return { satir: satir, gun: gun, ad: r[c.ad], giris: al(c.gir), cikis: al(c.cik), toplam: al(c.top), fazla: al(c.faz),
+    not: al(c.not), girisNot: kodsuz_(al(c.ga)), cikisNot: kodsuz_(al(c.ca)), hamGiris: saatKismi(al(c.hg)), hamCikis: saatKismi(al(c.hc)),
+    elle: al(c.man), off: !!al(c.off), izin: !!(al(c.yi) || al(c.rap) || al(c.ui) || al(c.dev)) };
+}
+
+// "11:57" / "11.57" / "11:57:52" → saniye; boş → null; geçersiz → NaN
+function saatSn_(s) {
+  s = String(s || '').trim(); if (!s) return null;
+  var m = s.match(/^(\d{1,2})[:.](\d{2})(?:[:.](\d{2}))?$/); if (!m || +m[1] > 23 || +m[2] > 59 || +(m[3] || 0) > 59) return NaN;
+  return (+m[1]) * 3600 + (+m[2]) * 60 + (+(m[3] || 0));
+}
+// "10:03:01" → 36181, "--0:12:38" / "-0:12:38" → -758
+function sureSn_(s) {
+  var m = String(s || '').trim().match(/^(-*)(\d+):(\d{1,2})(?::(\d{1,2}))?/); if (!m) return null;
+  var sn = (+m[2]) * 3600 + (+m[3]) * 60 + (+(m[4] || 0));
+  return m[1] ? -sn : sn;
+}
+function snYaz_(sn) {
+  var e = sn < 0; sn = Math.abs(Math.round(sn));
+  var h = Math.floor(sn / 3600), d = Math.floor(sn % 3600 / 60), s = sn % 60;
+  return (e ? '-' : '') + h + ':' + ('0' + d).slice(-2) + ':' + ('0' + s).slice(-2);
+}
+
+// Panel { satir, ad, gun: 'YYYY-MM-DD', giris: 'HH:MM', cikis: 'HH:MM', gerekce } gönderir. Boş saat = değişmesin.
+function puantajDuzelt_(d) {
+  var yeniG = saatSn_(d.giris), yeniC = saatSn_(d.cikis), gerekce = String(d.gerekce || '').replace(/\s+/g, ' ').trim().slice(0, 200);
+  if (isNaN(yeniG) || isNaN(yeniC)) return { hata: 'Saat SS:DD biçiminde olmalı (örn. 12:00).' };
+  if (yeniG === null && yeniC === null) return { hata: 'Değiştirilecek bir saat yazın.' };
+  if (!gerekce) return { hata: 'Kısa bir gerekçe yazın (bordroda iz kalsın).' };
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(String(d.gun || ''))) return { hata: 'Gün bilgisi eksik; sayfayı yenileyin.' };
+
+  var ss = SpreadsheetApp.openById(KAYNAK.personel.id);
+  var gs = ss.getSheetByName('Personel_Giris_Cİkis') || ss.getSheetByName('Personel_Giris_Cikis');
+  if (!gs) return { hata: 'Giriş-çıkış sekmesi bulunamadı.' };
+  var v = gs.getDataRange().getDisplayValues(), b = v[0];
+  var c = { gun: kolon_(b, ['Kayıt Okutma (Gün)', 'Kayıt Okutma']), ad: kolon_(b, ['İsim Soyisim']), gir: kolon_(b, ['Mesai Giriş']), cik: kolon_(b, ['Mesai Çıkış']),
+            not: kolon_(b, ['Gün Genel Notu']), ga: kolon_(b, ['Giriş Açıklaması']), ca: kolon_(b, ['Çıkış Açıklaması']), top: kolon_(b, ['Toplam mesai']),
+            faz: kolon_(b, ['Fazla Mesai']), off: kolon_(b, ['OFF Günü']), yi: kolon_(b, ['Yıllık İzin']), rap: kolon_(b, ['Rapor']),
+            ui: kolon_(b, ['Ücretsiz İzin']), dev: kolon_(b, ['Devamsızlık']), man: kolon_(b, ['Manuel']) };
+  if (c.gir < 0 || c.cik < 0 || c.top < 0 || c.faz < 0 || c.man < 0) return { hata: 'Giriş-çıkış sekmesinin başlıkları değişmiş; düzeltme yazılmadı.' };
+
+  // Yeni kayıtlar üste eklendiği için satır numarası kayabilir: kişi + gün ile doğrula, kaydıysa yeniden bul.
+  function uyar(i) { var ms = zaman_(v[i][c.gun]); return ms !== null && new Date(ms).toISOString().slice(0, 10) === d.gun && norm_(v[i][c.ad]) === norm_(d.ad); }
+  var i = +d.satir - 1;
+  if (!(i >= 1 && i < v.length && uyar(i))) {
+    var bulunan = []; for (var k = 1; k < v.length; k++) if (uyar(k)) bulunan.push(k);
+    if (bulunan.length !== 1) return { hata: bulunan.length ? 'Bu kişi için o güne ait birden fazla satır var; tablodan düzeltin.' : 'Satır bulunamadı; sayfayı yenileyip tekrar deneyin.' };
+    i = bulunan[0];
+  }
+  var r = v[i];
+  if ([c.yi, c.rap, c.ui, c.dev].some(function (j) { return j >= 0 && String(r[j]).trim(); }))
+    return { hata: 'Bu gün izin / rapor / devamsızlık olarak işli. Bunu yönetici panelinden düzeltin.' };
+
+  var eskiG = String(r[c.gir]).trim(), eskiC = String(r[c.cik]).trim(), eskiT = String(r[c.top]).trim(), eskiF = String(r[c.faz]).trim();
+  var g = yeniG !== null ? yeniG : saatSn_(eskiG), cs = yeniC !== null ? yeniC : saatSn_(eskiC);
+  if (g === null || isNaN(g)) return { hata: 'Bu günün giriş saati yok; giriş saatini de yazın.' };
+  var offGunu = c.off >= 0 && String(r[c.off]).trim() !== '';
+
+  var yeni = { giris: snYaz_(g) };
+  if (cs !== null && !isNaN(cs)) {
+    var top = cs - g; if (top <= 0) top += 86400; // gece yarısını geçen çıkış
+    if (top > 16 * 3600) return { hata: 'Giriş ile çıkış arası 16 saati geçiyor; saatleri kontrol edin.' };
+    // Fazla mesai: izin gününde çalışılan sürenin tamamı. Diğer günlerde sistemin o gün kullandığı vardiya süresi
+    // (eski toplam − eski fazla) korunur; yalnız toplamdaki değişim fazla mesaiye yansır.
+    var eT = sureSn_(eskiT), eF = sureSn_(eskiF), plan = (eT !== null && eF !== null) ? eT - eF : null;
+    if (!offGunu && plan === null) return { hata: 'Bu günün vardiya süresi hesaplanamadı (toplam / fazla mesai boş). Yönetici panelinden düzeltin.' };
+    yeni.cikis = snYaz_(cs); yeni.toplam = snYaz_(top); yeni.fazla = snYaz_(offGunu ? top : top - plan);
+  }
+
+  var damga = Utilities.formatDate(new Date(), TZ, 'dd.MM.yyyy HH:mm');
+  var degisim = [];
+  if (yeniG !== null && yeni.giris !== eskiG) degisim.push('Giriş ' + (eskiG || 'boş') + '→' + yeni.giris);
+  if (yeniC !== null && yeni.cikis !== eskiC) degisim.push('Çıkış ' + (eskiC || 'boş') + '→' + yeni.cikis);
+  if (!degisim.length) return { hata: 'Yazdığınız saatler tablodakiyle aynı.' };
+  if (yeni.toplam !== undefined) degisim.push('Toplam ' + (eskiT || 'boş') + '→' + yeni.toplam, 'Fazla ' + (eskiF || 'boş') + '→' + yeni.fazla);
+  var iz = 'Elle düzeltme (Sahip, ' + damga + '): ' + degisim.join(', ') + ' — ' + gerekce;
+
+  var satir = i + 1;
+  function yaz(j, deger) { if (j >= 0) gs.getRange(satir, j + 1).setValue(deger); }
+  yaz(c.gir, yeni.giris);
+  if (yeniC !== null) yaz(c.cik, yeni.cikis);
+  if (yeni.toplam !== undefined) { yaz(c.top, yeni.toplam); yaz(c.faz, yeni.fazla); }
+  if (yeniG !== null) yaz(c.ga, 'Elle düzeltildi: ' + gerekce + ' (önce ' + (eskiG || 'boş') + ')');
+  if (yeniC !== null) yaz(c.ca, 'Elle düzeltildi: ' + gerekce + ' (önce ' + (eskiC || 'boş') + ')');
+  if (!offGunu) yaz(c.not, 'Elle Düzeltildi' + (yeni.fazla && sureSn_(yeni.fazla) > 0 ? ' + Fazla Mesai' : ''));
+  var eskiMan = String(r[c.man] || '').trim();
+  yaz(c.man, (eskiMan ? eskiMan + ' | ' : '') + iz);
+  SpreadsheetApp.flush();
+
+  var log = ss.getSheetByName('Islem_Loglari');
+  if (log) { log.insertRowAfter(1); log.getRange(2, 1, 1, 5).setValues([[damga + ':00', 'Yönetici (panel)', 'PUANTAJ_ELLE_DUZELTME', r[c.ad] + ' ' + d.gun + ' — ' + degisim.join(', ') + ' — ' + gerekce, '-']]); }
+  cevapKaydet_('İnsan Kaynakları', 'BAP Personel › Personel_Giris_Cikis', satir, r[c.ad] + ' ' + d.gun + ' puantaj düzeltildi', degisim.join(', ') + ' — ' + gerekce, damga);
+  return { tamam: true, satir: satir, giris: yeni.giris, cikis: yeni.cikis !== undefined ? yeni.cikis : eskiC,
+           toplam: yeni.toplam !== undefined ? yeni.toplam : eskiT, fazla: yeni.fazla !== undefined ? yeni.fazla : eskiF, elle: iz };
 }
 
 // Personel bilgileri: hassas alanların DEĞERİ gönderilmez, yalnız dolu/eksik bilgisi gönderilir.
@@ -671,6 +781,11 @@ function doPost(e) {
   var d; try { d = JSON.parse(e.postData.contents); } catch (err) { return json_({ hata: 'Geçersiz istek' }); }
   var anahtar = PropertiesService.getScriptProperties().getProperty('PANEL_KEY');
   if (!anahtar || d.key !== anahtar) return json_({ hata: 'yetkisiz' });
+  if (d.tur === 'puantaj') {
+    var kp = LockService.getScriptLock(); kp.waitLock(20000);
+    try { return json_(puantajDuzelt_(d)); }
+    finally { kp.releaseLock(); CacheService.getScriptCache().remove('panel_v1_n'); }
+  }
   if (d.tur === 'odeme') {
     var k = LockService.getScriptLock(); k.waitLock(20000);
     try { return json_(toptanciOdemeGir_(d)); }

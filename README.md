@@ -17,6 +17,20 @@ Finans / Alımlar sayfalarındaki tedarikçi borcundan düşülür.
 - Mevcut satırlara dokunmaz, hiçbir şey silmez. Yanlış kaydı tablodan düzeltin.
 - Her giriş ayrıca **BAP Panel Cevapları** tablosuna iz olarak düşer.
 
+## Puantaj düzeltme ekranı
+
+Panelde **Personel › Puantaj düzeltme** sekmesi. Kişi ve ay seçilir, günün yanındaki **Düzelt** ile
+yeni giriş / çıkış saati ve gerekçe yazılır (ör. 11:57 okutulmuş giriş → 12:00).
+
+- Düzeltme **BAP Personel › Personel_Giris_Cikis** sekmesinde o günün satırına yazılır: Mesai Giriş / Mesai Çıkış,
+  Toplam mesai, Fazla Mesai, açıklamalar ve Gün Genel Notu. Bordro puantajdan hesaplandığı için bordroya yansır.
+- Fazla mesai, sistemin o gün kullandığı vardiya süresi (eski toplam − eski fazla) korunarak yeniden hesaplanır;
+  off gününde çalışılan sürenin tamamıdır.
+- **Ham Giriş / Ham Çıkış** (QR'ın gerçek saati) değişmez. Eski değerler, gerekçe ve tarih **Manuel** sütununa,
+  **Islem_Loglari**'na ve **BAP Panel Cevapları**'na yazılır; geri almak için eski değer oradan okunur.
+- İzin / rapor / devamsızlık işli günler buradan düzeltilmez (yönetici paneli).
+- Tam saate 15 dakikadan az kala yazılmış girişlerde (11:57 gibi) form tam saati önerir.
+
 ## Yayına alma
 
 1. **Apps Script** (BAP Panel Veri Kapısı): `apps-script/bap-panel-veri-kapisi/Kod.gs` içeriğini `Kod.gs` dosyasına yapıştır,

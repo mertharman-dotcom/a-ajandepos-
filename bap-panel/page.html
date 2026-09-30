@@ -468,9 +468,10 @@ function dkYaz(dk){dk=Math.round(dk||0);var s=Math.floor(dk/60),d=dk%60;return s
 var PERS_SEKME="genel";
 function personelSayfa(a){var p=VERI.personel;a.appendChild(ust("Personel","Giriş-çıkış, vardiya, çalışma saatleri ve personel bilgileri. Şifreler panele hiç gelmez."));a.appendChild(nabizSeridi("personel"));var h=hatalarKutusu(["personel"]);if(h)a.appendChild(h);if(!p)return;
   var eksikKisi=p.bilgiler?p.bilgiler.liste.filter(function(x){return x.aktif&&x.eksik.length;}).length:0;
-  a.appendChild(el("div",{class:"sekmeler",role:"tablist"},[["genel","Genel durum"],["vardiya","Vardiya planı"],["bilgi","Personel bilgileri"+(eksikKisi?" ("+eksikKisi+" eksik)":"")]].map(function(s){return el("button",{type:"button","aria-pressed":PERS_SEKME===s[0]?"true":"false",onclick:function(){PERS_SEKME=s[0];ciz();}},[s[1]]);})));
+  a.appendChild(el("div",{class:"sekmeler",role:"tablist"},[["genel","Genel durum"],["vardiya","Vardiya planı"],["puantaj","Puantaj düzeltme"],["bilgi","Personel bilgileri"+(eksikKisi?" ("+eksikKisi+" eksik)":"")]].map(function(s){return el("button",{type:"button","aria-pressed":PERS_SEKME===s[0]?"true":"false",onclick:function(){PERS_SEKME=s[0];ciz();}},[s[1]]);})));
   if(PERS_SEKME==="bilgi")return personelBilgi(a,p);
   if(PERS_SEKME==="vardiya")return vardiyaSayfa(a,p);
+  if(PERS_SEKME==="puantaj")return puantajSayfa(a,p);
   personelGenel(a,p);}
 function personelGenel(a,p){
   var icerde=p.bugunKayit.filter(function(x){return x.giris&&!x.cikis;}).length;var calisacak=p.plan.filter(function(x){return x.calisacak;});var gelmeyen=calisacak.filter(function(x){return !x.geldi;});
@@ -505,6 +506,46 @@ function personelKart(x){var d=x.degerler;var bilgi=[d["Sube"],d["Departman"],d[
         .catch(function(){durum.textContent="Bağlantı hatası; kaydedilmedi.";dug.removeAttribute("disabled");});}},["Kaydet"]);
     kutu=el("div",{class:"cevap-alt",style:"margin-top:8px"},[el("span",{style:"min-width:160px;font-size:14px",text:e.etiket}),alan,dug,durum]);return kutu;});
   return el("div",{class:"satir"},[el("h3",null,[x.ad+" ",el("span",{class:"etiket e-dikkat",text:x.eksik.length+" eksik"})]),bilgi?el("p",{style:"color:var(--gri)",text:bilgi}):null].concat(satirlar));}
+
+var PU_KISI="",PU_AY="",PU_ACIK=null;
+function sn(s){var m=String(s||"").trim().match(/^(-*)(\d+):(\d{1,2})(?::(\d{1,2}))?/);if(!m)return null;var x=(+m[2])*3600+(+m[3])*60+(+(m[4]||0));return m[1]?-x:x;}
+function sureKisa(s){var x=sn(s);if(x===null)return "—";var e=x<0;x=Math.abs(x);var h=Math.floor(x/3600),d=Math.floor(x%3600/60);return (e?"−":"")+h+":"+("0"+d).slice(-2);}
+// 11:57 gibi tam saate birkaç dakika kala yazılmış girişler için öneri: 12:00
+function tamSaatOneri(g){var m=String(g||"").match(/^(\d{1,2}):(\d{2})/);if(!m||+m[2]<45)return null;return ("0"+((+m[1]+1)%24)).slice(-2)+":00";}
+function puantajSayfa(a,p){var L=p.puantaj||[];if(!L.length)return a.appendChild(bos("Puantaj satırı okunamadı. Veri kapısı yeni sürüm olarak yayınlandı mı?"));
+  var kisiler=Object.keys(L.reduce(function(o,x){o[x.ad]=1;return o;},{})).sort(function(x,y){return x.localeCompare(y,"tr");});
+  var aylar=Object.keys(L.reduce(function(o,x){o[x.gun.slice(0,7)]=1;return o;},{})).sort().reverse();
+  if(kisiler.indexOf(PU_KISI)<0)PU_KISI=kisiler[0];if(aylar.indexOf(PU_AY)<0)PU_AY=aylar[0];
+  a.appendChild(el("div",{class:"bilgi",text:"Buradan yazdığın saat puantaj satırının kendisine yazılır: Mesai Giriş/Çıkış, Toplam mesai ve Fazla Mesai birlikte güncellenir. Bordro puantajdan hesaplandığı için yönetici panelindeki bordro da bu değerle hesaplanır. QR'ın gerçek saati (Ham Giriş/Çıkış) değişmez; eski değer, gerekçe ve tarih Manuel sütununa ve işlem kaydına yazılır. Fazla mesai, sistemin o gün kullandığı vardiya süresine göre yeniden hesaplanır; off günlerinde çalışılan sürenin tamamıdır."}));
+  var kisiSec=el("select",{class:"cevap-alan",style:"max-width:240px","aria-label":"Personel"},kisiler.map(function(k){var o=el("option",{value:k,text:k});if(k===PU_KISI)o.selected=true;return o;}));
+  kisiSec.addEventListener("change",function(){PU_KISI=kisiSec.value;PU_ACIK=null;ciz();});
+  a.appendChild(el("div",{class:"hafta-sec"},[kisiSec,el("div",{class:"sekmeler",style:"margin:0"},aylar.map(function(m){return el("button",{type:"button","aria-pressed":PU_AY===m?"true":"false",onclick:function(){PU_AY=m;PU_ACIK=null;ciz();}},[ayAd(m)]);}))]));
+  var satirlar=L.filter(function(x){return x.ad===PU_KISI&&x.gun.slice(0,7)===PU_AY;});
+  var topSn=0,fazSn=0,elle=0,oneri=0;satirlar.forEach(function(x){var t=sn(x.toplam),f=sn(x.fazla);if(t>0)topSn+=t;if(f>0)fazSn+=f;if(x.elle)elle++;if(!x.elle&&!x.izin&&tamSaatOneri(x.giris))oneri++;});
+  a.appendChild(el("div",{class:"rakamlar"},[rakam("Çalışılan gün",String(satirlar.filter(function(x){return sn(x.toplam)>0;}).length)),rakam("Toplam saat",TL.format(Math.round(topSn/360)/10)+" sa"),rakam("Fazla mesai",dkYaz(fazSn/60),"bordroya giren pozitif süre"),
+    rakam("Elle düzeltilen",String(elle),"gün"),rakam("Tam saate yakın giriş",String(oneri),oneri?"11:57 gibi; dokununca öneri gelir":"yok",oneri?"asagi":"")]));
+  var tb=el("table",{class:"tablo"},[el("thead",null,[el("tr",null,["Gün","Giriş","Çıkış","Toplam","Fazla","QR gerçek","Durum",""].map(function(h,k){return el("th",{class:k>=3&&k<=4?"sag":null,text:h});}))]),el("tbody")]);
+  var govde=tb.querySelector("tbody");
+  satirlar.forEach(function(x){var d=new Date(x.gun+"T00:00:00Z"),acik=PU_ACIK===x.gun,oneriSaat=!x.elle&&!x.izin?tamSaatOneri(x.giris):null;
+    var durum=x.elle?el("span",{class:"etiket e-iyi",title:x.elle,text:"elle düzeltildi"}):el("span",{class:"etiket "+(/uyumsuz|geç/i.test(x.not+x.girisNot)?"e-dikkat":"e-notr"),title:[x.girisNot,x.cikisNot].filter(Boolean).join(" / "),text:x.not||"—"});
+    var dug=x.izin?el("span",{style:"color:var(--gri);font-size:13px",text:"izin/rapor"}):el("button",{type:"button",class:"dugme",onclick:function(){PU_ACIK=acik?null:x.gun;ciz();}},[acik?"Kapat":(oneriSaat?"Düzelt ("+oneriSaat+"?)":"Düzelt")]);
+    govde.appendChild(el("tr",null,[el("td",{text:GUNLER[d.getUTCDay()]+" "+d.getUTCDate()+" "+AYLAR[d.getUTCMonth()]}),el("td",{text:(x.giris||"—").slice(0,8)}),el("td",{text:x.cikis?(x.cikis.slice(0,8)):(x.giris?"içeride":"—")}),
+      el("td",{class:"sag",text:sureKisa(x.toplam)}),el("td",{class:"sag",text:sureKisa(x.fazla)}),el("td",{style:"color:var(--gri)",text:[x.hamGiris,x.hamCikis].filter(Boolean).map(function(t){return t.slice(0,5);}).join("–")||"—"}),el("td",null,[durum]),el("td",null,[dug])]));
+    if(acik)govde.appendChild(el("tr",null,[el("td",{colspan:"8"},[puantajForm(x,oneriSaat)])]));});
+  a.appendChild(blok(PU_KISI+" — "+ayAd(PU_AY),"En yeni gün en üstte. Saatler vardiyaya göre yuvarlanmış halidir; QR gerçek sütunu okutulan asıl saattir.",satirlar.length?el("div",{class:"liste kaydir"},[tb]):bos("Bu ay kayıt yok.")));}
+function puantajForm(x,oneriSaat){
+  var gi=el("input",{type:"text",class:"cevap-alan",style:"max-width:110px",inputmode:"numeric",placeholder:(x.giris||"SS:DD").slice(0,5),value:oneriSaat||"","aria-label":"Yeni giriş saati"});
+  var ci=el("input",{type:"text",class:"cevap-alan",style:"max-width:110px",inputmode:"numeric",placeholder:(x.cikis||"SS:DD").slice(0,5),"aria-label":"Yeni çıkış saati"});
+  var ge=el("input",{type:"text",class:"cevap-alan",style:"max-width:320px",maxlength:"200",placeholder:"Gerekçe (örn. vardiya 12:00, erken okuttu)",value:oneriSaat?"Vardiya "+oneriSaat+"'de başlıyor, birkaç dk erken okuttu":"","aria-label":"Gerekçe"});
+  var durum=el("span",{class:"cevap-durum",role:"status"});
+  var dug=el("button",{type:"button",class:"dugme",onclick:function(){if(!gi.value.trim()&&!ci.value.trim()){durum.textContent="Değişecek saati yaz.";return;}if(!ge.value.trim()){durum.textContent="Kısa bir gerekçe yaz.";return;}
+    dug.setAttribute("disabled","");durum.className="cevap-durum";durum.textContent="Puantaja yazılıyor…";
+    fetch("/api/puantaj",{method:"POST",credentials:"same-origin",headers:{"content-type":"application/json","x-bap-panel":"1"},body:JSON.stringify({satir:x.satir,ad:x.ad,gun:x.gun,giris:gi.value.trim(),cikis:ci.value.trim(),gerekce:ge.value.trim()})})
+      .then(function(r){return r.json();}).then(function(r){if(r&&r.tamam){x.satir=r.satir;x.giris=r.giris;x.cikis=r.cikis;x.toplam=r.toplam;x.fazla=r.fazla;x.elle=r.elle;x.not="Elle Düzeltildi";PU_ACIK=null;ciz();}
+        else{durum.className="cevap-durum kotu";durum.textContent=(r&&r.hata)||"Yazılamadı.";dug.removeAttribute("disabled");}})
+      .catch(function(){durum.className="cevap-durum kotu";durum.textContent="Bağlantı hatası; sayfayı yenileyip kontrol et.";dug.removeAttribute("disabled");});}},["Puantaja yaz"]);
+  return el("div",{class:"cevap-alt",style:"margin:4px 0 8px"},[el("span",{text:"Giriş"}),gi,el("span",{text:"Çıkış"}),ci,ge,dug,durum,
+    el("div",{style:"flex-basis:100%;color:var(--gri);font-size:13px",text:"Boş bıraktığın saat değişmez. Şu an: giriş "+(x.giris||"—")+", çıkış "+(x.cikis||"—")+", toplam "+(x.toplam||"—")+", fazla "+(x.fazla||"—")+"."})]);}
 
 var VARD_HAFTA=null;
 function vardiyaSayfa(a,p){var V=p.vardiya;if(!V||!V.haftalar.length)return a.appendChild(bos("Vardiya çizelgesi okunamadı."));
