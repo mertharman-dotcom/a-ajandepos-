@@ -957,6 +957,10 @@ function personel_() {
 
   // Bordro: bu ay ve geçen ay ayrıntılı, son 6 ay özet (sahibin onayladığı kural; IBAN, şifre, telefon gönderilmez)
   var bv = bordroVeri_(ss), gecenAy = gunEkle_(ay + '-01', -1).slice(0, 7);
+  // Vardiya maliyeti için kişi başı maaş ve SGK (aynı isimle birden fazla satırda aktif / en son maaşlı kayıt)
+  out.ucret = { sgkIsveren: SGK_ISVEREN, fazlaBolen: FAZLA_BOLEN, kisi: {} };
+  bv.personel.forEach(function (p) { if (!(p.maas > 0)) return; var o = out.ucret.kisi[p.k]; if (o && o.aktif && !p.aktif) return;
+    out.ucret.kisi[p.k] = { maas: Math.round(p.maas), sgk: p.sgk, aktif: p.aktif, giris: p.giris, cikis: p.cikis }; });
   out.bordro = [ay, gecenAy].map(function (a) { return bordro_(bv, a, bugun, planli); });
   // Geçen ayın farkı (ödenen − net hak ediş): mahsup önerisi olarak bu ayın satırına bilgi düşülür
   var gk = {}; (out.bordro[1].kisiler || []).forEach(function (x) { gk[norm_(x.ad)] = x; });
@@ -1173,7 +1177,7 @@ function vardiyaPlani_(ss, bugun, bilgiler) {
   var gercek = {}, gs = ss.getSheetByName('Personel_Giris_Cİkis') || ss.getSheetByName('Personel_Giris_Cikis');
   if (gs) {
     var g = gs.getDataRange().getDisplayValues(), gb = g[0];
-    var c = { gun: kolon_(gb, ['Kayıt Okutma (Gün)', 'Kayıt Okutma']), ad: kolon_(gb, ['İsim Soyisim']), gir: kolon_(gb, ['Mesai Giriş']), cik: kolon_(gb, ['Mesai Çıkış']), top: kolon_(gb, ['Toplam mesai']), ga: kolon_(gb, ['Giriş Açıklaması']),
+    var c = { gun: kolon_(gb, ['Kayıt Okutma (Gün)', 'Kayıt Okutma']), ad: kolon_(gb, ['İsim Soyisim']), gir: kolon_(gb, ['Mesai Giriş']), cik: kolon_(gb, ['Mesai Çıkış']), top: kolon_(gb, ['Toplam mesai']), ga: kolon_(gb, ['Giriş Açıklaması']), faz: kolon_(gb, ['Fazla Mesai']),
               yi: kolon_(gb, ['Yıllık İzin']), ui: kolon_(gb, ['Ücretsiz İzin']), rap: kolon_(gb, ['Rapor']), dev: kolon_(gb, ['Devamsızlık']) };
     g.slice(1).forEach(function (r) {
       var ms = zaman_(r[c.gun]); if (ms === null) return; var gun = new Date(ms).toISOString().slice(0, 10);
@@ -1181,7 +1185,7 @@ function vardiyaPlani_(ss, bugun, bilgiler) {
       var k = norm_(r[c.ad]) + '|' + gun; if (gercek[k] && gercek[k].g) return; // mükerrer: en üstteki (en yeni) dolu kayıt
       // iz: puantajda işaretli izin türü (yi yıllık, ui ücretsiz, rap rapor, dev devamsızlık)
       var iz = ['rap', 'yi', 'ui', 'dev'].filter(function (z) { return c[z] >= 0 && String(r[c[z]]).trim(); })[0] || '';
-      gercek[k] = { g: String(r[c.gir] || '').slice(0, 5), c: String(r[c.cik] || '').slice(0, 5), t: String(r[c.top] || '').replace(/:\d{2}$/, ''), gec: /geç girildi/i.test(r[c.ga] || ''), iz: iz };
+      gercek[k] = { g: String(r[c.gir] || '').slice(0, 5), c: String(r[c.cik] || '').slice(0, 5), t: String(r[c.top] || '').replace(/:\d{2}$/, ''), gec: /geç girildi/i.test(r[c.ga] || ''), iz: iz, f: c.faz >= 0 ? Math.round(sureSn_(r[c.faz]) / 60) || 0 : 0 };
     });
   }
   return { buHafta: buHafta, bugun: bugun, haftalar: Object.keys(haftalar).sort().map(function (h) { return { hafta: h, satirlar: haftalar[h] }; }), gercek: gercek };

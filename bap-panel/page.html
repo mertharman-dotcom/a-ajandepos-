@@ -874,7 +874,13 @@ function vardiyaSayfa(a,p){var V=p.vardiya;if(!V)return a.appendChild(bos("Vardi
   // İzin türü: puantajda işaretliyse o (rapor dahil), değilse plandaki yazı (Yıllık izin / Ücretsiz izin / Rapor).
   function izTur(g,r){if(r&&r.iz)return r.iz;if(/y[ıi]ll[ıi]k/i.test(g))return "yi";if(/[üu]cretsiz/i.test(g))return "ui";if(/rapor/i.test(g))return "rap";return "";}
   var IZ_AD={yi:"yıllık izin",ui:"ücretsiz izin",rap:"rapor",dev:"devamsız"};
-  var satirlar=H.satirlar.map(function(x){return [el("strong",{text:x.ad}),x.sube||"",TL.format(x.planSaat)+" sa",String(x.off)].concat(x.gunler.map(function(g,k){var t=gunTarih[k],saat=/^\d{1,2}:\d{2}\s*-/.test(g);
+  var U=p.ucret,gunPlan=[0,0,0,0,0,0,0],gunGercek=[0,0,0,0,0,0,0],gunSgk=[0,0,0,0,0,0,0],maasYok=[];
+  var satirlar=H.satirlar.map(function(x){var kp=0,ks=0,bilinmez=false;
+    x.gunler.forEach(function(g,k){var t=gunTarih[k],r=V.gercek[normAd(x.ad)+"|"+t],m=kisiGunMaliyet(U,x.ad,t,g,t<V.bugun?(r||null):undefined);
+      if(!m){bilinmez=true;return;}kp+=m.plan;ks+=m.sgk;gunPlan[k]+=m.plan;gunSgk[k]+=m.sgk;if(m.gercek!=null)gunGercek[k]+=m.gercek;});
+    if(bilinmez)maasYok.push(x.ad);
+    var mal=bilinmez?el("span",{style:"color:var(--gri);font-size:13px",text:"maaş yok"}):iki(para(kp),ks?"+ SGK "+para(ks):null);
+    return [el("strong",{text:x.ad}),x.sube||"",TL.format(x.planSaat)+" sa",String(x.off),mal].concat(x.gunler.map(function(g,k){var t=gunTarih[k],saat=/^\d{1,2}:\d{2}\s*-/.test(g);
       var cls=/^off$/i.test(g)?"off":(!saat&&g?"izin":"");var alt=null;var r=V.gercek[normAd(x.ad)+"|"+t];
       var iz=izTur(g,t<=V.bugun?r:null);if(izSay[iz]){izSay[iz][x.ad]=(izSay[iz][x.ad]||0)+1;}
       if(iz&&r&&r.iz&&t<=V.bugun&&!(r.g)){alt=el("small",{style:"color:var(--"+(iz==="dev"?"kotu":"dikkat")+")",text:IZ_AD[iz]});if(iz==="dev"&&saat)gelmedi++;cls=cls||"izin";}
@@ -884,9 +890,29 @@ function vardiyaSayfa(a,p){var V=p.vardiya;if(!V)return a.appendChild(bos("Vardi
   function izRakam(ad,z){var o=izSay[z],k=Object.keys(o),top=k.reduce(function(t,n){return t+o[n];},0);
     return rakam(ad,top+" gün",k.length?k.map(function(n){return n.split(" ")[0]+(o[n]>1?" "+o[n]:"");}).join(", "):"yok",(z==="ui"||z==="dev")&&top?"asagi":"");}
   a.appendChild(el("div",{class:"rakamlar dortlu"},[rakam("Planlanan toplam",TL.format(Math.round(toplamSaat))+" sa",H.satirlar.length+" kişi"),rakam("Off günü",String(H.satirlar.reduce(function(t,x){return t+x.off;},0))),izRakam("Yıllık izin","yi"),izRakam("Ücretsiz izin","ui"),izRakam("Raporlu","rap"),izRakam("Devamsızlık","dev"),rakam("Gelmeyen (geçmiş günler)",String(gelmedi),null,gelmedi?"asagi":""),rakam("Geç giriş",String(gec),null,gec?"asagi":"")]));
-  var tb=tablo([["Personel"],["Şube"],["Planlanan"],["Off"]].concat(gunB),satirlar);tb.classList.add("vardiya");
-  var bi=gunTarih.indexOf(V.bugun);if(bi>=0){tb.querySelectorAll("tr").forEach(function(tr){var c=tr.children[4+bi];if(c)c.classList.add("bugun-sutun");});}
-  a.appendChild(blok("Haftalık vardiya çizelgesi","Geçmiş günlerde hücrenin altında fiili giriş-çıkış yazar; kırmızı ‘gelmedi’ planlı olup giriş kaydı olmayan günlerdir. Bugünün sütunu mavi.",tb));}
+  var topPlan=gunPlan.reduce(function(t,v){return t+v;},0),topSgk=gunSgk.reduce(function(t,v){return t+v;},0);
+  var gecmis=gunTarih.map(function(t,k){return t<V.bugun?k:-1;}).filter(function(k){return k>=0;});
+  var planBugune=gecmis.reduce(function(t,k){return t+gunPlan[k];},0),gercekBugune=gecmis.reduce(function(t,k){return t+gunGercek[k];},0),mfark=gercekBugune-planBugune;
+  a.appendChild(el("div",{class:"rakamlar dortlu"},[rakam("Plan maliyeti (hafta)",para(topPlan),"maaş + planlanan fazla mesai"+(maasYok.length?" · "+maasYok.length+" kişinin maaşı yok":"")),
+    rakam("SGK işveren (hafta)",para(topSgk),"SGK'lı personelin günlük payı"),rakam("Toplam personel maliyeti",para(topPlan+topSgk),"hafta, plana göre"),
+    gecmis.length?rakam("Gerçekleşen (dünkü güne kadar)",para(gercekBugune),"plan "+para(planBugune)+" · fark "+(mfark>=0?"+":"−")+para(Math.abs(mfark)),Math.abs(mfark)<1?"":(mfark>0?"asagi":"yukari")):rakam("Gerçekleşen","—","hafta henüz başlamadı")]));
+  var tb=tablo([["Personel"],["Şube"],["Planlanan"],["Off"],["Plan maliyeti",1]].concat(gunB),satirlar);tb.classList.add("vardiya");
+  var tbody=tb.querySelector("tbody");
+  tbody.appendChild(el("tr",{class:"toplam"},[el("td",{text:"Günlük maliyet"}),el("td"),el("td"),el("td"),el("td",{class:"sag",text:para(topPlan)})].concat(gunPlan.map(function(v,k){var t=gunTarih[k];
+    return el("td",null,[el("div",{text:para(v)}),t<V.bugun?el("small",{style:"color:var(--"+(gunGercek[k]>v+1?"kotu":"iyi")+")",text:"gerçek "+para(gunGercek[k])}):el("small",{style:"color:var(--gri)",text:t===V.bugun?"bugün":"plan"})]);}))));
+  var bi=gunTarih.indexOf(V.bugun);if(bi>=0){tb.querySelectorAll("tr").forEach(function(tr){var c=tr.children[5+bi];if(c)c.classList.add("bugun-sutun");});}
+  a.appendChild(blok("Haftalık vardiya çizelgesi","Geçmiş günlerde hücrenin altında fiili giriş-çıkış yazar; kırmızı ‘gelmedi’ planlı olup giriş kaydı olmayan günlerdir. Bugünün sütunu mavi. Maliyet: kişi-gün = maaş / ayın gün sayısı + 10 saati aşan planlı süre × saatlik (günlük / 10); ücretsiz izin 0. En alttaki satır günün planlanan maliyeti, altında geçmiş günler için gerçekleşen (puantajdaki fazla mesai ve ücretsiz izin/devamsızlıkla). SGK ayrı.",tb));}
+// Vardiya maliyeti (bordro kuralıyla aynı): kişi-gün = günlük ücret (maaş / ayın gün sayısı) + planlanan fazla saat × saatlik (günlük / 10).
+// Ücretsiz izin / devamsızlık günü 0; off ve yıllık izin günleri maaşın içinde (günlük ücret yazılır). SGK'lıya günlük işveren payı ayrıca.
+function ayGunSay(t){var d=new Date(t+"T00:00:00Z");return new Date(Date.UTC(d.getUTCFullYear(),d.getUTCMonth()+1,0)).getUTCDate();}
+function vardSaat(g){var m=String(g||"").match(/^(\d{1,2}):(\d{2})\s*-\s*(\d{1,2}):(\d{2})$/);if(!m)return 0;var dk=(+m[3]*60+ +m[4])-(+m[1]*60+ +m[2]);if(dk<=0)dk+=1440;return dk/60;}
+function kisiGunMaliyet(U,ad,t,plan,r){var u=U&&U.kisi&&U.kisi[normAd(ad)];if(!u)return null;
+  if((u.giris&&t<u.giris)||(u.cikis&&t>u.cikis))return {plan:0,gercek:0,sgk:0};
+  var gs=ayGunSay(t),gunluk=u.maas/gs,saatlik=gunluk/(U.fazlaBolen||10),sgk=u.sgk?(U.sgkIsveren||0)/gs:0;
+  var ucretsiz=/[üu]cretsiz/i.test(plan),pl=ucretsiz?0:gunluk+Math.max(0,vardSaat(plan)-(U.fazlaBolen||10))*saatlik;
+  var gr=null;if(r!==undefined){if(r&&(r.iz==="ui"||r.iz==="dev"))gr=0;else if(!r&&ucretsiz)gr=0;else gr=gunluk+Math.max(0,(r&&r.f)||0)/60*saatlik;}
+  return {plan:pl,gercek:gr,sgk:sgk};}
+
 function vardiyaDuzen(a,V,D,gunB,gunTarih){
   var kaydet=el("button",{type:"submit",class:"dugme ana-dugme"},[D.gonderiliyor?"Kaydediliyor…":"Vardiyayı kaydet"]);
   var vazgec=el("button",{type:"button",class:"dugme",onclick:function(){if(D.gonderiliyor)return;if(degisenler().length&&!confirm("Kaydedilmemiş değişiklikler silinsin mi?"))return;VARD_DUZEN=null;ciz();}},["Vazgeç"]);
