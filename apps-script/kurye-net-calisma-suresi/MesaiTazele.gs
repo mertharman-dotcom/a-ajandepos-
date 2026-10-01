@@ -19,6 +19,13 @@
 var MT_BUTCE_MS = 270000;   // tek çalışmada en fazla ~4,5 dk (Apps Script 6 dk sınırı)
 
 function mesaiAraligiTazele(basIso, bitIso) {
+  // guncelle() de aynı kilidi kullanır: ikisi aynı anda Mesai (Ham)'a yazmasın.
+  var kilit = LockService.getScriptLock();
+  if (!kilit.tryLock(60000)) { Logger.log('guncelle() şu an çalışıyor; 1-2 dakika sonra tekrar çalıştırın.'); return { tamam: false, mesgul: true }; }
+  try { return mesaiAraligiTazele_(basIso, bitIso); } finally { kilit.releaseLock(); }
+}
+
+function mesaiAraligiTazele_(basIso, bitIso) {
   var props = PropertiesService.getScriptProperties();
   var anahtar = 'MT_DEVAM_' + basIso + '_' + bitIso;
   var gunler = _gunler(basIso, bitIso);
