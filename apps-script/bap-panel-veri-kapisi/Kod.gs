@@ -950,12 +950,12 @@ function personel_() {
     .sort(function (a, b) { return b.saat - a.saat; }) };
 
   // Maaş ödemeleri (yalnız ay toplamı ve kişi sayısı)
-  var os = ss.getSheetByName('Odemeler'), odAy = {};
-  if (os) {
-    var ov = os.getDataRange().getDisplayValues(), ob = ov[0], oA = kolon_(ob, ['Ay']), oT = kolon_(ob, ['Tutar']);
-    ov.slice(1).forEach(function (r) { if (r[oA]) { var x = odAy[r[oA]] = odAy[r[oA]] || { ay: r[oA], tutar: 0, kisi: 0 }; x.tutar += sayi_(r[oT]); x.kisi++; } });
-  }
-  out.odemeler = Object.keys(odAy).sort().slice(-6).map(function (k) { var x = odAy[k]; x.tutar = Math.round(x.tutar); return x; });
+  // Maaş ödemeleri: son 12 ay (Odemeler + eski maaş ödemeleri sekmesi), kaydı olmayan ay da listede
+  var odK = odemeKayitlari_(ss), odAy = {}, son12 = [];
+  for (var mi = 11, m = ay; mi >= 0; mi--) { m = ay; for (var z = 0; z < mi; z++) m = gunEkle_(m + '-01', -1).slice(0, 7); son12.push(m); }
+  odK.liste.forEach(function (o) { var x = odAy[o.ay] = odAy[o.ay] || { ay: o.ay, tutar: 0, kisiler: {}, kaynak: {} }; x.tutar += o.tutar; x.kisiler[o.k] = 1; x.kaynak[o.kaynak] = 1; });
+  out.odemeler = son12.map(function (k) { var x = odAy[k]; return x ? { ay: k, tutar: Math.round(x.tutar), kisi: Object.keys(x.kisiler).length, kaynak: Object.keys(x.kaynak).join(', ') } : { ay: k, tutar: 0, kisi: 0, kaynak: '' }; });
+  out.odemeKaynak = { eskiSekme: odK.eskiSekme, eskiSatir: odK.eskiSatir, okunamayan: odK.okunamayan };
 
   // Bordro: bu ay ve geçen ay ayrıntılı, son 6 ay özet (sahibin onayladığı kural; IBAN, şifre, telefon gönderilmez)
   var bv = bordroVeri_(ss), gecenAy = gunEkle_(ay + '-01', -1).slice(0, 7);
@@ -1032,6 +1032,49 @@ function avansGir_(d) {
   return { tamam: true, ad: gercekAd, tur: tur, tutar: tutar };
 }
 
+/* ---------------- Maaş ödeme kayıtları ----------------
+ * Kaynaklar: 'Odemeler' (yönetici panelinden girilen) + eski maaş ödemeleri sekmesi (adında "eski" ve "maaş/ödeme" geçen,
+ * ör. 'Eski Maaş Ödemeleri'). Eski sekmede sütun adları esnek: Ay/Dönem/Tarih, Personel/İsim Soyisim/Çalışan, Tutar/Ödenen/Net.
+ * Aynı ay Odemeler'de varsa o ay için eski sekme sayılmaz (çift sayım olmasın).
+ */
+var AY_ADLARI_TR = ['ocak', 'subat', 'mart', 'nisan', 'mayis', 'haziran', 'temmuz', 'agustos', 'eylul', 'ekim', 'kasim', 'aralik'];
+function ayCoz_(v, yilVarsayilan) {
+  if (v instanceof Date) return Utilities.formatDate(v, TZ, 'yyyy-MM');
+  var s = String(v || '').trim(); if (!s) return '';
+  var m = s.match(/^(\d{4})[-.\/](\d{1,2})(?:[-.\/]\d{1,2})?/); if (m) return m[1] + '-' + ('0' + m[2]).slice(-2);
+  m = s.match(/^(\d{1,2})[.\/-](\d{1,2})[.\/-](\d{4})/); if (m) return m[3] + '-' + ('0' + m[2]).slice(-2);
+  m = s.match(/^(\d{1,2})[.\/-](\d{4})$/); if (m) return m[2] + '-' + ('0' + m[1]).slice(-2);
+  var n = norm_(s), yil = (s.match(/(20\d{2})/) || [])[1];
+  for (var i = 0; i < 12; i++) if (n.indexOf(AY_ADLARI_TR[i].slice(0, 3)) === 0 || n.indexOf(AY_ADLARI_TR[i]) >= 0) {
+    if (!yil) { yil = yilVarsayilan.slice(0, 4); if (('0' + (i + 1)).slice(-2) > yilVarsayilan.slice(5, 7)) yil = String(+yil - 1); }
+    return yil + '-' + ('0' + (i + 1)).slice(-2);
+  }
+  return '';
+}
+function odemeKayitlari_(ss) {
+  var out = { liste: [], eskiSekme: '', eskiSatir: 0, okunamayan: 0 }, buAy = isGunu_(simdi_()).slice(0, 7), yeniAylar = {};
+  var os = ss.getSheetByName('Odemeler');
+  if (os && os.getLastRow() > 1) { var ov = os.getDataRange().getDisplayValues(), ob = ov[0], oA = kolon_(ob, ['Ay']), oP = kolon_(ob, ['Personel']), oT = kolon_(ob, ['Tutar']);
+    ov.slice(1).forEach(function (r) { var a = ayCoz_(r[oA], buAy); if (!a) return; yeniAylar[a] = 1;
+      out.liste.push({ ay: a, ad: String(r[oP] || '').trim(), k: norm_(r[oP]), tutar: sayi_(r[oT]), kaynak: 'Odemeler' }); }); }
+  var eski = ss.getSheets().filter(function (sh) { var n = norm_(sh.getName()); return n.indexOf('eski') >= 0 && /maas|odeme/.test(n); })[0];
+  if (eski && eski.getLastRow() > 1) {
+    out.eskiSekme = eski.getName();
+    var v = eski.getDataRange().getDisplayValues(), b = v[0];
+    var cA = kolon_(b, ['Ay', 'Dönem', 'Ödeme Ayı', 'Maaş Ayı', 'Tarih', 'Ödeme Tarihi']), cP = kolon_(b, ['Personel', 'İsim Soyisim', 'Ad Soyad', 'Çalışan', 'İsim']),
+        cT = kolon_(b, ['Tutar', 'Ödenen', 'Ödenen Tutar', 'Net', 'Net Ödeme', 'Toplam', 'Maaş']);
+    v.slice(1).forEach(function (r) {
+      if (!r.join('').trim()) return;
+      var a = cA >= 0 ? ayCoz_(r[cA], buAy) : '', t = cT >= 0 ? sayi_(r[cT]) : 0;
+      if (!a || !(t > 0)) { out.okunamayan++; return; }
+      if (yeniAylar[a]) return; // bu ay Odemeler'de var
+      out.eskiSatir++;
+      out.liste.push({ ay: a, ad: cP >= 0 ? String(r[cP] || '').trim() : '', k: cP >= 0 ? norm_(r[cP]) : '', tutar: t, kaynak: 'Eski ödemeler' });
+    });
+  }
+  return out;
+}
+
 function bordroIso_(s) { var ms = zaman_(s); return ms === null ? '' : new Date(ms).toISOString().slice(0, 10); }
 
 // Bordro için gereken sekmeleri bir kez okur.
@@ -1063,9 +1106,7 @@ function bordroVeri_(ss) {
       V.aylar[d.slice(0, 7)] = 1;
     });
   }
-  var os = ss.getSheetByName('Odemeler');
-  if (os) { var ov = os.getDataRange().getDisplayValues(), ob = ov[0], oA = kolon_(ob, ['Ay']), oP = kolon_(ob, ['Personel']), oT = kolon_(ob, ['Tutar']);
-    ov.slice(1).forEach(function (r) { var a = String(r[oA]).trim(); if (a && r[oP]) { var o = V.odenen[a] = V.odenen[a] || {}, k = norm_(r[oP]); o[k] = (o[k] || 0) + sayi_(r[oT]); } }); }
+  odemeKayitlari_(ss).liste.forEach(function (x) { if (!x.k) return; var o = V.odenen[x.ay] = V.odenen[x.ay] || {}; o[x.k] = (o[x.k] || 0) + x.tutar; });
   var ps = ss.getSheetByName('Personel');
   if (ps) {
     var v = ps.getDataRange().getDisplayValues(), b = v[0];

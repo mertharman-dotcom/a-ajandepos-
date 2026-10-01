@@ -140,6 +140,14 @@ her ürün **BAP Stok Takip Sistemi**'ndeki reçetesine açılır ve **malzeme m
 - Aralık panelden ayrıca istenir (`/api/tuketim`, en fazla 3 ay, 2 dakika önbellek); bugünü içeren aralık 5 dakikada bir tazelenir.
 - Yalnız okur; hiçbir tabloya yazmaz. Yayınlamadan önce Apps Script'te `testTuketim` çalıştırılıp günlüğe bakılır.
 
+## Maaş ödemeleri (son 12 ay)
+
+Personel › Genel durum'da her zaman son 12 ay gösterilir (kaydı olmayan ay "kayıt yok").
+Kaynak: *BAP Personel › Odemeler* + adında "eski" ve "maaş/ödeme" geçen sekme (ör. **Eski Maaş Ödemeleri**).
+Eski sekmede sütunlar esnek: ay (Ay / Dönem / Tarih — "2026-01", "01.2026", "Ocak 2026", "15.01.2026"),
+personel (Personel / İsim Soyisim / Çalışan), tutar (Tutar / Ödenen / Net). Aynı ay Odemeler'de varsa eski sekme o ay sayılmaz.
+Bordrodaki "ödenen" ve geçen ay mahsup önerisi de bu iki kaynaktan okunur.
+
 ## Yayına alma
 
 > **Adres değişmesin:** Apps Script'te hiçbir zaman *Yeni dağıtım* yapmayın ve eski dağıtımı arşivlemeyin.

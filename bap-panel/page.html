@@ -646,9 +646,19 @@ function gunPlanBlok(p){var V=p.vardiya,bugun=p.bugun;if(!GD_TARIH)GD_TARIH=bugu
       return [x.ad,x.sube||"",plan,durum];})):bos("Bu tarihin haftası için vardiya planı yok.");}
   return blok(baslik,"Tarih seçerek geçmiş ya da gelecek bir günün planına bak ("+tarihTr(enAz)+" – "+tarihTr(enCok)+"). Geçmiş günlerde QR giriş-çıkışı da görünür.",el("div",null,[sec,icerik]));}
 
+// Son 12 ayın maaş ödemesi: ay başına bir sütun; kaydı olmayan ay boş çizgiyle "kayıt yok".
+function maasGrafik(seri){var W=760,H=230,ust=26,alt=44,pd=16,bw=(W-pd*2)/seri.length;var max=Math.max.apply(null,seri.map(function(x){return x.tutar;}))||1;
+  var ns="http://www.w3.org/2000/svg",svg=document.createElementNS(ns,"svg");svg.setAttribute("viewBox","0 0 "+W+" "+H);svg.setAttribute("role","img");svg.setAttribute("aria-label","Son 12 ayın maaş ödemeleri");
+  function yaz(x,y,t,cls){var e=document.createElementNS(ns,"text");e.setAttribute("x",x);e.setAttribute("y",y);e.setAttribute("text-anchor","middle");if(cls)e.setAttribute("class",cls);e.textContent=t;svg.appendChild(e);}
+  seri.forEach(function(x,i){var cx=pd+i*bw+bw/2,w=Math.min(40,bw-10),h=Math.round((H-ust-alt)*x.tutar/max);
+    if(x.tutar>0){var r=document.createElementNS(ns,"rect");r.setAttribute("x",cx-w/2);r.setAttribute("y",H-alt-h);r.setAttribute("width",w);r.setAttribute("height",Math.max(1,h));r.setAttribute("rx",4);r.setAttribute("fill",i===seri.length-1?"var(--mavi-koyu)":"var(--mavi)");
+      var t=document.createElementNS(ns,"title");t.textContent=ayAd(x.ay)+" "+x.ay.slice(0,4)+": "+para(x.tutar)+" · "+x.kisi+" kişi"+(x.kaynak?" ("+x.kaynak+")":"");r.appendChild(t);svg.appendChild(r);yaz(cx,H-alt-h-6,kisa(x.tutar),"deger-yazi");}
+    else{var l=document.createElementNS(ns,"line");l.setAttribute("x1",cx-w/2);l.setAttribute("x2",cx+w/2);l.setAttribute("y1",H-alt);l.setAttribute("y2",H-alt);l.setAttribute("stroke","var(--cizgi)");l.setAttribute("stroke-width","2");svg.appendChild(l);yaz(cx,H-alt-6,"—","adet-yazi");}
+    yaz(cx,H-alt+16,ayAd(x.ay).slice(0,3)+" "+x.ay.slice(2,4));yaz(cx,H-alt+31,x.tutar?x.kisi+" kişi":"kayıt yok","adet-yazi");});
+  return el("div",{class:"grafik"},[svg]);}
 function personelGenel(a,p){
   var icerde=p.bugunKayit.filter(function(x){return x.giris&&!x.cikis;}).length;var calisacak=p.plan.filter(function(x){return x.calisacak;});var gelmeyen=calisacak.filter(function(x){return !x.geldi;});
-  var sonOd=p.odemeler.length?p.odemeler[p.odemeler.length-1]:null;
+  var sonOd=(p.odemeler||[]).filter(function(x){return x.tutar>0;}).pop()||null;
   a.appendChild(el("div",{class:"rakamlar"},[rakam("Şu an içeride",String(icerde),p.bugunKayit.length+" kişi bugün giriş yaptı"),rakam("Bugün vardiyası olan",String(calisacak.length),p.plan.length-calisacak.length?(p.plan.length-calisacak.length)+" kişi off ya da izinli":null),
     rakam("Henüz girmeyen",String(gelmeyen.length),gelmeyen.length?gelmeyen.slice(0,3).map(function(x){return x.ad;}).join(", ")+(gelmeyen.length>3?"…":""):"Herkes giriş yaptı",gelmeyen.length?"asagi":""),
     rakam("Aktif personel",String(p.aktif.sayi),p.aktif.subeler.map(function(x){return x.ad+" "+x.deger;}).join(", ")),rakam("Aylık maaş toplamı",para(p.aktif.maasToplam),sonOd?ayAd(sonOd.ay)+" ödenen "+para(sonOd.tutar):"Tanımlı brüt maaşlar")]));
@@ -662,7 +672,8 @@ function personelGenel(a,p){
   var ozT=tablo([["Personel"],["Gün",1],["Toplam süre",1],["Normal mesai",1],["Fazla mesai",1],["Eksik süre",1],["Geç giriş",1],["Yıllık izin",1],["Ücretsiz izin",1],["Rapor",1],["Devamsızlık",1],["SGK"],["SGK primi (işveren)",1]],ozetSat);
   if(AK.length){var otb=ozT.querySelector("table");otb.classList.add("sik");otb.querySelector("tbody").appendChild(el("tr",{class:"toplam"},["Toplam",String(top("gun")),dkYaz(top("toplamDk")),dkYaz(top("normalDk")),"+"+dkYaz(top("fazlaDk")),dkYaz(top("eksikDk")),String(top("gec")),top("yi")+" gün",top("ui")+" gün",top("rap")+" gün",top("dev")+" gün","",para(top("sgkPrim"))].map(function(v,i){return el("td",{class:i>=1&&i!==11?"sag":null,text:v});})));}
   a.appendChild(blok(ayAd(p.ay.ay)+" çalışma özeti","Ay başından bugüne. Normal mesai = toplam süre − fazla mesai; fazla mesai yalnız artı süreler, eksik süre ayrıca (kesilmez). Yıllık izin ve rapor (3 güne kadar) ödenir; ücretsiz izin ve devamsızlık kesilir. SGK primi: SGK'lı personelin kişi başı aylık işveren payı, ay içi giriş/çıkışta çalışılan güne göre.",AK.length?ozT:bos("Bu ay kayıt yok.")));
-  if(p.odemeler.length)a.appendChild(blok("Maaş ödemeleri","Yönetici panelinden girilen ödemelerin ay toplamı.",cubuklar(p.odemeler.map(function(x){return {ad:ayAd(x.ay)+" ("+x.kisi+" kişi)",deger:x.tutar};}))));}
+  if(p.odemeler&&p.odemeler.length){var OK=p.odemeKaynak||{},topOd=p.odemeler.reduce(function(t,x){return t+x.tutar;},0);
+    a.appendChild(blok("Maaş ödemeleri — son 12 ay","Ödenen maaşların ay toplamı. Kaynak: Odemeler sekmesi"+(OK.eskiSekme?" + ‘"+OK.eskiSekme+"’ sekmesi ("+OK.eskiSatir+" satır"+(OK.okunamayan?", "+OK.okunamayan+" satır ayı ya da tutarı okunamadığı için sayılmadı":"")+")":"; eski ödemeler sekmesi henüz yok")+". Aynı ay iki kaynakta varsa Odemeler sayılır. 12 ay toplamı "+para(topOd)+".",maasGrafik(p.odemeler)));}}
 
 var PB_FILTRE="hepsi",PB_ACIK={},PB_DUZEN={};
 function personelBilgi(a,p){var B=p.bilgiler;if(!B)return a.appendChild(bos("Personel sekmesi okunamadı."));
