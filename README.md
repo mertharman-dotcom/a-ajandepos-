@@ -4,6 +4,7 @@
 |---|---|---|
 | `bap-panel/` | Panel sayfası ve Cloudflare Worker | `bap-panel.mertharman.workers.dev` |
 | `apps-script/bap-panel-veri-kapisi/` | Veri kapısı (tabloları okur, panelden gelen girişleri yazar) | Google Apps Script: **BAP Panel Veri Kapısı** |
+| `apps-script/adisyo-siparis-toplayici/` | Toplayıcıya eklenen modüller (şube atama) | Google Apps Script: **Adisyo Sipariş Toplayıcı** |
 
 ## Toptancı ödemeleri ekranı
 
@@ -171,3 +172,17 @@ Bordrodaki "ödenen" ve geçen ay mahsup önerisi de bu iki kaynaktan okunur.
    Workers › bap-panel › *Edit code* ekranına yapıştır → *Deploy*.
 
 Sayfayı düzenlerken `bap-panel/page.html` ve `bap-panel/worker.template.js` değiştirilir; `worker.js` bunlardan üretilir.
+
+## Çıkış şubesi atama (`SubeAtama.gs`)
+
+Siparişin hangi şubeden çıktığını (Ürün Çıkan Şube, G) saat + kurye + mahalle ile belirler, her gece şube raporu atar.
+
+1. Erenköy kapalıyken (12:00 öncesi, 22:00 sonrası) tüm paketler **Fikirtepe**.
+2. **Kurye_Gecici** (ayar tablosu): o gün başka şubeden paket atan kurye, ör. Fikirtepe kuryesi 19:00–22:00 Erenköy'de.
+3. **Kurye_Sube** (ayar tablosu): kuryenin şubesi. Mahalle başka şube diyorsa sipariş "Kurye (pas)" olur.
+4. Kurye bilinmiyorsa Mahalle_Sube listesi.
+
+G'yi elle değiştirirsen o satır "Elle" olur ve script bir daha dokunmaz (hücreyi boşaltırsan otomatiğe döner).
+Rapor: `Sube_Gunluk` (günlük özet) ve `Sube_Pas_Detay` (paslanan siparişler) sekmeleri + mail/WhatsApp.
+
+Kurulum: dosyayı toplayıcı projesine ekle → `subeAtamaKurulum` → Kurye_Sube'yi doldur → `subeAtamaTest` → `subeAtamaGeriye` → `subeRaporuGeriye`.
