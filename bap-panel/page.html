@@ -735,7 +735,7 @@ function bordroExcel(B){
   var bas=["Personel","Şube","SGK","IBAN","Hesap sahibi","İşe giriş","İşten çıkış","Tam maaş","Ücretli gün","Ayın günü","Baz maaş (kıst)","Günlük ücret","Saatlik ücret",
     "Normal mesai","Fazla uzama (sa:dk)","Fazla uzama TL","Off günü çalışma (sa:dk)","Off günü çalışma TL","Resmi tatil gün","Resmi tatil TL","Eksik süre (sa:dk, kesilmez)",
     "Yıllık izin gün","Rapor gün","Rapor kesinti TL","Ücretsiz izin gün","Ücretsiz izin TL","Devamsızlık gün","Devamsızlık TL",
-    B.kapandi?"Ay toplamı":"Bugüne kadar","Ay sonu tahmini","Avans","Masraf","Mahsup","Net hak ediş","Ödenen","Kalan ödenecek","Asgari (banka)","Diğer","SGK işveren primi"];
+    B.kapandi?"Ay toplamı":"Bugüne kadar","Ay sonu tahmini","Avans","Masraf","Mahsup","Net Hak ediş","Ödenen (-)","Ödenecek","Asgari (Banka)","Diğer (Banka/Nakit)","SGK işveren primi"];
   var R=B.kisiler.map(function(x){return [x.ad,x.sube,x.sgk?"Evet":"Hayır",x.iban||"",x.hesapAdi||"",trTarih(x.giris),trTarih(x.cikis),x.maas,x.ucretliAy,B.gunSayisi,x.baz,x.gunluk,x.saatlik,
     x.normal,sa(x.uzamaDk),x.uzamaTl,sa(x.offDk),x.offTl,x.gun.resmi,x.resmi,sa(x.eksikDk),x.gun.yi,x.gun.rap,x.raporTl||0,x.gun.ui,x.ucretsizTl,x.gun.dev,x.devamsizTl,
     x.hakedis,x.aySonu,x.avans?-x.avans:0,x.masraf,x.mahsup,x.net,x.odenen?-x.odenen:0,x.kalan,x.kalan>0?x.asgari:0,x.kalan>0?x.diger:0,x.sgkPrim];});
@@ -753,9 +753,9 @@ function ibanHucre(x){if(!x.iban)return el("span",{style:"color:var(--kotu);font
 function odemeListesi(B){var para=para2;var L=B.kisiler.filter(function(x){return x.kalan>1;});
   var satir=L.map(function(x){return [x.ad,x.hesapAdi||"",x.iban||"IBAN YOK",kurusYaz(x.kalan),kurusYaz(x.sgk?x.asgari:0),kurusYaz(x.sgk?x.diger:x.kalan)];});
   var top=L.reduce(function(t,x){return t+x.kalan;},0),eksik=L.filter(function(x){return !x.iban;}).length;
-  var d=el("button",{type:"button",class:"dugme ana-dugme",onclick:function(){kopyala(["Personel\tHesap adı\tIBAN\tKalan ödenecek\tAsgari (banka)\tDiğer"].concat(satir.map(function(r){return r.join("\t");})).join("\n"),d,"Listeyi kopyala");}},["Listeyi kopyala"]);
+  var d=el("button",{type:"button",class:"dugme ana-dugme",onclick:function(){kopyala(["Personel\tHesap adı\tIBAN\tÖdenecek\tAsgari (Banka)\tDiğer (Banka/Nakit)"].concat(satir.map(function(r){return r.join("\t");})).join("\n"),d,"Listeyi kopyala");}},["Listeyi kopyala"]);
   return blok("Bu ay ödenecekler — "+ayAd(B.ay),L.length+" kişi, toplam "+para(top)+(eksik?" · "+eksik+" kişinin IBAN'ı yok":"")+". ‘Listeyi kopyala’ ad, hesap adı, IBAN ve tutarları Excel'e ya da bankanın toplu ödeme ekranına yapıştırılacak biçimde kopyalar. IBAN geçici olarak açık (veri kapısında IBAN_GOSTER).",
-    el("div",null,[el("p",{style:"margin:0 0 10px"},[d]),L.length?tablo([["Personel"],["Hesap adı"],["IBAN"],["Kalan ödenecek",1],["Asgari (banka)",1],["Diğer",1]],L.map(function(x){return [x.ad,x.hesapAdi||"—",ibanHucre(x),el("strong",{text:para(x.kalan)}),x.sgk?para(x.asgari):"—",para(x.sgk?x.diger:x.kalan)];})):bos("Bu ay ödenecek kalan yok.")]));}
+    el("div",null,[el("p",{style:"margin:0 0 10px"},[d]),L.length?tablo([["Personel"],["Hesap adı"],["IBAN"],["Ödenecek",1],["Asgari (Banka)",1],["Diğer (Banka/Nakit)",1]],L.map(function(x){return [x.ad,x.hesapAdi||"—",ibanHucre(x),el("strong",{text:para(x.kalan)}),x.sgk?para(x.asgari):"—",para(x.sgk?x.diger:x.kalan)];})):bos("Bu ay ödenecek kalan yok.")]));}
 // Kişinin bordrosunun adım adım dökümü (hangi sayı nereden geldi)
 function hesapDokumu(x,B){var para=para2,TL=TL2;var sa=x.saatlik,g=x.gunluk,kes=x.gun.ui+x.gun.dev+x.raporKesGun,adim=[];
   function s(ad,hesap,tutar,cls){adim.push([ad,hesap,tutar==null?"":(typeof tutar==="string"?tutar:(tutar<0?"−":tutar>0&&cls!=="esit"?"+":"")+para(Math.abs(tutar)))]);}
@@ -769,10 +769,10 @@ function hesapDokumu(x,B){var para=para2,TL=TL2;var sa=x.saatlik,g=x.gunluk,kes=
   if(x.eskiVeri)s("Not","Bu ay QR puantajı yok; fazla mesai eski kayıttan, izin/devamsızlık kesintisi hesaplanmadı","");
   s("Ay sonu hak ediş","normal mesai + fazla mesai + resmi tatil",para(x.aySonu));
   if(x.avans)s("Avans","hak edişten düşülür",-x.avans);if(x.masraf)s("Masraf","personelin ödediği, eklenir",x.masraf);if(x.mahsup)s("Geçen ay mahsubu",x.mahsup>0?"geçen ay eksik ödenmişti":"geçen ay fazla ödenmişti",x.mahsup);
-  s("Net hak ediş","ay sonu − avans + masraf ± mahsup",para(x.net));
+  s("Net Hak ediş","ay sonu − avans + masraf ± mahsup",para(x.net));
   if(x.odenen)s("Bu ay ödenen","Odemeler / eski ödemeler sekmesi",-x.odenen);
   if(x.kalan<-1)s("Sonuç","Hesaplanandan "+para(-x.kalan)+" FAZLA ödenmiş. Gelecek ay bordrosunda ‘Geçen ay fazla ödeme (−)’ mahsubu olarak düşülebilir.","fazla "+para(-x.kalan));
-  else if(x.kalan>1)s("Kalan ödenecek",(x.sgk?"asgari (banka) "+para(x.asgari)+" + diğer "+para(x.diger):"tamamı diğer"),para(x.kalan));
+  else if(x.kalan>1)s("Ödenecek",(x.sgk?"asgari (banka) "+para(x.asgari)+" + diğer "+para(x.diger):"tamamı diğer"),para(x.kalan));
   else s("Sonuç","ödeme hesapla birebir tutuyor","0 ₺");
   return el("div",{style:"position:sticky;left:0;max-width:880px"},[el("table",{class:"tablo sik",style:"background:transparent;width:100%;table-layout:fixed"},[el("colgroup",null,[el("col",{style:"width:210px"}),el("col"),el("col",{style:"width:130px"})]),
     el("tbody",null,adim.map(function(r){return el("tr",null,[el("td",{style:"font-weight:600",text:r[0]}),el("td",{style:"color:var(--gri);white-space:normal",text:r[1]}),el("td",{class:"sag",style:"font-weight:600",text:r[2]})]);}))])]);}
@@ -793,18 +793,18 @@ function bordroSayfa(a,p){var para=para2,tlIsaret=tlIsaret2;var LB=p.bordro||[];
     rakam("Off gününde çalışma",para(T.offTl),T.offGun+" gün · "+T.offKisi+" kişi · +"+dkYaz(T.offDk)),
     rakam("Uzamanın payı",T.fazla?"%"+Math.round(T.uzamaTl/T.fazla*100):"—","fazla mesainin"),
     rakam("Off çalışmanın payı",T.fazla?"%"+Math.round(T.offTl/T.fazla*100):"—","fazla mesainin",T.fazla&&T.offTl/T.fazla>0.5?"asagi":"")]));
-  a.appendChild(el("div",{class:"rakamlar dortlu"},[rakam(B.kapandi?"Ay toplamı":"Bugüne kadar",para(T.hakedis)),rakam("Ay sonu tahmini",para(T.aySonu),"avans/masraf öncesi"),rakam("Net hak ediş",para(T.net),"ay sonu − avans + masraf ± mahsup"),
-    rakam("Kalan ödenecek",para(kalanT),"net − bu ay ödenen ("+para(T.odenen)+")",kalanT>0?"asagi":"yukari")]));
+  a.appendChild(el("div",{class:"rakamlar dortlu"},[rakam(B.kapandi?"Ay toplamı":"Bugüne kadar",para(T.hakedis)),rakam("Ay sonu tahmini",para(T.aySonu),"avans/masraf öncesi"),rakam("Net Hak ediş",para(T.net),"ay sonu − avans + masraf ± mahsup"),
+    rakam("Ödenecek",para(kalanT),"net − bu ay ödenen ("+para(T.odenen)+")",kalanT>0?"asagi":"yukari")]));
   a.appendChild(el("div",{class:"rakamlar dortlu"},[rakam("Avans / verilen ödeme (−)",T.avans?"−"+para(T.avans):"0 ₺","hakedişten düşer"),
     rakam("Masraf (+)",T.masraf?"+"+para(T.masraf):"0 ₺","personelin cebinden ödediği; hakedişe eklenir"),
     rakam("Geçen ay mahsubu (±)",T.mahsup?tlIsaret(T.mahsup):"0 ₺","eksik ödenen +, fazla ödenen −"),rakam("Bu ay ödenen (−)",para(T.odenen),"Odemeler sekmesi; kalandan düşülür")]));
-  a.appendChild(el("div",{class:"rakamlar dortlu"},[rakam("Ödeme yapılan kişi",String(B.kisiler.filter(function(x){return x.odenen;}).length)+" / "+B.kisiler.length,"bu ay"),rakam("Asgari (banka)",para(T.asgari),"SGK'lılara, kalan ödenecekten"),rakam("Diğer",para(T.diger),"kalan − asgari"),
+  a.appendChild(el("div",{class:"rakamlar dortlu"},[rakam("Ödeme yapılan kişi",String(B.kisiler.filter(function(x){return x.odenen;}).length)+" / "+B.kisiler.length,"bu ay"),rakam("Asgari (Banka)",para(T.asgari),"SGK'lılara, kalan ödenecekten"),rakam("Diğer (Banka/Nakit)",para(T.diger),"kalan − asgari"),
     rakam("Avans / masraf / mahsup kaydı",String((B.avansKalemleri||[]).length),"bu ay, aşağıda")]));
   if(buAy)a.appendChild(el("div",{class:"rakamlar dortlu"},[rakam("Bugünkü personel gideri",para(B.bugunGider),"Bugün vardiyalı "+B.bugunKisi+" kişinin günlük ücreti"),rakam("Aylık maaş bütçesi",para(B.butce),"Aktif çalışanların baz maaşı"),
     rakam("SGK işveren primi",para(T.sgkPrim),T.sgkKisi+" SGK'lı × "+TL.format(B.sgkIsveren)+" ₺ (ay içi giriş/çıkış kıst)"),rakam("Toplam işveren maliyeti",para(T.net+T.sgkPrim),"net hak ediş + SGK primi")]));
   a.appendChild(el("div",{class:"iki"},B.subeler.map(function(s){var t=s.toplam;return blok(s.ad+" ("+t.kisi+" kişi)",null,tablo([["Kalem"],["Tutar",1]],[
     ["Baz maaş",para(t.maas)],["Normal mesai",para(t.normal)],["Fazla mesai — günlük uzama",iki(para(t.uzamaTl),"+"+dkYaz(t.uzamaDk))],["Fazla mesai — off gününde",iki(para(t.offTl),t.offGun+" gün")],["Resmi tatil",para(t.resmi)],["İzin / devamsızlık kesintisi",t.kesinti?"−"+para(t.kesinti):"—"],
-    [B.kapandi?"Ay toplamı":"Bugüne kadar",para(t.hakedis)],["Ay sonu tahmini",para(t.aySonu)],["Avans (−)",t.avans?"−"+para(t.avans):"—"],["Masraf (+)",t.masraf?"+"+para(t.masraf):"—"],["Geçen ay mahsubu (±)",t.mahsup?tlIsaret(t.mahsup):"—"],["Net hak ediş",para(t.net)],["Bu ay ödenen (−)",t.odenen?"−"+para(t.odenen):"—"],["Kalan ödenecek",el("strong",{text:para(t.kalan)})]]));})));
+    [B.kapandi?"Ay toplamı":"Bugüne kadar",para(t.hakedis)],["Ay sonu tahmini",para(t.aySonu)],["Avans (−)",t.avans?"−"+para(t.avans):"—"],["Masraf (+)",t.masraf?"+"+para(t.masraf):"—"],["Geçen ay mahsubu (±)",t.mahsup?tlIsaret(t.mahsup):"—"],["Net Hak ediş",para(t.net)],["Bu ay ödenen (−)",t.odenen?"−"+para(t.odenen):"—"],["Ödenecek",el("strong",{text:para(t.kalan)})]]));})));
   function gunHucre(g,tl,ek){return g?iki(tl?tlIsaret(tl):"ödenir",g+" gün"+(ek||"")):"—";}
   var satirlar=B.kisiler.map(function(x){var G=x.gecenAy;
     return [iki(el("span",null,[el("button",{type:"button",class:"ad-dugme",title:"Hesap dökümünü aç",onclick:function(){BRD_ACIK[B.ay+"|"+x.ad]=!BRD_ACIK[B.ay+"|"+x.ad];ciz();}},[(BRD_ACIK[B.ay+"|"+x.ad]?"▾ ":"▸ ")+x.ad]),x.ayrildi?el("span",{class:"etiket e-notr",style:"margin-left:6px",text:"Ayrıldı "+tarihTr(x.cikis)}):null,x.giris?el("span",{class:"etiket e-notr",style:"margin-left:6px",text:"Giriş "+tarihTr(x.giris)}):null,
@@ -816,7 +816,7 @@ function bordroSayfa(a,p){var para=para2,tlIsaret=tlIsaret2;var LB=p.bordro||[];
       para(x.hakedis),para(x.aySonu),x.avans?"−"+para(x.avans):"—",x.masraf||x.masrafBekleyen?iki(x.masraf?"+"+para(x.masraf):"—",x.masrafBekleyen?para(x.masrafBekleyen)+" onay bekliyor":null):"—",
       x.mahsup||(G&&Math.abs(G.fark)>1)?iki(x.mahsup?tlIsaret(x.mahsup):"—",G&&Math.abs(G.fark)>1?"geçen ay "+(G.fark<0?"eksik "+para(-G.fark):"fazla "+para(G.fark))+" ödendi":null):"—",
       para(x.net),x.odenen?"−"+para(x.odenen):"—",x.kalan<-1?iki(el("strong",{style:"color:var(--kotu)",text:para(-x.kalan)}),"fazla ödendi"):el("strong",{text:para(x.kalan)}),x.kalan<-1?"—":(x.sgk?para(x.asgari):"—"),x.kalan<-1?"—":para(x.diger)];});
-  var tb=tablo([["Personel"],["Şube"],["SGK"],["Baz maaş",1],["Normal mesai",1],["Fazla — uzama",1],["Fazla — off günü",1],["Resmi tatil (+)",1],["Yıllık izin",1],["Rapor",1],["Ücretsiz (−)",1],["Devamsız (−)",1],[B.kapandi?"Ay toplamı":"Bugüne kadar",1],["Ay sonu tahmini",1],["Avans (−)",1],["Masraf (+)",1],["Mahsup (±)",1],["Net hak ediş",1],["Ödenen (−)",1],["Kalan ödenecek",1],["Asgari (banka)",1],["Diğer",1]],satirlar);
+  var tb=tablo([["Personel"],["Şube"],["SGK"],["Baz maaş",1],["Normal mesai",1],["Fazla — uzama",1],["Fazla — off günü",1],["Resmi tatil (+)",1],["Yıllık izin",1],["Rapor",1],["Ücretsiz (−)",1],["Devamsız (−)",1],[B.kapandi?"Ay toplamı":"Bugüne kadar",1],["Ay sonu tahmini",1],["Avans (−)",1],["Masraf (+)",1],["Mahsup (±)",1],["Net Hak ediş",1],["Ödenen (-)",1],["Ödenecek",1],["Asgari (Banka)",1],["Diğer (Banka/Nakit)",1]],satirlar);
   var tt=tb.querySelector("table");tt.classList.add("sik");
   // Açık olan kişilerin altına hesap dökümü satırı
   var trs=tt.querySelectorAll("tbody tr");B.kisiler.forEach(function(x,i){if(!BRD_ACIK[B.ay+"|"+x.ad])return;var tr=trs[i];if(!tr)return;
