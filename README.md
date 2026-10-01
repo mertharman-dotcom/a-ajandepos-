@@ -66,13 +66,15 @@ Panelde **Kurye & Teslimat** bölümü (`#kurye`). **Kurye Net Çalışma Süres
   kesinti sonrası tutar üzerinden — kurye panelindeki Haftalık Bordro & Hakediş ile aynı hesap.
 - Müşteri adı, telefonu, adresi ve sipariş içeriği panele gönderilmez.
 
-## Kurye mesai boşlukları (HemenYolda)
+## Kurye mesai boşlukları (HemenYolda Köprü v1.2)
 
-`apps-script/kurye-net-calisma-suresi/MesaiTazele.gs`, **Kurye Net Çalışma Süresi** tablosunun kendi script projesine yeni
-dosya olarak eklenir. `mesaiCek()` bir günü, o gün herhangi bir kuryenin satırı yazıldıysa bir daha sormaz; HemenYolda'ya
-sonradan eklenen kurye ya da sonradan düzeltilen oturum o yüzden hiç gelmez. Bu dosya istenen günleri kurye kurye yeniden
-sorar, eksikleri ekler, değişenleri günceller (silmez) ve `kuraliUygula()` ile Günlük Mesai'yi tazeler.
-`mesaiEylulTazele()` bir kerelik geriye dönük tarama; `mesaiTazeleTetikleyiciKur()` her gece son 10 günü tazeler.
+HemenYolda Google sunucularını engellediği için (GEO 403) veri yalnızca tarayıcıdaki Köprü koduyla gelir.
+`apps-script/kurye-net-calisma-suresi/Kopru.gs`, kurye tablosunun script projesindeki Köprü dosyasının yerine konur
+(`__KOPRU_ANAHTAR__` ve `__KOPRU_URL__` gerçek değerlerle doldurulur; anahtar repoya yazılmaz).
+v1.1 bir günü herhangi bir mesai satırı varsa bir daha sormuyordu; sonradan eklenen kurye o günleri hiç almıyordu.
+v1.2'de `kopruGunleriYenidenCek(['15.09.2026', ...])`, `kopruEylulYenidenCek()` ve `kopruSon7GunYenidenCek()` seçilen günleri
+mesai + siparişle birlikte yeniden çekmeye işaretler; kuyruk önce bugün/dün, sonra eksik/işaretli günler, en son açık
+vardiya/açık hesap tazelemesi sırasıyla dolar. Gün yazılınca işaret kalkar.
 
 ## Yayına alma
 
