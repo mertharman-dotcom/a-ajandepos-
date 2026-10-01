@@ -66,6 +66,14 @@ Panelde **Kurye & Teslimat** bölümü (`#kurye`). **Kurye Net Çalışma Süres
   kesinti sonrası tutar üzerinden — kurye panelindeki Haftalık Bordro & Hakediş ile aynı hesap.
 - Müşteri adı, telefonu, adresi ve sipariş içeriği panele gönderilmez.
 
+## Kurye mesai boşlukları (HemenYolda)
+
+`apps-script/kurye-net-calisma-suresi/MesaiTazele.gs`, **Kurye Net Çalışma Süresi** tablosunun kendi script projesine yeni
+dosya olarak eklenir. `mesaiCek()` bir günü, o gün herhangi bir kuryenin satırı yazıldıysa bir daha sormaz; HemenYolda'ya
+sonradan eklenen kurye ya da sonradan düzeltilen oturum o yüzden hiç gelmez. Bu dosya istenen günleri kurye kurye yeniden
+sorar, eksikleri ekler, değişenleri günceller (silmez) ve `kuraliUygula()` ile Günlük Mesai'yi tazeler.
+`mesaiEylulTazele()` bir kerelik geriye dönük tarama; `mesaiTazeleTetikleyiciKur()` her gece son 10 günü tazeler.
+
 ## Yayına alma
 
 1. **Apps Script** (BAP Panel Veri Kapısı): `apps-script/bap-panel-veri-kapisi/Kod.gs` içeriğini `Kod.gs` dosyasına yapıştır,
