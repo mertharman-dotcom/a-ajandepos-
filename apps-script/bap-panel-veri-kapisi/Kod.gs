@@ -993,7 +993,9 @@ function personel_() {
  *  - SGK'lı personele asgari ücret bankadan, kalanı "diğer" olarak ödenir.
  * Aynı kişi aynı güne birden fazla satır varsa en üstteki (en yeni) kullanılır.
  */
-var BORDRO_AY_SAYISI = 4;   // bordro sekmesinde ayrıntılı gösterilen ay sayısı (bu ay dahil)
+var BORDRO_AY_SAYISI = 4;
+// GEÇİCİ: bordroda IBAN ve banka hesap adı açık gösterilir (maaş ödemesi için). Ödemeler bitince false yapın.
+var IBAN_GOSTER = true;   // bordro sekmesinde ayrıntılı gösterilen ay sayısı (bu ay dahil)
 var ASGARI_NET = 28076;      // 2026 net asgari ücret (SGK'lı personelin bankadan ödenen kısmı)
 var SGK_ISVEREN = 7845;      // kişi başı aylık SGK işveren payı
 var FAZLA_BOLEN = 10;        // saatlik = günlük / 10
@@ -1126,12 +1128,13 @@ function bordroVeri_(ss) {
   if (ps) {
     var v = ps.getDataRange().getDisplayValues(), b = v[0];
     var cA = kolon_(b, ['İsim Soyisim']), cG = kolon_(b, ['İşe Giriş']), cC = kolon_(b, ['İşten Çıkış']), cM = kolon_(b, ['Maaş']), cAk = kolon_(b, ['Aktif']),
-        cS = kolon_(b, ['SGK lı', 'SGK']), cSb = kolon_(b, ['Sube', 'Şube']), cI = kolon_(b, ['IBAN']);
+        cS = kolon_(b, ['SGK lı', 'SGK']), cSb = kolon_(b, ['Sube', 'Şube']), cI = kolon_(b, ['IBAN']), cBH = kolon_(b, ['Banka Hesap Adı']);
     // Aynı isimle birden fazla satır olabilir (eski kayıt + yeniden işe giriş); hepsi alınır, ay için doğru olanı bordro_ seçer.
     v.slice(1).forEach(function (r) {
       var ad = String(r[cA] || '').trim(), k = norm_(ad); if (!ad) return;
       V.personel.push({ ad: ad, k: k, giris: bordroIso_(r[cG]), cikis: bordroIso_(r[cC]), maas: sayi_(r[cM]), aktif: /^(true|evet|1)$/i.test(String(r[cAk]).trim()),
-        sgk: /^(true|evet|1|ok)$/i.test(String(r[cS]).trim()), sube: cSb >= 0 ? String(r[cSb]).trim() : '', ibanVar: cI >= 0 && String(r[cI]).trim() !== '' });
+        sgk: /^(true|evet|1|ok)$/i.test(String(r[cS]).trim()), sube: cSb >= 0 ? String(r[cSb]).trim() : '', ibanVar: cI >= 0 && String(r[cI] || '').trim() !== '',
+        iban: IBAN_GOSTER && cI >= 0 ? String(r[cI] || '').trim() : '', hesapAdi: IBAN_GOSTER && cBH >= 0 ? String(r[cBH] || '').trim() : '' });
     });
   }
   return V;
@@ -1202,7 +1205,7 @@ function bordro_(V, ay, bugun, planli) {
       normal: Math.round(normal), fazla: Math.round(fazla), resmi: Math.round(resmiTl),
       hakedis: Math.round(normal + fazla + resmiTl), aySonu: Math.round(aySonu), avans: Math.round(am.avans), masraf: Math.round(am.masraf), masrafBekleyen: Math.round(am.bekleyen),
       mahsup: Math.round(am.mahsup || 0), net: Math.round(net), kalan: Math.round(kalan), asgari: Math.round(asgari), diger: Math.round(Math.max(0, kalan - asgari)),
-      ibanVar: p.ibanVar, odenen: Math.round(odenen[p.k] || 0),
+      ibanVar: p.ibanVar, iban: p.iban, hesapAdi: p.hesapAdi, odenen: Math.round(odenen[p.k] || 0),
       eskiVeri: eskiK ? { calismayan: eskiK.calismayan, rap: eskiK.rap, yi: eskiK.yi } : null, puantajVar: !!ayKaydi });
   });
   // Puantajda bu ay kaydı olup personel listesinde (ya da maaşı) olmayanlar
@@ -1222,7 +1225,7 @@ function bordro_(V, ay, bugun, planli) {
   var kalemler = []; Object.keys(AM).forEach(function (k) { kalemler = kalemler.concat(AM[k].kalemler); });
   kalemler.sort(function (a, b) { return a.gun < b.gun ? 1 : -1; });
   return { ay: ay, gunSayisi: gunSay, kadar: kadar, kapandi: bugun > son, kisiler: kisiler, toplam: topla(kisiler), avansKalemleri: kalemler.slice(0, 80),
-    puantajVar: !!V.aylar[ay], eskiVeriVar: !!V.eski[ay],
+    puantajVar: !!V.aylar[ay], eskiVeriVar: !!V.eski[ay], ibanAcik: IBAN_GOSTER,
     subeler: Object.keys(subeler).sort().map(function (k) { return { ad: k, toplam: topla(subeler[k]) }; }), eksikPersonel: eksik,
     butce: Math.round(aktifler.reduce(function (s, p) { return s + p.maas; }, 0)), sgkSayi: aktifler.filter(function (p) { return p.sgk; }).length, sgkIsveren: SGK_ISVEREN,
     bugunGider: Math.round(bugunGider), bugunKisi: (planli || []).filter(function (p) { return p.calisacak; }).length, asgariNet: ASGARI_NET };
