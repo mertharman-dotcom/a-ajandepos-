@@ -1011,7 +1011,7 @@ function personel_() {
 var BORDRO_AY_SAYISI = 4;
 // GEÇİCİ: bordroda IBAN ve banka hesap adı açık gösterilir (maaş ödemesi için). Ödemeler bitince false yapın.
 var IBAN_GOSTER = true;   // bordro sekmesinde ayrıntılı gösterilen ay sayısı (bu ay dahil)
-var ASGARI_NET = 28076;      // 2026 net asgari ücret (SGK'lı personelin bankadan ödenen kısmı)
+var ASGARI_NET = 28075.5;     // 2026 net asgari ücret (SGK'lı personelin bankadan ödenen kısmı)
 var SGK_ISVEREN = 7845;      // kişi başı aylık SGK işveren payı
 var FAZLA_BOLEN = 10;        // saatlik = günlük / 10
 
