@@ -165,7 +165,9 @@ Kesilecek fiş = YS + Trendyol online
 
 - Üstteki rakam satırında **Dünün fişi** kutusu (akşam 20:00'den sonra **Bugünün fişi**): kesilecek tutar ve kaydedilip kaydedilmediği. Dokununca fiş bölümüne iner.
 - Rakamlar **Adisyo sipariş verisi › Satıs Verileri** sekmesinden (Sipariş Kanalı, Masa Siparişi, Ödeme Yöntemi, Tahsil Tipi) gelir; yalnız kapanmış siparişler sayılır. İş günü 03:00'te kapanır.
+- "Online" yalnız **YS Online**, **Trendyol Online** ve **İyzico Online** ödeme yöntemleridir. Platformda online ödenen yemek kartları (Edenred / Multinet / Pluxee / Setcard Online) hesaba girmez, bilgi olarak yazar.
 - Getir ve diğer platformlar hesaba girmez. YS / Trendyol kapıda yemek kartı düşülmez, bilgi olarak yazar.
+- "Ödenmez" ve "Açık Hesap" POS'tan geçmediği için (tahsil tipi "Yemek Kartı" yazsa da) düşülmez.
 - Kurye ödeme yöntemini yanlış girdiyse kutudaki rakam elle düzeltilir (sarı görünür, kayıtta "Elle değişen" sütununa düşer).
 - **Fişi kaydet**: fiş adedi + toplam tutar + not, hesabın dökümüyle birlikte **BAP Günlük Fiş Kaydı › Fisler** tablosuna yazılır (ilk kayıtta kendiliğinden oluşur). Gün başına tek satır; aynı gün tekrar kaydedilirse onay sorup o satırı günceller.
 - **BAP veri tablosu › Kesilen Fişler** (eski kayıtlar) yalnız okunur, hiç yazılmaz; yeni tabloda olmayan günler panelde "Eski tablodan" diye görünür.

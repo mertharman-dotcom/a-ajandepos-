@@ -300,10 +300,16 @@ function fisPlatform_(kanal) {
   return 'diger';
 }
 
-// online | kredi | yemek | nakit | diger. Önce ödeme yönteminin adına (daha ayrıntılı), sonra tahsil tipine bakılır.
+// online | onlineKart | kredi | yemek | nakit | yok | diger. Önce ödeme yönteminin adına (daha ayrıntılı), sonra tahsil tipine bakılır.
+// Fiş yalnız 'YS Online', 'Trendyol Online' ve 'İyzico Online' için kesilir. Platformda online ödenen yemek kartları
+// (Edenred / Multinet / Pluxee / Setcard Online) ayrı tutulur, hesaba girmez.
+// 'Ödenmez' ve 'Açık Hesap' POS'tan geçmediği için tahsil tipi 'Yemek Kartı' yazsa da düşülmez.
 function fisOdeme_(odeme, tahsil) {
   var o = norm_(odeme), t = norm_(tahsil);
-  if (/online|cuzdan|iyzico/.test(o) || t === 'online') return 'online';
+  if (/^ysonline|^yemeksepetionline|^trendyolonline|iyzico/.test(o)) return 'online';
+  if (/online/.test(o)) return 'onlineKart';
+  if (/odenmez|odenemez|acikhesap/.test(o)) return 'yok';
+  if (t === 'online') return 'online';
   if (/kredi|bankakart|^pos|kartpos/.test(o)) return 'kredi';
   if (/paye|setcard|smartticket|metropol|multinet|edenred|tokenflex|sodexo|pluxee|ticket|yemekkart/.test(o)) return 'yemek';
   if (/nakit/.test(o)) return 'nakit';
@@ -313,23 +319,24 @@ function fisOdeme_(odeme, tahsil) {
   return 'diger';
 }
 
-function fisBos_() { return { online: z_(), masa: z_(), paket: z_(), platformKk: z_(), platformYk: z_(), bilinmeyen: {} }; }
+function fisBos_() { return { online: z_(), masa: z_(), paket: z_(), platformKk: z_(), platformYk: z_(), onlineKart: z_(), bilinmeyen: {} }; }
 
 function fisEkle_(s, kanal, tip, odeme, tahsil, tutar) {
   var p = fisPlatform_(kanal), od = fisOdeme_(odeme, tahsil);
   if (p === 'Yemeksepeti' || p === 'Trendyol') {
     if (od === 'online') ek_(s.online, tutar);
+    else if (od === 'onlineKart') ek_(s.onlineKart, tutar); // bilgi için; hesaba girmez
     else if (od === 'kredi') ek_(s.platformKk, tutar);
     else if (od === 'yemek') ek_(s.platformYk, tutar); // bilgi için; hesaptan düşülmez
   } else if (p === 'ic') {
-    if (od !== 'kredi' && od !== 'yemek') { if (od === 'diger') topla_(s.bilinmeyen, String(odeme || tahsil || 'Boş').trim(), tutar); return; }
+    if (od !== 'kredi' && od !== 'yemek') { if (od === 'diger' || od === 'yok') topla_(s.bilinmeyen, String(odeme || tahsil || 'Boş').trim(), tutar); return; }
     ek_(/paket/i.test(String(tip)) ? s.paket : s.masa, tutar);
   }
 }
 
 function fisGunu_(gun, s) {
   var o = { gun: gun };
-  FIS_KALEMLER.concat(['platformYk']).forEach(function (k) { o[k] = { tutar: Math.round(s[k].ciro * 100) / 100, adet: s[k].adet }; });
+  FIS_KALEMLER.concat(['platformYk', 'onlineKart']).forEach(function (k) { o[k] = { tutar: Math.round(s[k].ciro * 100) / 100, adet: s[k].adet }; });
   o.kesilecek = Math.round((s.online.ciro - s.masa.ciro - s.paket.ciro - s.platformKk.ciro) * 100) / 100;
   o.bilinmeyen = sirala_(s.bilinmeyen);
   return o;
