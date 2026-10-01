@@ -147,7 +147,9 @@ function satis_() {
   var haftaBasi = gunEkle_(bugun, -dow);
   var ilkSeri = gunEkle_(bugun, -13);
 
-  var seri = {}, fis = {}; for (var i = 0; i < 14; i++) { seri[gunEkle_(ilkSeri, i)] = { ciro: 0, adet: 0 }; fis[gunEkle_(ilkSeri, i)] = fisBos_(); }
+  var seri = {}; for (var i = 0; i < 14; i++) seri[gunEkle_(ilkSeri, i)] = { ciro: 0, adet: 0 };
+  // Fiş hesabı 30 gün geriye gider (panelde 30 günlük fark için).
+  var fis = {}; for (i = 0; i < 30; i++) fis[gunEkle_(bugun, -i)] = fisBos_();
   var g = { bugun: z_(), dun: z_(), hafta: z_(), gecenHaftaAyniSaat: z_() };
   var acik = z_(), iptalBugun = 0, sonSiparis = null;
   var kanalBugun = {}, subeBugun = {}, markaBugun = {}, kanalHafta = {}, mutfakBugun = {};

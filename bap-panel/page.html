@@ -649,37 +649,44 @@ function fisKart(g,s){var f=fisForm(g),kayit=fisKaydi(g.gun);
     el("p",{class:"fis-not",text:"Kayıt 'BAP Günlük Fiş Kaydı' tablosuna gün başına tek satır yazılır; aynı günü tekrar kaydedersen önce sorar, sonra günceller. Kutularda elle düzelttiğin rakamlar da kayda geçer."})]);
   return el("div",{class:"fis-izgara"},[hesapKart,kesKart]);}
 
-// Son 14 gün: her gün iki sütun (hesaplanan / kesilen), kaydı olmayan geçmiş günler kırmızı.
-function fisGecmis(s){var gunler=s.fis.gunler.slice().reverse(),bugun=s.bugun,kap=el("div");
-  var veri=gunler.map(function(g){var k=fisKaydi(g.gun);return {gun:g.gun,hesap:Math.max(0,g.kesilecek),kesilen:k?k.kesilen:0,kayit:!!k,durum:fisGunDurum(g,bugun)};});
-  var ay=bugun.slice(0,7),ayKayit=fisKayitlari().filter(function(r){return r.gun.slice(0,7)===ay;});
-  var eksik=veri.filter(function(v){return v.durum==="kotu";});
-  var kayitli=veri.filter(function(v){return v.kayit;}),fark=kayitli.reduce(function(t,v){return t+(v.kesilen-v.hesap);},0);
-  kap.appendChild(el("div",{class:"rakamlar",style:"margin-top:6px"},[rakam(ayAd(ay)+" kesilen fiş",para(ayKayit.reduce(function(t,r){return t+r.kesilen;},0)),ayKayit.reduce(function(t,r){return t+(r.adet||0);},0)+" fiş, "+ayKayit.length+" gün"),
-    rakam("Fişi kaydedilmemiş gün",String(eksik.length),eksik.length?"Son 14 gün: "+eksik.slice(-3).map(function(v){return tarihTr(v.gun);}).join(", "):"Son 14 günün hepsi tamam",eksik.length?"asagi":"yukari"),
-    rakam("14 gün hesaplanan",para(veri.reduce(function(t,v){return t+v.hesap;},0))),
-    rakam("Kesilen − hesaplanan",(fark>=0?"+":"−")+para(Math.abs(fark)),kayitli.length+" kayıtlı günde",Math.abs(fark)>1000?"asagi":"")]));
-  var cizilen=window.innerWidth<600?veri.slice(-7):veri; // telefonda 14 sütun okunmuyor
-  var W=760,H=230,ust=24,alt=38,p=16,bw=(W-p*2)/cizilen.length,max=Math.max.apply(null,cizilen.map(function(v){return Math.max(v.hesap,v.kesilen);}))||1;
-  var ns="http://www.w3.org/2000/svg",svg=document.createElementNS(ns,"svg");svg.setAttribute("viewBox","0 0 "+W+" "+H);svg.setAttribute("role","img");svg.setAttribute("aria-label","Son günlerin kesilecek ve kesilen fişleri");
-  function yaz(x,y,t,cls){var e=document.createElementNS(ns,"text");e.setAttribute("x",x);e.setAttribute("y",y);e.setAttribute("text-anchor","middle");if(cls)e.setAttribute("class",cls);e.textContent=t;svg.appendChild(e);}
-  function cubuk(x,w,v,renk,baslik){var h=Math.round((H-ust-alt)*v/max);var r=document.createElementNS(ns,"rect");r.setAttribute("x",x);r.setAttribute("y",H-alt-h);r.setAttribute("width",Math.max(2,w));r.setAttribute("height",Math.max(0,h));r.setAttribute("rx",2);r.setAttribute("fill",renk);
-    var t=document.createElementNS(ns,"title");t.textContent=baslik;r.appendChild(t);svg.appendChild(r);return h;}
-  cizilen.forEach(function(v,i){var x0=p+i*bw+4,w=(bw-8)/2,cx=p+i*bw+bw/2;
-    var h1=cubuk(x0,w-1,v.hesap,v.durum==="kotu"?"var(--kotu)":"var(--mavi)",tarihTr(v.gun)+": kesilecek "+para(v.hesap));
-    var h2=cubuk(x0+w+1,w-1,v.kesilen,"var(--mavi-koyu)",tarihTr(v.gun)+": kesilen "+para(v.kesilen));
-    if(v.hesap||v.kesilen)yaz(cx,H-alt-Math.max(h1,h2)-6,kisa(Math.max(v.hesap,v.kesilen)),"deger-yazi");
-    var d=new Date(v.gun+"T00:00:00Z");yaz(cx,H-alt+16,GUNLER[d.getUTCDay()]+" "+d.getUTCDate());
-    yaz(cx,H-alt+30,v.kayit?"✓ kayıtlı":(v.durum==="notr"?"sürüyor":(v.hesap>0.5?"kayıt yok":"gerekmez")),"adet-yazi");});
-  var lej=el("div",{class:"fis-lejant"},[el("span",null,[el("i",{style:"background:var(--mavi)"}),"Kesilecek (hesap)"]),el("span",null,[el("i",{style:"background:var(--mavi-koyu)"}),"Kesilen (kaydedilen)"]),
-    el("span",null,[el("i",{style:"background:var(--kotu)"}),"Fiş kaydı yok"])]);
-  kap.appendChild(el("div",{class:"grafik"},[lej,svg]));
-  var kay=fisKayitlari().slice(0,14),FK=VERI.fisKayit||{};
-  kap.appendChild(el("div",{style:"margin-top:18px"},[el("h3",{style:"margin:0 0 8px;font-size:15.5px",text:"Kesilen fişlerin kaydı (son 14)"}),
-    kay.length?tablo([["Gün"],["Online",1],["Düşülen kart",1],["Kesilecek",1],["Fiş",1],["Kesilen",1],["Fark",1],["Not"]],kay.map(function(r){var panel=r.kaynak==="panel",fk=panel?r.kesilen-Math.max(0,r.kesilecek):0;
-      return [tarihTr(r.gun),panel?para(r.online):"—",panel?para(r.masa+r.paket+r.platformKk):"—",panel?para(Math.max(0,r.kesilecek)):"—",r.adet?String(r.adet):"—",el("strong",{text:para(r.kesilen)}),
-        !panel||Math.abs(fk)<1?"—":el("span",{class:"etiket "+(fk<0?"e-kotu":"e-dikkat"),text:(fk>0?"+":"−")+para(Math.abs(fk))}),panel?((r.elle?"Elle düzeltildi. ":"")+(r.not||"")):"Eski tablodan"];}))
-      :bos("Henüz kaydedilmiş fiş yok. İlk kayıtta 'BAP Günlük Fiş Kaydı' tablosu kendiliğinden oluşur."),
+// Dönem özeti: seçilen dönemde hesaplanan fiş, kesilen fiş ve aradaki fark (gün gün).
+var FIS_DONEM="30";
+function fisGecmis(s){var bugun=s.bugun,kap=el("div"),tum=s.fis.gunler.slice().reverse();
+  var DON=[["bugun","Bugün"],["dun","Dün"],["7","Son 7 gün"],["30","Son 30 gün"]];
+  var secili=FIS_DONEM==="bugun"?tum.filter(function(g){return g.gun===bugun;}):FIS_DONEM==="dun"?tum.filter(function(g){return g.gun===s.dun;}):tum.slice(-(+FIS_DONEM));
+  var veri=secili.map(function(g){var k=fisKaydi(g.gun);return {gun:g.gun,hesap:Math.max(0,g.kesilecek),kesilen:k?k.kesilen:0,adet:k?(k.adet||0):0,kayit:k,durum:fisGunDurum(g,bugun)};});
+  kap.appendChild(el("div",{class:"hafta-sec",style:"margin:22px 0 12px"},[el("strong",{text:"Hesaplanan ve kesilen fiş farkı"}),
+    el("div",{class:"sekmeler",style:"margin:0"},DON.map(function(d){return el("button",{type:"button","aria-pressed":FIS_DONEM===d[0]?"true":"false",onclick:function(){FIS_DONEM=d[0];ciz();}},[d[1]]);}))]));
+  var hesap=veri.reduce(function(t,v){return t+v.hesap;},0),kesilen=veri.reduce(function(t,v){return t+v.kesilen;},0),adet=veri.reduce(function(t,v){return t+v.adet;},0);
+  // Fark yalnız fişi kaydedilmiş günlerden hesaplanır; kaydı olmayan günler ayrı kutuda.
+  var kayitli=veri.filter(function(v){return v.kayit;}),kHesap=kayitli.reduce(function(t,v){return t+v.hesap;},0),fark=kayitli.reduce(function(t,v){return t+v.kesilen-v.hesap;},0);
+  var eksik=veri.filter(function(v){return v.durum==="kotu";}),eksikTutar=eksik.reduce(function(t,v){return t+v.hesap;},0);
+  var farkAd=Math.abs(fark)<1?"Fark":(fark<0?"Eksik kesilen":"Fazla kesilen");
+  kap.appendChild(el("div",{class:"rakamlar"},[rakam("Kesilmesi gereken",para(hesap),veri.length>1?veri.length+" günün toplamı":tarihTr(veri[0]?veri[0].gun:bugun)),
+    rakam("Kesilen fiş",para(kesilen),adet?adet+" fiş":"Kayıt yok"),
+    rakam(farkAd,kayitli.length?(Math.abs(fark)<1?"0 ₺":(fark<0?"−":"+")+para(Math.abs(fark))):"—",kayitli.length?kayitli.length+" kayıtlı günde"+(kHesap>0?", hesabın %"+Math.round(Math.abs(fark)/kHesap*100)+"'i":""):"Bu dönemde kayıt yok",!kayitli.length||Math.abs(fark)<1?"":(fark<0?"asagi":"")),
+    rakam("Fişi kaydedilmemiş gün",String(eksik.length),eksik.length?para(eksikTutar)+" kaydı yok":"Hepsi kayıtlı",eksik.length?"asagi":"yukari")]));
+  if(veri.length>1){
+    // Açık çubuk: kesilmesi gereken (kaydı yoksa kırmızı). İçindeki koyu çubuk: kesilen.
+    var W=760,H=220,ust=22,alt=34,p=14,bw=(W-p*2)/veri.length,cok=veri.length>14,max=Math.max.apply(null,veri.map(function(v){return Math.max(v.hesap,v.kesilen);}))||1;
+    var ns="http://www.w3.org/2000/svg",svg=document.createElementNS(ns,"svg");svg.setAttribute("viewBox","0 0 "+W+" "+H);svg.setAttribute("role","img");svg.setAttribute("aria-label","Günlere göre kesilmesi gereken ve kesilen fiş");
+    function yaz(x,y,t,cls){var e=document.createElementNS(ns,"text");e.setAttribute("x",x);e.setAttribute("y",y);e.setAttribute("text-anchor","middle");if(cls)e.setAttribute("class",cls);e.textContent=t;svg.appendChild(e);}
+    function cubuk(x,w,v,renk,baslik){var h=Math.round((H-ust-alt)*v/max);var r=document.createElementNS(ns,"rect");r.setAttribute("x",x);r.setAttribute("y",H-alt-h);r.setAttribute("width",Math.max(1,w));r.setAttribute("height",Math.max(0,h));r.setAttribute("rx",2);r.setAttribute("fill",renk);
+      var t=document.createElementNS(ns,"title");t.textContent=baslik;r.appendChild(t);svg.appendChild(r);return h;}
+    veri.forEach(function(v,i){var x0=p+i*bw+(cok?1.5:4),w=bw-(cok?3:8),cx=p+i*bw+bw/2,fk=v.kesilen-v.hesap;
+      var bas=tarihTr(v.gun)+": gereken "+para(v.hesap)+", kesilen "+para(v.kesilen)+(v.kayit?" (fark "+(fk<0?"−":"+")+para(Math.abs(fk))+")":" (kayıt yok)");
+      var h1=cubuk(x0,w,v.hesap,v.durum==="kotu"?"var(--kotu)":"var(--mavi)",bas),h2=cubuk(x0+w*0.25,w*0.5,v.kesilen,"var(--mavi-koyu)",bas);
+      if(!cok&&(v.hesap||v.kesilen))yaz(cx,H-alt-Math.max(h1,h2)-6,v.kayit&&Math.abs(fk)>=1?(fk<0?"−":"+")+kisa(Math.abs(fk)):kisa(v.hesap),"deger-yazi");
+      var d=new Date(v.gun+"T00:00:00Z");if(!cok||i%3===(veri.length-1)%3)yaz(cx,H-alt+16,cok?String(d.getUTCDate()):GUNLER[d.getUTCDay()]+" "+d.getUTCDate());});
+    var lej=el("div",{class:"fis-lejant"},[el("span",null,[el("i",{style:"background:var(--mavi)"}),"Kesilmesi gereken"]),el("span",null,[el("i",{style:"background:var(--mavi-koyu)"}),"Kesilen"]),
+      el("span",null,[el("i",{style:"background:var(--kotu)"}),"Fiş kaydı yok"]),cok?null:el("span",{text:"Üstteki sayı: kayıtlı günde fark, değilse gereken tutar"})]);
+    kap.appendChild(el("div",{class:"grafik"},[lej,svg]));}
+  var FK=VERI.fisKayit||{},satir=veri.slice().reverse();
+  kap.appendChild(el("div",{style:"margin-top:18px"},[el("h3",{style:"margin:0 0 8px;font-size:15.5px",text:"Gün gün"}),
+    satir.length?tablo([["Gün"],["Kesilmesi gereken",1],["Fiş",1],["Kesilen",1],["Fark",1],["Not"]],satir.map(function(v){var k=v.kayit,fk=v.kesilen-v.hesap;
+      return [tarihTr(v.gun),para(v.hesap),k&&k.adet?String(k.adet):"—",k?el("strong",{text:para(v.kesilen)}):el("span",{class:"etiket "+(v.durum==="kotu"?"e-kotu":"e-notr"),text:v.durum==="kotu"?"kayıt yok":(v.durum==="notr"?"gün sürüyor":"gerekmez")}),
+        !k||Math.abs(fk)<1?"—":el("span",{class:"etiket "+(fk<0?"e-kotu":"e-dikkat"),text:(fk>0?"+":"−")+para(Math.abs(fk))}),
+        k?(k.kaynak==="eski"?"Eski tablodan":((k.elle?"Elle düzeltildi. ":"")+(k.not||""))):""];})):bos("Bu dönemde veri yok."),
     FK.eskiHata?el("p",{class:"fis-not",text:FK.eskiHata}):null,
     el("p",{style:"margin:8px 0 0;display:flex;gap:16px;flex-wrap:wrap"},[FK.link?el("a",{href:FK.link,target:"_blank",rel:"noopener",text:"Fiş kaydı tablosunu aç"}):null,
       FK.eskiLink?el("a",{href:FK.eskiLink,target:"_blank",rel:"noopener",text:"Eski Kesilen Fişler tablosu"}):null])]));

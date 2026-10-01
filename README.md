@@ -34,7 +34,7 @@ Kesilecek fiş = YS + Trendyol online
 - Kurye ödeme yöntemini yanlış girdiyse kutudaki rakam elle düzeltilir (sarı görünür, kayıtta "Elle değişen" sütununa düşer).
 - **Fişi kaydet**: fiş adedi + toplam tutar + not, hesabın dökümüyle birlikte **BAP Günlük Fiş Kaydı › Fisler** tablosuna yazılır (ilk kayıtta kendiliğinden oluşur). Gün başına tek satır; aynı gün tekrar kaydedilirse onay sorup o satırı günceller.
 - **BAP veri tablosu › Kesilen Fişler** (eski kayıtlar) yalnız okunur, hiç yazılmaz; yeni tabloda olmayan günler panelde "Eski tablodan" diye görünür.
-- Son 14 günün grafiği hesaplanan ve kesilen fişi yan yana gösterir; fişi kaydedilmemiş günler kırmızı.
+- **Hesaplanan ve kesilen fiş farkı**: Bugün / Dün / Son 7 gün / Son 30 gün seçilir. Seçilen dönemde kesilmesi gereken toplam, kesilen toplam (fiş adediyle), fark (yalnız fişi kaydedilmiş günlerden) ve kaydı olmayan günler; altında gün gün grafik ve tablo. Fişi kaydedilmemiş günler kırmızı.
 
 ## Yayına alma
 
