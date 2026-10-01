@@ -214,6 +214,11 @@ var GUNLER=["Paz","Pzt","Sal","Çar","Per","Cum","Cmt"];
 function el(tag,attrs,kids){var e=document.createElement(tag);if(attrs){for(var k in attrs){if(attrs[k]==null)continue;if(k==="class")e.className=attrs[k];else if(k==="text")e.textContent=attrs[k];else if(k.indexOf("on")===0)e.addEventListener(k.slice(2),attrs[k]);else e.setAttribute(k,attrs[k]);}}
   (kids||[]).forEach(function(c){if(c==null)return;e.appendChild(typeof c==="string"?document.createTextNode(c):c);});return e;}
 function para(n){return TL.format(Math.round(n||0))+" ₺";}
+// Bordro ve ödemelerde kuruşlu (2 hane) gösterim
+var TL2=new Intl.NumberFormat("tr-TR",{minimumFractionDigits:2,maximumFractionDigits:2});
+function para2(n){return TL2.format(Math.round((n||0)*100)/100)+" ₺";}
+function tlIsaret2(n){n=Math.round((n||0)*100)/100;return n?(n>0?"+":"−")+TL2.format(Math.abs(n))+" ₺":"—";}
+function kurusYaz(n){return (Math.round((n||0)*100)/100).toFixed(2).replace(".",",");}
 function sure(dk){if(dk==null)return "bilinmiyor";if(dk<1)return "az önce";if(dk<60)return dk+" dk önce";var s=Math.round(dk/60);if(s<48)return s+" saat önce";return Math.round(s/24)+" gün önce";}
 function gunAd(g){var d=new Date(g+"T00:00:00Z");return d.getUTCDate()+" "+AYLAR[d.getUTCMonth()];}
 function tazelik(k){if(k.hata||k.dakika==null)return "kotu";if(k.dakika<=k.beklenenDk)return "iyi";if(k.dakika<=k.beklenenDk*3)return "dikkat";return "kotu";}
@@ -735,7 +740,7 @@ function bordroExcel(B){
     x.normal,sa(x.uzamaDk),x.uzamaTl,sa(x.offDk),x.offTl,x.gun.resmi,x.resmi,sa(x.eksikDk),x.gun.yi,x.gun.rap,x.raporTl||0,x.gun.ui,x.ucretsizTl,x.gun.dev,x.devamsizTl,
     x.hakedis,x.aySonu,x.avans?-x.avans:0,x.masraf,x.mahsup,x.net,x.odenen?-x.odenen:0,x.kalan,x.kalan>0?x.asgari:0,x.kalan>0?x.diger:0,x.sgkPrim];});
   var T=B.toplam;R.push(["TOPLAM","","","","","","",T.tamMaas,"","",T.maas,"","",T.normal,sa(T.uzamaDk),T.uzamaTl,sa(T.offDk),T.offTl,"",T.resmi,sa(T.eksikDk),"","","","","","","",T.hakedis,T.aySonu,T.avans?-T.avans:0,T.masraf,T.mahsup,T.net,T.odenen?-T.odenen:0,T.kalan,T.asgari,T.diger,T.sgkPrim]);
-  function hucre(v){if(v==null)return "";if(typeof v==="number")return String(Math.round(v*100)/100).replace(".",",");v=String(v);return /[";\n]/.test(v)?'"'+v.replace(/"/g,'""')+'"':v;}
+  function hucre(v){if(v==null)return "";if(typeof v==="number")return Number.isInteger(v)?String(v):kurusYaz(v);v=String(v);return /[";\n]/.test(v)?'"'+v.replace(/"/g,'""')+'"':v;}
   var metin="﻿"+[bas].concat(R).map(function(r){return r.map(hucre).join(";");}).join("\r\n");
   var url=URL.createObjectURL(new Blob([metin],{type:"text/csv;charset=utf-8"}));var l=el("a",{href:url,download:"BAP_Bordro_"+B.ay+".csv"});document.body.appendChild(l);l.click();
   setTimeout(function(){URL.revokeObjectURL(url);l.remove();},1000);}
@@ -745,14 +750,14 @@ function ibanHucre(x){if(!x.iban)return el("span",{style:"color:var(--kotu);font
   var d=el("button",{type:"button",class:"dugme",style:"padding:2px 8px;font-size:12px;margin-left:6px",onclick:function(){kopyala(x.iban.replace(/\s+/g,""),d,"Kopyala");}},["Kopyala"]);
   return el("span",{style:"white-space:nowrap;font-family:ui-monospace,Menlo,monospace;font-size:13px"},[x.iban,d]);}
 // Bu ay ödenecekler: ad, hesap adı, IBAN, tutar (asgari/diğer ayrı); tek tuşla sekmeyle ayrılmış liste olarak kopyalanır (Excel'e / bankaya yapıştırmak için).
-function odemeListesi(B){var L=B.kisiler.filter(function(x){return x.kalan>1;});
-  var satir=L.map(function(x){return [x.ad,x.hesapAdi||"",x.iban||"IBAN YOK",x.kalan,x.sgk?x.asgari:0,x.sgk?x.diger:x.kalan];});
+function odemeListesi(B){var para=para2;var L=B.kisiler.filter(function(x){return x.kalan>1;});
+  var satir=L.map(function(x){return [x.ad,x.hesapAdi||"",x.iban||"IBAN YOK",kurusYaz(x.kalan),kurusYaz(x.sgk?x.asgari:0),kurusYaz(x.sgk?x.diger:x.kalan)];});
   var top=L.reduce(function(t,x){return t+x.kalan;},0),eksik=L.filter(function(x){return !x.iban;}).length;
   var d=el("button",{type:"button",class:"dugme ana-dugme",onclick:function(){kopyala(["Personel\tHesap adı\tIBAN\tKalan ödenecek\tAsgari (banka)\tDiğer"].concat(satir.map(function(r){return r.join("\t");})).join("\n"),d,"Listeyi kopyala");}},["Listeyi kopyala"]);
   return blok("Bu ay ödenecekler — "+ayAd(B.ay),L.length+" kişi, toplam "+para(top)+(eksik?" · "+eksik+" kişinin IBAN'ı yok":"")+". ‘Listeyi kopyala’ ad, hesap adı, IBAN ve tutarları Excel'e ya da bankanın toplu ödeme ekranına yapıştırılacak biçimde kopyalar. IBAN geçici olarak açık (veri kapısında IBAN_GOSTER).",
     el("div",null,[el("p",{style:"margin:0 0 10px"},[d]),L.length?tablo([["Personel"],["Hesap adı"],["IBAN"],["Kalan ödenecek",1],["Asgari (banka)",1],["Diğer",1]],L.map(function(x){return [x.ad,x.hesapAdi||"—",ibanHucre(x),el("strong",{text:para(x.kalan)}),x.sgk?para(x.asgari):"—",para(x.sgk?x.diger:x.kalan)];})):bos("Bu ay ödenecek kalan yok.")]));}
 // Kişinin bordrosunun adım adım dökümü (hangi sayı nereden geldi)
-function hesapDokumu(x,B){var sa=x.saatlik,g=x.gunluk,kes=x.gun.ui+x.gun.dev+x.raporKesGun,adim=[];
+function hesapDokumu(x,B){var para=para2,TL=TL2;var sa=x.saatlik,g=x.gunluk,kes=x.gun.ui+x.gun.dev+x.raporKesGun,adim=[];
   function s(ad,hesap,tutar,cls){adim.push([ad,hesap,tutar==null?"":(typeof tutar==="string"?tutar:(tutar<0?"−":tutar>0&&cls!=="esit"?"+":"")+para(Math.abs(tutar)))]);}
   s("Baz maaş",para(x.maas)+(x.baz<x.maas-1?" × "+x.ucretliAy+"/"+B.gunSayisi+" gün (kıst) = "+para(x.baz):"")+" · ayın günü "+B.gunSayisi+" → günlük "+TL.format(g)+" ₺, saatlik "+String(sa).replace(".",",")+" ₺",null);
   s("Normal mesai",x.ucretliAy+" ücretli gün"+(kes?" − "+kes+" kesilen gün ("+[x.gun.ui?x.gun.ui+" ücretsiz izin":"",x.gun.dev?x.gun.dev+" devamsızlık":"",x.raporKesGun?x.raporKesGun+" rapor (3 günü aşan)":""].filter(Boolean).join(", ")+")":"")+" = "+(x.ucretliAy-kes)+" gün × "+TL.format(g)+" ₺"+(B.kapandi?"":" (ay sonuna kadar)"),x.aySonu-x.fazla-x.resmi,"esit");
@@ -773,7 +778,7 @@ function hesapDokumu(x,B){var sa=x.saatlik,g=x.gunluk,kes=x.gun.ui+x.gun.dev+x.r
     el("tbody",null,adim.map(function(r){return el("tr",null,[el("td",{style:"font-weight:600",text:r[0]}),el("td",{style:"color:var(--gri);white-space:normal",text:r[1]}),el("td",{class:"sag",style:"font-weight:600",text:r[2]})]);}))])]);}
 function iki(ust,alt,cls){return el("div",{class:cls||null},[ust,alt?el("small",{text:alt}):null]);}
 function tlIsaret(n){n=Math.round(n||0);return n?(n>0?"+":"−")+TL.format(Math.abs(n))+" ₺":"—";}
-function bordroSayfa(a,p){var LB=p.bordro||[];if(!LB.length||!LB[0].kisiler)return a.appendChild(bos("Bordro verisi yok. Veri kapısı yeni sürüm olarak yayınlandı mı?"));
+function bordroSayfa(a,p){var para=para2,tlIsaret=tlIsaret2;var LB=p.bordro||[];if(!LB.length||!LB[0].kisiler)return a.appendChild(bos("Bordro verisi yok. Veri kapısı yeni sürüm olarak yayınlandı mı?"));
   var aylar=LB.map(function(b){return b.ay;});if(aylar.indexOf(BRD_AY)<0)BRD_AY=aylar[0];var B=LB[aylar.indexOf(BRD_AY)],T=B.toplam,buAy=B.ay===aylar[0];
   a.appendChild(el("div",{class:"hafta-sec"},[el("div",{class:"sekmeler",style:"margin:0"},LB.map(function(b){return el("button",{type:"button","aria-pressed":BRD_AY===b.ay?"true":"false",onclick:function(){BRD_AY=b.ay;ciz();}},[ayAd(b.ay)+" "+b.ay.slice(0,4)]);})),
     el("span",{style:"color:var(--gri);font-size:14px",text:B.kapandi?"Ay kapandı":("Bugüne kadar: "+tarihTr(B.kadar)+" · "+B.gunSayisi+" günlük ay")}),
@@ -804,7 +809,7 @@ function bordroSayfa(a,p){var LB=p.bordro||[];if(!LB.length||!LB[0].kisiler)retu
   var satirlar=B.kisiler.map(function(x){var G=x.gecenAy;
     return [iki(el("span",null,[el("button",{type:"button",class:"ad-dugme",title:"Hesap dökümünü aç",onclick:function(){BRD_ACIK[B.ay+"|"+x.ad]=!BRD_ACIK[B.ay+"|"+x.ad];ciz();}},[(BRD_ACIK[B.ay+"|"+x.ad]?"▾ ":"▸ ")+x.ad]),x.ayrildi?el("span",{class:"etiket e-notr",style:"margin-left:6px",text:"Ayrıldı "+tarihTr(x.cikis)}):null,x.giris?el("span",{class:"etiket e-notr",style:"margin-left:6px",text:"Giriş "+tarihTr(x.giris)}):null,
       B.ibanAcik?el("div",{style:"margin-top:4px;font-size:12px;line-height:1.5"},[ibanHucre(x),x.hesapAdi?el("div",{style:"color:var(--gri)",text:"Hesap sahibi: "+x.hesapAdi}):null]):null]),(x.ucretliAy<B.gunSayisi?x.ucretliAy+" gün kıst":"")+(x.eskiVeri&&(x.eskiVeri.calismayan||x.eskiVeri.rap||x.eskiVeri.yi)?(x.ucretliAy<B.gunSayisi?" · ":"")+"eski kayıt: "+[x.eskiVeri.calismayan?x.eskiVeri.calismayan+" çalışılmayan":"",x.eskiVeri.rap?x.eskiVeri.rap+" rapor":"",x.eskiVeri.yi?x.eskiVeri.yi+" yıllık izin":""].filter(Boolean).join(", "):"")||null),
-      x.sube,x.sgk?"SGK'lı":"—",iki(para(x.baz),x.baz<x.maas-1?"tam "+para(x.maas)+" · "+x.ucretliAy+"/"+B.gunSayisi+" gün":TL.format(x.gunluk)+" ₺/gün"),iki(para(x.normal),x.ucretliGun+" gün"),
+      x.sube,x.sgk?"SGK'lı":"—",iki(para(x.baz),x.baz<x.maas-1?"tam "+para(x.maas)+" · "+x.ucretliAy+"/"+B.gunSayisi+" gün":TL2.format(x.gunluk)+" ₺/gün"),iki(para(x.normal),x.ucretliGun+" gün"),
       x.uzamaTl||x.eksikDk?iki(x.uzamaTl?"+"+para(x.uzamaTl):"—",(x.uzamaDk?"+"+dkYaz(x.uzamaDk)+" · "+x.uzamaGun+" gün":"")+(x.eksikDk?(x.uzamaDk?" · ":"")+"eksik "+dkYaz(x.eksikDk):"")):"—",
       x.offTl?iki("+"+para(x.offTl),x.offGun+" gün · "+dkYaz(x.offDk)):"—",
       x.resmi?iki("+"+para(x.resmi),x.gun.resmi+" gün"):"—",gunHucre(x.gun.yi,0),gunHucre(x.gun.rap,x.raporTl,x.raporKesGun?" ("+x.raporKesGun+" kesilir)":""),gunHucre(x.gun.ui,x.ucretsizTl),gunHucre(x.gun.dev,x.devamsizTl),

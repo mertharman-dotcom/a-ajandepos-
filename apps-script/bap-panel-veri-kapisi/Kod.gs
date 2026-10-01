@@ -1164,6 +1164,9 @@ function eskiBul_(E, ad) {
   return bul;
 }
 
+// Para tutarları kuruş hassasiyetinde (2 hane) tutulur; banka ödemesi kuruşlu yapılır.
+function kr_(x) { return Math.round((Number(x) || 0) * 100) / 100; }
+
 function bordro_(V, ay, bugun, planli) {
   var yil = +ay.slice(0, 4), aNo = +ay.slice(5, 7), gunSay = new Date(Date.UTC(yil, aNo, 0)).getUTCDate();
   var ilk = ay + '-01', son = ay + '-' + ('0' + gunSay).slice(-2), kadar = bugun < son ? bugun : son;
@@ -1212,15 +1215,15 @@ function bordro_(V, ay, bugun, planli) {
     // Net hak ediş = ay sonu − avans + masraf ± geçen ay mahsubu; kalan = net − bu ay ödenen; asgari/diğer kalandan bölünür.
     var net = aySonu - am.avans + am.masraf + (am.mahsup || 0), od = odenen[p.k] || 0, kalan = net - od;
     var asgari = p.sgk ? Math.min(ASGARI_NET, Math.max(0, kalan)) : 0;
-    kisiler.push({ ad: p.ad, sube: p.sube, sgk: p.sgk, sgkPrim: p.sgk ? Math.round(SGK_ISVEREN * ucretliAy / gunSay) : 0, aktif: p.aktif, ayrildi: !!p.cikis && p.cikis <= son, cikis: p.cikis, giris: p.giris && p.giris >= ilk ? p.giris : '',
-      maas: Math.round(p.maas), baz: Math.round(gunluk * ucretliAy), gunluk: Math.round(gunluk), saatlik: Math.round(saatlik * 100) / 100, ucretliGun: ucretliBugune, ucretliAy: ucretliAy,
+    kisiler.push({ ad: p.ad, sube: p.sube, sgk: p.sgk, sgkPrim: p.sgk ? kr_(SGK_ISVEREN * ucretliAy / gunSay) : 0, aktif: p.aktif, ayrildi: !!p.cikis && p.cikis <= son, cikis: p.cikis, giris: p.giris && p.giris >= ilk ? p.giris : '',
+      maas: Math.round(p.maas), baz: kr_(gunluk * ucretliAy), gunluk: kr_(gunluk), saatlik: Math.round(saatlik * 100) / 100, ucretliGun: ucretliBugune, ucretliAy: ucretliAy,
       gun: n, calisilanGun: n.calisilan, saat: Math.round(topSn / 360) / 10, fazlaDk: Math.round(fazSn / 60), eksikDk: Math.round(eksikSn / 60),
-      uzamaDk: Math.round(uzamaSn / 60), uzamaTl: Math.round(uzamaTl), uzamaGun: n.uzamaGun, offDk: Math.round(offSn / 60), offTl: Math.round(offTl), offGun: n.offCalisma,
-      yillikTl: Math.round(n.yi * gunluk), raporKesGun: raporKes, raporTl: -Math.round(raporKes * gunluk), ucretsizTl: -Math.round(n.ui * gunluk), devamsizTl: -Math.round(n.dev * gunluk),
-      normal: Math.round(normal), fazla: Math.round(fazla), resmi: Math.round(resmiTl),
-      hakedis: Math.round(normal + fazla + resmiTl), aySonu: Math.round(aySonu), avans: Math.round(am.avans), masraf: Math.round(am.masraf), masrafBekleyen: Math.round(am.bekleyen),
-      mahsup: Math.round(am.mahsup || 0), net: Math.round(net), kalan: Math.round(kalan), asgari: Math.round(asgari), diger: Math.round(Math.max(0, kalan - asgari)),
-      ibanVar: p.ibanVar, iban: p.iban, hesapAdi: p.hesapAdi, odenen: Math.round(odenen[p.k] || 0),
+      uzamaDk: Math.round(uzamaSn / 60), uzamaTl: kr_(uzamaTl), uzamaGun: n.uzamaGun, offDk: Math.round(offSn / 60), offTl: kr_(offTl), offGun: n.offCalisma,
+      yillikTl: kr_(n.yi * gunluk), raporKesGun: raporKes, raporTl: -kr_(raporKes * gunluk), ucretsizTl: -kr_(n.ui * gunluk), devamsizTl: -kr_(n.dev * gunluk),
+      normal: kr_(normal), fazla: kr_(fazla), resmi: kr_(resmiTl),
+      hakedis: kr_(normal + fazla + resmiTl), aySonu: kr_(aySonu), avans: kr_(am.avans), masraf: kr_(am.masraf), masrafBekleyen: kr_(am.bekleyen),
+      mahsup: kr_(am.mahsup || 0), net: kr_(net), kalan: kr_(kalan), asgari: kr_(asgari), diger: kr_(Math.max(0, kr_(kalan) - kr_(asgari))),
+      ibanVar: p.ibanVar, iban: p.iban, hesapAdi: p.hesapAdi, odenen: kr_(odenen[p.k] || 0),
       eskiVeri: eskiK ? { calismayan: eskiK.calismayan, rap: eskiK.rap, yi: eskiK.yi } : null, puantajVar: !!ayKaydi });
   });
   // Puantajda bu ay kaydı olup personel listesinde (ya da maaşı) olmayanlar
@@ -1232,7 +1235,8 @@ function bordro_(V, ay, bugun, planli) {
       t.kesinti += -(x.ucretsizTl + x.devamsizTl + x.raporTl); t.eksikDk += x.eksikDk; t.fazlaDk += x.fazlaDk;
       t.sgkPrim += x.sgkPrim; if (x.sgk) t.sgkKisi++;
       t.avans += x.avans; t.masraf += x.masraf; t.mahsup += x.mahsup; t.net += x.net; t.kalan += x.kalan; t.asgari += x.asgari; t.diger += x.diger;
-      t.uzamaTl += x.uzamaTl; t.uzamaDk += x.uzamaDk; t.offTl += x.offTl; t.offDk += x.offDk; t.offGun += x.offGun; if (x.offGun) t.offKisi++; if (x.uzamaDk) t.uzamaKisi++; }); return t; }
+      t.uzamaTl += x.uzamaTl; t.uzamaDk += x.uzamaDk; t.offTl += x.offTl; t.offDk += x.offDk; t.offGun += x.offGun; if (x.offGun) t.offKisi++; if (x.uzamaDk) t.uzamaKisi++; });
+    ['maas', 'normal', 'fazla', 'resmi', 'hakedis', 'aySonu', 'odenen', 'kesinti', 'sgkPrim', 'avans', 'masraf', 'mahsup', 'net', 'kalan', 'asgari', 'diger', 'uzamaTl', 'offTl'].forEach(function (k) { t[k] = kr_(t[k]); }); return t; }
   var subeler = {}; kisiler.forEach(function (x) { (subeler[x.sube || 'Belirtilmemiş'] = subeler[x.sube || 'Belirtilmemiş'] || []).push(x); });
   var aktifler = V.personel.filter(function (p) { return p.aktif && p.maas > 0; });
   var bugunGider = 0;
