@@ -963,7 +963,8 @@ function personel_() {
   out.ucret = { sgkIsveren: SGK_ISVEREN, fazlaBolen: FAZLA_BOLEN, kisi: {} };
   bv.personel.forEach(function (p) { if (!(p.maas > 0)) return; var o = out.ucret.kisi[p.k]; if (o && o.aktif && !p.aktif) return;
     out.ucret.kisi[p.k] = { maas: Math.round(p.maas), sgk: p.sgk, aktif: p.aktif, giris: p.giris, cikis: p.cikis }; });
-  out.bordro = [ay, gecenAy].map(function (a) { return bordro_(bv, a, bugun, planli); });
+  var bAylar = [ay]; for (var bi = 1; bi < BORDRO_AY_SAYISI; bi++) bAylar.push(gunEkle_(bAylar[bi - 1] + '-01', -1).slice(0, 7));
+  out.bordro = bAylar.map(function (a) { return bordro_(bv, a, bugun, planli); }); // [0] bu ay, [1] geçen ay (mahsup önerisi buna bakar)
   // Geçen ayın farkı (ödenen − net hak ediş): mahsup önerisi olarak bu ayın satırına bilgi düşülür
   var gk = {}; (out.bordro[1].kisiler || []).forEach(function (x) { gk[norm_(x.ad)] = x; });
   (out.bordro[0].kisiler || []).forEach(function (x) { var g = gk[norm_(x.ad)]; if (g && g.odenen) x.gecenAy = { net: g.net, odenen: g.odenen, fark: g.odenen - g.net }; });
@@ -973,7 +974,7 @@ function personel_() {
   out.bordroTrend = [];
   for (var t = 5; t >= 0; t--) {
     var m = ay; for (var z = 0; z < t; z++) m = gunEkle_(m + '-01', -1).slice(0, 7);
-    if (!bv.aylar[m]) continue; // puantajı olmayan ay (QR sistemi öncesi) hesaplanmaz
+    if (!bv.aylar[m] && !bv.eski[m]) continue; // ne puantajı ne eski fazla mesai kaydı olan ay hesaplanmaz
     var B = bordro_(bv, m, bugun, planli);
     out.bordroTrend.push({ ay: m, normal: B.toplam.normal, fazla: B.toplam.fazla, resmi: B.toplam.resmi, aySonu: B.toplam.aySonu, odenen: B.toplam.odenen, kisi: B.kisiler.length });
   }
@@ -991,6 +992,7 @@ function personel_() {
  *  - SGK'lı personele asgari ücret bankadan, kalanı "diğer" olarak ödenir.
  * Aynı kişi aynı güne birden fazla satır varsa en üstteki (en yeni) kullanılır.
  */
+var BORDRO_AY_SAYISI = 4;   // bordro sekmesinde ayrıntılı gösterilen ay sayısı (bu ay dahil)
 var ASGARI_NET = 28076;      // 2026 net asgari ücret (SGK'lı personelin bankadan ödenen kısmı)
 var SGK_ISVEREN = 7845;      // kişi başı aylık SGK işveren payı
 var FAZLA_BOLEN = 10;        // saatlik = günlük / 10
@@ -1079,7 +1081,19 @@ function bordroIso_(s) { var ms = zaman_(s); return ms === null ? '' : new Date(
 
 // Bordro için gereken sekmeleri bir kez okur.
 function bordroVeri_(ss) {
-  var V = { tatil: {}, pu: {}, aylar: {}, odenen: {}, personel: [], am: {} };
+  var V = { tatil: {}, pu: {}, aylar: {}, odenen: {}, personel: [], am: {}, eski: {} };
+  // QR öncesi aylar: 'Fazla mesailer eski data' sekmesi (gün başına satır; Net Fazla Mesai, İzin Gününde Çalışma, Ay)
+  var es = ss.getSheets().filter(function (sh) { var n = norm_(sh.getName()); return n.indexOf('fazlamesai') >= 0 && n.indexOf('eski') >= 0; })[0];
+  if (es && es.getLastRow() > 1) { var ev = es.getDataRange().getDisplayValues(), eb = ev[0], buAyE = isGunu_(simdi_()).slice(0, 7);
+    var ce = { ad: kolon_(eb, ['İsim Soyisim']), net: kolon_(eb, ['Net Fazla Mesai']), ay: kolon_(eb, ['Ay']), giris: kolon_(eb, ['Mesai Günü İşe Giriş']),
+               izin: kolon_(eb, ['İzin Gününde Çalışma']), cal: kolon_(eb, ['Çalışılmayan Gün']), rap: kolon_(eb, ['Rapor']), yi: kolon_(eb, ['Yıllık İzin']) };
+    ev.slice(1).forEach(function (r) { var ad = String(r[ce.ad] || '').trim(); if (!ad) return;
+      var gun = ce.giris >= 0 ? bordroIso_(r[ce.giris]) : '', m = gun ? gun.slice(0, 7) : (ce.ay >= 0 ? ayCoz_(r[ce.ay], buAyE) : ''); if (!m) return;
+      var A = V.eski[m] = V.eski[m] || {}, k = norm_(ad), x = A[k] = A[k] || { ad: ad, uzama: 0, off: 0, offGun: 0, calismayan: 0, rap: 0, yi: 0 };
+      var net = sureSn_(r[ce.net]) || 0, offMu = ce.izin >= 0 && String(r[ce.izin]).trim() !== '';
+      if (net > 0) { if (offMu) { x.off += net; x.offGun++; } else x.uzama += net; }
+      function f(j) { return j >= 0 && String(r[j]).trim() !== ''; }
+      if (f(ce.cal)) x.calismayan++; if (f(ce.rap)) x.rap++; if (f(ce.yi)) x.yi++; }); }
   // Avans / masraf: ay → kişi → { avans, masraf, kalemler[] }. 'Bekliyor' / 'Reddedildi' durumundakiler bordroya girmez.
   var am = ss.getSheetByName(AVANS_SEKME);
   if (am && am.getLastRow() > 1) { var av = am.getDataRange().getDisplayValues(), ab = av[0];
@@ -1122,6 +1136,15 @@ function bordroVeri_(ss) {
   return V;
 }
 
+// Eski kayıttaki ad ("Ece Naz Ayverdi", "Güllü Bulaşıkçı") ile personel adını eşleştirir: tam eşit ya da ilk ad aynı ve soyad aynı/yok.
+function eskiBul_(E, ad) {
+  if (!E) return null; var k = norm_(ad); if (E[k]) return E[k];
+  var p = String(ad).trim().split(/\s+/).map(norm_), bul = null;
+  Object.keys(E).forEach(function (ek) { if (bul) return; var q = String(E[ek].ad).trim().split(/\s+/).map(norm_);
+    if (p[0] === q[0] && (p.length === 1 || q.length === 1 || p[p.length - 1] === q[q.length - 1])) bul = E[ek]; });
+  return bul;
+}
+
 function bordro_(V, ay, bugun, planli) {
   var yil = +ay.slice(0, 4), aNo = +ay.slice(5, 7), gunSay = new Date(Date.UTC(yil, aNo, 0)).getUTCDate();
   var ilk = ay + '-01', son = ay + '-' + ('0' + gunSay).slice(-2), kadar = bugun < son ? bugun : son;
@@ -1143,8 +1166,9 @@ function bordro_(V, ay, bugun, planli) {
   });
   V.personel.filter(function (p) { return (grup[p.k] || []).indexOf(p) >= 0; }).forEach(function (p) {
     var P = V.pu[p.k], ayKaydi = P && Object.keys(P.gunler).some(function (d) { return d >= ilk && d <= son; });
-    if (!p.aktif && !p.cikis && !ayKaydi) return;          // pasif ve bu ay kaydı yok
-    if (!p.giris && !ayKaydi && ay < bugun.slice(0, 7) && !odenen[p.k]) return; // giriş tarihi bilinmiyor, o ay izi yok
+    var iz = ayKaydi || !!eskiBul_(V.eski[ay], p.ad) || !!odenen[p.k]; // o ay çalıştığına dair iz: puantaj, eski fazla mesai kaydı ya da ödeme
+    if (!p.aktif && !p.cikis && !iz) return;          // pasif ve bu ay izi yok
+    if (!p.giris && !iz && ay < bugun.slice(0, 7)) return; // giriş tarihi bilinmiyor, o ay izi yok
     gorulen[p.k] = 1;
     var bas = p.giris && p.giris > ilk ? p.giris : ilk, bitis = p.cikis && p.cikis < son ? p.cikis : son;
     var gunluk = p.maas / gunSay, saatlik = gunluk / FAZLA_BOLEN;
@@ -1159,6 +1183,9 @@ function bordro_(V, ay, bugun, planli) {
       // Fazla mesai iki ayrı iş: normal günde vardiyadan uzun kalma ve off gününde çağırıp çalıştırma.
       if (x.faz > 0) { fazSn += x.faz; if (x.off) offSn += x.faz; else uzamaSn += x.faz; if (!x.off) n.uzamaGun++; } else if (x.faz < 0) eksikSn += -x.faz;
     });
+    // Bu ay puantajı yoksa (QR öncesi) fazla mesai eski kayıttan; izin/devamsızlık kesintisi bilinmez (bilgi olarak gösterilir)
+    var eskiK = !ayKaydi ? eskiBul_(V.eski[ay], p.ad) : null;
+    if (eskiK) { uzamaSn += eskiK.uzama; offSn += eskiK.off; fazSn += eskiK.uzama + eskiK.off; n.offCalisma += eskiK.offGun; }
     var raporKes = Math.max(0, n.rap - 3), kesGun = n.ui + n.dev + raporKes;
     var normal = Math.max(0, ucretliBugune - kesGun) * gunluk, normalAy = Math.max(0, ucretliAy - kesGun) * gunluk;
     var fazla = fazSn / 3600 * saatlik, resmiTl = n.resmi * gunluk, uzamaTl = uzamaSn / 3600 * saatlik, offTl = offSn / 3600 * saatlik;
@@ -1174,7 +1201,8 @@ function bordro_(V, ay, bugun, planli) {
       normal: Math.round(normal), fazla: Math.round(fazla), resmi: Math.round(resmiTl),
       hakedis: Math.round(normal + fazla + resmiTl), aySonu: Math.round(aySonu), avans: Math.round(am.avans), masraf: Math.round(am.masraf), masrafBekleyen: Math.round(am.bekleyen),
       mahsup: Math.round(am.mahsup || 0), net: Math.round(net), kalan: Math.round(kalan), asgari: Math.round(asgari), diger: Math.round(Math.max(0, kalan - asgari)),
-      ibanVar: p.ibanVar, odenen: Math.round(odenen[p.k] || 0) });
+      ibanVar: p.ibanVar, odenen: Math.round(odenen[p.k] || 0),
+      eskiVeri: eskiK ? { calismayan: eskiK.calismayan, rap: eskiK.rap, yi: eskiK.yi } : null, puantajVar: !!ayKaydi });
   });
   // Puantajda bu ay kaydı olup personel listesinde (ya da maaşı) olmayanlar
   var eksik = Object.keys(V.pu).filter(function (k) { return !gorulen[k] && Object.keys(V.pu[k].gunler).some(function (d) { return d >= ilk && d <= son; }); }).map(function (k) { return V.pu[k].ad; });
@@ -1193,6 +1221,7 @@ function bordro_(V, ay, bugun, planli) {
   var kalemler = []; Object.keys(AM).forEach(function (k) { kalemler = kalemler.concat(AM[k].kalemler); });
   kalemler.sort(function (a, b) { return a.gun < b.gun ? 1 : -1; });
   return { ay: ay, gunSayisi: gunSay, kadar: kadar, kapandi: bugun > son, kisiler: kisiler, toplam: topla(kisiler), avansKalemleri: kalemler.slice(0, 80),
+    puantajVar: !!V.aylar[ay], eskiVeriVar: !!V.eski[ay],
     subeler: Object.keys(subeler).sort().map(function (k) { return { ad: k, toplam: topla(subeler[k]) }; }), eksikPersonel: eksik,
     butce: Math.round(aktifler.reduce(function (s, p) { return s + p.maas; }, 0)), sgkSayi: aktifler.filter(function (p) { return p.sgk; }).length, sgkIsveren: SGK_ISVEREN,
     bugunGider: Math.round(bugunGider), bugunKisi: (planli || []).filter(function (p) { return p.calisacak; }).length, asgariNet: ASGARI_NET };
