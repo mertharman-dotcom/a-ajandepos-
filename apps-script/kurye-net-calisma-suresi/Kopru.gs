@@ -37,6 +37,11 @@
  *   - Kuyruk sırası: bugün/dün → yeniden çekilecek ve hiç çekilmemiş günler →
  *     açık hesap / açık vardiya tazelemesi. Eskiden açık hesabı olan çok gün
  *     varsa 10'luk kuyruğu doldurup eksik günlerin sırasını hiç getirmiyordu.
+ *   - Kurye listesi her çalışmada HemenYolda'dan yeniden alınır; eskiden
+ *     kaydedilmiş liste yeni eklenen kuryeyi hiç sormuyordu.
+ *   - Kutuda bu turda işlenen günler ve kalan eksik gün sayısı yazar.
+ *     Bugün/dün her turda tazelendiği için "Eksik gün yok" yazısı çıkmaz;
+ *     bitiş işareti "EKSIK GUN KALMADI"dır.
  * ============================================================
  */
 
@@ -102,8 +107,8 @@ function kopruGunleriYenidenCek(tarihler) {
   });
   PropertiesService.getScriptProperties().setProperty('KOPRU_ZORLA_GUNLER', JSON.stringify(z));
   var m = n + ' gün yeniden çekilmek üzere işaretlendi (toplam bekleyen: ' + Object.keys(z).length + ').\n' +
-          'Şimdi köprü kodunu HemenYolda panelinde çalıştır. Gün sayısı çoksa kod her seferinde 10 gün işler; ' +
-          '"Eksik gün yok" diyene kadar tekrar çalıştır.';
+          'Şimdi köprü kodunu HemenYolda panelinde çalıştır. Kod her seferinde en fazla 8 işaretli gün işler; ' +
+          'kutuda "EKSIK GUN KALMADI" yazana kadar tekrar çalıştır.';
   Logger.log(m);
   try { SpreadsheetApp.getUi().alert('Yeniden çekim', m, SpreadsheetApp.getUi().ButtonSet.OK); } catch (e) {}
   return m;
@@ -141,7 +146,9 @@ function _kopruGet(e) {
       if (k) kuryeler = JSON.parse(k);
     } catch (err) { kuryeler = null; }
 
-    var gunler = _eksikGunler(Number(p.enfazla || 25));
+    var detay = _kuyrukDetay();
+    var gunler = detay.once.concat(detay.eksik, detay.tazele).slice(0, Number(p.enfazla || 25));
+    var kalanEksik = detay.eksik.filter(function (g) { return gunler.indexOf(g) < 0; }).length;
 
     // Siparis istegi ATLANABILECEK gunler:
     //   - bugun/dun DEGIL  (durumlar hala degisiyor)
@@ -163,8 +170,12 @@ function _kopruGet(e) {
     return _kopruYanit({
       ok: true,
       base: BASE,
-      kuryeler: (kuryeler && kuryeler.length) ? kuryeler : null,
+      // 1.2: kurye listesi her calismada HemenYolda'dan tazelenir (kayitli liste yeni kuryeyi kacirmasin).
+      kuryeler: null,
+      kayitliKurye: (kuryeler && kuryeler.length) || 0,
       gunler: gunler,
+      eksikBuTur: detay.eksik.filter(function (g) { return gunler.indexOf(g) > -1; }).length,
+      kalanEksik: kalanEksik,
       sipHazir: hazir
     });
   }
@@ -431,6 +442,12 @@ function _trArtiGun(tr, n) {
  * 10'luk kuyrugu doldurup eksik gunlerin sirasini hic getirmiyordu.
  */
 function _eksikGunler(enFazla) {
+  var d = _kuyrukDetay();
+  return d.once.concat(d.eksik, d.tazele).slice(0, enFazla || 25);
+}
+
+/** Kuyrugu uc gruba ayirir: once (bugun/dun), eksik (hic cekilmemis / yeniden cekilecek), tazele. */
+function _kuyrukDetay() {
   var ss = SpreadsheetApp.openById(SS_ID);
   var sh = ss.getSheetByName(SHEET_MESAI);
   var islenmis = {}, acikGun = {};
@@ -466,7 +483,7 @@ function _eksikGunler(enFazla) {
     if (acikGun[t] || acikHesap[t]) tazele.push(x);                // vardiya / hesap açık
   });
 
-  return once.concat(eksik, tazele).slice(0, enFazla || 25);
+  return { once: once, eksik: eksik, tazele: tazele };
 }
 
 // ---------- KULLANICIYA KODU GOSTER ----------
@@ -604,6 +621,9 @@ function _kopruIstemciKodu(url, anahtar) {
 "",
 "  var g = p.gunler || [];",
 "  if (!g.length) { yaz('Eksik gun yok. Tablo guncel.'); return; }",
+"  var trG = function(x){ return x.slice(8,10) + '.' + x.slice(5,7); };",
+"  yaz('Bu tur ' + g.length + ' gun: ' + g.map(trG).join(', ') + NLC + 'kurye sayisi: ' + kur.length);",
+"  await uyu(2500);",
 "",
 "  var tm = 0, ts = 0, eksikGun = [];",
 "  for (var i = 0; i < g.length; i++) {",
@@ -651,7 +671,10 @@ function _kopruIstemciKodu(url, anahtar) {
 "  yaz('tablolar yenileniyor (acik hesaplar + gunluk mesai)...');",
 "  var bt = await yolla({ tur:'bitir' });",
 "",
-"  yaz('BITTI.' + NLC + g.length + ' gun' + NLC + tm + ' mesai satiri' + NLC +",
+"  var son = (p.kalanEksik > 0)",
+"    ? 'DAHA BITMEDI: ' + p.kalanEksik + ' eksik/isaretli gun kaldi.' + NLC + 'Kodu tekrar calistir.'",
+"    : 'EKSIK GUN KALMADI. Isaretli gunlerin hepsi islendi.';",
+"  yaz('BITTI.' + NLC + son + NLC + NLC + 'Islenen: ' + g.map(trG).join(', ') + NLC + tm + ' mesai satiri' + NLC +",
 "      ts + ' siparis satiri' +",
 "      (eksikGun.length ? NLC + NLC + 'Eksik kalan: ' + eksikGun.join(', ') +",
 "       NLC + 'Kodu bir kez daha calistir.' : '') +",
@@ -765,11 +788,14 @@ function kopruDurum() {
   var eksik = _eksikGunler(400);
   var acik = Object.keys(_acikHesapGunleri()).length;
   var zorla = Object.keys(_kopruZorlaOku());
+  var kayitli = '?';
+  try { kayitli = JSON.parse(p.getProperty('HY_KURYELER') || '[]').map(function (k) { return k.ad; }).join(', ') || 'yok'; } catch (e) {}
   var m = 'Sürüm          : ' + KOPRU_SURUM + '\n' +
           'Web uygulaması : ' + url + '\n' +
           'Son veri alımı : ' + (son ? Utilities.formatDate(new Date(son), TZ, 'dd.MM.yyyy HH:mm') : 'hiç') + '\n' +
           'Kuyruk         : ' + eksik.length + ' gün' + (eksik.length ? '  (ilk sırada ' + eksik[0] + ')' : '') + '\n' +
-          'Yeniden çekilecek: ' + zorla.length + (zorla.length ? '  (' + zorla.slice(0, 5).join(', ') + (zorla.length > 5 ? ', …' : '') + ')' : '') + '\n' +
+          'Yeniden çekilecek: ' + zorla.length + ' gün' + (zorla.length ? '  (' + zorla.slice(0, 5).join(', ') + (zorla.length > 5 ? ', …' : '') + ')' : '') + '\n' +
+          'Kayıtlı kurye  : ' + kayitli + '\n' +
           'Açık hesap günü: ' + acik;
   Logger.log(m);
   try { SpreadsheetApp.getUi().alert('Köprü Durumu', m, SpreadsheetApp.getUi().ButtonSet.OK); } catch (e) {}
