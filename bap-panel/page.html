@@ -773,6 +773,12 @@ function bordroGrafik(seri){var W=760,H=240,ust=26,alt=44,pd=20,bw=(W-pd*2)/seri
   return el("div",{class:"grafik"},[svg]);}
 
 var PU_KISI="",PU_AY="",PU_ACIK=null;
+// Durum: BAP OS'un gün notu + puantaj sayısından hesaplanan net sonuç. Not "Fazla Mesai" deyip sayı eksiyse uyarı rengi.
+function netDurum(x){var f=sn(x.fazla),t=sn(x.toplam),not=x.not||"—",celiski=/fazla/i.test(not)&&f!=null&&f<0;
+  var cls=celiski?"e-kotu":(/uyumsuz|geç/i.test(not+x.girisNot)?"e-dikkat":"e-notr");
+  var net=x.izin||!(t>0)||f==null?null:(f>0?"net +"+sureKisa(x.fazla)+" fazla":(f<0?"net "+sureKisa(x.fazla).replace("−","")+" eksik":"net vardiya kadar"));
+  return el("span",null,[el("span",{class:"etiket "+cls,title:[x.girisNot,x.cikisNot].filter(Boolean).join(" / ")+(celiski?" — sistem notu ‘Fazla Mesai’ diyor ama puantajdaki fazla mesai eksi: gün eksik çalışılmış.":""),text:not}),
+    net?el("small",{style:"display:block;color:var(--"+(f<0?"kotu":f>0?"iyi":"gri")+")",text:net}):null]);}
 function sn(s){var m=String(s||"").trim().match(/^(-*)(\d+):(\d{1,2})(?::(\d{1,2}))?/);if(!m)return null;var x=(+m[2])*3600+(+m[3])*60+(+(m[4]||0));return m[1]?-x:x;}
 function sureKisa(s){var x=sn(s);if(x===null)return "—";var e=x<0;x=Math.abs(x);var h=Math.floor(x/3600),d=Math.floor(x%3600/60);return (e?"−":"")+h+":"+("0"+d).slice(-2);}
 // 11:57 gibi tam saate birkaç dakika kala yazılmış girişler için öneri: 12:00
@@ -793,7 +799,7 @@ function puantajSayfa(a,p){var L=p.puantaj||[];if(!L.length)return a.appendChild
     el("span",{style:"color:var(--gri);font-size:14px",text:ayAd(PU_AY)+" ayında çalışan "+kisiler.length+" kişi"})]));
   var satirlar=L.filter(function(x){return x.ad===PU_KISI&&x.gun.slice(0,7)===PU_AY;});
   var topSn=0,fazSn=0,eksikSn=0,elle=0,oneri=0,eski=0,calis=0,offGun=0,offCalis=0,hamSn=0,hamGun=0,hamEksik=0,hamTopSn=0,onceSn=0,elleFark=0;
-  satirlar.forEach(function(x){var t=sn(x.toplam),f=sn(x.fazla);if(t>0){topSn+=t;calis++;if(x.off)offCalis++;}else if(x.off)offGun++;if(f>0)fazSn+=f;else if(f<0)eksikSn+=-f;
+  satirlar.forEach(function(x){var t=sn(x.toplam),f=sn(x.fazla);if(x.izin)t=0;/* izin gününe yazılan toplam çalışma değildir */if(t>0){topSn+=t;calis++;if(x.off)offCalis++;}else if(x.off)offGun++;if(f>0)fazSn+=f;else if(f<0)eksikSn+=-f;
     if(x.elle)elle++;if(!x.elle&&!x.izin&&tamSaatOneri(x.giris))oneri++;if(toplamEski(x))eski++;
     // QR'ın gerçek saatine göre süre (Ham Giriş / Ham Çıkış)
     if(t>0){var hg=sn(x.hamGiris),hc=sn(x.hamCikis);if(hg!=null&&hc!=null){var h=hc-hg;if(h<=0)h+=86400;hamSn+=h;hamTopSn+=t;hamGun++;}else hamEksik++;}
@@ -820,7 +826,7 @@ function puantajSayfa(a,p){var L=p.puantaj||[];if(!L.length)return a.appendChild
   var govde=tb.querySelector("tbody");
   satirlar.forEach(function(x){var d=new Date(x.gun+"T00:00:00Z"),acik=PU_ACIK===x.gun,oneriSaat=!x.elle&&!x.izin?tamSaatOneri(x.giris):null;
     var eskiMi=toplamEski(x);
-    var durum=eskiMi?el("span",{class:"etiket e-kotu",title:"Giriş–çıkış arası toplam mesaiyle tutmuyor",text:"toplam eski"}):x.elle?el("span",{class:"etiket e-iyi",title:x.elle,text:"elle düzeltildi"}):el("span",{class:"etiket "+(/uyumsuz|geç/i.test(x.not+x.girisNot)?"e-dikkat":"e-notr"),title:[x.girisNot,x.cikisNot].filter(Boolean).join(" / "),text:x.not||"—"});
+    var durum=eskiMi?el("span",{class:"etiket e-kotu",title:"Giriş–çıkış arası toplam mesaiyle tutmuyor",text:"toplam eski"}):x.elle?el("span",{class:"etiket e-iyi",title:x.elle,text:"elle düzeltildi"}):netDurum(x);
     var dug=el("span",{style:"display:inline-flex;gap:6px"},[eskiMi?yenidenHesaplaDugme(x):null,el("button",{type:"button",class:"dugme",onclick:function(){PU_ACIK=acik?null:x.gun;ciz();}},[acik?"Kapat":(oneriSaat?"Düzelt ("+oneriSaat+"?)":"Düzelt")])]);
     govde.appendChild(el("tr",null,[el("td",{text:GUNLER[d.getUTCDay()]+" "+d.getUTCDate()+" "+AYLAR[d.getUTCMonth()]}),el("td",{text:(x.giris||"—").slice(0,8)}),el("td",{text:x.cikis?(x.cikis.slice(0,8)):(x.giris?"içeride":"—")}),
       el("td",{class:"sag",text:sureKisa(x.toplam)}),el("td",{class:"sag",text:sureKisa(x.fazla)}),el("td",{style:"color:var(--gri)",text:[x.hamGiris,x.hamCikis].filter(Boolean).map(function(t){return t.slice(0,5);}).join("–")||"—"}),el("td",null,[durum]),el("td",null,[dug])]));

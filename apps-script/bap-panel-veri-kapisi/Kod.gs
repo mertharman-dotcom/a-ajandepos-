@@ -903,12 +903,14 @@ function personel_() {
         girisNot: kodsuz_(r[c.ga] || ''), cikisNot: kodsuz_(r[c.ca] || ''), toplam: r[c.top] || '' });
       if (gun.slice(0, 7) === ay) {
         var x = ayKisi[r[c.ad]] = ayKisi[r[c.ad]] || { ad: r[c.ad], gun: 0, dk: 0, fazlaDk: 0, eksikDk: 0, gec: 0, izin: 0, yi: 0, rap: 0, ui: 0, dev: 0, offCalisma: 0 };
-        var t = sureDk_(r[c.top]); if (t > 0) { x.gun++; x.dk += t; }
+        // İzinli satırlarda (yıllık/ücretsiz izin, rapor, devamsızlık) sistem toplam yazabiliyor (ör. 10:00); çalışılmış sayılmaz.
+        var izinliSatir = ['yi', 'rap', 'ui', 'dev'].some(function (z) { return c[z] >= 0 && String(r[c[z]]).trim(); });
+        var t = sureDk_(r[c.top]); if (t > 0 && !izinliSatir) { x.gun++; x.dk += t; }
         var f = sureDk_(r[c.faz]); if (f > 0) x.fazlaDk += f; else if (f < 0) x.eksikDk += -f;
         if (/geç girildi/i.test(r[c.ga] || '')) x.gec++;
         [c.yi, c.rap, c.ui, c.dev].forEach(function (i) { if (i >= 0 && String(r[i]).trim()) x.izin++; });
         ['yi', 'rap', 'ui', 'dev'].forEach(function (z) { if (c[z] >= 0 && String(r[c[z]]).trim()) x[z]++; });
-        if (c.off >= 0 && String(r[c.off]).trim() && t > 0) x.offCalisma++;
+        if (c.off >= 0 && String(r[c.off]).trim() && t > 0 && !izinliSatir) x.offCalisma++;
       }
     });
   }
@@ -1110,8 +1112,9 @@ function bordro_(V, ay, bugun, planli) {
     if (P) Object.keys(P.gunler).forEach(function (d) {
       if (d < bas || d > bitis) return; var x = P.gunler[d];
       ['yi', 'ui', 'dev', 'rap', 'resmi', 'off'].forEach(function (z) { if (x[z]) n[z]++; });
-      if (x.off && x.top > 0) n.offCalisma++;
-      if (x.top > 0) { n.calisilan++; topSn += x.top; }
+      var izinli = x.yi || x.ui || x.dev || x.rap; // izin günlerinde yazılan toplam çalışma sayılmaz
+      if (x.off && x.top > 0 && !izinli) n.offCalisma++;
+      if (x.top > 0 && !izinli) { n.calisilan++; topSn += x.top; }
       // Fazla mesai iki ayrı iş: normal günde vardiyadan uzun kalma ve off gününde çağırıp çalıştırma.
       if (x.faz > 0) { fazSn += x.faz; if (x.off) offSn += x.faz; else uzamaSn += x.faz; if (!x.off) n.uzamaGun++; } else if (x.faz < 0) eksikSn += -x.faz;
     });
