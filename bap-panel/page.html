@@ -1198,7 +1198,39 @@ function kesintiFormu(K){var F=KESINTI_FORM;if(!F.tarih)F.tarih=bugunIst();var a
     el("div",{class:"odeme-izgara"},[etiket("Kurye",sec,"ted"),etiket("Tarih",tarih),etiket("Tür",tip),el("label",null,[miktarEt,miktar]),etiket("Açıklama",acik,"genis"),el("div",{class:"genis"},[ipucu])]),
     el("div",{class:"odeme-alt"},[kaydet,vazgec,durum])]);}
 
+// Mesai düzeltme: kontrol listesi + yapılan düzeltmeler. Yazılan düzeltme kurye tablosundaki 'Mesai Düzeltme' sekmesine gider,
+// kural katmanı o günü yeniden hesaplar (kesinti ve gerekçe Günlük Mesai'ye, oradan bordroya yansır).
+var MESAI_DUZ={acik:"",giris:"",cikis:"",aciklama:"",durum:"",durumSinif:"",gonderiliyor:false};
+function mesaiDuzGonder(islem,x,ek){var D=MESAI_DUZ;if(D.gonderiliyor)return;D.gonderiliyor=true;D.durum="Kaydediliyor, bordro yeniden hesaplanıyor…";D.durumSinif="";ciz();
+  var g={islem:islem,kurye:x.ad,tarih:x.gun,giris:(ek&&ek.giris)||"",cikis:(ek&&ek.cikis)||"",aciklama:(ek&&ek.aciklama)||""};
+  fetch("/api/mesai-duzelt",{method:"POST",credentials:"same-origin",headers:{"content-type":"application/json","x-bap-panel":"1"},body:JSON.stringify(g)})
+    .then(function(r){return r.json();}).then(function(d){D.gonderiliyor=false;
+      if(d&&d.tamam){D.durum="✓ "+d.ozet+(d.yenilendi?" Bordro yeniden hesaplandı.":" "+(d.not||""));D.durumSinif=d.yenilendi?"iyi":"kotu";D.acik="";D.giris="";D.cikis="";D.aciklama="";yukle(true);return;}
+      D.durum=(d&&d.hata)||"Kaydedilemedi.";D.durumSinif="kotu";ciz();})
+    .catch(function(){D.gonderiliyor=false;D.durum="Bağlantı koptu; düzeltme yazılmış olabilir. ‘Şimdi yenile’ ile aşağıdaki listeden kontrol et.";D.durumSinif="kotu";ciz();});}
+function mesaiDuzeltme(a,K){var D=MESAI_DUZ,L=K.mesaiKontrol||[],Y=K.mesaiDuzeltme||[];
+  var dg=function(t,f,ana){var b=el("button",{type:"button",class:"dugme"+(ana?" ana-dugme":""),style:"padding:5px 10px;font-size:13px;margin:2px",onclick:f},[t]);if(D.gonderiliyor)b.setAttribute("disabled","");return b;};
+  var kutu=el("div");
+  kutu.appendChild(el("div",{class:"bilgi",text:"Son paketten sonra "+15+" dakikadan fazla çevrimiçi kalınıp otomatik kuralın kesmediği günler (vardiyası olmayan ya da vardiyasından erken çıkan kurye) ve kuralın 45 dk üstü kestiği günler. Sen bir şey yapmazsan otomatik hesap geçerli kalır. ‘Son pakette kapat’: ödenen süre son teslimde biter. ‘Saat gir’: esas giriş / çıkışı sen yazarsın. ‘Doğru’: hesap olduğu gibi kalır, gün listeden düşer. Her düzeltme gerekçesiyle kesinti olarak görünür ve geri alınabilir."}));
+  kutu.appendChild(L.length?tablo([["Tarih"],["Kurye"],["Vardiya"],["Giriş–çıkış"],["Son paket"],["Boşta",1],["Net",1],["Neden"],["Ne yapalım?"]],L.map(function(x){var k=x.gun+"|"+x.ad;
+    return [gunAd(x.gun),x.ad,x.plan||"—",x.giris+"–"+x.cikis,x.son||"—",el("span",{class:"etiket e-dikkat",text:x.bosta+" dk"}),saatDk(x.net),el("span",{style:"color:var(--gri);font-size:13px",text:x.neden}),
+      el("div",null,[x.son?dg("Son pakette kapat",function(){mesaiDuzGonder("sonPaket",x,{cikis:x.son,aciklama:"Son paketten sonra "+x.bosta+" dk boşta"});},true):null,
+        dg("Saat gir",function(){D.acik=k;D.giris="";D.cikis=x.son||"";D.aciklama="";D.durum="";ciz();}),dg("Doğru",function(){mesaiDuzGonder("onay",x);})])];})):bos("Kontrol edilecek gün yok."));
+  var sec=L.filter(function(x){return x.gun+"|"+x.ad===D.acik;})[0]||Y.filter(function(x){return x.gun+"|"+x.ad===D.acik;})[0];
+  if(sec){var gi=el("input",{type:"time",value:D.giris,"aria-label":"Esas giriş"}),ci=el("input",{type:"time",value:D.cikis,"aria-label":"Esas çıkış"}),
+      ac=el("input",{type:"text",maxlength:"200",value:D.aciklama,placeholder:"Neden? örn. son paketten sonra bekledi, çıkışı unuttu",'aria-label':"Açıklama"});
+    [gi,ci,ac].forEach(function(i){i.addEventListener("input",function(){D.giris=gi.value;D.cikis=ci.value;D.aciklama=ac.value;});});
+    kutu.appendChild(el("form",{class:"odeme-form",style:"margin-top:12px",onsubmit:function(ev){ev.preventDefault();D.giris=gi.value;D.cikis=ci.value;D.aciklama=ac.value;mesaiDuzGonder("saat",sec,{giris:D.giris,cikis:D.cikis,aciklama:D.aciklama});}},[
+      el("strong",{text:sec.ad+" · "+gunAd(sec.gun)+" — esas saatler (boş bırakılan taraf otomatik hesapta kalır)"}),
+      el("div",{class:"odeme-izgara"},[el("label",null,["Esas giriş",gi]),el("label",null,["Esas çıkış",ci]),el("label",{class:"genis"},["Açıklama",ac])]),
+      el("div",{class:"odeme-alt"},[el("button",{type:"submit",class:"dugme ana-dugme"},["Düzeltmeyi kaydet"]),el("button",{type:"button",class:"dugme",onclick:function(){D.acik="";ciz();}},["Vazgeç"])])]));}
+  if(D.durum)kutu.appendChild(el("div",{class:"cevap-durum "+(D.durumSinif||""),role:"status",style:"display:block;margin-top:10px",text:D.durum}));
+  a.appendChild(blok("Kontrol edilecek mesailer — son 3 hafta",null,kutu));
+  a.appendChild(blok("Yapılan mesai düzeltmeleri — son 60 gün","Kurye tablosundaki ‘Mesai Düzeltme’ sekmesinden. Geri alınca o gün otomatik hesaba döner.",Y.length?tablo([["Tarih"],["Kurye"],["Yöntem"],["Esas giriş"],["Esas çıkış"],["Açıklama"],["Kayıt"],[""]],Y.map(function(x){
+    return [gunAd(x.gun),x.ad,x.yontem,x.giris||"—",x.cikis||"—",el("span",{style:"color:var(--gri)",text:x.not||"—"}),el("span",{style:"color:var(--gri);font-size:13px",text:x.zaman}),dg("Geri al",function(){if(confirm(x.ad+" "+gunAd(x.gun)+" düzeltmesi geri alınsın mı? Gün otomatik hesaba döner."))mesaiDuzGonder("sil",x);})];})):bos("Henüz düzeltme yok.")));}
+
 function kuryeKesinti(a,K){var L=K.kesintiler,ozet={};
+  mesaiDuzeltme(a,K);
   a.appendChild(blok("Kesinti gir","Kurye tablosundaki Kesintiler sekmesine yazılır. Para kesintisi haftalık hakedişten, süre kesintisi ödenen süreden düşülür (Bordro sekmesinde görünür). Yanlış girdiysen o satırı tablodan sil.",kesintiFormu(K)));
   var E=K.elleKesinti||[];
   a.appendChild(blok("Girilen kesintiler — son 60 gün","Kesintiler sekmesinden; panelden girilenlerin açıklamasında ‘(panel)’ yazar.",E.length?tablo([["Tarih"],["Kurye"],["Tür"],["Miktar",1],["Açıklama"]],E.map(function(x){
@@ -1453,7 +1485,7 @@ window.addEventListener("hashchange",function(){var h=(location.hash||"#merkez")
 nav();yukle(false);setInterval(function(){if(document.hidden)return;
   // Ödeme formu yarım doldurulmuşken otomatik yenileme ekranı yeniden çizip odağı kaçırmasın.
   if(AKTIF==="odeme"&&(ODEME_FORM.tutar||ODEME_FORM.aciklama||ODEME_FORM.gonderiliyor))return;
-  if(AKTIF==="kurye"&&(KESINTI_FORM.miktar||KESINTI_FORM.aciklama||KESINTI_FORM.gonderiliyor))return;
+  if(AKTIF==="kurye"&&(KESINTI_FORM.miktar||KESINTI_FORM.aciklama||KESINTI_FORM.gonderiliyor||MESAI_DUZ.acik||MESAI_DUZ.gonderiliyor))return;
   if(AKTIF==="personel"&&VARD_DUZEN)return;yukle(false);},300000);
 })();
 </script>

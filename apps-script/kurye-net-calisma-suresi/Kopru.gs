@@ -221,6 +221,12 @@ function doPost(e) {
       return _kopruYanit(sonuc);
     }
 
+    // 1.2: BAP panelinden mesai düzeltmesi yazılınca Günlük Mesai yeniden hesaplanır.
+    if (g.tur === 'kural') {
+      kuraliUygula(false);
+      return _kopruYanit({ ok: true });
+    }
+
     return _kopruYanit({ hata: 'Bilinmeyen tür.' });
   } catch (err) {
     return _kopruYanit({ hata: String(err && err.message || err) });

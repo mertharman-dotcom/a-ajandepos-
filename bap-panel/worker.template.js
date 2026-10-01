@@ -233,6 +233,25 @@ export default {
       } catch (e) { return json({ belirsiz: true, hata: 'Veri kapısına ulaşılamadı; kesinti yazılmış olabilir. Paneli yenileyip kontrol edin.' }, 502); }
     }
 
+    if (url.pathname === '/api/mesai-duzelt' && request.method === 'POST') {
+      // Mesai düzeltme: yalnızca panelin kendisinden gelen istek kabul edilir.
+      if (request.headers.get('x-bap-panel') !== '1' || (request.headers.get('origin') || url.origin) !== url.origin) {
+        return json({ hata: 'İzin verilmeyen istek.' }, 403);
+      }
+      let govde;
+      try { govde = await request.json(); } catch (e) { return json({ hata: 'Geçersiz istek.' }, 400); }
+      const islem = ['sonPaket', 'saat', 'onay', 'sil'].indexOf(govde.islem) >= 0 ? govde.islem : '';
+      const ileti = JSON.stringify({ key: env.GAS_KEY, tur: 'mesaiDuzelt', islem: islem, kurye: String(govde.kurye || '').slice(0, 60),
+        tarih: String(govde.tarih || '').slice(0, 10), giris: String(govde.giris || '').slice(0, 5), cikis: String(govde.cikis || '').slice(0, 5),
+        aciklama: String(govde.aciklama || '').slice(0, 200) });
+      try {
+        const r = await fetch(env.GAS_URL, { method: 'POST', headers: { 'content-type': 'application/json' }, body: ileti, redirect: 'follow' });
+        const metin = await r.text();
+        try { return json(JSON.parse(metin), 200); }
+        catch (e) { return json({ belirsiz: true, hata: 'Veri kapısı beklenmeyen bir cevap verdi; düzeltme yazılmış olabilir. Paneli yenileyip kontrol edin.' + gasHatasi(metin) }, 502); }
+      } catch (e) { return json({ belirsiz: true, hata: 'Veri kapısına ulaşılamadı; düzeltme yazılmış olabilir. Paneli yenileyip kontrol edin.' }, 502); }
+    }
+
     if (url.pathname === '/api/vardiya' && request.method === 'POST') {
       // Vardiya girişi: yalnızca panelin kendisinden gelen istek kabul edilir.
       if (request.headers.get('x-bap-panel') !== '1' || (request.headers.get('origin') || url.origin) !== url.origin) {

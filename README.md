@@ -76,6 +76,20 @@ v1.2'de `kopruGunleriYenidenCek(['15.09.2026', ...])`, `kopruEylulYenidenCek()` 
 mesai + siparişle birlikte yeniden çekmeye işaretler; kuyruk önce bugün/dün, sonra eksik/işaretli günler, en son açık
 vardiya/açık hesap tazelemesi sırasıyla dolar. Gün yazılınca işaret kalkar.
 
+## Mesai düzeltme (Kural 2.1)
+
+`apps-script/kurye-net-calisma-suresi/Kural.gs` kurye tablosunun projesindeki kural dosyasının yerine konur (2.0 → 2.1):
+- **Mesai Düzeltme** sekmesi (panelden yazılır): Tarih, Kurye, Esas Giriş, Esas Çıkış, Yöntem (Son paket / Saat / Olduğu gibi),
+  Açıklama, Giren, Kayıt Zamanı. Verilen tarafta kesinti, o saatten önce/sonra fiilen çevrimiçi geçen süredir; gerekçede
+  kimin neye göre düzelttiği ve otomatik hesap yazar, Durum "Düzeltildi" olur. Düzeltme yoksa otomatik hesap geçerli.
+- Son paketin restorandan çıkış saati / km yoksa kapanışta son teslim esas alınır (eskiden hiç kesilmiyordu).
+- Erken giriş kesintisi çevrimdışı araları artık kesmiyor; Kesinti İstisnaları açıklaması başlığından okunuyor.
+
+Panel › Kurye › Kesintiler: **Kontrol edilecek mesailer** (son 3 hafta; son paketten sonra 15 dk'dan fazla boşta kalınıp
+kesilmeyen günler — vardiyasız ya da vardiyasından erken çıkan kurye — ve 45 dk üstü kapanış). "Son pakette kapat",
+"Saat gir", "Doğru" ve "Geri al". Kayıttan sonra veri kapısı Köprü web uygulamasına `tur: 'kural'` gönderip
+`kuraliUygula()`'yı çalıştırır (Script Properties: `KOPRU_URL`, `KOPRU_ANAHTAR`; yoksa bir sonraki yenilemede).
+
 ## Yayına alma
 
 1. **Apps Script** (BAP Panel Veri Kapısı): `apps-script/bap-panel-veri-kapisi/Kod.gs` içeriğini `Kod.gs` dosyasına yapıştır,
