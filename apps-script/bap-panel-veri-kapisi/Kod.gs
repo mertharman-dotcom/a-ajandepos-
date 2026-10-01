@@ -4,8 +4,8 @@
  * Ne yapar: Panel verisini tablolardan OKUR ve özet olarak panele verir.
  * Yazma: Yalnızca sahibin panelden verdiği cevabı yazar (doPost): ilgili sorunun Cevap hücresine ekler ve
  *        'BAP Panel Cevapları' tablosuna kayıt düşer. Toptancı ödemesi girilince 'Kolaybi Fatura Ham Veri › Odemeler'
- *        sekmesinin sonuna yeni satır ekler. Günlük fiş kaydedilince 'BAP Günlük Fiş Kaydı' tablosuna o gün + şube için
- *        tek satır yazar (onayla güncellenir). Başka hiçbir hücreyi değiştirmez, hiçbir şey silmez.
+ *        sekmesinin sonuna yeni satır ekler. Günlük fiş kaydedilince 'BAP Günlük Fiş Kaydı' tablosuna o gün için
+ *        tek satır yazar (onayla güncellenir). BAP veri tablosu › Kesilen Fişler yalnız okunur. Başka hiçbir hücreyi değiştirmez, hiçbir şey silmez.
  * Gizlilik: Müşteri adı, telefonu, adresi ve personel kişisel bilgisi dışarı verilmez; yalnız toplamlar döner.
  * Erişim: Yalnızca doğru anahtarla gelen isteğe cevap verir. Anahtar koda yazılmaz, Komut Dosyası Özelliklerinde durur.
  *
@@ -147,7 +147,7 @@ function satis_() {
   var haftaBasi = gunEkle_(bugun, -dow);
   var ilkSeri = gunEkle_(bugun, -13);
 
-  var seri = {}, fis = {}; for (var i = 0; i < 14; i++) { seri[gunEkle_(ilkSeri, i)] = { ciro: 0, adet: 0 }; fis[gunEkle_(ilkSeri, i)] = {}; }
+  var seri = {}, fis = {}; for (var i = 0; i < 14; i++) { seri[gunEkle_(ilkSeri, i)] = { ciro: 0, adet: 0 }; fis[gunEkle_(ilkSeri, i)] = fisBos_(); }
   var g = { bugun: z_(), dun: z_(), hafta: z_(), gecenHaftaAyniSaat: z_() };
   var acik = z_(), iptalBugun = 0, sonSiparis = null;
   var kanalBugun = {}, subeBugun = {}, markaBugun = {}, kanalHafta = {}, mutfakBugun = {};
@@ -165,8 +165,7 @@ function satis_() {
     if (d !== 'kapali') { if (gun === bugun) { acik.ciro += tutar; acik.adet++; } return; }
 
     if (seri[gun]) { seri[gun].ciro += tutar; seri[gun].adet++; }
-    if (fis[gun]) fisEkle_(fis[gun], subeAnahtar_(c.sube >= 0 ? r[c.sube] : '') || 'Belirtilmemiş', c.kanal >= 0 ? r[c.kanal] : '', c.tip >= 0 ? r[c.tip] : '',
-                           c.odeme >= 0 ? r[c.odeme] : '', c.tahsil >= 0 ? r[c.tahsil] : '', tutar);
+    if (fis[gun]) fisEkle_(fis[gun], c.kanal >= 0 ? r[c.kanal] : '', c.tip >= 0 ? r[c.tip] : '', c.odeme >= 0 ? r[c.odeme] : '', c.tahsil >= 0 ? r[c.tahsil] : '', tutar);
     var gelen = subeAnahtar_(c.sube >= 0 ? r[c.sube] : ''), mutfak = c.cikan >= 0 ? subeAnahtar_(r[c.cikan]) : '';
     if (gun >= yediBasi && gun <= bugun) {
       cikan.yediToplam++;
@@ -216,12 +215,12 @@ function satis_() {
 
 /* ---------------- Günlük fiş hesabı ----------------
  * Yemeksepeti ve Trendyol'un online ödenen siparişleri için gün sonunda fiş kesilir. Yazarkasa POS'tan geçen kart ödemeleri
- * zaten fiş ürettiği için düşülür:
+ * zaten fiş ürettiği için düşülür (iki şubenin toplamı, şube ayrımı yok):
  *   Kesilecek fiş = (1) YS + Trendyol online
  *                 − (2) Masa / gel-al siparişlerinde kredi kartı + yemek kartı
  *                 − (3) WhatsApp / telefon (Adisyo paket) siparişlerinde kredi kartı + yemek kartı
  *                 − (4) YS + Trendyol kapıda ödemelerde kredi kartına dönen tutar
- * Hesap şube şube yapılır (her şubenin kendi yazarkasası). Yalnız kapanmış siparişler sayılır.
+ * Yalnız kapanmış siparişler sayılır.
  */
 var FIS_KALEMLER = ['online', 'masa', 'paket', 'platformKk'];
 
@@ -247,8 +246,9 @@ function fisOdeme_(odeme, tahsil) {
   return 'diger';
 }
 
-function fisEkle_(gun, sube, kanal, tip, odeme, tahsil, tutar) {
-  var s = gun[sube] = gun[sube] || { online: z_(), masa: z_(), paket: z_(), platformKk: z_(), platformYk: z_(), digerPlatform: z_(), bilinmeyen: {} };
+function fisBos_() { return { online: z_(), masa: z_(), paket: z_(), platformKk: z_(), platformYk: z_(), bilinmeyen: {} }; }
+
+function fisEkle_(s, kanal, tip, odeme, tahsil, tutar) {
   var p = fisPlatform_(kanal), od = fisOdeme_(odeme, tahsil);
   if (p === 'Yemeksepeti' || p === 'Trendyol') {
     if (od === 'online') ek_(s.online, tutar);
@@ -257,23 +257,22 @@ function fisEkle_(gun, sube, kanal, tip, odeme, tahsil, tutar) {
   } else if (p === 'ic') {
     if (od !== 'kredi' && od !== 'yemek') { if (od === 'diger') topla_(s.bilinmeyen, String(odeme || tahsil || 'Boş').trim(), tutar); return; }
     ek_(/paket/i.test(String(tip)) ? s.paket : s.masa, tutar);
-  } else if (od === 'online') ek_(s.digerPlatform, tutar);
+  }
 }
 
-function fisGunu_(gun, subeler) {
-  var liste = Object.keys(subeler).sort().map(function (ad) {
-    var s = subeler[ad], o = { sube: ad };
-    FIS_KALEMLER.concat(['platformYk', 'digerPlatform']).forEach(function (k) { o[k] = { tutar: Math.round(s[k].ciro * 100) / 100, adet: s[k].adet }; });
-    o.kesilecek = Math.round((s.online.ciro - s.masa.ciro - s.paket.ciro - s.platformKk.ciro) * 100) / 100;
-    o.bilinmeyen = sirala_(s.bilinmeyen);
-    return o;
-  }).filter(function (o) { return o.online.adet || o.masa.adet || o.paket.adet || o.platformKk.adet; });
-  return { gun: gun, subeler: liste };
+function fisGunu_(gun, s) {
+  var o = { gun: gun };
+  FIS_KALEMLER.concat(['platformYk']).forEach(function (k) { o[k] = { tutar: Math.round(s[k].ciro * 100) / 100, adet: s[k].adet }; });
+  o.kesilecek = Math.round((s.online.ciro - s.masa.ciro - s.paket.ciro - s.platformKk.ciro) * 100) / 100;
+  o.bilinmeyen = sirala_(s.bilinmeyen);
+  return o;
 }
 
-// Kesilen fişlerin toplu kaydı: 'BAP Günlük Fiş Kaydı' tablosu (ilk kayıtta kendiliğinden oluşur).
-var FIS_BASLIK = ['İş Günü', 'Şube', 'YS + Trendyol online', 'Masa / gel-al kart', 'WhatsApp / telefon kart', 'YS + Trendyol kapıda kredi kartı',
-                  'Kesilecek (hesap)', 'Kesilen fiş', 'Fark', 'Elle değişen', 'Not', 'Kayıt_Zamanı', 'Kaynak'];
+// Kesilen fişlerin toplu kaydı: 'BAP Günlük Fiş Kaydı' tablosu (ilk kayıtta kendiliğinden oluşur), gün başına tek satır.
+var FIS_BASLIK = ['İş Günü', 'YS + Trendyol online', 'Masa / gel-al kart', 'WhatsApp / telefon kart', 'YS + Trendyol kapıda kredi kartı',
+                  'Kesilecek (hesap)', 'Fiş adedi', 'Kesilen tutar', 'Fark', 'Elle değişen', 'Not', 'Kayıt_Zamanı', 'Kaynak'];
+// Panelden önce fişlerin tutulduğu sekme. Yalnız okunur, hiç yazılmaz; yeni tabloda olmayan günler geçmiş olarak gösterilir.
+var ESKI_FIS = { id: '152FdGaQUhwyd0ytcTbM1OI6beNZsXBJhCM-GoG2Bzvw', sekme: 'Kesilen Fişler' };
 
 function fisDosyasi_(olustur) {
   var p = PropertiesService.getScriptProperties(), id = p.getProperty('FIS_DOSYASI'), ss = null;
@@ -287,22 +286,49 @@ function fisDosyasi_(olustur) {
   return ss;
 }
 
-function fisKayit_() {
-  var ss = fisDosyasi_(false);
-  if (!ss) return { link: null, kayitlar: [] };
-  var sh = ss.getSheetByName('Fisler') || ss.getSheets()[0], v = sh.getDataRange().getValues(), b = v[0].map(String);
-  var c = {}; FIS_BASLIK.forEach(function (h, i) { c[i] = kolon_(b, [h]); });
-  var kayitlar = v.slice(1).map(function (r) {
-    var ms = zaman_(r[c[0]]); if (ms === null) return null;
-    return { gun: new Date(ms).toISOString().slice(0, 10), sube: String(r[c[1]] || ''), online: sayi_(r[c[2]]), masa: sayi_(r[c[3]]), paket: sayi_(r[c[4]]),
-             platformKk: sayi_(r[c[5]]), kesilecek: sayi_(r[c[6]]), kesilen: sayi_(r[c[7]]), elle: String(r[c[9]] || ''), not: String(r[c[10]] || ''),
-             zaman: r[c[11]] instanceof Date ? Utilities.formatDate(r[c[11]], TZ, 'dd.MM.yyyy HH:mm') : String(r[c[11]] || '').slice(0, 16) };
-  }).filter(Boolean).sort(function (a, b) { return a.gun < b.gun ? 1 : a.gun > b.gun ? -1 : a.sube.localeCompare(b.sube); });
-  return { link: ss.getUrl(), kayitlar: kayitlar.slice(0, 120) };
+// "2026-07-18", "12.09.2026", "30,.09.2026" ya da tarih hücresi → "2026-09-30"
+function fisGunOku_(v) {
+  if (v instanceof Date) return Utilities.formatDate(v, TZ, 'yyyy-MM-dd');
+  var s = String(v || '').trim(), m = s.match(/^(\d{4})\D+(\d{1,2})\D+(\d{1,2})/);
+  if (m) return m[1] + '-' + ('0' + m[2]).slice(-2) + '-' + ('0' + m[3]).slice(-2);
+  m = s.match(/^(\d{1,2})\D+(\d{1,2})\D+(\d{4})/);
+  if (m) return m[3] + '-' + ('0' + m[2]).slice(-2) + '-' + ('0' + m[1]).slice(-2);
+  return null;
 }
 
-// Panel POST ile { key, tur: 'fis', istekNo, gun, sube, online, masa, paket, platformKk, hesap, kesilen, elle, not, onay } gönderir.
-// Aynı gün + şube için tek satır tutulur; zaten varsa onay ister, onaylanırsa o satırı günceller.
+function fisKayit_() {
+  var ss = fisDosyasi_(false), gunler = {}, out = { link: ss ? ss.getUrl() : null, eskiLink: 'https://docs.google.com/spreadsheets/d/' + ESKI_FIS.id, kayitlar: [] };
+  if (ss) {
+    var sh = ss.getSheetByName('Fisler') || ss.getSheets()[0], v = sh.getDataRange().getValues(), b = v[0].map(String);
+    var c = FIS_BASLIK.map(function (h) { return kolon_(b, [h]); });
+    v.slice(1).forEach(function (r) {
+      var gun = fisGunOku_(r[c[0]]); if (!gun) return;
+      gunler[gun] = { gun: gun, online: sayi_(r[c[1]]), masa: sayi_(r[c[2]]), paket: sayi_(r[c[3]]), platformKk: sayi_(r[c[4]]), kesilecek: sayi_(r[c[5]]),
+        adet: sayi_(r[c[6]]), kesilen: sayi_(r[c[7]]), elle: String(r[c[9]] || ''), not: String(r[c[10]] || ''), kaynak: 'panel',
+        zaman: r[c[11]] instanceof Date ? Utilities.formatDate(r[c[11]], TZ, 'dd.MM.yyyy HH:mm') : String(r[c[11]] || '').slice(0, 16) };
+    });
+  }
+  try {
+    var es = SpreadsheetApp.openById(ESKI_FIS.id).getSheetByName(ESKI_FIS.sekme);
+    if (es && es.getLastRow() >= 2) {
+      var ev = es.getDataRange().getValues(), eb = ev[0].map(String);
+      var eG = kolon_(eb, ['Gün']), eA = kolon_(eb, ['Adet']), eT = kolon_(eb, ['Tutar']), eZ = kolon_(eb, ['Kayıt Zamanı']);
+      ev.slice(1).forEach(function (r) {
+        var gun = fisGunOku_(r[eG]); if (!gun) return;
+        var x = gunler[gun];
+        if (x && x.kaynak === 'eski') { x.adet += sayi_(r[eA]); x.kesilen += sayi_(r[eT]); return; } // aynı güne ikinci parti
+        if (x) return; // panelde kayıtlı gün öncelikli
+        gunler[gun] = { gun: gun, adet: sayi_(r[eA]), kesilen: sayi_(r[eT]), kesilecek: null, kaynak: 'eski',
+          zaman: r[eZ] instanceof Date ? Utilities.formatDate(r[eZ], TZ, 'dd.MM.yyyy HH:mm') : String(r[eZ] || '').slice(0, 16) };
+      });
+    }
+  } catch (err) { out.eskiHata = 'Eski Kesilen Fişler sekmesi okunamadı.'; }
+  out.kayitlar = Object.keys(gunler).sort().reverse().slice(0, 400).map(function (k) { return gunler[k]; });
+  return out;
+}
+
+// Panel POST ile { key, tur: 'fis', istekNo, gun, online, masa, paket, platformKk, adet, kesilen, elle, not, onay } gönderir.
+// Gün başına tek satır; o gün zaten kayıtlıysa onay ister, onaylanırsa o satırı günceller.
 function fisKaydet_(d) {
   var cache = CacheService.getScriptCache(), istek = String(d.istekNo || '').slice(0, 64);
   var onceki = istek ? cache.get('fis_' + istek) : null;
@@ -312,10 +338,9 @@ function fisKaydet_(d) {
   if (!m) return { hata: 'İş günü seçilmedi.' };
   var tarih = new Date(+m[1], +m[2] - 1, +m[3], 12, 0, 0);
   if ((tarih.getTime() - Date.now()) / 86400000 > 1) return { hata: 'İleri tarihli fiş kaydedilemez.' };
-  var sube = subeAnahtar_(d.sube);
-  if (!/Erenköy|Fikirtepe/.test(sube)) return { hata: 'Şube Erenköy ya da Fikirtepe olmalı.' };
-  var n = {}; ['online', 'masa', 'paket', 'platformKk', 'kesilen'].forEach(function (k) { n[k] = Math.round(sayi_(d[k]) * 100) / 100; });
+  var n = {}; ['online', 'masa', 'paket', 'platformKk', 'kesilen', 'adet'].forEach(function (k) { n[k] = Math.round(sayi_(d[k]) * 100) / 100; });
   for (var k in n) if (n[k] < 0 || n[k] > 5000000) return { hata: 'Tutarlardan biri geçersiz görünüyor; kontrol edin.' };
+  if (n.adet !== Math.round(n.adet) || n.adet > 500) return { hata: 'Fiş adedi tam sayı olmalı.' };
   var hesap = Math.round((n.online - n.masa - n.paket - n.platformKk) * 100) / 100;
   var elle = String(d.elle || '').replace(/[^a-zA-Z,]/g, '').slice(0, 60);
   var not = String(d.not || '').replace(/\s+/g, ' ').trim().slice(0, 300);
@@ -323,30 +348,28 @@ function fisKaydet_(d) {
   var ss = fisDosyasi_(true), sh = ss.getSheetByName('Fisler') || ss.getSheets()[0];
   var lc = Math.max(FIS_BASLIK.length, sh.getLastColumn()), b = sh.getRange(1, 1, 1, lc).getValues()[0].map(String);
   var c = FIS_BASLIK.map(function (h) { return kolon_(b, [h]); });
-  if (c.some(function (x) { return x < 0; })) return { hata: "Fiş kaydı tablosunun başlıkları değişmiş; ilk satırı eski haline getirin." };
+  if (c.some(function (x) { return x < 0; })) return { hata: 'Fiş kaydı tablosunun başlıkları değişmiş; ilk satırı eski haline getirin.' };
   var tarihYazi = Utilities.formatDate(tarih, TZ, 'dd.MM.yyyy'), hedef = 0;
   if (sh.getLastRow() >= 2) {
     var v = sh.getRange(2, 1, sh.getLastRow() - 1, lc).getValues();
-    for (var i = 0; i < v.length; i++) {
-      var ms = zaman_(v[i][c[0]]);
-      if (ms !== null && new Date(ms).toISOString().slice(0, 10) === d.gun && subeAnahtar_(v[i][c[1]]) === sube) { hedef = i + 2; break; }
-    }
+    for (var i = 0; i < v.length; i++) if (fisGunOku_(v[i][c[0]]) === d.gun) { hedef = i + 2; break; }
   }
   if (hedef && d.onay !== '1') {
-    return { tekrarMi: true, hata: tarihYazi + ' ' + sube + ' için fiş zaten kaydedilmiş (' + sayi_(sh.getRange(hedef, c[7] + 1).getValue()).toLocaleString('tr-TR') + ' TL). Üzerine yazmak istiyorsan onayla.' };
+    return { tekrarMi: true, hata: tarihYazi + ' için fiş zaten kaydedilmiş (' + sayi_(sh.getRange(hedef, c[7] + 1).getValue()).toLocaleString('tr-TR') + ' TL). Üzerine yazmak istiyorsan onayla.' };
   }
   var damga = Utilities.formatDate(new Date(), TZ, 'dd.MM.yyyy HH:mm:ss');
   var satir = hedef ? sh.getRange(hedef, 1, 1, lc).getValues()[0] : (function () { var x = []; for (var j = 0; j < lc; j++) x.push(''); return x; })();
-  satir[c[0]] = tarih; satir[c[1]] = sube.replace('BAP ', ''); satir[c[2]] = n.online; satir[c[3]] = n.masa; satir[c[4]] = n.paket; satir[c[5]] = n.platformKk;
-  satir[c[6]] = hesap; satir[c[7]] = n.kesilen; satir[c[8]] = Math.round((n.kesilen - Math.max(0, hesap)) * 100) / 100; satir[c[9]] = elle; satir[c[10]] = not;
+  satir[c[0]] = tarih; satir[c[1]] = n.online; satir[c[2]] = n.masa; satir[c[3]] = n.paket; satir[c[4]] = n.platformKk; satir[c[5]] = hesap;
+  satir[c[6]] = n.adet; satir[c[7]] = n.kesilen; satir[c[8]] = Math.round((n.kesilen - Math.max(0, hesap)) * 100) / 100; satir[c[9]] = elle; satir[c[10]] = not;
   satir[c[11]] = damga; satir[c[12]] = hedef ? 'Panel (güncellendi)' : 'Panel';
   var no = hedef || sh.getLastRow() + 1;
   sh.getRange(no, 1, 1, lc).setValues([satir]);
   sh.getRange(no, c[0] + 1).setNumberFormat('dd.mm.yyyy');
-  sh.getRange(no, c[2] + 1, 1, 7).setNumberFormat('#,##0.00');
-  var sonuc = { tamam: true, satir: no, gun: d.gun, sube: sube.replace('BAP ', ''), kesilen: n.kesilen, hesap: hesap, guncellendi: !!hedef };
+  sh.getRange(no, c[1] + 1, 1, 5).setNumberFormat('#,##0.00');
+  sh.getRange(no, c[7] + 1, 1, 2).setNumberFormat('#,##0.00');
+  var sonuc = { tamam: true, satir: no, gun: d.gun, adet: n.adet, kesilen: n.kesilen, hesap: hesap, guncellendi: !!hedef };
   if (istek) cache.put('fis_' + istek, JSON.stringify(sonuc), 600);
-  try { cevapKaydet_('Finans', 'BAP Günlük Fiş Kaydı › Fisler', no, 'Günlük fiş ' + tarihYazi + ' ' + sonuc.sube, n.kesilen.toLocaleString('tr-TR') + ' TL' + (not ? ', ' + not : ''), damga.slice(0, 16)); } catch (err) { }
+  try { cevapKaydet_('Finans', 'BAP Günlük Fiş Kaydı › Fisler', no, 'Günlük fiş ' + tarihYazi, n.adet + ' fiş, ' + n.kesilen.toLocaleString('tr-TR') + ' TL' + (not ? ', ' + not : ''), damga.slice(0, 16)); } catch (err) { }
   return sonuc;
 }
 

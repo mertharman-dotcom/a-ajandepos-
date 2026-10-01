@@ -19,7 +19,7 @@ Finans / Alımlar sayfalarındaki tedarikçi borcundan düşülür.
 
 ## Günlük fiş (İşletme Özeti)
 
-**İşletme Özeti** sayfasında, Yemeksepeti ve Trendyol online siparişleri için gün sonunda kesilecek fiş şube şube hesaplanır:
+**İşletme Özeti**'nde, Yemeksepeti ve Trendyol online siparişleri için gün sonunda kesilecek fiş hesaplanır (iki şubenin toplamı):
 
 ```
 Kesilecek fiş = YS + Trendyol online
@@ -28,10 +28,12 @@ Kesilecek fiş = YS + Trendyol online
               − YS + Trendyol kapıda ödemesi kredi kartına dönen tutar
 ```
 
+- Üstteki rakam satırında **Dünün fişi** kutusu (akşam 20:00'den sonra **Bugünün fişi**): kesilecek tutar ve kaydedilip kaydedilmediği. Dokununca fiş bölümüne iner.
 - Rakamlar **Adisyo sipariş verisi › Satıs Verileri** sekmesinden (Sipariş Kanalı, Masa Siparişi, Ödeme Yöntemi, Tahsil Tipi) gelir; yalnız kapanmış siparişler sayılır. İş günü 03:00'te kapanır.
-- Getir ve diğer platformlar hesaba girmez. YS / Trendyol kapıda yemek kartı düşülmez, kartta bilgi olarak yazar.
+- Getir ve diğer platformlar hesaba girmez. YS / Trendyol kapıda yemek kartı düşülmez, bilgi olarak yazar.
 - Kurye ödeme yöntemini yanlış girdiyse kutudaki rakam elle düzeltilir (sarı görünür, kayıtta "Elle değişen" sütununa düşer).
-- **Fişi kaydet** ile kesilen tutar **BAP Günlük Fiş Kaydı › Fisler** tablosuna yazılır (ilk kayıtta kendiliğinden oluşur). Aynı gün + şube için tek satır tutulur; tekrar kaydedilirse onay sorup o satırı günceller.
+- **Fişi kaydet**: fiş adedi + toplam tutar + not, hesabın dökümüyle birlikte **BAP Günlük Fiş Kaydı › Fisler** tablosuna yazılır (ilk kayıtta kendiliğinden oluşur). Gün başına tek satır; aynı gün tekrar kaydedilirse onay sorup o satırı günceller.
+- **BAP veri tablosu › Kesilen Fişler** (eski kayıtlar) yalnız okunur, hiç yazılmaz; yeni tabloda olmayan günler panelde "Eski tablodan" diye görünür.
 - Son 14 günün grafiği hesaplanan ve kesilen fişi yan yana gösterir; fişi kaydedilmemiş günler kırmızı.
 
 ## Yayına alma

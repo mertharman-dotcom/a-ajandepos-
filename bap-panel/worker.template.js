@@ -108,9 +108,8 @@ export default {
       let govde;
       try { govde = await request.json(); } catch (e) { return json({ hata: 'Geçersiz istek.' }, 400); }
       const ileti = { key: env.GAS_KEY, tur: 'fis', istekNo: String(govde.istekNo || '').slice(0, 64), gun: String(govde.gun || '').slice(0, 10),
-        sube: String(govde.sube || '').slice(0, 40), elle: String(govde.elle || '').slice(0, 60), not: String(govde.not || '').slice(0, 300),
-        onay: govde.onay === '1' ? '1' : '' };
-      ['online', 'masa', 'paket', 'platformKk', 'kesilen'].forEach(function (k) { ileti[k] = String(govde[k] || '0').slice(0, 20); });
+        elle: String(govde.elle || '').slice(0, 60), not: String(govde.not || '').slice(0, 300), onay: govde.onay === '1' ? '1' : '' };
+      ['online', 'masa', 'paket', 'platformKk', 'adet', 'kesilen'].forEach(function (k) { ileti[k] = String(govde[k] || '0').slice(0, 20); });
       try {
         const r = await fetch(env.GAS_URL, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(ileti), redirect: 'follow' });
         const metin = await r.text();
