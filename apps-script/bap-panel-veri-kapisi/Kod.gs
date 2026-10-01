@@ -2178,6 +2178,9 @@ function mesaiDuzelt_(d) {
   return { tamam: true, ozet: ozet, yenilendi: y.ok, not: y.not || '' };
 }
 
+// Bir kez editörden çalıştır: dış istek iznini onaylatır ve kurye tablosunu yeniden hesaplatır.
+function kuralBaglantiTesti() { var y = kuralYenile_(); Logger.log(y.ok ? 'Bağlantı tamam: Günlük Mesai yeniden hesaplandı.' : y.not); return y; }
+
 // Kurye tablosundaki kural katmanını (kuraliUygula) Köprü web uygulaması üzerinden çalıştırır.
 function kuralYenile_() {
   var p = PropertiesService.getScriptProperties(), url = p.getProperty('KOPRU_URL'), anahtar = p.getProperty('KOPRU_ANAHTAR');
