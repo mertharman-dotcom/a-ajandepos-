@@ -1501,17 +1501,29 @@ function ciz(){nav();var a=document.getElementById("ana");a.textContent="";
   if(!VERI){a.appendChild(el("div",{class:"yukleniyor",text:YUKLENIYOR?"Panel verisi okunuyor…":"Veri yok."}));return;}
   if(VERI.hata){a.appendChild(ust("Panel verisi okunamadı",null));a.appendChild(el("div",{class:"uyari kotu"},[el("b",{text:"Veri kapısından cevap alınamadı"}),el("div",{text:VERI.hata})]));return;}
   (CIZ[AKTIF]||merkez)(a);
-  var y=document.getElementById("yanAlt");var kotu=kaynaklar().filter(function(k){return tazelik(k)==="kotu";}).length;y.textContent=kotu?kotu+" kaynak beklenenden eski":"Bütün kaynaklar güncel";}
+  yanAltYaz();}
 
-function yukle(taze){if(YUKLENIYOR)return;YUKLENIYOR=true;if(VERI)ciz();
-  fetch("/api/data"+(taze?"?fresh=1":""),{cache:"no-store",credentials:"same-origin"}).then(function(r){return r.json();}).then(function(d){VERI=d;}).catch(function(){VERI={hata:"Bağlantı kurulamadı. İnternetini kontrol edip yeniden dene."};}).then(function(){YUKLENIYOR=false;ciz();});}
+// Açılış: önce önbellekteki veri (anında), sonra arkadan taze veri. Taze veri gelince sayfa sessizce yenilenir;
+// bir forma yazı yazılıyorsa yenileme odak formdan çıkana kadar bekler. Arka plan hatası eski veriyi silmez.
+var CIZ_BEKLIYOR=false;
+function odakFormda(){var e=document.activeElement;return !!(e&&/^(INPUT|TEXTAREA|SELECT)$/.test(e.tagName)&&document.getElementById("ana").contains(e));}
+function veriYasi(){if(!VERI||!VERI.olusturma)return 1e9;var t=Date.parse(VERI.olusturma+"+03:00");return isNaN(t)?1e9:(Date.now()-t)/1000;}
+function yanAltYaz(){var y=document.getElementById("yanAlt");if(!y||!VERI||VERI.hata)return;var kotu=kaynaklar().filter(function(k){return tazelik(k)==="kotu";}).length;
+  y.textContent=(YUKLENIYOR?"Güncelleniyor… · ":"")+(kotu?kotu+" kaynak beklenenden eski":"Bütün kaynaklar güncel");}
+function yukle(taze,sessiz){if(YUKLENIYOR)return;YUKLENIYOR=true;if(VERI&&!sessiz)ciz();else yanAltYaz();
+  fetch("/api/data"+(taze?"?fresh=1":""),{cache:"no-store",credentials:"same-origin"}).then(function(r){return r.json();})
+    .then(function(d){if(d&&d.hata&&VERI&&!VERI.hata&&sessiz)return;VERI=d;})
+    .catch(function(){if(!VERI||!sessiz)VERI={hata:"Bağlantı kurulamadı. İnternetini kontrol edip yeniden dene."};})
+    .then(function(){YUKLENIYOR=false;if(odakFormda()){CIZ_BEKLIYOR=true;yanAltYaz();}else ciz();
+      if(!taze&&VERI&&!VERI.hata&&veriYasi()>60)setTimeout(function(){yukle(true,true);},50);});}
+document.addEventListener("focusout",function(){setTimeout(function(){if(CIZ_BEKLIYOR&&!odakFormda()){CIZ_BEKLIYOR=false;ciz();}},200);});
 
 window.addEventListener("hashchange",function(){var h=(location.hash||"#merkez").slice(1);if(h!==AKTIF){AKTIF=h;ciz();}});
 nav();yukle(false);setInterval(function(){if(document.hidden)return;
   // Ödeme formu yarım doldurulmuşken otomatik yenileme ekranı yeniden çizip odağı kaçırmasın.
   if(AKTIF==="odeme"&&(ODEME_FORM.tutar||ODEME_FORM.aciklama||ODEME_FORM.gonderiliyor))return;
   if(AKTIF==="kurye"&&(KESINTI_FORM.miktar||KESINTI_FORM.aciklama||KESINTI_FORM.gonderiliyor))return;
-  if(AKTIF==="personel"&&VARD_DUZEN)return;yukle(false);},300000);
+  if(AKTIF==="personel"&&VARD_DUZEN)return;yukle(true,true);},300000);
 })();
 </script>
 </body>

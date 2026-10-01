@@ -52,7 +52,7 @@ function doGet(e) {
     if (c) return ContentService.createTextOutput(c).setMimeType(ContentService.MimeType.JSON);
   }
   var metin = JSON.stringify(paketHazirla_());
-  onbellekYaz_(cache, metin); // 2 dakika önbellek (parçalı)
+  onbellekYaz_(cache, metin); // 6 saat, sıkıştırılmış; panel açılışta bunu gösterip arkadan ?fresh=1 ister
   return ContentService.createTextOutput(metin).setMimeType(ContentService.MimeType.JSON);
 }
 
@@ -67,26 +67,30 @@ function tuketimCevap_(p, cache) {
   var metin;
   try { metin = JSON.stringify(tuketim_(bas, bit)); }
   catch (err) { return json_({ hata: String((err && err.message) || err) }); }
-  onbellekYaz_(cache, metin, on);
+  onbellekYaz_(cache, metin, on, 120);
   return ContentService.createTextOutput(metin).setMimeType(ContentService.MimeType.JSON);
 }
 
 // Önbellek anahtar başına 100 KB sınırlı; büyük paket parçalara bölünür.
-function onbellekYaz_(cache, metin, on) {
-  on = on || 'panel_v1_';
-  var n = Math.ceil(metin.length / 90000), o = {};
-  if (n > 9) return;
-  for (var i = 0; i < n; i++) o[on + i] = metin.substr(i * 90000, 90000);
+// Önbellek: paket gzip + base64 ile sıkıştırılıp 90 KB'lık parçalara bölünür (anahtar başına 100 KB sınırı).
+// Eskiden sıkıştırma yoktu ve 9 parçadan (≈810 KB) büyük paket hiç önbelleğe yazılmıyordu; her açılış baştan hesaplanıyordu.
+var ONBELLEK_SURE = 21600; // 6 saat (CacheService üst sınırı); panel açılışta bunu gösterir, arkadan tazesini ister
+function onbellekYaz_(cache, metin, on, sure) {
+  on = on || 'panel_v2_';
+  var z = Utilities.base64Encode(Utilities.gzip(Utilities.newBlob(metin, 'application/json')).getBytes());
+  var n = Math.ceil(z.length / 90000), o = {};
+  if (n > 80) return;
+  for (var i = 0; i < n; i++) o[on + i] = z.substr(i * 90000, 90000);
   o[on + 'n'] = String(n);
-  cache.putAll(o, 120);
+  try { cache.putAll(o, sure || ONBELLEK_SURE); } catch (err) { }
 }
 function onbellekOku_(cache, on) {
-  on = on || 'panel_v1_';
+  on = on || 'panel_v2_';
   var n = +cache.get(on + 'n'); if (!n) return null;
   var keys = []; for (var i = 0; i < n; i++) keys.push(on + i);
   var o = cache.getAll(keys), s = '';
   for (i = 0; i < n; i++) { if (o[keys[i]] == null) return null; s += o[keys[i]]; }
-  return s;
+  try { return Utilities.ungzip(Utilities.newBlob(Utilities.base64Decode(s), 'application/x-gzip')).getDataAsString(); } catch (err) { return null; }
 }
 
 /* ---------------- Elle çalıştırılacak yardımcılar ---------------- */
@@ -152,8 +156,19 @@ function paketHazirla_() {
 }
 
 function bolum_(out, ad, fn) {
+  var t0 = Date.now();
   try { out[ad] = fn(); }
   catch (err) { out.hatalar.push({ bolum: ad, mesaj: String((err && err.message) || err) }); }
+  (out.sureler = out.sureler || {})[ad] = Date.now() - t0; // ms; yavaş bölümü bulmak için
+}
+
+// Elle çalıştırın: her bölümün kaç saniyede okunduğunu ve paketin boyutunu Yürütme günlüğüne yazar.
+function hizTesti() {
+  var t0 = Date.now(), v = paketHazirla_(), metin = JSON.stringify(v);
+  Logger.log('Toplam: ' + ((Date.now() - t0) / 1000).toFixed(1) + ' sn · paket ' + Math.round(metin.length / 1024) + ' KB');
+  Object.keys(v.sureler || {}).sort(function (a, b) { return v.sureler[b] - v.sureler[a]; })
+    .forEach(function (k) { Logger.log(k + ': ' + (v.sureler[k] / 1000).toFixed(1) + ' sn'); });
+  onbellekYaz_(CacheService.getScriptCache(), metin);
 }
 
 /* ---------------- Satış ---------------- */
