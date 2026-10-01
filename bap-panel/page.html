@@ -1188,9 +1188,17 @@ function fisKart(g,s){var f=fisForm(g),kayit=fisKaydi(g.gun);
 // Dönem özeti: seçilen dönemde hesaplanan fiş, kesilen fiş ve aradaki fark (gün gün).
 var FIS_DONEM="30";
 function fisGecmis(s){var bugun=s.bugun,kap=el("div"),tum=s.fis.gunler.slice().reverse();
-  var DON=[["bugun","Bugün"],["dun","Dün"],["7","Son 7 gün"],["30","Son 30 gün"]];
-  var secili=FIS_DONEM==="bugun"?tum.filter(function(g){return g.gun===bugun;}):FIS_DONEM==="dun"?tum.filter(function(g){return g.gun===s.dun;}):tum.slice(-(+FIS_DONEM));
+  var DON=[["bugun","Bugün"],["dun","Dün"],["buHafta","Bu hafta"],["gecenHafta","Geçen hafta"],["7","Son 7 gün"],["30","Son 30 gün"],["buAy","Bu ay"],["gecenAy","Geçen ay"]];
+  // Her filtre bir gün aralığı: [ilk, son] (ikisi dahil, iş günü).
+  function gEk(g,k){return new Date(Date.parse(g+"T00:00:00Z")+k*864e5).toISOString().slice(0,10);}
+  var hb=s.haftaBasi||gEk(bugun,-((new Date(bugun+"T00:00:00Z").getUTCDay()+6)%7)),ayBas=bugun.slice(0,8)+"01",gAyBas=new Date(Date.UTC(+bugun.slice(0,4),+bugun.slice(5,7)-2,1)).toISOString().slice(0,10);
+  var ARALIK={bugun:[bugun,bugun],dun:[s.dun,s.dun],buHafta:[hb,bugun],gecenHafta:[gEk(hb,-7),gEk(hb,-1)],"7":[gEk(bugun,-6),bugun],"30":[gEk(bugun,-29),bugun],buAy:[ayBas,bugun],gecenAy:[gAyBas,gEk(ayBas,-1)]};
+  if(!ARALIK[FIS_DONEM])FIS_DONEM="30";var ar=ARALIK[FIS_DONEM];
+  var secili=tum.filter(function(g){return g.gun>=ar[0]&&g.gun<=ar[1];});
+  var eksikVeri=tum.length&&tum[0].gun>ar[0];
   var veri=secili.map(function(g){var k=fisKaydi(g.gun);return {gun:g.gun,online:g.online.tutar,dus:g.masa.tutar+g.paket.tutar+g.platformKk.tutar,hesap:Math.max(0,g.kesilecek),kesilen:k?k.kesilen:0,adet:k?(k.adet||0):0,kayit:k,durum:fisGunDurum(g,bugun)};});
+  var donemAd=(DON.filter(function(d){return d[0]===FIS_DONEM;})[0]||[,""])[1],ayIsim=function(g){return AY_AD[+g.slice(5,7)-1]+" "+g.slice(0,4);};
+  var aralikYazi=FIS_DONEM==="buAy"||FIS_DONEM==="gecenAy"?ayIsim(ar[0]):(ar[0]===ar[1]?tarihTr(ar[0]):tarihTr(ar[0])+" – "+tarihTr(ar[1]));
   kap.appendChild(el("div",{class:"hafta-sec",style:"margin:22px 0 12px"},[el("strong",{text:"Hesaplanan ve kesilen fiş farkı"}),
     el("div",{class:"sekmeler",style:"margin:0"},DON.map(function(d){return el("button",{type:"button","aria-pressed":FIS_DONEM===d[0]?"true":"false",onclick:function(){FIS_DONEM=d[0];ciz();}},[d[1]]);}))]));
   var hesap=veri.reduce(function(t,v){return t+v.hesap;},0),kesilen=veri.reduce(function(t,v){return t+v.kesilen;},0),adet=veri.reduce(function(t,v){return t+v.adet;},0);
@@ -1198,10 +1206,11 @@ function fisGecmis(s){var bugun=s.bugun,kap=el("div"),tum=s.fis.gunler.slice().r
   var kayitli=veri.filter(function(v){return v.kayit;}),kHesap=kayitli.reduce(function(t,v){return t+v.hesap;},0),fark=kayitli.reduce(function(t,v){return t+v.kesilen-v.hesap;},0);
   var eksik=veri.filter(function(v){return v.durum==="kotu";}),eksikTutar=eksik.reduce(function(t,v){return t+v.hesap;},0);
   var farkAd=Math.abs(fark)<1?"Fark":(fark<0?"Eksik kesilen":"Fazla kesilen");
-  kap.appendChild(el("div",{class:"rakamlar"},[rakam("Kesilmesi gereken",para(hesap),veri.length>1?veri.length+" günün toplamı":tarihTr(veri[0]?veri[0].gun:bugun)),
+  kap.appendChild(el("div",{class:"rakamlar"},[rakam("Kesilmesi gereken",para(hesap),donemAd+": "+aralikYazi+(veri.length>1?", "+veri.length+" gün":"")),
     rakam("Kesilen fiş",para(kesilen),adet?adet+" fiş":"Kayıt yok"),
     rakam(farkAd,kayitli.length?(Math.abs(fark)<1?"0 ₺":(fark<0?"−":"+")+para(Math.abs(fark))):"—",kayitli.length?kayitli.length+" kayıtlı günde"+(kHesap>0?", hesabın %"+Math.round(Math.abs(fark)/kHesap*100)+"'i":""):"Bu dönemde kayıt yok",!kayitli.length||Math.abs(fark)<1?"":(fark<0?"asagi":"")),
     rakam("Fişi kaydedilmemiş gün",String(eksik.length),eksik.length?para(eksikTutar)+" kaydı yok":"Hepsi kayıtlı",eksik.length?"asagi":"yukari")]));
+  if(eksikVeri)kap.appendChild(el("p",{class:"fis-not",style:"margin:-18px 0 14px",text:"Bu dönemin başı panelin okuduğu aralıktan eski; yalnız "+tarihTr(tum[0].gun)+" sonrası gösteriliyor."}));
   if(veri.length>1){
     // Açık çubuk: kesilmesi gereken (kaydı yoksa kırmızı). İçindeki koyu çubuk: kesilen.
     var W=760,H=220,ust=22,alt=34,p=14,bw=(W-p*2)/veri.length,cok=veri.length>14,max=Math.max.apply(null,veri.map(function(v){return Math.max(v.hesap,v.kesilen);}))||1;

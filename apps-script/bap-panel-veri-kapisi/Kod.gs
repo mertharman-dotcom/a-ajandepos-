@@ -201,11 +201,13 @@ function siparisVerisi_(enEski) {
 }
 
 function satis_() {
-  var sv = siparisVerisi_(), c = sv.c, rows = sv.rows;
-  if (!rows.length) return null;
-
+  // Fiş farkı 'Geçen ay' filtresi için önceki ayın 1'ine kadar okunur (normalde son 5000 satır yeter, ay başında biraz fazlası).
   var simdi = simdi_();
   var bugun = isGunu_(simdi);
+  var gecenAyBasi = new Date(Date.UTC(+bugun.slice(0, 4), +bugun.slice(5, 7) - 2, 1)).toISOString().slice(0, 10);
+  var sv = siparisVerisi_(gecenAyBasi), c = sv.c, rows = sv.rows;
+  if (!rows.length) return null;
+
   var dun = gunEkle_(bugun, -1);
   var gecenHafta = gunEkle_(bugun, -7);
   var dow = (new Date(bugun + 'T00:00:00Z').getUTCDay() + 6) % 7; // Pazartesi = 0
@@ -213,8 +215,8 @@ function satis_() {
   var ilkSeri = gunEkle_(bugun, -13);
 
   var seri = {}; for (var i = 0; i < 14; i++) seri[gunEkle_(ilkSeri, i)] = { ciro: 0, adet: 0 };
-  // Fiş hesabı 30 gün geriye gider (panelde 30 günlük fark için).
-  var fis = {}; for (i = 0; i < 30; i++) fis[gunEkle_(bugun, -i)] = fisBos_();
+  // Fiş hesabı önceki ayın 1'inden bugüne gider (Son 30 gün, Bu ay, Geçen ay filtreleri için).
+  var fis = {}; for (var fg = gecenAyBasi; fg <= bugun; fg = gunEkle_(fg, 1)) fis[fg] = fisBos_();
   var g = { bugun: z_(), dun: z_(), hafta: z_(), gecenHaftaAyniSaat: z_() };
   var acik = z_(), iptalBugun = 0, sonSiparis = null;
   var kanalBugun = {}, subeBugun = {}, markaBugun = {}, kanalHafta = {}, mutfakBugun = {};
