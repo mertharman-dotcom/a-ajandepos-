@@ -114,7 +114,8 @@ export default {
       try { govde = await request.json(); } catch (e) { return json({ hata: 'Geçersiz istek.' }, 400); }
       const ileti = JSON.stringify({ key: env.GAS_KEY, tur: 'cevap', kaynak: String(govde.kaynak || ''), no: String(govde.no || ''),
         konu: String(govde.konu || '').slice(0, 500), cevap: String(govde.cevap || '').slice(0, 1500),
-        satir: String(govde.satir || ''), ad: String(govde.ad || '').slice(0, 120), alan: String(govde.alan || '').slice(0, 60) });
+        satir: String(govde.satir || ''), ad: String(govde.ad || '').slice(0, 120), alan: String(govde.alan || '').slice(0, 60),
+        degistir: govde.degistir === '1' ? '1' : '' });
       try {
         const r = await fetch(env.GAS_URL, { method: 'POST', headers: { 'content-type': 'application/json' }, body: ileti, redirect: 'follow' });
         const metin = await r.text();

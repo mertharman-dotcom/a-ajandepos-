@@ -664,26 +664,43 @@ function personelGenel(a,p){
   a.appendChild(blok(ayAd(p.ay.ay)+" çalışma özeti","Ay başından bugüne. Normal mesai = toplam süre − fazla mesai; fazla mesai yalnız artı süreler, eksik süre ayrıca (kesilmez). Yıllık izin ve rapor (3 güne kadar) ödenir; ücretsiz izin ve devamsızlık kesilir. SGK primi: SGK'lı personelin kişi başı aylık işveren payı, ay içi giriş/çıkışta çalışılan güne göre.",AK.length?ozT:bos("Bu ay kayıt yok.")));
   if(p.odemeler.length)a.appendChild(blok("Maaş ödemeleri","Yönetici panelinden girilen ödemelerin ay toplamı.",cubuklar(p.odemeler.map(function(x){return {ad:ayAd(x.ay)+" ("+x.kisi+" kişi)",deger:x.tutar};}))));}
 
+var PB_FILTRE="hepsi",PB_ACIK={},PB_DUZEN={};
 function personelBilgi(a,p){var B=p.bilgiler;if(!B)return a.appendChild(bos("Personel sekmesi okunamadı."));
   var aktif=B.liste.filter(function(x){return x.aktif;}),eksikler=aktif.filter(function(x){return x.eksik.length;}),toplamEksik=eksikler.reduce(function(t,x){return t+x.eksik.length;},0);
-  a.appendChild(el("div",{class:"rakamlar"},[rakam("Aktif personel",String(aktif.length)),rakam("Bilgisi eksik olan",String(eksikler.length),eksikler.length?"Aşağıda tek tek girebilirsin":"Hepsi tam",eksikler.length?"asagi":"yukari"),rakam("Eksik bilgi",String(toplamEksik),"alan"),rakam("Pasif / ayrılan",String(B.liste.length-aktif.length)),rakam("Sorumlu","İK","İnsan Kaynakları")]));
-  a.appendChild(el("div",{class:"bilgi",text:"Sorumlu: İnsan Kaynakları. Eksik bilgileri İK her hafta kontrol eder ve senden burada ister. Girdiğin bilgi doğrudan personel dosyasına, yalnızca boş olan alana yazılır; dolu bir bilgiyi değiştirmek için yönetici panelini kullan. Telefon ve IBAN burada gizli gösterilir."}));
-  a.appendChild(blok("Eksik bilgisi olanlar",null,eksikler.length?el("div",{class:"liste"},eksikler.map(function(x){return personelKart(x);})):bos("Aktif personelin bütün bilgileri tam.")));
-  var tam=aktif.filter(function(x){return !x.eksik.length;});
-  if(tam.length)a.appendChild(blok("Bilgileri tam olanlar",null,tablo([["Personel"],["Şube"],["Departman"],["İşe giriş"],["Maaş",1],["SGK"]],tam.map(function(x){var d=x.degerler;return [x.ad,d["Sube"]||"",d["Departman"]||"",d["İşe Giriş"]||"",d["Maaş"]?para(+String(d["Maaş"]).replace(/\./g,"").replace(",",".")):"",/true|evet/i.test(d["SGK lı"]||"")?"Var":"Yok"];}))));
   var pasif=B.liste.filter(function(x){return !x.aktif;});
-  if(pasif.length)a.appendChild(blok("Pasif / ayrılan personel","Bu kişilerin eksik bilgisi istenmez.",el("div",{class:"liste"},[el("div",{class:"bos",text:pasif.map(function(x){return x.ad+(x.cikis?" ("+x.cikis+")":"");}).join(", ")})])));}
+  a.appendChild(el("div",{class:"rakamlar"},[rakam("Aktif personel",String(aktif.length)),rakam("Bilgisi eksik olan",String(eksikler.length),eksikler.length?"kartlarda kırmızı":"Hepsi tam",eksikler.length?"asagi":"yukari"),rakam("Eksik bilgi",String(toplamEksik),"alan"),rakam("Pasif / ayrılan",String(pasif.length)),rakam("Sorumlu","İK","İnsan Kaynakları")]));
+  a.appendChild(el("div",{class:"bilgi",text:"Her personelin bütün bilgileri aşağıda. Boş alanı doldurabilir, dolu alanı ‘Değiştir’ ile güncelleyebilirsin; yazdığın değer doğrudan BAP Personel › Personel sekmesindeki ilgili hücreye yazılır, eski değer işlem kaydına (Islem_Loglari) düşer. Telefon, IBAN ve acil durum bilgileri burada yalnız son 4 hanesiyle görünür; değiştirirken tamamını yeniden yaz. Şifre panelden görülmez ve değiştirilmez. Maaş değişikliği bordroya, işten çıkış tarihi ve ‘Aktif’ QR girişine etki eder."}));
+  var sek=el("div",{class:"sekmeler"},[["hepsi","Aktif personel ("+aktif.length+")"],["eksik","Sadece eksik olanlar ("+eksikler.length+")"],["pasif","Pasif / ayrılan ("+pasif.length+")"]].map(function(x){return el("button",{type:"button","aria-pressed":PB_FILTRE===x[0]?"true":"false",onclick:function(){PB_FILTRE=x[0];ciz();}},[x[1]]);}));
+  a.appendChild(sek);
+  var liste=PB_FILTRE==="pasif"?pasif:(PB_FILTRE==="eksik"?eksikler:aktif.slice().sort(function(x,y){return y.eksik.length-x.eksik.length||x.ad.localeCompare(y.ad,"tr");}));
+  a.appendChild(liste.length?el("div",{class:"liste"},liste.map(function(x){return personelKart(x,B.alanlar,PB_FILTRE==="pasif");})):bos(PB_FILTRE==="eksik"?"Aktif personelin bütün bilgileri tam.":"Kayıt yok."));}
 
 var ORNEK={tarih:"GG.AA.YYYY",sayi:"örn. 45000",evethayir:"Evet / Hayır",sube:"Erenköy / Fikirtepe",telefon:"5XX XXX XX XX",iban:"TR.. .... ....",metin:""};
-function personelKart(x){var d=x.degerler;var bilgi=[d["Sube"],d["Departman"],d["İşe Giriş"]?"Giriş "+d["İşe Giriş"]:null].filter(Boolean).join(", ");
-  var satirlar=x.eksik.map(function(e){var alan=el("input",{type:"text",class:"cevap-alan",style:"max-width:280px",placeholder:ORNEK[e.tur]||"","aria-label":x.ad+" "+e.etiket,inputmode:/telefon|sayi/.test(e.tur)?"numeric":null});
-    var durum=el("span",{class:"cevap-durum",role:"status"});var kutu;
-    var dug=el("button",{type:"button",class:"dugme",onclick:function(){var c=alan.value.trim();if(!c){durum.textContent="Önce bilgiyi yaz.";return;}dug.setAttribute("disabled","");durum.textContent="Kaydediliyor…";
-      fetch("/api/cevap",{method:"POST",credentials:"same-origin",headers:{"content-type":"application/json","x-bap-panel":"1"},body:JSON.stringify({kaynak:"personel-bilgi",satir:x.satir,ad:x.ad,alan:e.alan,cevap:c})})
-        .then(function(r){return r.json();}).then(function(r){if(r&&r.tamam){kutu.textContent="";kutu.appendChild(el("span",{class:"etiket e-iyi",text:e.etiket+" kaydedildi: "+r.goster}));x.eksik=x.eksik.filter(function(y){return y.alan!==e.alan;});}else{durum.textContent=(r&&r.hata)||"Kaydedilemedi.";dug.removeAttribute("disabled");}})
-        .catch(function(){durum.textContent="Bağlantı hatası; kaydedilmedi.";dug.removeAttribute("disabled");});}},["Kaydet"]);
-    kutu=el("div",{class:"cevap-alt",style:"margin-top:8px"},[el("span",{style:"min-width:160px;font-size:14px",text:e.etiket}),alan,dug,durum]);return kutu;});
-  return el("div",{class:"satir"},[el("h3",null,[x.ad+" ",el("span",{class:"etiket e-dikkat",text:x.eksik.length+" eksik"})]),bilgi?el("p",{style:"color:var(--gri)",text:bilgi}):null].concat(satirlar));}
+function bilgiGoster(x,al){var d=x.degerler||{},m=x.maskeli||{};var v=al.goster?d[al.ad]:m[al.ad];if(v==null||v==="")return null;
+  if(al.ad==="Maaş")return para(+String(v).replace(/\./g,"").replace(",","."));if(al.tur==="evethayir")return /true|evet|1/i.test(v)?"Evet":"Hayır";return String(v);}
+// Kişi kartı: bütün alanlar; boşsa kırmızı ‘eksik’ + giriş kutusu, doluysa değer + ‘Değiştir’.
+function personelKart(x,alanlar,pasifMi){var d=x.degerler||{},acik=PB_ACIK[x.ad]!=null?PB_ACIK[x.ad]:(!pasifMi&&x.eksik.length>0);
+  var bilgi=[d["Sube"],d["Departman"],d["İşe Giriş"]?"Giriş "+d["İşe Giriş"]:null,x.cikis?"Çıkış "+x.cikis:null].filter(Boolean).join(", ");
+  var baslik=el("button",{type:"button",style:"all:unset;cursor:pointer;display:flex;gap:8px;align-items:center;flex-wrap:wrap",onclick:function(){PB_ACIK[x.ad]=!acik;ciz();},"aria-expanded":acik?"true":"false"},
+    [el("strong",{style:"font-size:16px",text:x.ad}),x.eksik.length&&!pasifMi?el("span",{class:"etiket e-kotu",text:x.eksik.length+" eksik"}):el("span",{class:"etiket e-iyi",text:pasifMi?"pasif":"tam"}),el("span",{style:"color:var(--gri);font-size:13px",text:(acik?"▾ ":"▸ ")+bilgi})]);
+  if(!acik)return el("div",{class:"satir"},[baslik]);
+  var satirlar=(alanlar||[]).map(function(al){var deger=bilgiGoster(x,al),k=x.ad+"|"+al.ad,duzen=PB_DUZEN[k],bos_=deger==null,eksikMi=bos_&&!al.istege;
+    var durum=el("span",{class:"cevap-durum",role:"status"});
+    var ad=el("span",{style:"min-width:170px;font-size:14px;color:var(--gri)",text:al.etiket});
+    if(!bos_&&!duzen)return el("div",{class:"cevap-alt",style:"margin-top:6px"},[ad,el("span",{style:"min-width:200px;font-weight:500",text:deger}),
+      el("button",{type:"button",class:"dugme",style:"padding:3px 10px;font-size:13px",onclick:function(){PB_DUZEN[k]=true;ciz();}},["Değiştir"])]);
+    var giris=al.tur==="evethayir"?el("select",{class:"cevap-alan",style:"max-width:280px","aria-label":x.ad+" "+al.etiket},[["","Seç"],["Evet","Evet"],["Hayır","Hayır"]].map(function(o){return el("option",{value:o[0],text:o[1]});}))
+      :el("input",{type:"text",class:"cevap-alan",style:"max-width:280px",placeholder:ORNEK[al.tur]||"","aria-label":x.ad+" "+al.etiket,inputmode:/telefon|sayi/.test(al.tur)?"numeric":null});
+    var dug=el("button",{type:"button",class:"dugme",onclick:function(){var c=String(giris.value||"").trim();if(!c){durum.textContent="Önce bilgiyi yaz.";return;}
+      if(!bos_&&!confirm(x.ad+" — "+al.etiket+"\n\n"+deger+"  →  "+c+"\n\nDeğiştirilsin mi?"))return;
+      dug.setAttribute("disabled","");durum.textContent="Kaydediliyor…";
+      fetch("/api/cevap",{method:"POST",credentials:"same-origin",headers:{"content-type":"application/json","x-bap-panel":"1"},body:JSON.stringify({kaynak:"personel-bilgi",satir:x.satir,ad:x.ad,alan:al.ad,cevap:c,degistir:bos_?"":"1"})})
+        .then(function(r){return r.json();}).then(function(r){if(r&&r.tamam){if(al.goster)x.degerler[al.ad]=r.goster;else{x.maskeli=x.maskeli||{};x.maskeli[al.ad]=r.goster;}x.eksik=x.eksik.filter(function(y){return y.alan!==al.ad;});delete PB_DUZEN[k];PB_ACIK[x.ad]=true;ciz();}
+          else{durum.textContent=(r&&r.hata)||"Kaydedilemedi.";dug.removeAttribute("disabled");}})
+        .catch(function(){durum.textContent="Bağlantı hatası; kaydedilmedi.";dug.removeAttribute("disabled");});}},[bos_?"Kaydet":"Değiştir"]);
+    var vazgec=!bos_?el("button",{type:"button",class:"dugme",style:"padding:3px 10px;font-size:13px",onclick:function(){delete PB_DUZEN[k];ciz();}},["Vazgeç"]):null;
+    return el("div",{class:"cevap-alt",style:"margin-top:6px"},[ad,eksikMi?el("span",{class:"etiket e-kotu",text:"eksik"}):(bos_?el("span",{style:"color:var(--gri);font-size:13px",text:"boş"}):el("span",{style:"color:var(--gri);font-size:13px",text:"şu an: "+deger})),giris,dug,vazgec,durum]);});
+  return el("div",{class:"satir"},[baslik].concat(satirlar));}
 
 var BRD_AY="";
 function iki(ust,alt,cls){return el("div",{class:cls||null},[ust,alt?el("small",{text:alt}):null]);}

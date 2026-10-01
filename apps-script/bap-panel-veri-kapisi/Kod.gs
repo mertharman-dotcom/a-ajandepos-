@@ -1556,7 +1556,10 @@ var PERSONEL_ALANLAR = [
   { ad: 'IBAN', etiket: 'IBAN', tur: 'iban', goster: false },
   { ad: 'Banka Hesap Adı', etiket: 'Banka hesap adı', tur: 'metin', goster: false },
   { ad: 'Acil durum kişi', etiket: 'Acil durum kişisi', tur: 'metin', goster: false },
-  { ad: 'Acil durum kişisi telefon', etiket: 'Acil durum telefonu', tur: 'telefon', goster: false }
+  { ad: 'Acil durum kişisi telefon', etiket: 'Acil durum telefonu', tur: 'telefon', goster: false },
+  // İsteğe bağlı: eksik sayılmaz ama panelden değiştirilebilir
+  { ad: 'İşten Çıkış', etiket: 'İşten çıkış tarihi', tur: 'tarih', goster: true, istege: true },
+  { ad: 'Aktif', etiket: 'Aktif çalışıyor mu', tur: 'evethayir', goster: true, istege: true }
 ];
 
 function personelBilgileri_(ss) {
@@ -1569,18 +1572,21 @@ function personelBilgileri_(ss) {
     var r = v[i]; if (!String(r[cA]).trim()) continue;
     var aktifMi = /^(true|evet|1)$/i.test(String(r[cAk]).trim());
     var p = { satir: i + 1, ad: r[cA], aktif: aktifMi, cikis: cC >= 0 ? r[cC] : '', degerler: {}, eksik: [] };
+    p.maskeli = {};
     PERSONEL_ALANLAR.forEach(function (a, j) {
       if (idx[j] < 0) return;
       var dolu = String(r[idx[j]]).trim() !== '';
       if (a.goster && dolu) p.degerler[a.ad] = r[idx[j]];
-      if (!dolu) p.eksik.push({ alan: a.ad, etiket: a.etiket, tur: a.tur });
+      if (!a.goster && dolu) p.maskeli[a.ad] = maskele_(String(r[idx[j]])); // telefon / IBAN / acil durum: yalnız son 4 hane
+      if (!dolu && !a.istege) p.eksik.push({ alan: a.ad, etiket: a.etiket, tur: a.tur });
     });
     liste.push(p);
   }
-  return { alanlar: PERSONEL_ALANLAR.map(function (a) { return { ad: a.ad, etiket: a.etiket }; }), liste: liste };
+  return { alanlar: PERSONEL_ALANLAR.map(function (a) { return { ad: a.ad, etiket: a.etiket, tur: a.tur, goster: a.goster, istege: !!a.istege }; }), liste: liste };
 }
 
-// Sahip panelden eksik bir personel bilgisini girer. Yalnız BOŞ hücreye yazılır; dolu bilgi panelden değiştirilemez.
+// Sahip panelden personel bilgisini girer. Boş hücreye doğrudan yazılır; dolu hücre yalnız d.degistir === '1' ile değiştirilir
+// ve eski değer (hassas alanlarda maskeli) Islem_Loglari'na yazılır. Şifre panelden hiç değiştirilemez.
 function personelBilgiGir_(d) {
   var alan = PERSONEL_ALANLAR.filter(function (a) { return a.ad === d.alan; })[0];
   if (!alan) return { hata: 'Bu alan panelden girilemez.' };
@@ -1591,14 +1597,16 @@ function personelBilgiGir_(d) {
   var cA = kolon_(b, ['İsim Soyisim']), cX = kolon_(b, [alan.ad]), satir = +d.satir;
   if (cX < 0 || !(satir >= 2 && satir <= v.length)) return { hata: 'Personel satırı bulunamadı.' };
   if (norm_(v[satir - 1][cA]) !== norm_(d.ad)) return { hata: 'Personel listesi değişmiş; sayfayı yenileyip tekrar deneyin.' };
-  if (String(v[satir - 1][cX]).trim() !== '') return { hata: 'Bu bilgi zaten dolu. Değiştirmek için yönetici panelini kullanın.' };
+  var eski = String(v[satir - 1][cX]).trim();
+  if (eski !== '' && d.degistir !== '1') return { hata: 'Bu bilgi zaten dolu; değiştirmek için ‘Değiştir’ ile gönderin.' };
   ps.getRange(satir, cX + 1).setValue(deger.deger);
   var damga = Utilities.formatDate(new Date(), TZ, 'dd.MM.yyyy HH:mm:ss');
   var gizli = alan.goster ? String(deger.deger) : maskele_(String(deger.deger));
   var log = ss.getSheetByName('Islem_Loglari');
-  if (log) { log.insertRowAfter(1); log.getRange(2, 1, 1, 5).setValues([[damga, 'Yönetici (panel)', 'PERSONEL_BILGI_GIRILDI', d.ad + ' — ' + alan.etiket + ': ' + gizli, '-']]); }
-  cevapKaydet_('İnsan Kaynakları', 'BAP Personel › Personel', satir, d.ad + ' — ' + alan.etiket + ' girildi', gizli, damga.slice(0, 16));
-  return { tamam: true, goster: gizli };
+  var eskiGizli = eski ? (alan.goster ? eski : maskele_(eski)) : '';
+  if (log) { log.insertRowAfter(1); log.getRange(2, 1, 1, 5).setValues([[damga, 'Yönetici (panel)', eski ? 'PERSONEL_BILGI_DEGISTI' : 'PERSONEL_BILGI_GIRILDI', d.ad + ' — ' + alan.etiket + ': ' + (eski ? eskiGizli + ' → ' : '') + gizli, '-']]); }
+  cevapKaydet_('İnsan Kaynakları', 'BAP Personel › Personel', satir, d.ad + ' — ' + alan.etiket + (eski ? ' değiştirildi' : ' girildi'), (eski ? eskiGizli + ' → ' : '') + gizli, damga.slice(0, 16));
+  return { tamam: true, goster: gizli, degisti: !!eski };
 }
 
 function dogrula_(tur, s) {
