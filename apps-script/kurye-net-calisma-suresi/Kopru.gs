@@ -39,6 +39,9 @@
  *     varsa 10'luk kuyruğu doldurup eksik günlerin sırasını hiç getirmiyordu.
  *   - Kurye listesi her çalışmada HemenYolda'dan yeniden alınır; eskiden
  *     kaydedilmiş liste yeni eklenen kuryeyi hiç sormuyordu.
+ *   - HemenYolda 403 verince köprü hemen durur (eskiden 5 dk boyunca denemeye
+ *     devam ediyor, panelin kendisini de kilitliyordu). İstekler arası 1,5 sn,
+ *     günler arası 10 sn, her turda en fazla 7 gün.
  *   - Kutuda bu turda işlenen günler ve kalan eksik gün sayısı yazar.
  *     Bugün/dün her turda tazelendiği için "Eksik gün yok" yazısı çıkmaz;
  *     bitiş işareti "EKSIK GUN KALMADI"dır.
@@ -107,7 +110,7 @@ function kopruGunleriYenidenCek(tarihler) {
   });
   PropertiesService.getScriptProperties().setProperty('KOPRU_ZORLA_GUNLER', JSON.stringify(z));
   var m = n + ' gün yeniden çekilmek üzere işaretlendi (toplam bekleyen: ' + Object.keys(z).length + ').\n' +
-          'Şimdi köprü kodunu HemenYolda panelinde çalıştır. Kod her seferinde en fazla 8 işaretli gün işler; ' +
+          'Şimdi köprü kodunu HemenYolda panelinde çalıştır. Kod her seferinde en fazla 5 işaretli gün işler; ' +
           'kutuda "EKSIK GUN KALMADI" yazana kadar tekrar çalıştır.';
   Logger.log(m);
   try { SpreadsheetApp.getUi().alert('Yeniden çekim', m, SpreadsheetApp.getUi().ButtonSet.OK); } catch (e) {}
@@ -533,8 +536,8 @@ function _kopruIstemciKodu(url, anahtar) {
 "  var W = '" + url + "';",
 "  var A = '" + anahtar + "';",
 "  var B = 'https://hemenyolda.com/api/v2';",
-"  var BEKLE = 700;    // istekler arasi ms",
-"  var GUN_ARA = 3000; // gunler arasi ms",
+"  var BEKLE = 1500;   // istekler arasi ms (1.2: 700 -> 1500, HemenYolda 403 veriyordu)",
+"  var GUN_ARA = 10000; // gunler arasi ms",
 "  var DENEME = 4;     // basarisiz istegi kac kez tekrar denesin",
 "",
 "  var kutu = document.getElementById('bapKopru');",
@@ -565,7 +568,8 @@ function _kopruIstemciKodu(url, anahtar) {
 "          try { return { ok:true, j:JSON.parse(t) }; } catch(e){ return { ok:true, j:null }; }",
 "        }",
 "        if (r.status === 401) return { ok:false, kod:401, dur:true };",
-"        if (r.status === 429 || r.status === 403) {",
+"        if (r.status === 403) return { ok:false, kod:403, dur:true };",
+"        if (r.status === 429) {",
 "          for (var b = 0; b < 5; b++) {",
 "            yaz('Sunucu kisitladi (' + r.status + '). ' + ((b+1)*60) + '. sn bekleniyor...');",
 "            await uyu(60000);",
@@ -604,7 +608,7 @@ function _kopruIstemciKodu(url, anahtar) {
 "  };",
 "",
 "  yaz('plan aliniyor...');",
-"  var p = await fetch(W + '?anahtar=' + A + '&adim=plan&enfazla=10')",
+"  var p = await fetch(W + '?anahtar=' + A + '&adim=plan&enfazla=7')",
 "          .then(function(r){ return r.json(); })",
 "          .catch(function(e){ return {hata:String(e)}; });",
 "  if (!p || p.hata) { yaz('HATA: ' + ((p&&p.hata)||'web uygulamasina ulasilamadi')); return; }",
@@ -648,9 +652,10 @@ function _kopruIstemciKodu(url, anahtar) {
 "      }",
 "",
 "      if (w.dur || sf.dur || (od && od.dur)) {",
-"        yaz('DURDU (' + (w.kod||sf.kod||(od&&od.kod)) + '). Sunucu istekleri reddediyor.' + NLC +",
+"        yaz('DURDU (' + (w.kod||sf.kod||(od&&od.kod)) + '). HemenYolda istekleri reddediyor.' + NLC +",
 "            'Buraya kadar cekilenler tabloya yazildi.' + NLC +",
-"            '15-20 dk bekleyip kodu tekrar calistir, kaldigi yerden devam eder.'); return;",
+"            'Sayfayi yenile, EN AZ 30 dk bekle, sonra kodu tekrar calistir.' + NLC +",
+"            'Servis saatinde calistirma (panel de etkilenir).'); return;",
 "      }",
 "      if (!sf.ok || !w.ok) hataliKurye++;",
 "",
