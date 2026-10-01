@@ -1226,8 +1226,9 @@ function mesaiDuzeltme(a,K){var D=MESAI_DUZ,L=K.mesaiKontrol||[],Y=K.mesaiDuzelt
       el("div",{class:"odeme-alt"},[el("button",{type:"submit",class:"dugme ana-dugme"},["Düzeltmeyi kaydet"]),el("button",{type:"button",class:"dugme",onclick:function(){D.acik="";ciz();}},["Vazgeç"])])]));}
   if(D.durum)kutu.appendChild(el("div",{class:"cevap-durum "+(D.durumSinif||""),role:"status",style:"display:block;margin-top:10px",text:D.durum}));
   a.appendChild(blok("Kontrol edilecek mesailer — son 3 hafta",null,kutu));
-  a.appendChild(blok("Yapılan mesai düzeltmeleri — son 60 gün","Kurye tablosundaki ‘Mesai Düzeltme’ sekmesinden. Geri alınca o gün otomatik hesaba döner.",Y.length?tablo([["Tarih"],["Kurye"],["Yöntem"],["Esas giriş"],["Esas çıkış"],["Açıklama"],["Kayıt"],[""]],Y.map(function(x){
-    return [gunAd(x.gun),x.ad,x.yontem,x.giris||"—",x.cikis||"—",el("span",{style:"color:var(--gri)",text:x.not||"—"}),el("span",{style:"color:var(--gri);font-size:13px",text:x.zaman}),dg("Geri al",function(){if(confirm(x.ad+" "+gunAd(x.gun)+" düzeltmesi geri alınsın mı? Gün otomatik hesaba döner."))mesaiDuzGonder("sil",x);})];})):bos("Henüz düzeltme yok.")));}
+  a.appendChild(blok("Yapılan mesai düzeltmeleri — son 60 gün","Kurye tablosundaki ‘Mesai Düzeltme’ sekmesinden. Geri alınca o gün otomatik hesaba döner.",Y.length?tablo([["Tarih"],["Kurye"],["Yöntem"],["Esas giriş"],["Esas çıkış"],["Açıklama"],["Kayıt"],["Durum"],[""]],Y.map(function(x){
+    return [gunAd(x.gun),x.ad,x.yontem,x.giris||"—",x.cikis||"—",el("span",{style:"color:var(--gri)",text:x.not||"—"}),el("span",{style:"color:var(--gri);font-size:13px",text:x.zaman}),
+      x.islendi===false?el("span",{class:"etiket e-dikkat",title:"Düzeltme kaydedildi ama Günlük Mesai henüz yeniden hesaplanmadı. Kurye tablosunda Kurye Sistemi › VERİYİ ÇEK ve TÜMÜNÜ YENİLE çalıştır.",text:"tabloya işlenmedi"}):el("span",{class:"etiket e-iyi",text:"bordroda"}),dg("Geri al",function(){if(confirm(x.ad+" "+gunAd(x.gun)+" düzeltmesi geri alınsın mı? Gün otomatik hesaba döner."))mesaiDuzGonder("sil",x);})];})):bos("Henüz düzeltme yok.")));}
 
 function kuryeKesinti(a,K){var L=K.kesintiler,ozet={};
   mesaiDuzeltme(a,K);

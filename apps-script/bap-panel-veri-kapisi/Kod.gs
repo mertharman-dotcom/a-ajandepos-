@@ -1856,8 +1856,12 @@ function kurye_() {
   }).filter(Boolean).sort(function (a, b) { return b.gun.localeCompare(a.gun) || b.paket - a.paket; }).slice(0, 40);
   var bugunAdlar = {}; bugunMesai.forEach(function (x) { bugunAdlar[norm_(x.ad)] = 1; });
   out.kadro = { sayi: Object.keys(kadro).length, off: Object.keys(kadro).filter(function (k) { return !bugunAdlar[norm_(k)]; }).sort(function (a, b) { return a.localeCompare(b, 'tr'); }) };
-  out.mesaiKontrol = mesaiKontrol.sort(function (a, b) { return b.gun.localeCompare(a.gun) || b.bosta - a.bosta; }).slice(0, 60);
-  out.mesaiDuzeltme = mesaiDuzeltmeListesi_(ss, gunEkle_(bugun, -59));
+  // Düzeltmesi yazılmış gün listeden hemen düşer; Günlük Mesai henüz yeniden hesaplanmadıysa düzeltme 'tabloya işlenmedi' görünür.
+  var duzListe = mesaiDuzeltmeListesi_(ss, gunEkle_(bugun, -59)), duzVar = {};
+  duzListe.forEach(function (x) { var k = x.gun + '|' + norm_(x.ad); duzVar[k] = 1; var mg = mesaiGun[k]; x.islendi = !!(mg && /düzeltildi|onaylı/i.test(mg.durum)); });
+  out.mesaiKontrol = mesaiKontrol.filter(function (x) { return !duzVar[x.gun + '|' + norm_(x.ad)]; })
+    .sort(function (a, b) { return b.gun.localeCompare(a.gun) || b.bosta - a.bosta; }).slice(0, 60);
+  out.mesaiDuzeltme = duzListe;
   out.kesintiler = kesintiler.sort(function (a, b) { return b.gun.localeCompare(a.gun) || (b.erken + b.kapanis) - (a.erken + a.kapanis); }).slice(0, 150);
   var yuv = function (x) { return Math.round(x); };
   // Elle girilen kesintiler ('Kesintiler' sekmesi): TL tipi hakedişten düşülür, Saat tipi ödenen süreden düşülür.
