@@ -152,7 +152,14 @@ Eski sekmede sütunlar esnek: ay (Ay / Dönem / Tarih — "2026-01", "01.2026", 
 personel (Personel / İsim Soyisim / Çalışan), tutar (Tutar / Ödenen / Net). Aynı ay Odemeler'de varsa eski sekme o ay sayılmaz.
 Bordrodaki "ödenen" ve geçen ay mahsup önerisi de bu iki kaynaktan okunur.
 
-## Günlük fiş (İşletme Özeti)
+## İşletme Özeti
+
+- Dönem filtresi: **Bugün / Dün / Bu hafta / Geçen hafta / Bu ay / Son 30 gün / Geçen ay**. Ciro, sipariş, ortalama sepet, önceki eşdeğer döneme göre değişim, kanallar, şubeler, mutfaklar, markalar ve mahalleler seçilen döneme göre toplanır.
+- Rakam satırında seçilen dönemin **Kesilmesi gereken fiş** ve **Kesilen fiş** kutuları; dokununca Günlük Fiş sayfasına gider.
+- **Ürün satışları**: kategoriler ciroya göre sıralı; kategoriye dokununca altındaki ürünler (adet, ciro, kategorideki payı) açılır. Ciro adet × menü fiyatıdır.
+- Veri kapısı, önceki ayın 1'inden bugüne her iş günü için özet (`satis.gunluk`) üretir; panel seçilen aralığı toplar.
+
+## Günlük fiş (ayrı sayfa: Günlük Fiş)
 
 **İşletme Özeti**'nde, Yemeksepeti ve Trendyol online siparişleri için gün sonunda kesilecek fiş hesaplanır (iki şubenin toplamı):
 

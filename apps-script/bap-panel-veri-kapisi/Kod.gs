@@ -217,6 +217,9 @@ function satis_() {
   var seri = {}; for (var i = 0; i < 14; i++) seri[gunEkle_(ilkSeri, i)] = { ciro: 0, adet: 0 };
   // Fiş hesabı önceki ayın 1'inden bugüne gider (Son 30 gün, Bu ay, Geçen ay filtreleri için).
   var fis = {}; for (var fg = gecenAyBasi; fg <= bugun; fg = gunEkle_(fg, 1)) fis[fg] = fisBos_();
+  // İşletme Özeti filtreleri (Bugün … Geçen ay) için gün gün özet; panel seçilen aralığı toplar.
+  var gunluk = {}; Object.keys(fis).forEach(function (k) { gunluk[k] = gunlukBos_(); });
+  var sozluk = { urun: [], urunNo: {}, mah: [], mahNo: {} };
   var g = { bugun: z_(), dun: z_(), hafta: z_(), gecenHaftaAyniSaat: z_() };
   var acik = z_(), iptalBugun = 0, sonSiparis = null;
   var kanalBugun = {}, subeBugun = {}, markaBugun = {}, kanalHafta = {}, mutfakBugun = {};
@@ -230,7 +233,7 @@ function satis_() {
     var d = norm_(r[c.durum]);
     var tutar = sayi_(r[c.tutar]);
     if (sonSiparis === null || ms > sonSiparis) sonSiparis = ms;
-    if (d.indexOf('iptal') >= 0 || d.indexOf('iade') >= 0 || d.indexOf('red') === 0) { if (gun === bugun) iptalBugun++; return; }
+    if (d.indexOf('iptal') >= 0 || d.indexOf('iade') >= 0 || d.indexOf('red') === 0) { if (gun === bugun) iptalBugun++; if (gunluk[gun]) gunluk[gun].ip++; return; }
     if (d !== 'kapali') { if (gun === bugun) { acik.ciro += tutar; acik.adet++; } return; }
 
     if (seri[gun]) { seri[gun].ciro += tutar; seri[gun].adet++; }
@@ -258,6 +261,7 @@ function satis_() {
       topla_(mutfakBugun, mutfak || gelen, tutar);
     }
     var kanal = String(c.kanal >= 0 ? r[c.kanal] : '').trim() || ('Adisyo ' + String(c.tip >= 0 ? r[c.tip] : '').replace(/Siparişi/i, '').trim().toLowerCase()).trim();
+    if (gunluk[gun]) gunlukEkle_(gunluk[gun], sozluk, r, c, tutar, kanal, gelen, mutfak, mh);
     if (gun === bugun) { ek_(g.bugun, tutar); topla_(kanalBugun, kanal, tutar); topla_(subeBugun, c.sube >= 0 ? r[c.sube] : '', tutar); topla_(markaBugun, c.marka >= 0 ? r[c.marka] : '', tutar); }
     if (gun === dun) ek_(g.dun, tutar);
     if (gun >= haftaBasi && gun <= bugun) { ek_(g.hafta, tutar); topla_(kanalHafta, kanal, tutar); }
@@ -278,8 +282,44 @@ function satis_() {
     gun: g, acik: acik, iptalBugun: iptalBugun,
     kanalBugun: sirala_(kanalBugun), subeBugun: sirala_(subeBugun), markaBugun: sirala_(markaBugun), kanalHafta: sirala_(kanalHafta),
     seri: Object.keys(seri).sort().map(function (k) { return { gun: k, ciro: Math.round(seri[k].ciro), adet: seri[k].adet }; }),
-    fis: { sutunVar: c.odeme >= 0 || c.tahsil >= 0, gunler: Object.keys(fis).sort().reverse().map(function (k) { return fisGunu_(k, fis[k]); }) }
+    fis: { sutunVar: c.odeme >= 0 || c.tahsil >= 0, gunler: Object.keys(fis).sort().reverse().map(function (k) { return fisGunu_(k, fis[k]); }) },
+    gunluk: { urunler: sozluk.urun, mahalleler: sozluk.mah, urunSutunu: c.urunler >= 0,
+              gunler: Object.keys(gunluk).sort().map(function (k) { return gunlukYaz_(k, gunluk[k]); }) }
   };
+}
+
+/* ---------------- İşletme Özeti: gün gün özet ----------------
+ * Her gün için: ciro, sipariş, iptal; kanal / gelen şube / mutfak / marka (şube kırılımlı) / mahalle / ürün.
+ * Ürün ve mahalle adları sözlükte bir kez yazılır, günlerde numarayla geçer (paket küçük kalsın).
+ * Ürün cirosu liste fiyatıyla (adet × birim fiyat) hesaplanır; indirimler sipariş toplamında kalır.
+ */
+function gunlukBos_() { return { c: 0, a: 0, ip: 0, k: {}, s: {}, m: {}, b: {}, h: {}, hb: 0, u: {} }; }
+function ikiliEkle_(o, k, tutar) { k = String(k || '').trim() || 'Belirtilmemiş'; var x = o[k] = o[k] || [0, 0]; x[0] += tutar; x[1]++; }
+function sozlukNo_(liste, no, ad) { if (!(ad in no)) { no[ad] = liste.length; liste.push(ad); } return no[ad]; }
+
+function gunlukEkle_(G, S, r, c, tutar, kanal, gelen, mutfak, mh) {
+  G.c += tutar; G.a++;
+  ikiliEkle_(G.k, kanal, tutar);
+  ikiliEkle_(G.s, gelen, tutar);
+  ikiliEkle_(G.m, mutfak || gelen, tutar);
+  var mk = markaKok_(c.marka >= 0 ? r[c.marka] : ''), b = G.b[mk] = G.b[mk] || { c: 0, a: 0, s: {} };
+  b.c += tutar; b.a++; ikiliEkle_(b.s, gelen, tutar);
+  if (mh) ikiliEkle_(G.h, sozlukNo_(S.mah, S.mahNo, mh), tutar); else G.hb++;
+  if (c.urunler < 0) return;
+  var ad = parca_(r[c.urunler]), adet = c.adetler >= 0 ? parca_(r[c.adetler]) : [], fiyat = c.fiyatlar >= 0 ? parca_(r[c.fiyatlar]) : [],
+      kat = c.kategoriler >= 0 ? parca_(r[c.kategoriler]) : [];
+  for (var i = 0; i < ad.length; i++) {
+    if (!ad[i]) continue;
+    var n = sayi_(adet[i]) || 1, no = sozlukNo_(S.urun, S.urunNo, (kat[i] || 'Diğer') + '|' + ad[i]);
+    var x = G.u[no] = G.u[no] || [0, 0]; x[0] += n; x[1] += n * sayi_(fiyat[i]);
+  }
+}
+
+function gunlukYaz_(gun, G) {
+  var yuv = function (o) { var y = {}; Object.keys(o).forEach(function (k) { y[k] = [Math.round(o[k][0]), o[k][1]]; }); return y; };
+  var b = {}; Object.keys(G.b).forEach(function (k) { b[k] = { c: Math.round(G.b[k].c), a: G.b[k].a, s: yuv(G.b[k].s) }; });
+  var u = {}; Object.keys(G.u).forEach(function (k) { u[k] = [G.u[k][0], Math.round(G.u[k][1])]; });
+  return { gun: gun, c: Math.round(G.c), a: G.a, ip: G.ip, k: yuv(G.k), s: yuv(G.s), m: yuv(G.m), b: b, h: yuv(G.h), hb: G.hb, u: u };
 }
 
 /* ---------------- Günlük fiş hesabı ----------------
