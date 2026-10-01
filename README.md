@@ -91,6 +91,9 @@ Panelde **Kurye & Teslimat** bölümü (`#kurye`). **Kurye Net Çalışma Süres
 - Mahalle bazlı teslimat süreleri (Seferler & rota altında): bugün / 7 gün / bu ay / 30 gün; paket, ortalama ve medyan
   teslim (sipariş → kapı), restoranda / yolda kırılımı, ortalama km, 40 dk üstü oranı. Genel Bilgiler › Mahalle_Sube'deki
   teslimat süresinin üst sınırı "söz verilen süre" sayılır; onu aşan paket oranı gösterilir. Mahalle Siparişler › Adres'ten okunur.
+- Açık hesaplar: Tarih / Kurye / Ödeme yöntemi / Tutar'a göre sıralanır (kurye ve ödemede grup toplamları); sipariş saati
+  sütunu var. Adisyon numarasına tıklanınca o siparişin müşteri adı, telefonu, adresi, platformu, saatleri, içeriği ve notu
+  ayrı bir istekle (`/api/musteri`) getirilir; müşteri bilgisi panel paketine girmez.
 - Kurye eşleştirme: Adisyo › Satıs Verileri'ndeki son 30 günün paket siparişleri kurye tablosundaki Siparişler ile
   (günlük sipariş no + sipariş saati en fazla 20 dk farklı) eşleştirilir; kimin götürdüğünün kaynağı kurye sistemidir.
   Adisyo'da Kurye boşsa **Hepsini doldur** ile yazılır; farklıysa sahip "Adisyo'yu düzelt" ya da "Böyle kalsın" der;

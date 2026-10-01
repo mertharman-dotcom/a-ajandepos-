@@ -254,6 +254,22 @@ export default {
       } catch (e) { return json({ belirsiz: true, hata: 'Veri kapısına ulaşılamadı; vardiya yazılmış olabilir. Paneli yenileyip kontrol edin.' }, 502); }
     }
 
+    if (url.pathname === '/api/musteri' && request.method === 'POST') {
+      // Tek siparişin müşteri bilgisi (yalnız okur): yalnızca panelin kendisinden gelen istek kabul edilir.
+      if (request.headers.get('x-bap-panel') !== '1' || (request.headers.get('origin') || url.origin) !== url.origin) {
+        return json({ hata: 'İzin verilmeyen istek.' }, 403);
+      }
+      let govde;
+      try { govde = await request.json(); } catch (e) { return json({ hata: 'Geçersiz istek.' }, 400); }
+      const ileti = JSON.stringify({ key: env.GAS_KEY, tur: 'musteri', siparisId: String(govde.siparisId || '').replace(/\D/g, '').slice(0, 20) });
+      try {
+        const r = await fetch(env.GAS_URL, { method: 'POST', headers: { 'content-type': 'application/json' }, body: ileti, redirect: 'follow' });
+        const metin = await r.text();
+        try { return json(JSON.parse(metin), 200); }
+        catch (e) { return json({ hata: 'Veri kapısı beklenmeyen bir cevap verdi.' + gasHatasi(metin) }, 502); }
+      } catch (e) { return json({ hata: 'Veri kapısına ulaşılamadı.' }, 502); }
+    }
+
     if (url.pathname === '/api/hesap' && request.method === 'POST') {
       // Kurye açık hesabı kapatma: yalnızca panelin kendisinden gelen istek kabul edilir.
       if (request.headers.get('x-bap-panel') !== '1' || (request.headers.get('origin') || url.origin) !== url.origin) {

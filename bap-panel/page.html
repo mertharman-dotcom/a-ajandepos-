@@ -165,6 +165,14 @@ h1{font-size:34px;line-height:1.12;margin:0;font-weight:700;letter-spacing:-.015
 @media (max-width:760px){.tam-ad{display:none}}
 @media (max-width:760px){.mob-gizle{display:none}.tuk-tablo td,.tuk-tablo th{padding:9px 8px}}
 .yukleniyor{padding:80px 0;color:var(--gri);font-size:15px}
+.bag-dugme{all:unset;cursor:pointer;color:var(--mavi-koyu);text-decoration:underline;text-underline-offset:3px;font-weight:600}
+.bag-dugme:focus-visible{outline:2px solid var(--mavi-koyu);outline-offset:2px;border-radius:3px}
+.musteri-pencere{border:1px solid var(--cizgi);border-radius:var(--r);background:var(--kagit);color:var(--murekkep);padding:18px 20px;width:min(560px,calc(100vw - 32px));max-height:85vh;overflow:auto}
+.musteri-pencere::backdrop{background:rgba(0,0,0,.35)}
+.musteri-satir{display:grid;grid-template-columns:130px 1fr;gap:10px;padding:7px 0;border-top:1px solid var(--cizgi);font-size:14px}
+.musteri-satir:first-child{border-top:0}
+.musteri-satir>span:first-child{color:var(--gri)}
+@media (max-width:480px){.musteri-satir{grid-template-columns:1fr;gap:2px}}
 
 @media (max-width:1100px){ .iki{grid-template-columns:minmax(0,1fr)} }
 @media (max-width:760px){
@@ -1351,6 +1359,30 @@ function hesapKapat(x,islem,yenidenCiz){
     }).catch(function(){HESAP_ISLEM[x.id]={durum:"hata",islem:islem,mesaj:"Bağlantı koptu; kayıt yazılmış olabilir. Paneli yenileyip kontrol et."};})
     .then(yenidenCiz);}
 
+// Açık hesapta adisyon numarasına tıklanınca müşteri bilgisi (ayrı istekle, yalnız o sipariş için).
+function musteriGoster(x){var d=el("dialog",{class:"musteri-pencere","aria-label":"Sipariş ayrıntısı"});var ic=el("div",{class:"cevap-durum",text:"Yükleniyor…"});
+  var kapat=function(){try{d.close();}catch(e){}d.remove();};
+  d.appendChild(el("div",{style:"display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:10px"},[el("strong",{style:"font-size:17px",text:"Adisyon "+(x.no||"")+(x.kurye?" — "+x.kurye:"")}),el("button",{type:"button",class:"dugme",style:"padding:3px 10px",onclick:kapat,"aria-label":"Kapat"},["Kapat"])]));
+  d.appendChild(ic);d.addEventListener("click",function(e){if(e.target===d)kapat();});d.addEventListener("close",function(){d.remove();});
+  document.body.appendChild(d);try{d.showModal();}catch(e){d.setAttribute("open","");}
+  fetch("/api/musteri",{method:"POST",credentials:"same-origin",headers:{"content-type":"application/json","x-bap-panel":"1"},body:JSON.stringify({siparisId:x.id})})
+    .then(function(r){return r.json();}).then(function(r){ic.textContent="";ic.className="";if(!r||!r.siparis){ic.className="cevap-durum kotu";ic.textContent=(r&&r.hata)||"Bilgi alınamadı.";return;}
+      var S=r.siparis,tel=String(S.telefon||"").split("/")[0].replace(/\D/g,"");
+      var satir=function(ad,deger){return deger?el("div",{class:"musteri-satir"},[el("span",{text:ad}),typeof deger==="string"?el("span",{text:deger}):deger]):null;};
+      ic.appendChild(el("div",null,[satir("Müşteri",S.musteri),satir("Telefon",S.telefon?el("span",null,[S.telefon+" ",tel.length>=10?el("a",{href:"tel:"+tel,text:"ara"}):null]):""),
+        satir("Adres",S.adres?el("span",null,[S.adres+" ",el("a",{href:"https://www.google.com/maps/search/?api=1&query="+encodeURIComponent(S.adres.split(" Apt")[0]),target:"_blank",rel:"noopener",text:"haritada aç"})]):""),
+        satir("Platform",S.platform),satir("Tarih",S.tarih),satir("Sipariş saati",S.siparisSaati),satir("Restorandan çıktı",S.cikti),satir("Teslim",S.teslim),
+        satir("Ödeme",S.odeme),satir("Tutar",S.tutar?para(S.tutar):""),satir("Sipariş",S.icerik),satir("Not",S.not),satir("Durum",S.durum),
+        S.kaynak!=="Siparişler"?el("p",{style:"font-size:12.5px;color:var(--gri)",text:"Sipariş kurye tablosunun Siparişler sekmesinde bulunamadı; Açık Hesaplar'daki bilgi gösteriliyor."}):null]));})
+    .catch(function(){ic.className="cevap-durum kotu";ic.textContent="Bağlantı kurulamadı.";});}
+function adisyonLink(x){return x.id?el("button",{type:"button",class:"bag-dugme",title:"Müşteri ve sipariş bilgisi",onclick:function(){musteriGoster(x);}},[String(x.no||"—")]):String(x.no||"");}
+var ACIK_SIRA="tarih";
+var ACIK_SIRALAR=[["tarih","Tarih (en eski)"],["kurye","Kurye"],["odeme","Ödeme yöntemi"],["tutar","Tutar"]];
+function acikSirala(l){var t=function(a,b){return b.yas-a.yas||String(a.saat||"").localeCompare(String(b.saat||""));};
+  var k=l.slice();if(ACIK_SIRA==="kurye")k.sort(function(a,b){return a.kurye.localeCompare(b.kurye,"tr")||t(a,b);});
+  else if(ACIK_SIRA==="odeme")k.sort(function(a,b){return a.odeme.localeCompare(b.odeme,"tr")||t(a,b);});
+  else if(ACIK_SIRA==="tutar")k.sort(function(a,b){return b.tutar-a.tutar||t(a,b);});else k.sort(t);return k;}
+
 function kuryeAcik(a,K){var A=K.acik;
   a.appendChild(el("div",{class:"rakamlar"},[rakam("Dünden eski açık",para(A.eski.toplam),A.eski.adet+" kayıt",A.eski.adet?"asagi":""),rakam("Bir aydan eski",String(A.eski.ayUstu),A.eski.ayUstu?"tahsil edilmedi ya da işaretlenmedi":null,A.eski.ayUstu?"asagi":""),
     rakam("Bugün açık",para(A.bugun.toplam),A.bugun.adet+" kayıt; gün kapanmadan normal"),rakam("Hariç tutulan",para(A.haric.toplam),A.haric.adet+" ‘Ödenmez’ sipariş (işletme/personel)"),
@@ -1358,7 +1390,11 @@ function kuryeAcik(a,K){var A=K.acik;
   if(A.kanitHata)a.appendChild(el("div",{class:"uyari"},[el("b",{text:"Adisyo / Pluxee kontrolü yapılamadı"}),el("div",{text:A.kanitHata})]));
   var kap=el("div");
   function tabloCiz(){kap.textContent="";
-    kap.appendChild(A.liste.length?tablo([["Tarih"],["Adisyon"],["Kurye"],["Ödeme"],["Tutar",1],["Durum"],["Kanıt"],["Kapat"]],A.liste.map(function(x){
+    kap.appendChild(el("div",{class:"hafta-sec"},[el("span",{style:"font-size:13.5px;color:var(--gri)",text:"Sırala:"}),el("div",{class:"sekmeler",style:"margin:0"},ACIK_SIRALAR.map(function(s2){return el("button",{type:"button","aria-pressed":ACIK_SIRA===s2[0]?"true":"false",onclick:function(){ACIK_SIRA=s2[0];tabloCiz();}},[s2[1]]);}))]));
+    var liste=acikSirala(A.liste),grupAlan=ACIK_SIRA==="kurye"?"kurye":ACIK_SIRA==="odeme"?"odeme":null;
+    if(grupAlan&&liste.length){var gt={};liste.forEach(function(x){var g=gt[x[grupAlan]]=gt[x[grupAlan]]||{adet:0,tutar:0};g.adet++;g.tutar+=x.tutar;});
+      kap.appendChild(el("div",{class:"sekmeler",style:"margin:0 0 10px"},Object.keys(gt).sort(function(p,q){return gt[q].tutar-gt[p].tutar;}).map(function(k){return el("span",{class:"etiket e-notr",style:"font-size:13px;padding:4px 10px"},[k+": "+gt[k].adet+" kayıt, "+para(gt[k].tutar)]);})));}
+    kap.appendChild(liste.length?tablo([["Tarih"],["Saat"],["Adisyon"],["Kurye"],["Ödeme"],["Tutar",1],["Durum"],["Kanıt"],["Kapat"]],liste.map(function(x){
       var yas=x.yas<=0?el("span",{class:"etiket e-notr",text:"bugün"}):el("span",{class:"etiket "+(x.yas>30?"e-kotu":x.yas>3?"e-dikkat":"e-notr"),text:x.yas+" gün"});
       var st=HESAP_ISLEM[x.id],islemHucre;
       if(!x.id)islemHucre=el("span",{style:"color:var(--gri);font-size:13px",text:"sipariş no yok"});
@@ -1371,9 +1407,9 @@ function kuryeAcik(a,K){var A=K.acik;
       var kanit=x.pluxee?el("span",{class:"etiket e-iyi",title:"Pluxee sekmesinde aynı tutarda çekim var; fişle karşılaştırıp ‘Tahsil edildi’ de",text:"Pluxee çekimi "+x.pluxee}):
         (x.adisyo==="acik"?el("span",{class:"etiket e-notr",title:"Adisyo'da bu siparişin ‘Ödeme Alındı’ hücresi FALSE",text:"Adisyo'da açık"}):
         el("span",{style:"color:var(--gri);font-size:13px",title:x.adisyo==="eski"?"Adisyo verisi bu tarihe kadar gitmiyor":"Adisyo'da eşleşen sipariş bulunamadı",text:x.adisyo==="eski"?"Adisyo'da eski":"Adisyo'da yok"}));
-      return [el("span",null,[gunAd(x.gun)+" ",yas]),String(x.no||""),x.kurye,x.odeme,para(x.tutar),x.durum,kanit,islemHucre];})):bos("Açık hesap yok."));}
+      return [el("span",null,[gunAd(x.gun)+" ",yas]),x.saat||"—",adisyonLink(x),x.kurye,x.odeme,para(x.tutar),x.durum,kanit,islemHucre];})):bos("Açık hesap yok."));}
   tabloCiz();
-  a.appendChild(blok("Açık hesaplar","Önce en eskiler. Kuryeden parayı aldıysan ‘Tahsil edildi’, alamadıysan ‘Kuryeden kes’: tutar Kesintiler sekmesine yazılır ve haftalık bordrosundan düşülür. İkisi de kurye tablosundaki Tahsilatlar sekmesine kaydedilir; yanlış kapattıysan o satırı silmen yeterli. Müşteri adı gösterilmez.",kap));
+  a.appendChild(blok("Açık hesaplar","Önce en eskiler. Kuryeden parayı aldıysan ‘Tahsil edildi’, alamadıysan ‘Kuryeden kes’: tutar Kesintiler sekmesine yazılır ve haftalık bordrosundan düşülür. İkisi de kurye tablosundaki Tahsilatlar sekmesine kaydedilir; yanlış kapattıysan o satırı silmen yeterli. Müşteri adı, telefonu, adresi ve sipariş içeriği için adisyon numarasına tıkla.",kap));
   var KP=A.kapanan||[];
   if(A.adisyoBekleyen){var ab=el("span",{class:"cevap-durum",style:"margin-left:10px"});
     a.appendChild(el("div",{class:"uyari"},[el("b",{text:A.adisyoBekleyen+" kapatılan hesap Adisyo'ya henüz işlenmedi"}),
@@ -1393,7 +1429,7 @@ function kuryeAcik(a,K){var A=K.acik;
       tablo([["Kurye"],["Bu hafta",1],["Son 30 gün",1],["Sipariş",1]],BH.kisi.map(function(x){return [x.ad,x.hafta?para(x.hafta):"—",para(x.otuz),String(x.adet)];}))])));
   a.appendChild(blok("Kimde ne kadar açık var","Dünden eski kayıtlar.",cubuklar(A.kisi)));
   a.appendChild(el("div",null,[
-    blok("Son kapatılanlar","Tahsilatlar sekmesinden; yeni kapattıkların ‘Şimdi yenile’den sonra burada görünür ve yukarıdaki toplamlardan düşer. ‘Adisyo’ sütunu, Adisyo sipariş dosyasında ‘Ödeme Alındı’nın TRUE yapılıp yapılmadığını gösterir.",KP.length?tablo([["Zaman"],["Adisyon"],["Kurye"],["Tutar",1],["İşlem"],["Adisyo"]],KP.map(function(x){return [x.zaman,String(x.no||""),x.kurye,para(x.tutar),el("span",{class:"etiket "+(/kes/i.test(x.islem)?"e-dikkat":"e-iyi"),text:x.islem}),
+    blok("Son kapatılanlar","Tahsilatlar sekmesinden; yeni kapattıkların ‘Şimdi yenile’den sonra burada görünür ve yukarıdaki toplamlardan düşer. ‘Adisyo’ sütunu, Adisyo sipariş dosyasında ‘Ödeme Alındı’nın TRUE yapılıp yapılmadığını gösterir.",KP.length?tablo([["Kapatıldı"],["Sipariş"],["Adisyon"],["Kurye"],["Tutar",1],["İşlem"],["Adisyo"]],KP.map(function(x){return [x.zaman,(x.tarih?String(x.tarih).slice(0,5)+" ":"")+(x.saat||""),adisyonLink(x),x.kurye,para(x.tutar),el("span",{class:"etiket "+(/kes/i.test(x.islem)?"e-dikkat":"e-iyi"),text:x.islem}),
       x.adisyo?el("span",{class:"etiket "+(/TRUE/.test(x.adisyo)?"e-iyi":"e-kotu"),title:x.adisyo,text:/TRUE/.test(x.adisyo)?"ödendi işlendi":"bulunamadı"}):el("span",{class:"etiket e-notr",text:"bekliyor"})];})):bos("Henüz panelden kapatılan yok."))]));}
 
 var CIZ={genel:genelSayfa,merkez:merkez,ozet:ozet,satis:satis,maliyet:maliyetSayfa,kararlar:kararlar,ai:ai,
