@@ -58,6 +58,23 @@ jobs:
           curl -fsS -H "Authorization: Bearer $CF_TOKEN" "https://api.cloudflare.com/client/v4/accounts/$CF_HESAP/pages/projects" \
             | jq -r '"# Cloudflare Pages projeleri\n\n| Proje | Adres | Son yayın |\n|---|---|---|", (.result[] | "| \(.name) | \(.subdomain) | \((.latest_deployment.created_on // "")[:10]) |")' > cloudflare/PAGES.md
           cat cloudflare/PAGES.md
+      - name: Sadece sayfa barındıranları (kodu boş Worker'lar + Pages) adresinden indir
+        run: |
+          alt=$(curl -sS -H "Authorization: Bearer $CF_TOKEN" "https://api.cloudflare.com/client/v4/accounts/$CF_HESAP/workers/subdomain" | jq -r '.result.subdomain')
+          echo "workers.dev alt alanı: $alt"
+          for d in cloudflare/workers/*/; do
+            ad=$(basename "$d")
+            [ -s "$d/worker.js" ] && continue
+            rm -f "$d/worker.js"
+            kod=$(curl -sS -L -o "$d/index.html" -w '%{http_code}' "https://$ad.$alt.workers.dev/") || kod=hata
+            echo "$ad → https://$ad.$alt.workers.dev/ : $kod ($(wc -c < "$d/index.html" 2>/dev/null || echo 0) bayt)"
+            echo "Kaynak: https://$ad.$alt.workers.dev/ (Cloudflare statik sayfa; API kodu boş döndürüyor). HTTP $kod" > "$d/KAYNAK.txt"
+          done
+          for p in $(jq -r '.result[].name' <(curl -sS -H "Authorization: Bearer $CF_TOKEN" "https://api.cloudflare.com/client/v4/accounts/$CF_HESAP/pages/projects")); do
+            mkdir -p "cloudflare/pages/$p"
+            kod=$(curl -sS -L -o "cloudflare/pages/$p/index.html" -w '%{http_code}' "https://$p.pages.dev/") || kod=hata
+            echo "$p.pages.dev : $kod ($(wc -c < "cloudflare/pages/$p/index.html") bayt)"
+          done
       - name: Yeni dala yaz
         run: |
           dal="kod-cekimi/cf-$(date -u +%Y%m%d-%H%M)"
