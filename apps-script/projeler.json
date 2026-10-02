@@ -66,6 +66,12 @@
       "ad": "BAP PANEL Backend (kullanılıyor mu? çekildikten sonra incelenecek)",
       "scriptId": "1XQZ6HwneMvnyS5Kh4LksBmjZtxr5eahqgNub4VjKLXn_fEqI_yk8T2j3",
       "deploymentId": ""
+    },
+    {
+      "klasor": "bap-rapor-ajani",
+      "ad": "BAP Rapor Ajanı (kullanılıyor mu? çekildikten sonra incelenecek)",
+      "scriptId": "1l-oB-NTqlmxqn21cRCyxp8kjrsLuH5v5mqWIt9GfgWQDPeSmZxMLVNtR",
+      "deploymentId": ""
     }
   ]
 }
