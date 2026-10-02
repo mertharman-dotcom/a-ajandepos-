@@ -7,10 +7,10 @@ doğrulanmalı. Durum: ☐ açık · ◐ devam ediyor · ☑ çözüldü.
 
 | | İş | Durum |
 |---|---|---|
-| H1 | Stok Ajanı gece tetikleyicisini sil (`ajanGecelik`) — soru cevaplanınca stoğa yanlış satır yazıyor | ☐ |
-| H2 | `hizliYedek()` ile Stok dosyasının yedeğini al | ☐ |
-| H3 | Düzeltilmiş mutfak panelini (`bap-sistem/index.html`) Cloudflare'e yükle, telefondan dene | ☐ |
-| H4 | Yönetici şifresini değiştir — `131220` panel kaynağında açık yazıyordu | ☐ |
+| H1 | Stok Ajanı gece tetikleyicisini sil (`ajanGecelik`) — soru cevaplanınca stoğa yanlış satır yazıyor | ☑ 02.10 |
+| H2 | `hizliYedek()` ile Stok dosyasının yedeğini al | ☑ 02.10 |
+| H3 | Düzeltilmiş mutfak panelini (`bap-sistem/index.html`) Cloudflare'e yükle, telefondan dene | ◐ yeni sürüm yüklendi mi teyit edilecek |
+| H4 | Yönetici şifresini değiştir — `131220` panel kaynağında açık yazıyordu | ⏸ sahibi erteledi (P3 ile birlikte) |
 
 ## K · Kararlar
 
@@ -80,6 +80,6 @@ doğrulanmalı. Durum: ☐ açık · ◐ devam ediyor · ☑ çözüldü.
 | | İş | Durum |
 |---|---|---|
 | Y1 | 9 dağınık dal tek dalda toplandı; canlı Worker depoda olmayan sürümdü, canlıdan alındı | ☑ |
-| Y2 | `main` dalı + otomatik yayın iş akışları | ◐ (sahibin kurulumu bekleniyor) |
+| Y2 | `main` dalı + otomatik yayın iş akışları | ◐ `main` oluştu 02.10; varsayılan dal ayarı ve gizli anahtarlar bekleniyor |
 | Y3 | Apps Script kodlarının canlıdan çekilmesi (`Apps Script'i Depoya Çek`) | ☐ |
 | Y4 | Ortak katman: `Ayarlar.gs` + `Ortak.gs` | ☐ |
