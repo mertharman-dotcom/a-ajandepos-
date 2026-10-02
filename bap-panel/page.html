@@ -217,7 +217,8 @@ function sure(dk){if(dk==null)return "bilinmiyor";if(dk<1)return "az önce";if(d
 function gunAd(g){var d=new Date(g+"T00:00:00Z");return d.getUTCDate()+" "+AYLAR[d.getUTCMonth()];}
 function tazelik(k){if(k.hata||k.dakika==null)return "kotu";if(k.dakika<=k.beklenenDk)return "iyi";if(k.dakika<=k.beklenenDk*3)return "dikkat";return "kotu";}
 function kaynaklar(bolum){return (VERI&&VERI.kaynaklar||[]).filter(function(k){return !bolum||(Array.isArray(bolum)?bolum.indexOf(k.bolum)>=0:k.bolum===bolum);});}
-function bekleyenSayi(){return VERI&&VERI.hub?VERI.hub.bekleyen.length:0;}
+function kokpitBek(){return VERI&&VERI.hub&&VERI.hub.kokpit?VERI.hub.kokpit.bekleyen:[];}
+function bekleyenSayi(){return VERI&&VERI.hub?VERI.hub.bekleyen.length+kokpitBek().filter(function(x){return x.durum==="bekliyor";}).length:0;}
 
 function nav(){var n=document.getElementById("nav");n.textContent="";
   BOLUMLER.forEach(function(b){var rozet=null;if(b[0]==="kararlar"&&bekleyenSayi()>0)rozet=el("span",{class:"rozet",text:String(bekleyenSayi()),"aria-label":bekleyenSayi()+" bekleyen karar"});
@@ -332,13 +333,55 @@ function kaynakBolumu(bolum,baslik,ne){return function(a){a.appendChild(ust(basl
   a.appendChild(el("div",{class:"bilgi"},[el("strong",{text:"Bu bölümün göstergeleri henüz bağlanmadı. "}),"Aşağıdaki dosyalar canlı okunuyor ve ne kadar taze oldukları yukarıda görünüyor. "+ne+" Hangi rakamı görmek istediğini söylediğinde bu sayfaya eklenir."]));
   var l=kaynaklar(bolum);a.appendChild(blok("Bağlı dosyalar",null,el("div",{class:"liste"},l.map(function(k){var t=tazelik(k);return el("div",{class:"satir"},[el("h3",null,[k.ad+" ",el("span",{class:"etiket e-"+t,text:k.hata?"açılamadı":sure(k.dakika)})]),el("div",{class:"meta"},[el("a",{href:k.link,target:"_blank",rel:"noopener",text:"Tabloyu aç"})])]);}))));};}
 
-function kararlar(a){var bek=VERI.hub?VERI.hub.bekleyen:[];a.appendChild(ust("Kararlarım",bek.length?bek.length+" karar cevabını bekliyor.":"Şu an bekleyen karar yok."));var h=hatalarKutusu(["hub"]);if(h)a.appendChild(h);
-  a.appendChild(el("div",{class:"bilgi",text:"Panelden karar verme ikinci adımda açılacak. O zamana kadar kararını görev merkezi tablosundaki onay satırından ya da Kokpit'ten ver. Departmanların Kokpit'te bekleyen soruları da o adımda bu listeye taşınacak."}));
-  var hubLink=(kaynaklar("ai")[0]||{}).link;
-  a.appendChild(blok("Görev merkezinde bekleyenler","Deneme kayıtları gösterilmez.",bek.length?el("div",{class:"liste"},bek.map(kararSatiri)):bos("Bekleyen karar yok.")));
-  if(hubLink)a.appendChild(el("p",null,[el("a",{href:hubLink,target:"_blank",rel:"noopener",text:"Görev merkezi tablosunu aç"})]));}
+// Yönetim Kokpiti: departmanların sahibe soruları / kararları HUB'daki KOKPIT_ONAYLAR sekmesinde; cevap /api/kokpit ile yazılır.
+var KOKPIT={dep:"",acik:"",notlar:{},durum:{},gonderiliyor:""};
+var TIP_AD={karar:"Karar",soru:"Soru",fikir:"Fikir",gorev:"Görev emri"};
+function kokpitGonder(x,karar){var K=KOKPIT,not=(K.notlar[x.id]||"").trim();if(K.gonderiliyor)return;
+  if(x.tip==="soru"&&karar==="onaylandi"&&!not){K.durum[x.id]={m:"Cevabını yaz.",s:"kotu"};return ciz();}
+  K.gonderiliyor=x.id;K.durum[x.id]={m:"Kaydediliyor…",s:""};ciz();
+  fetch("/api/kokpit",{method:"POST",credentials:"same-origin",headers:{"content-type":"application/json","x-bap-panel":"1"},body:JSON.stringify({id:x.id,karar:karar,not:not})})
+    .then(function(r){return r.json();}).then(function(d){K.gonderiliyor="";
+      if(d&&d.tamam){K.durum[x.id]={m:"✓ "+d.ozet,s:"iyi"};delete K.notlar[x.id];K.acik="";yukle(true);return;}
+      K.durum[x.id]={m:(d&&d.hata)||"Kaydedilemedi.",s:"kotu"};ciz();})
+    .catch(function(){K.gonderiliyor="";K.durum[x.id]={m:"Bağlantı koptu; kayıt yazılmış olabilir. ‘Şimdi yenile’ ile kontrol et.",s:"kotu"};ciz();});}
+function kokpitKart(x){var K=KOKPIT,acik=K.acik===x.id,du=K.durum[x.id];
+  var risk=String(x.risk||"").toLowerCase(),rs=/kritik|yüksek/.test(risk)?"e-kotu":/orta/.test(risk)?"e-dikkat":"e-notr";
+  var bas=el("button",{type:"button",class:"bag-dugme",style:"text-align:left;font-size:16px",onclick:function(){K.acik=acik?"":x.id;ciz();}},[x.baslik||x.id]);
+  var kids=[el("h3",null,[bas]),el("div",{class:"meta"},[el("span",{class:"etiket e-notr",text:TIP_AD[x.tip]||x.tip}),x.risk?el("span",{class:"etiket "+rs,text:"risk "+x.risk}):null,x.durum==="beklet"?el("span",{class:"etiket e-dikkat",text:"bekletiliyor"}):null,
+    el("span",{text:x.departman}),x.talepEden?el("span",{text:x.talepEden}):null,x.talepZamani?el("span",{text:x.talepZamani}):null,el("span",{style:"color:var(--gri)",text:x.id})])];
+  if(!acik)kids.push(el("p",{style:"color:var(--gri)",text:x.aciklama.length>220?x.aciklama.slice(0,220)+"… (aç)":x.aciklama}));
+  else{kids.push(el("p",{style:"white-space:pre-wrap",text:x.aciklama}));if(x.gmNot)kids.push(el("p",{style:"color:var(--gri)",text:"Genel Müdür notu: "+x.gmNot}));
+    if(x.not)kids.push(el("p",{style:"color:var(--gri)",text:"Önceki notun: "+x.not}));
+    var ta=el("textarea",{class:"cevap-alan",rows:"3",placeholder:x.tip==="soru"?"Cevabını yaz…":"Not (isteğe bağlı): şartın, açıklaman…","aria-label":"Cevap"});ta.value=K.notlar[x.id]||"";
+    ta.addEventListener("input",function(){K.notlar[x.id]=ta.value;});
+    var dug=function(t,k,ana){var b=el("button",{type:"button",class:"dugme"+(ana?" ana-dugme":""),style:"margin:6px 6px 0 0",onclick:function(){K.notlar[x.id]=ta.value;kokpitGonder(x,k);}},[t]);if(K.gonderiliyor)b.setAttribute("disabled","");return b;};
+    kids.push(ta,el("div",null,x.tip==="soru"?[dug("Cevabı gönder","onaylandi",true),dug("Sonra bakarım","beklet")]:[dug("Onayla","onaylandi",true),dug("Reddet","reddedildi"),dug("Beklet","beklet")]));}
+  if(du)kids.push(el("div",{class:"cevap-durum "+(du.s||""),role:"status",style:"display:block;margin-top:6px",text:du.m}));
+  return el("div",{class:"satir"},kids);}
+function kararlar(a){var KP=VERI.hub&&VERI.hub.kokpit,L=KP?KP.bekleyen:[],bek=VERI.hub?VERI.hub.bekleyen:[];var n=L.filter(function(x){return x.durum==="bekliyor";}).length;
+  a.appendChild(ust("Kararlarım",n?n+" soru ve karar cevabını bekliyor.":"Şu an bekleyen karar yok."));var h=hatalarKutusu(["hub"]);if(h)a.appendChild(h);
+  if(KP){var deps={};L.forEach(function(x){deps[x.departman]=(deps[x.departman]||0)+1;});
+    a.appendChild(el("div",{class:"sekmeler",style:"margin-bottom:12px"},[["","Tümü ("+L.length+")"]].concat(Object.keys(deps).sort().map(function(d){return [d,d+" ("+deps[d]+")"];})).map(function(k){
+      return el("button",{type:"button","aria-pressed":KOKPIT.dep===k[0]?"true":"false",onclick:function(){KOKPIT.dep=k[0];ciz();}},[k[1]]);})));
+    var G=L.filter(function(x){return !KOKPIT.dep||x.departman===KOKPIT.dep;});
+    a.appendChild(blok("Departmanlardan bekleyenler","Önce yüksek riskliler. Başlığa tıkla, oku ve cevapla: cevabın BAP AI HUB'a yazılır, departman bir sonraki çalışmasında (13:00 / 21:00) işler."+(KP.islenmedi?" Karar verilmiş ama departmanın henüz işlemediği: "+KP.islenmedi+".":""),
+      G.length?el("div",{class:"liste"},G.map(kokpitKart)):bos("Bu departmandan bekleyen yok.")));}
+  if(bek.length)a.appendChild(blok("Eski görev merkezi (CEO_APPROVALS)","Deneme kayıtları gösterilmez.",el("div",{class:"liste"},bek.map(kararSatiri))));}
 
-function ai(a){var hb=VERI.hub,ik=VERI.isKaydi;a.appendChild(ust("Yapay zeka ekibi","Departman ajanlarının ortak iş kaydına yazdığı işler (BAP İş Kaydı). Eski görev merkezi (BAP AI HUB) en altta."));a.appendChild(nabizSeridi("ai"));var h=hatalarKutusu(["isKaydi","hub"]);if(h)a.appendChild(h);
+function ai(a){var hb=VERI.hub,ik=VERI.isKaydi;a.appendChild(ust("Yapay zeka ekibi","Departman ajanlarının BAP AI HUB'daki soruları, Genel Müdür gündemi, departman panoları ve iş kaydı."));a.appendChild(nabizSeridi("ai"));var h=hatalarKutusu(["isKaydi","hub"]);if(h)a.appendChild(h);
+  var KP=hb&&hb.kokpit;
+  if(KP){var GD=KP.gundem,nb=KP.bekleyen.filter(function(x){return x.durum==="bekliyor";}).length;
+    a.appendChild(el("div",{class:"rakamlar"},[rakam("Cevabını bekleyen",String(nb),null,nb?"asagi":""),rakam("Karar verildi, işlenmedi",String(KP.islenmedi)),rakam("Aktif departman",String(KP.departmanlar.filter(function(d){return d.aktif;}).length))]));
+    if(nb)a.appendChild(el("p",null,[el("a",{href:"#kararlar",class:"dugme ana-dugme",style:"display:inline-block;text-decoration:none"},["Kararlarım'a git ve cevapla ("+nb+")"])]));
+    if(GD)a.appendChild(blok("Genel Müdür gündemi — "+GD.tarih,GD.ozet,GD.maddeler.length?el("div",{class:"liste"},GD.maddeler.map(function(m){var o=String(m.oncelik).toLowerCase();
+      return el("div",{class:"satir"},[el("h3",null,[el("span",{class:"etiket "+(o==="kritik"?"e-kotu":o==="yüksek"?"e-dikkat":"e-notr"),text:m.oncelik||"orta"})," "+m.baslik]),el("p",{text:m.detay}),m.departmanlar.length?el("div",{class:"meta"},[el("span",{text:m.departmanlar.join(", ")})]):null]);})):null));
+    var sonIs={};((VERI.isKaydi||{}).departmanlar||[]).forEach(function(d){sonIs[d.departman]=d;});
+    a.appendChild(blok("Departman panoları","Her departmanın kendi panosu (claude.ai). Panoyu aç ile tam sayfa; sorularını Kararlarım'dan cevaplarsın.",el("div",{class:"iki"},KP.departmanlar.filter(function(d){return d.aktif;}).map(function(d){var si=sonIs[d.ad];
+      return el("div",{class:"satir",style:"border:1px solid var(--cizgi);border-radius:var(--r-kucuk);padding:14px"},[el("h3",{text:d.ad}),d.faz?el("p",{style:"color:var(--gri)",text:d.faz}):null,
+        el("div",{class:"meta"},[el("span",{class:"etiket "+(d.bekleyen?"e-dikkat":"e-iyi"),text:d.bekleyen?d.bekleyen+" bekleyen":"bekleyen yok"}),si&&si.son?el("span",{text:"son iş "+(si.saatOnce<24?si.saatOnce+" saat önce":Math.round(si.saatOnce/24)+" gün önce")}):el("span",{text:"iş kaydı yok"})]),
+        el("p",{style:"margin-top:8px"},[d.pano?el("a",{href:d.pano,target:"_blank",rel:"noopener",class:"dugme",style:"text-decoration:none;display:inline-block;margin-right:6px"},["Panoyu aç"]):null,
+          d.bekleyen?el("button",{type:"button",class:"dugme ana-dugme",onclick:function(){KOKPIT.dep=d.ad;location.hash="#kararlar";}},["Cevapla"]):null,
+          d.klasor?el("a",{href:d.klasor,target:"_blank",rel:"noopener",style:"margin-left:6px",text:"Klasör"}):null])]);}))));}
   if(ik){var O=ik.ozet||{},OB=ik.onayBekleyen||[];
     a.appendChild(el("div",{class:"rakamlar"},[rakam("Son 24 saat",String(O.son24||0),"iş kaydı"),rakam("Son 7 gün",String(O.son7||0),"iş kaydı"),rakam("Sahip onayı bekleyen",String(OB.length),null,OB.length?"asagi":""),rakam("Denetçi bekliyor",String(O.denetciBekliyor||0),"son 30 gün")]));
     if(OB.length)a.appendChild(blok("Senin onayını bekleyenler","İş kaydında ‘Sahip onayı gerekti mi: Evet’ olup onay sütunu boş kalan işler. Onayı iş kaydındaki ‘Sahip onayı’ sütununa yazınca buradan düşer.",el("div",{class:"liste"},OB.map(function(k){return el("div",{class:"satir"},[el("h3",{text:k.departman+(k.ajan?", "+k.ajan:"")+(k.isNo?" · "+k.isNo:"")}),el("p",{text:k.ne}),k.yeni?el("p",{style:"color:var(--gri)",text:"Yeni durum: "+k.yeni}):null,el("div",{class:"meta"},[el("span",{text:k.zaman})])]);}))));
@@ -349,7 +392,7 @@ function ai(a){var hb=VERI.hub,ik=VERI.isKaydi;a.appendChild(ust("Yapay zeka eki
     if(ik.sonKayitlar.length)a.appendChild(blok("Departmanların son işleri","Ortak iş kaydındaki en yeni satırlar.",el("div",{class:"liste"},ik.sonKayitlar.map(function(k){return el("div",{class:"satir"},[el("h3",{text:k.departman+(k.ajan?", "+k.ajan:"")}),el("p",{text:k.ne}),el("div",{class:"meta"},[el("span",{text:k.zaman}),k.denetci?el("span",{text:"Denetçi: "+k.denetci}):null])]);}))));}
   if(!hb)return;
   var biten=hb.motorlar.reduce(function(t,m){return t+m.biten;},0);
-  a.appendChild(blok("Eski görev merkezi (BAP AI HUB)","Bu tabloya 28 Eylül'den beri yazılmıyor; ajanlar işlerini artık ortak iş kaydına yazıyor. Sayılar o tarihteki hâliyle duruyor.",
+  a.appendChild(blok("Görev merkezi motorları (TASK_QUEUE)","ChatGPT / Gemini motor işleri ve eski onay akışı.",
     el("div",{class:"rakamlar"},[rakam("Görev",String(hb.gorevToplam)),rakam("Bekleyen karar",String(hb.bekleyen.length)),rakam("Tamamlanan motor işi",String(biten)),rakam("Açık denetim",String(hb.acikDenetim))])));}
 
 /* ---- Satış maliyeti: seçilen tarih aralığında satışlardan çıkan malzeme tüketimi ve stok durumu ---- */
@@ -1492,6 +1535,7 @@ window.addEventListener("hashchange",function(){var h=(location.hash||"#merkez")
 nav();yukle(false);setInterval(function(){if(document.hidden)return;
   // Ödeme formu yarım doldurulmuşken otomatik yenileme ekranı yeniden çizip odağı kaçırmasın.
   if(AKTIF==="odeme"&&(ODEME_FORM.tutar||ODEME_FORM.aciklama||ODEME_FORM.gonderiliyor))return;
+  if(AKTIF==="kararlar"&&(KOKPIT.acik||KOKPIT.gonderiliyor))return;
   if(AKTIF==="kurye"&&(KESINTI_FORM.miktar||KESINTI_FORM.aciklama||KESINTI_FORM.gonderiliyor||MESAI_DUZ.acik||MESAI_DUZ.gonderiliyor))return;
   if(AKTIF==="personel"&&VARD_DUZEN)return;yukle(false);},300000);
 })();

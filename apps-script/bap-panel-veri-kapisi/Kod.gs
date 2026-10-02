@@ -24,7 +24,7 @@ var TZ = 'Europe/Istanbul';
 var KAYNAK = {
   siparis:  { id: '1gdn_rbaevKx9_-pNTRKL1DDtytFxZHr9QF-jrS4cHPE', ad: 'Adisyo sipariş verisi',   bolum: 'satis',    beklenenDk: 60 },
   isKaydi:  { id: '1Lsfaxw71jGeo93AuLovkyFfAfw2H53BsYWKire5COhs', ad: 'Ortak iş kaydı',          bolum: 'merkez',   beklenenDk: 1440 },
-  hub:      { id: '1JbhHFzQYAvRXokYT3IClXgHz0vsXR3Rb0521jxBOFUQ', ad: 'Yapay zeka görev merkezi', bolum: 'ai',       beklenenDk: 43200 }, // 28.09'dan beri yazılmıyor; işler Ortak iş kaydında
+  hub:      { id: '1JbhHFzQYAvRXokYT3IClXgHz0vsXR3Rb0521jxBOFUQ', ad: 'Yapay zeka görev merkezi', bolum: 'ai',       beklenenDk: 1440 },
   gider:    { id: '1F-lWaWJN43GdQMAQWpggPmwFoFEcWARCB0GRHhR70Tw', ad: 'Aylık gider takibi',      bolum: 'finans',   beklenenDk: 10080 },
   hakedis:  { id: '139-CaKw5Dew7-PFIDAcjn6h673QJGPJ1j3mPslkttAE', ad: 'Platform hakediş',        bolum: 'finans',   beklenenDk: 1440 },
   fatura:   { id: '1JJ6UZzh8rSX1FE9Cr-UPzEAaE-2aKtM10bEvjAv2P5w', ad: 'Alış faturaları',         bolum: 'alim',     beklenenDk: 1440 },
@@ -701,12 +701,66 @@ function hub_() {
   });
 
   return {
+    kokpit: kokpitOku_(ss),
     gorevToplam: gorevToplam, gorevDurum: sirala_(gorevDurum), bekleyen: bekleyen,
     cikti: sirala_(cikti), motorlar: Object.keys(motor).map(function (k) { return motor[k]; }),
     acikDenetim: acikDenetim, ciddiDenetim: ciddi, not: 'Deneme kayıtları sayılmadı.'
   };
 }
 
+
+// Yönetim Kokpiti (HUB'daki KOKPIT_* sekmeleri): departman ajanlarının sahibe soruları / kararları / görev emirleri,
+// departman panoları ve Genel Müdür gündemi. Ajanlar buraya yazar; sahip panelden cevaplar (tur: 'kokpit').
+var KOKPIT_BASLIK = ['ID', 'DEPARTMAN', 'TIP', 'IS_NO', 'BASLIK', 'ACIKLAMA', 'RISK', 'TALEP_EDEN', 'TALEP_ZAMANI', 'DURUM', 'SAHIP_NOTU',
+                     'KARAR_ZAMANI', 'ISLENDI', 'ISLEM_NOTU', 'GM_INCELEME', 'GM_NOT', 'GUNCELLEME'];
+function kokpitOku_(ss) {
+  var o = tablo_(ss, 'KOKPIT_ONAYLAR'), d = tablo_(ss, 'KOKPIT_DEPARTMANLAR'), g = tablo_(ss, 'KOKPIT_GUNDEM');
+  var bekleyen = [], islenmedi = 0, depSay = {}, toplam = 0;
+  o.satirlar.forEach(function (r) {
+    var id = String(al_(o, r, 'ID')).trim(); if (!id) return; toplam++;
+    var durum = String(al_(o, r, 'DURUM')).trim().toLowerCase(), islendi = /^(true|evet|1)$/i.test(String(al_(o, r, 'ISLENDI')).trim());
+    var dep = String(al_(o, r, 'DEPARTMAN')).trim();
+    if (durum === 'bekliyor' || durum === 'beklet') {
+      depSay[dep] = (depSay[dep] || 0) + 1;
+      bekleyen.push({ id: id, departman: dep, tip: String(al_(o, r, 'TIP')).trim() || 'karar', isNo: al_(o, r, 'IS_NO'), baslik: String(al_(o, r, 'BASLIK')).slice(0, 300),
+                      aciklama: String(al_(o, r, 'ACIKLAMA')).slice(0, 2500), risk: al_(o, r, 'RISK'), talepEden: al_(o, r, 'TALEP_EDEN'),
+                      talepZamani: al_(o, r, 'TALEP_ZAMANI'), durum: durum, not: String(al_(o, r, 'SAHIP_NOTU')).slice(0, 1000), gmNot: String(al_(o, r, 'GM_NOT')).slice(0, 600) });
+    } else if (!islendi && durum) islenmedi++;
+  });
+  var riskSira = { 'kritik': 0, 'yüksek': 1, 'orta': 2, 'düşük': 3 };
+  bekleyen.sort(function (a, b) { return (riskSira[String(a.risk).toLowerCase()] == null ? 4 : riskSira[String(a.risk).toLowerCase()]) - (riskSira[String(b.risk).toLowerCase()] == null ? 4 : riskSira[String(b.risk).toLowerCase()])
+    || String(b.talepZamani).localeCompare(String(a.talepZamani)); });
+  var departmanlar = d.satirlar.map(function (r) {
+    var ad = String(al_(d, r, 'AD')).trim(); if (!ad) return null;
+    return { kod: al_(d, r, 'KOD'), ad: ad, aktif: !/^(false|hayır|0)$/i.test(String(al_(d, r, 'AKTIF')).trim()), pano: al_(d, r, 'PANO'), klasor: al_(d, r, 'KLASOR'),
+             faz: String(al_(d, r, 'FAZ')).slice(0, 200), bekleyen: depSay[ad] || 0 };
+  }).filter(Boolean);
+  var gundem = null, gs = g.satirlar.filter(function (r) { return String(al_(g, r, 'TARIH')).trim(); });
+  if (gs.length) { var son = gs[gs.length - 1], md = []; try { md = JSON.parse(al_(g, son, 'MADDELER_JSON') || '[]'); } catch (e) { md = []; }
+    gundem = { tarih: al_(g, son, 'TARIH'), ozet: String(al_(g, son, 'OZET')).slice(0, 1500),
+               maddeler: (md || []).slice(0, 10).map(function (m) { return { oncelik: m.oncelik || '', baslik: String(m.baslik || '').slice(0, 200), detay: String(m.detay || '').slice(0, 800), departmanlar: m.departmanlar || [] }; }) }; }
+  return { toplam: toplam, bekleyen: bekleyen.slice(0, 200), islenmedi: islenmedi, departmanlar: departmanlar, gundem: gundem };
+}
+
+// d: { id, karar: 'onaylandi' | 'reddedildi' | 'beklet', not }
+function kokpitCevap_(d) {
+  var id = String(d.id || '').trim().slice(0, 80); if (!id) return { hata: 'Kayıt yok.' };
+  var karar = { onaylandi: 'onaylandi', reddedildi: 'reddedildi', beklet: 'beklet' }[d.karar];
+  if (!karar) return { hata: 'Geçersiz karar.' };
+  var not = String(d.not || '').replace(/\r/g, '').trim().slice(0, 3000);
+  var sh = SpreadsheetApp.openById(KAYNAK.hub.id).getSheetByName('KOKPIT_ONAYLAR'); if (!sh) return { hata: "HUB'da KOKPIT_ONAYLAR sekmesi yok." };
+  var v = sh.getDataRange().getDisplayValues(), b = v[0].map(function (h) { return String(h).trim().toUpperCase(); });
+  var c = function (ad) { return b.indexOf(ad); }, satir = -1;
+  for (var i = v.length - 1; i >= 1; i--) if (String(v[i][c('ID')]).trim() === id) { satir = i; break; }
+  if (satir < 0) return { hata: 'Bu kayıt HUB\'da bulunamadı; paneli yenileyin.' };
+  if (!/^(bekliyor|beklet)$/i.test(String(v[satir][c('DURUM')]).trim())) return { hata: 'Bu kayda zaten karar verilmiş; paneli yenileyin.' };
+  var tip = String(v[satir][c('TIP')]).trim();
+  if (tip === 'soru' && karar === 'onaylandi' && !not) return { hata: 'Soruya cevabını yaz.' };
+  var damga = Utilities.formatDate(new Date(), TZ, 'dd.MM.yyyy HH:mm'), yaz = function (ad, deger) { var k = c(ad); if (k >= 0) sh.getRange(satir + 1, k + 1).setValue(deger); };
+  yaz('DURUM', karar); yaz('SAHIP_NOTU', not); yaz('KARAR_ZAMANI', damga); yaz('ISLENDI', 'FALSE'); yaz('GUNCELLEME', damga);
+  var ozet = { onaylandi: tip === 'soru' ? 'cevaplandı' : 'onaylandı', reddedildi: 'reddedildi', beklet: 'bekletildi' }[karar];
+  return { tamam: true, id: id, ozet: id + ' ' + ozet + '. Departman bir sonraki çalışmasında işleyecek.' };
+}
 
 /* ---------------- Finans ve alımlar (Kolaybi fatura verisi + aylık gider takibi) ---------------- */
 
@@ -2610,6 +2664,11 @@ function doPost(e) {
     var kmd = LockService.getScriptLock(); kmd.waitLock(20000);
     try { return json_(mesaiDuzelt_(d)); } catch (err) { return json_({ hata: String(err.message || err) }); }
     finally { kmd.releaseLock(); CacheService.getScriptCache().remove('panel_v1_n'); }
+  }
+  if (d.tur === 'kokpit') {
+    var kkp = LockService.getScriptLock(); kkp.waitLock(20000);
+    try { return json_(kokpitCevap_(d)); } catch (err) { return json_({ hata: String(err.message || err) }); }
+    finally { kkp.releaseLock(); CacheService.getScriptCache().remove('panel_v1_n'); }
   }
   if (d.tur === 'musteri') {
     try { return json_(musteriDetay_(d)); } catch (err) { return json_({ hata: String(err.message || err) }); }

@@ -90,6 +90,13 @@ kesilmeyen günler — vardiyasız ya da vardiyasından erken çıkan kurye — 
 "Saat gir", "Doğru" ve "Geri al". Kayıttan sonra veri kapısı Köprü web uygulamasına `tur: 'kural'` gönderip
 `kuraliUygula()`'yı çalıştırır (Script Properties: `KOPRU_URL`, `KOPRU_ANAHTAR`; yoksa bir sonraki yenilemede).
 
+## Yönetim Kokpiti (BAP AI HUB) ve Kararlarım
+
+Departman ajanlarının sahibe soruları / kararları / görev emirleri BAP AI HUB'daki `KOKPIT_ONAYLAR`, departman panoları
+`KOKPIT_DEPARTMANLAR`, Genel Müdür gündemi `KOKPIT_GUNDEM` sekmesinde (ayrıntı: `docs/ajan-talimatlari/README.md`).
+Panel › Kararlarım: departman filtresi, risk sırası, Onayla / Reddet / Beklet ya da soruya cevap (`/api/kokpit`).
+Panel › AI Ekibi: bekleyen sayısı, Genel Müdür gündemi, departman pano kartları (Panoyu aç / Cevapla), İş Kaydı özeti.
+
 ## Yayına alma
 
 1. **Apps Script** (BAP Panel Veri Kapısı): `apps-script/bap-panel-veri-kapisi/Kod.gs` içeriğini `Kod.gs` dosyasına yapıştır,
