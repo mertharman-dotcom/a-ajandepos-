@@ -141,23 +141,25 @@ Kurallar:
 
 ## 7 · Eski / kullanılmıyor olabilir
 
+> ⏸ 03.10: Sahip bu 15 dosyaya bakıp ne yapılacağını söyleyecek. O zamana kadar **dokunulmaz, taşınmaz**.
+
 | Son değişiklik | Dosya | Not |
 |---|---|---|
-| 2026-04-04 | Müşteri Data Base | Sahibine sorulacak |
-| 2026-06-27 | Demırbaş | Sahibine sorulacak |
-| 2026-08-04 | Bap Salad & Pasta - Yemeksepeti Yorumları | Sahibine sorulacak |
-| 2026-08-17 | Şube Ürün Listesi ve Fiyatları | Sahibine sorulacak |
-| 2026-08-18 | Geçmiş Satış ve Ürün Raporu Veri Düzenleme & Tutarlılık Analizi | Sahibine sorulacak |
-| 2026-08-19 | Talep Tahmin Master Dis Veri Takvimi (2022-2026) | Sahibine sorulacak |
-| 2026-08-19 | Getir Yemek - 4 Şube Yorum ve Puan Takibi | Sahibine sorulacak |
-| 2026-08-31 | BAP_Veri_Arsivi_2026 | Sahibine sorulacak |
-| 2026-08-31 | BAP_Veri_Arsivi_2025 | Sahibine sorulacak |
-| 2026-08-31 | BAP veri tablosu dosyasının kopyası | Sahibine sorulacak |
-| 2026-09-02 | BAP_Agustos_2026 | Sahibine sorulacak |
-| 2026-09-06 | Talep Tahmin Master Dis Veri Takvimi (2022-2026) V2 | Sahibine sorulacak |
-| 2026-09-07 | BAP Veri Ambarı | Sahibine sorulacak |
-| 2026-09-23 | 2024-2025 Günlük Mac Ve Turnuva Gecmıs Verileri | Sahibine sorulacak |
-| 2026-09-23 | 2026-2027 Türk Takımları ve Süper Lig Maç Takvimi | Sahibine sorulacak |
+| 2026-04-04 | Müşteri Data Base | ⏸ sahip karar verecek |
+| 2026-06-27 | Demırbaş | ⏸ sahip karar verecek |
+| 2026-08-04 | Bap Salad & Pasta - Yemeksepeti Yorumları | ⏸ sahip karar verecek |
+| 2026-08-17 | Şube Ürün Listesi ve Fiyatları | ⏸ sahip karar verecek |
+| 2026-08-18 | Geçmiş Satış ve Ürün Raporu Veri Düzenleme & Tutarlılık Analizi | ⏸ sahip karar verecek |
+| 2026-08-19 | Talep Tahmin Master Dis Veri Takvimi (2022-2026) | ⏸ sahip karar verecek |
+| 2026-08-19 | Getir Yemek - 4 Şube Yorum ve Puan Takibi | ⏸ sahip karar verecek |
+| 2026-08-31 | BAP_Veri_Arsivi_2026 | ⏸ sahip karar verecek |
+| 2026-08-31 | BAP_Veri_Arsivi_2025 | ⏸ sahip karar verecek |
+| 2026-08-31 | BAP veri tablosu dosyasının kopyası | ⏸ sahip karar verecek |
+| 2026-09-02 | BAP_Agustos_2026 | ⏸ sahip karar verecek |
+| 2026-09-06 | Talep Tahmin Master Dis Veri Takvimi (2022-2026) V2 | ⏸ sahip karar verecek |
+| 2026-09-07 | BAP Veri Ambarı | ⏸ sahip karar verecek |
+| 2026-09-23 | 2024-2025 Günlük Mac Ve Turnuva Gecmıs Verileri | ⏸ sahip karar verecek |
+| 2026-09-23 | 2026-2027 Türk Takımları ve Süper Lig Maç Takvimi | ⏸ sahip karar verecek |
 
 ## 8 · Boş / adsız
 

@@ -1,0 +1,64 @@
+# Cloudflare'deki CANLI Worker kodlarını depoya çeker (sadece okur, Cloudflare'e hiçbir şey yazmaz).
+# Sonuç "kod-cekimi/cf-<tarih>" dalına yazılır; inceledikten sonra main'e birleştirilir.
+# Gerekli gizli değerler: CLOUDFLARE_API_TOKEN, CLOUDFLARE_ACCOUNT_ID.
+name: Cloudflare'i Depoya Çek
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  cek:
+    runs-on: ubuntu-latest
+    env:
+      CF_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CF_HESAP: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Worker listesini ve kodlarını indir
+        run: |
+          set -e
+          api="https://api.cloudflare.com/client/v4/accounts/$CF_HESAP"
+          mkdir -p cloudflare/workers
+          curl -fsS -H "Authorization: Bearer $CF_TOKEN" "$api/workers/scripts" > /tmp/liste.json
+          jq -r '.result[] | [.id, (.modified_on // ""), (.created_on // "")] | @tsv' /tmp/liste.json > /tmp/liste.tsv
+          { echo "# Cloudflare Worker listesi (çekim: $(date -u +%F))"; echo; echo "| Worker | Son değişiklik | Oluşturulma |"; echo "|---|---|---|"
+            awk -F'\t' '{print "| " $1 " | " substr($2,1,10) " | " substr($3,1,10) " |"}' /tmp/liste.tsv; } > cloudflare/workers/LISTE.md
+          while IFS=$'\t' read -r ad _ _; do
+            d="cloudflare/workers/$ad"; mkdir -p "$d"
+            curl -fsS -H "Authorization: Bearer $CF_TOKEN" "$api/workers/scripts/$ad/content/v2" -o "$d/.ham" || \
+              curl -fsS -H "Authorization: Bearer $CF_TOKEN" "$api/workers/scripts/$ad" -o "$d/.ham"
+            # Çok parçalı (multipart) cevabı dosyalara ayır; tek parçaysa olduğu gibi kaydet
+            python3 - "$d" <<'PY'
+          import sys, os, re
+          d = sys.argv[1]; ham = open(os.path.join(d, '.ham'), 'rb').read()
+          ilk = ham.split(b'\n', 1)[0].strip()
+          if ilk.startswith(b'--'):
+              for parca in ham.split(ilk)[1:]:
+                  if parca.strip() in (b'', b'--'): continue
+                  bas, _, govde = parca.partition(b'\r\n\r\n') if b'\r\n\r\n' in parca else parca.partition(b'\n\n')
+                  m = re.search(rb'name="([^"]+)"', bas)
+                  ad = (m.group(1).decode() if m else 'parca').replace('/', '_')
+                  open(os.path.join(d, ad), 'wb').write(govde.rstrip(b'\r\n-').rstrip(b'\r\n'))
+          else:
+              open(os.path.join(d, 'worker.js'), 'wb').write(ham)
+          os.remove(os.path.join(d, '.ham'))
+          PY
+            echo "✓ $ad: $(ls "$d" | tr '\n' ' ')"
+          done < /tmp/liste.tsv
+      - name: Pages projelerini listele
+        run: |
+          curl -fsS -H "Authorization: Bearer $CF_TOKEN" "https://api.cloudflare.com/client/v4/accounts/$CF_HESAP/pages/projects" \
+            | jq -r '"# Cloudflare Pages projeleri\n\n| Proje | Adres | Son yayın |\n|---|---|---|", (.result[] | "| \(.name) | \(.subdomain) | \((.latest_deployment.created_on // "")[:10]) |")' > cloudflare/PAGES.md
+          cat cloudflare/PAGES.md
+      - name: Yeni dala yaz
+        run: |
+          dal="kod-cekimi/cf-$(date -u +%Y%m%d-%H%M)"
+          git config user.name "github-actions"; git config user.email "github-actions@users.noreply.github.com"
+          git add -A cloudflare
+          git diff --cached --quiet && { echo "Değişiklik yok."; exit 0; }
+          git checkout -b "$dal"
+          git commit -m "Cloudflare canlı Worker kodlarını çek ($(date -u +%F))"
+          git push origin "$dal"

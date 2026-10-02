@@ -76,7 +76,7 @@ doğrulanmalı. Durum: ☐ açık · ◐ devam ediyor · ☑ çözüldü.
 |---|---|---|
 | T1 | 119 e-tablo sınıflandırıldı → `docs/tablo-haritasi.md` | ☑ |
 | T2 | Drive'da BAP klasör düzeni kurulup dosyalar taşınacak | ☐ sahibin onayı |
-| T3 | 9 boş "Başlıksız e-tablo" ve 15 eski dosya için karar | ☐ |
+| T3 | 9 boş "Başlıksız e-tablo" için karar; 15 eski dosya sahipte (dokunulmaz) | ⏸ |
 | T4 | Ajanlar yeni dosyalarını `4 Ajan Çalışma Dosyaları`na açsın | ☐ |
 
 ## P · Paneller
@@ -95,5 +95,6 @@ doğrulanmalı. Durum: ☐ açık · ◐ devam ediyor · ☑ çözüldü.
 | Y1 | 9 dağınık dal tek dalda toplandı; canlı Worker depoda olmayan sürümdü, canlıdan alındı | ☑ |
 | Y2 | `main` dalı + otomatik yayın iş akışları | ☑ 03.10 — main varsayılan dal; CLASPRC_JSON, CLOUDFLARE_API_TOKEN, CLOUDFLARE_ACCOUNT_ID eklendi; yayınlar elle başlatılır |
 | Y3 | Apps Script kodlarının canlıdan çekilmesi (`Apps Script'i Depoya Çek`) | ☑ 02.10 — 13 proje, 66 dosya |
+| Y6 | Cloudflare Worker kodlarını depoya çeken iş (`Cloudflare'i Depoya Çek`) | ◐ |
 | Y5 | Mutfak panelinin arka ucu `bap-panel-backend` (BAP PANEL Backend); `bap-satis-veri-ambari` yalnızca sipariş satırı bölme | ☑ tespit |
 | Y4 | Ortak katman: `Ayarlar.gs` + `Ortak.gs` | ☐ |
