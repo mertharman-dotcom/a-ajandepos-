@@ -32,7 +32,7 @@ jobs:
             ( cd "apps-script/$klasor"
               printf '{"scriptId":"%s","rootDir":".","fileExtension":"gs"}' "$id" > .clasp.json
               clasp pull
-              date -u +%FT%TZ > .clasp-cekim )
+              [ -f .clasp-cekim ] || date -u +%FT%TZ > .clasp-cekim )   # yalnızca ilk çekimde yazılır
             echo "::endgroup::"
           done
       - name: Yeni dala yaz
