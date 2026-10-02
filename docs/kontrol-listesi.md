@@ -26,13 +26,14 @@ doğrulanmalı. Durum: ☐ açık · ◐ devam ediyor · ☑ çözüldü.
 
 | | Sorun | Etki | Durum |
 |---|---|---|---|
-| S1 | `satislariIsle` içinde süslü parantez kayması | Bir çalışmada birden çok sipariş varsa stok fazla düşer, log tekrarlanır; menü ve fiyat tetikleyicisi "fonksiyon bulunamadı" verebilir | ☐ |
+| S1 | `satislariIsle` içinde süslü parantez kayması — **canlıda doğrulandı 02.10**: onOpen, dusumleriUygula, fiyatlariGuncelleOtomatik, maliyetRaporuOlustur üst düzeyde yok | Bir çalışmada birden çok sipariş varsa stok fazla düşer, log tekrarlanır; menü ve fiyat tetikleyicisi "fonksiyon bulunamadı" verebilir | ☐ |
 | S2 | İptal/açık siparişler düşülüyor olabilir (Durum sütununa bakmıyor) ⚠️ | Fazla stok düşümü | ☐ |
 | S3 | Ambalaj_Kurallari'nda "Ürün" (Ü ile) yazılırsa kategori kuralı sayılıyor ⚠️ | Ürüne özel ambalaj düşmüyor | ☐ |
 | S4 | Satış tablosu sütun numarasıyla okunuyor | Adisyo sütun değiştirirse sessizce yanlış okur | ☐ |
 | S5 | Benzer isim eşiği 0,82 ile yanlış ürüne bağlanabiliyor | Gizli hata | ☐ |
 | S6 | J (son alış fiyatı) hem Alış motoru (00:30) hem `fiyatlariGuncelle` (00:40) yazıyor | Fiyat gidip gelir | ☐ |
 | S7 | Riskli menü düğmeleri: Eskileri İşaretle, Tüm Satış Düşümlerini Geri Al, NotebookLM Geri Al | Yanlışlıkla basılırsa veri bozulur | ☐ |
+| S9 | Stok Takip projesinde `BAP Maliyet.gs` (Maliyet Modülü'nün kopyası) ve `KolayBi ürün karşılaştırma.gs`, Satış Motoru ile aynı adlı fonksiyonlar tanımlıyor (nrm, sade, sayi, stokDosyasi, receteHaritasi, ymHaritasi, ambalajKurallari, maliyetDetay) | Hangisinin çalışacağı dosya sırasına bağlı; S1 düzelince Satış Motoru da bunlarla çakışacak | ☐ |
 | S8 | İçindeki eski maliyet raporu Maliyet Modülü ile aynı tabloları farklı hesapla yazıyor | Çelişen rakamlar | ☐ |
 
 ## V · Veri (gecelik ajan raporundan, 02.10)
@@ -64,6 +65,9 @@ doğrulanmalı. Durum: ☐ açık · ◐ devam ediyor · ☑ çözüldü.
 | D11 | Ambalaj Teşhis | "Benzerlikle bulundu"yu başarı sayıyor | Geçici, sonra silinir | ☐ |
 | D12 | Mutfak (reçete) sayfası | Her açılışta tüm Drive fotoğraflarını base64 gönderiyor (çok yavaş); kategori yanlış sütundan | Önbellek + küçük resim linki | ☐ |
 | D13 | CSV dışa aktarma | Okuyan yoksa gereksiz; tarihleri bozuk yazıyor | Kullanılıyor mu? | ☐ |
+| D15 | Kurye projesi: `Kural.gs` ile `Mesai Kurallar.gs` birebir aynı dosya (20 fonksiyon iki kez) | Biri silinir | ☐ |
+| D16 | Kolaybi projesi: `test.gs`, `VeriKontrol.gs`'nin eski kopyası (7 fonksiyon iki kez) | `test.gs` silinir | ☐ |
+| D17 | Maliyet kodu iki projede: ayrı `BAP Maliyet` projesi + Stok Takip içindeki `BAP Maliyet.gs` | Tek yerde kalır | ☐ |
 | D14 | Tek seferlikler: alisAra, adetKontrol, kaynakBasliklar, denetim2, sayimVeTop20, isimBirlestirmeAnalizi, yapiDokumu, satisSiparisIdleriniDoldur, alisTarihDuzelt, degisimSutunuEkle, ymStokTakipBirimineGec, notebookDusumleriniGeriAl | — | Silinir | ☐ |
 
 ## P · Paneller
@@ -72,7 +76,7 @@ doğrulanmalı. Durum: ☐ açık · ◐ devam ediyor · ☑ çözüldü.
 |---|---|---|
 | P1 | Sipariş: WhatsApp kayıt sonrası açılıyordu, telefonlar engelliyordu | ☑ (yüklenmeyi bekliyor, H3) |
 | P2 | Kayıt (POST) istekleri otomatik tekrar deneniyordu → çift kayıt | ☑ (H3) |
-| P3 | Yönetici şifresi istemci kodunda; personel şifresi URL'de gidiyor | ☐ |
+| P3 | Yönetici şifresi istemci kodunda; personel şifresi URL'de gidiyor (düzeltme `bap-panel-backend`'de) | ☐ |
 | P4 | Sayım ekranında birim seçimi yok (Hazırlık ajanı gram/adet tahmin ediyor) | ☐ |
 
 ## Y · Yapı
@@ -81,5 +85,6 @@ doğrulanmalı. Durum: ☐ açık · ◐ devam ediyor · ☑ çözüldü.
 |---|---|---|
 | Y1 | 9 dağınık dal tek dalda toplandı; canlı Worker depoda olmayan sürümdü, canlıdan alındı | ☑ |
 | Y2 | `main` dalı + otomatik yayın iş akışları | ◐ `main` oluştu 02.10; varsayılan dal ayarı ve gizli anahtarlar bekleniyor |
-| Y3 | Apps Script kodlarının canlıdan çekilmesi (`Apps Script'i Depoya Çek`) | ☐ |
+| Y3 | Apps Script kodlarının canlıdan çekilmesi (`Apps Script'i Depoya Çek`) | ☑ 02.10 — 13 proje, 66 dosya |
+| Y5 | Mutfak panelinin arka ucu `bap-panel-backend` (BAP PANEL Backend); `bap-satis-veri-ambari` yalnızca sipariş satırı bölme | ☑ tespit |
 | Y4 | Ortak katman: `Ayarlar.gs` + `Ortak.gs` | ☐ |
