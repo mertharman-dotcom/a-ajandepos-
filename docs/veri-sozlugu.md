@@ -13,6 +13,8 @@ tutamaz; gerekiyorsa sahipten okur. ⏳ = karar/geçiş bekliyor (bkz. `kontrol-
 | SATIS2 | BAP veri tablosu (Detay sekmesi) | `152FdGaQUhwyd0ytcTbM1OI6beNZsXBJhCM-GoG2Bzvw` |
 | FATURA | Kolaybi Fatura Ham Veri | `1JJ6UZzh8rSX1FE9Cr-UPzEAaE-2aKtM10bEvjAv2P5w` |
 
+Bütün e-tabloların listesi ve önerilen Drive düzeni: `docs/tablo-haritasi.md`.
+
 ## Bilgiler
 
 | Bilgi | Sahip | Kim yazar | Kim okur | Kopyası olan / kaldırılacak |
@@ -35,7 +37,7 @@ tutamaz; gerekiyorsa sahipten okur. ⏳ = karar/geçiş bekliyor (bkz. `kontrol-
 | Tedarikçi, sevkiyat günü, şube | STOK › Tedarikçi Sevkiyat günleri | Elle | Alış, Sipariş ekranı | Şube sütunu eksikleri → SUBE_YOK (V1) |
 | Tedarikçi siparişleri | STOK › Siparis_Kayitlari | Mutfak paneli | Alış motoru (şube tahmini), Mal Kabul | — |
 | Üretim / Sayım / Zayi / Transfer girişleri | STOK › Uretim_Girisleri, Sayim_Girisleri, Zayi_Girisleri, Transferler | Mutfak paneli | Hazırlık, stok | — |
-| Ürün maliyeti | STOK › Tbl_Maliyetler | Maliyet Modülü (04:00) | Raporlar | Stok motorundaki eski maliyet raporu silinecek (S8) |
+| Ürün maliyeti | STOK › Tbl_Maliyetler | Stok Takip içindeki `BAP Maliyet.gs` (04:00) — canlıda çalışan bu | Raporlar | Ayrı `BAP Maliyet` projesi emekliye ayrılacak (D17); stok motorundaki eski rapor silinecek (S8) |
 | Reçete durumu | GENEL › Menü I sütunu | Maliyet Modülü | — | Stok motoru da yazıyor (S8) |
 
 ## Birimler

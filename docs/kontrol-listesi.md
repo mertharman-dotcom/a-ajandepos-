@@ -67,8 +67,17 @@ doğrulanmalı. Durum: ☐ açık · ◐ devam ediyor · ☑ çözüldü.
 | D13 | CSV dışa aktarma | Okuyan yoksa gereksiz; tarihleri bozuk yazıyor | Kullanılıyor mu? | ☐ |
 | D15 | Kurye projesi: `Kural.gs` ile `Mesai Kurallar.gs` birebir aynı dosya (20 fonksiyon iki kez) | Biri silinir | ☐ |
 | D16 | Kolaybi projesi: `test.gs`, `VeriKontrol.gs`'nin eski kopyası (7 fonksiyon iki kez) | `test.gs` silinir | ☐ |
-| D17 | Maliyet kodu iki projede: ayrı `BAP Maliyet` projesi + Stok Takip içindeki `BAP Maliyet.gs` | Tek yerde kalır | ☐ |
+| D17 | Maliyet kodu iki projede. Canlıda çalışan Stok Takip içindeki kopya (Tbl_Maliyetler tarih biçimi + 135 ürün) | Stok Takip'te kalır; ayrı projenin iyi yanları (aktif filtresi, boş tablo koruması, yalnız kendi tetikleyicisini silme) taşınır, ayrı proje susturulur | ☐ |
 | D14 | Tek seferlikler: alisAra, adetKontrol, kaynakBasliklar, denetim2, sayimVeTop20, isimBirlestirmeAnalizi, yapiDokumu, satisSiparisIdleriniDoldur, alisTarihDuzelt, degisimSutunuEkle, ymStokTakipBirimineGec, notebookDusumleriniGeriAl | — | Silinir | ☐ |
+
+## T · Tablolar (Drive)
+
+| | İş | Durum |
+|---|---|---|
+| T1 | 119 e-tablo sınıflandırıldı → `docs/tablo-haritasi.md` | ☑ |
+| T2 | Drive'da BAP klasör düzeni kurulup dosyalar taşınacak | ☐ sahibin onayı |
+| T3 | 9 boş "Başlıksız e-tablo" ve 15 eski dosya için karar | ☐ |
+| T4 | Ajanlar yeni dosyalarını `4 Ajan Çalışma Dosyaları`na açsın | ☐ |
 
 ## P · Paneller
 
