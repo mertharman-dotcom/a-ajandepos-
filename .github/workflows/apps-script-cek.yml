@@ -39,7 +39,10 @@ jobs:
         run: |
           dal="kod-cekimi/$(date -u +%Y%m%d-%H%M)"
           git config user.name "github-actions"; git config user.email "github-actions@users.noreply.github.com"
-          git checkout -b "$dal"
+          git add -A apps-script
+          git stash
+          git fetch -q origin main && git checkout -q -B "$dal" origin/main   # en güncel main'in üzerine
+          git stash pop
           git add -A apps-script
           git diff --cached --quiet && { echo "Değişiklik yok: depo canlıyla aynı."; exit 0; }
           git commit -m "Apps Script canlı kodunu çek ($(date -u +%F))"
