@@ -54,6 +54,12 @@
       "ad": "BAP_Personel",
       "scriptId": "1p6RXpTJKWGpxPJ_ZX896yR7CQU--mWVlchuG7VMOtc5v9oEKsMOc5jrh",
       "deploymentId": ""
+    },
+    {
+      "klasor": "indirim-orani",
+      "ad": "İndirim Oranı",
+      "scriptId": "1pIxL9A86rSzIM46PIJ0aXr4Zmmkk0CpgfA6cUsY49NfmeffAl4tQPfKO",
+      "deploymentId": ""
     }
   ]
 }
