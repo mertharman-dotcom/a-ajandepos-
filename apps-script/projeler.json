@@ -1,0 +1,12 @@
+{
+  "_aciklama": "Her Apps Script projesinin kimliği. scriptId: Apps Script › Proje Ayarları › Komut dosyası kimliği. deploymentId: yalnızca web uygulaması olan projeler için (Dağıt › Dağıtımları yönet › Dağıtım kimliği). Boş olan proje çekilmez/yayınlanmaz.",
+  "projeler": [
+    { "klasor": "stok-takip-sistemi",      "ad": "Stok Takip Sistemi (Stok dosyasına bağlı)", "scriptId": "", "deploymentId": "" },
+    { "klasor": "maliyet-modulu",          "ad": "BAP Maliyet Modülü (ayrı proje)",            "scriptId": "", "deploymentId": "" },
+    { "klasor": "mutfak-panel-api",        "ad": "Mutfak panelinin bağlandığı API (AKfycbzczj…)", "scriptId": "", "deploymentId": "AKfycbzczj4XzNQTIJu5NadZTDl6btT-7pOIOV3XNj4ZlsGxYJn7xlW0ks_f7AV-dx3vTi6X" },
+    { "klasor": "bap-panel-veri-kapisi",   "ad": "BAP Panel Veri Kapısı",                       "scriptId": "", "deploymentId": "" },
+    { "klasor": "kolaybi-fatura-ham-veri", "ad": "Kolaybi Fatura Ham Veri (dosyaya bağlı)",     "scriptId": "", "deploymentId": "" },
+    { "klasor": "adisyo-siparis-toplayici","ad": "Adisyo Sipariş Toplayıcı",                    "scriptId": "", "deploymentId": "" },
+    { "klasor": "kurye-net-calisma-suresi","ad": "Kurye Net Çalışma Süresi",                    "scriptId": "", "deploymentId": "" }
+  ]
+}

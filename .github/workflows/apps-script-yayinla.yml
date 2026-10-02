@@ -1,0 +1,53 @@
+# main'deki Apps Script kodunu canlıya gönderir.
+# GÜVENLİK: clasp push, projedeki depoda OLMAYAN dosyaları siler. Bu yüzden bir proje ancak
+# en az bir kez "Apps Script'i Depoya Çek" ile çekilmişse (.clasp-cekim dosyası varsa) yayınlanır.
+name: Apps Script'i Yayınla
+
+on:
+  workflow_dispatch:
+    inputs:
+      proje:
+        description: "Klasör adı (ör. stok-takip-sistemi). Boş = main'de değişen projeler"
+        required: false
+  push:
+    branches: [main]
+    paths: ["apps-script/**"]
+
+jobs:
+  yayinla:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with: { fetch-depth: 2 }
+      - uses: actions/setup-node@v4
+        with: { node-version: 20 }
+      - name: clasp kur ve oturum aç
+        env: { CLASPRC_JSON: "${{ secrets.CLASPRC_JSON }}" }
+        run: |
+          test -n "$CLASPRC_JSON" || { echo "::error::CLASPRC_JSON gizli değeri tanımlı değil"; exit 1; }
+          npm i -g @google/clasp@2.4.2
+          printf '%s' "$CLASPRC_JSON" > ~/.clasprc.json
+      - name: Yayınlanacak projeleri belirle
+        id: liste
+        run: |
+          if [ -n "${{ github.event.inputs.proje }}" ]; then
+            liste="${{ github.event.inputs.proje }}"
+          else
+            liste=$(git diff --name-only HEAD~1 HEAD -- apps-script | awk -F/ 'NF>2{print $2}' | sort -u | tr '\n' ' ')
+          fi
+          echo "liste=$liste" >> "$GITHUB_OUTPUT"; echo "Projeler: $liste"
+      - name: Yayınla
+        run: |
+          set -e
+          for klasor in ${{ steps.liste.outputs.liste }}; do
+            p=$(jq -c --arg k "$klasor" '.projeler[] | select(.klasor==$k)' apps-script/projeler.json)
+            id=$(echo "$p" | jq -r '.scriptId // ""'); dep=$(echo "$p" | jq -r '.deploymentId // ""')
+            [ -n "$id" ] || { echo "$klasor: scriptId yok, atlandı"; continue; }
+            [ -f "apps-script/$klasor/.clasp-cekim" ] || { echo "::error::$klasor hiç çekilmemiş; önce 'Apps Script'i Depoya Çek' çalıştırın"; exit 1; }
+            echo "::group::$klasor"
+            ( cd "apps-script/$klasor"
+              printf '{"scriptId":"%s","rootDir":".","fileExtension":"gs"}' "$id" > .clasp.json
+              clasp push -f
+              if [ -n "$dep" ]; then clasp deploy -i "$dep" -d "git ${GITHUB_SHA::7}"; fi )
+            echo "::endgroup::"
+          done

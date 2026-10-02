@@ -1,5 +1,12 @@
 # BAP Yönetim Paneli
 
+> **Çalışma kuralları:** `CLAUDE.md` · **Hangi bilgi nerede:** `docs/veri-sozlugu.md` · **Açık işler:** `docs/kontrol-listesi.md`
+>
+> **Yayın:** `main` dalına giren değişiklik otomatik canlıya gider (`.github/workflows/`):
+> Apps Script → *Apps Script'i Yayınla*, mutfak paneli + yönetim paneli → *Cloudflare'e Yayınla*.
+> Canlıdaki Apps Script kodunu depoya almak için GitHub › Actions › *Apps Script'i Depoya Çek* › Run workflow.
+> Aşağıdaki "elle yapıştır" adımları otomatik yayın kurulana kadar geçerlidir.
+
 | Klasör | Ne | Nerede çalışır |
 |---|---|---|
 | `bap-panel/` | Panel sayfası ve Cloudflare Worker | `bap-panel.mertharman.workers.dev` |
