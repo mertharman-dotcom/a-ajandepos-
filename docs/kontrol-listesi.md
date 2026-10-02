@@ -84,7 +84,7 @@ doğrulanmalı. Durum: ☐ açık · ◐ devam ediyor · ☑ çözüldü.
 | | İş | Durum |
 |---|---|---|
 | Y1 | 9 dağınık dal tek dalda toplandı; canlı Worker depoda olmayan sürümdü, canlıdan alındı | ☑ |
-| Y2 | `main` dalı + otomatik yayın iş akışları | ◐ `main` oluştu 02.10; varsayılan dal ayarı ve gizli anahtarlar bekleniyor |
+| Y2 | `main` dalı + otomatik yayın iş akışları | ☑ 03.10 — main varsayılan dal; CLASPRC_JSON, CLOUDFLARE_API_TOKEN, CLOUDFLARE_ACCOUNT_ID eklendi; yayınlar elle başlatılır |
 | Y3 | Apps Script kodlarının canlıdan çekilmesi (`Apps Script'i Depoya Çek`) | ☑ 02.10 — 13 proje, 66 dosya |
 | Y5 | Mutfak panelinin arka ucu `bap-panel-backend` (BAP PANEL Backend); `bap-satis-veri-ambari` yalnızca sipariş satırı bölme | ☑ tespit |
 | Y4 | Ortak katman: `Ayarlar.gs` + `Ortak.gs` | ☐ |
