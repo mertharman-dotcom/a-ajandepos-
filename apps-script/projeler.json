@@ -42,6 +42,12 @@
       "ad": "Kurye Net Çalışma Süresi",
       "scriptId": "",
       "deploymentId": ""
+    },
+    {
+      "klasor": "trendyol-veri-cekme",
+      "ad": "Trendyol Veri Çekme",
+      "scriptId": "1-XzSk76z8Yg1WLzcNgqH-ulglMGNJflYsxGB-M_pOznn_1vNpyJw8dAg",
+      "deploymentId": ""
     }
   ]
 }
