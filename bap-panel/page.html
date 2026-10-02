@@ -128,6 +128,33 @@ h1{font-size:34px;line-height:1.12;margin:0;font-weight:700;letter-spacing:-.015
 .sekmeler button[aria-pressed="true"]{background:var(--mavi-acik);border-color:var(--mavi);color:var(--mavi-koyu);font-weight:600}
 .grafik .deger-yazi{fill:var(--murekkep);font-size:10.5px;font-weight:600}
 .grafik .adet-yazi{fill:var(--gri);font-size:10px}
+/* Departman panoları */
+.pano-bas{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:flex-end;gap:10px 20px;margin:4px 0 18px;padding-bottom:14px;border-bottom:1px solid var(--cizgi)}
+.pano-bas h2{margin:0;font-size:24px;letter-spacing:-.01em}
+.pano-bas p{margin:4px 0 0;color:var(--gri);font-size:14px;max-width:70ch}
+.pano-bas .tazelik{font-size:13px;color:var(--gri);display:flex;align-items:center;gap:7px}
+.pano-bas .tazelik i{width:8px;height:8px;border-radius:50%;background:var(--gri)}
+.pano-bas .tazelik.taze i{background:var(--iyi)} .pano-bas .tazelik.eski i{background:var(--dikkat)}
+.rakam.tikla{cursor:pointer;text-align:left;font:inherit;color:inherit;border:0}
+.rakam.tikla:hover{background:var(--kum-acik)}
+.rakam.tikla[aria-pressed="true"]{box-shadow:inset 0 -3px 0 var(--mavi-koyu)}
+.pano-is{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:4px 18px}
+.pano-is .sag{display:flex;flex-direction:column;align-items:flex-end;gap:6px}
+.pano-is .durum-c{color:var(--gri)}
+.onc{font-size:11.5px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--gri)}
+.onc.kritik{color:var(--kotu)} .onc.yuksek{color:var(--dikkat)}
+.grup-bas{background:var(--kum-acik);padding:7px 18px;font-size:12px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--gri);border-top:1px solid var(--cizgi)}
+.liste>.grup-bas:first-child{border-top:0;border-radius:var(--r) var(--r) 0 0}
+.not-izi{margin-top:6px;font-size:13px;background:var(--mavi-acik);border-radius:var(--r-kucuk);padding:6px 10px}
+.not-izi b{color:var(--mavi-koyu)}
+.ekip-izgara{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,280px),1fr));gap:1px;background:var(--cizgi);border:1px solid var(--cizgi);border-radius:var(--r);overflow:hidden}
+.ekip-izgara .ajan{background:var(--kagit);padding:14px 16px}
+.ekip-izgara .ajan h3{margin:0 0 6px;font-size:15px;display:flex;justify-content:space-between;gap:10px;align-items:flex-start}
+.ekip-izgara dl{margin:0;display:grid;gap:4px;font-size:13.5px}
+.ekip-izgara dt{font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--gri)}
+.ekip-izgara dd{margin:0}
+.bulgu-k{border-left:4px solid var(--mavi)} .bulgu-k.kotu{border-left-color:var(--kotu)} .bulgu-k.dikkat{border-left-color:var(--dikkat)} .bulgu-k.iyi{border-left-color:var(--iyi)}
+@media (max-width:640px){.pano-is{grid-template-columns:1fr}.pano-is .sag{flex-direction:row;align-items:center;justify-content:flex-start}}
 .cevap-kutu{margin-top:10px}
 .cevap-alan{width:100%;font:inherit;font-size:14px;padding:8px 10px;border:1px solid var(--cizgi);border-radius:var(--r-kucuk);background:var(--zemin);color:var(--murekkep);resize:vertical}
 .cevap-alan:focus{outline:2px solid var(--mavi-koyu);outline-offset:1px}
@@ -241,7 +268,7 @@ h1{font-size:34px;line-height:1.12;margin:0;font-weight:700;letter-spacing:-.015
 <script>
 (function(){
 "use strict";
-var BOLUMLER=[["merkez","Yönetim Merkezi"],["ozet","İşletme Özeti"],["fis","Günlük Fiş"],["satis","Satışlar"],["maliyet","Satış Maliyeti"],["finans","Finans"],["odeme","Toptancı Ödemeleri"],["alim","Alımlar & Giderler"],["stok","Ürün, Stok & Hazırlık"],["kurye","Kurye & Teslimat"],["personel","Personel"],["musteri","Müşteri İlişkileri"],["genel","Genel Bilgiler"],["kararlar","Kararlarım"],["ai","AI Ekibi"]];
+var BOLUMLER=[["merkez","Yönetim Merkezi"],["ozet","İşletme Özeti"],["fis","Günlük Fiş"],["satis","Satışlar"],["maliyet","Satış Maliyeti"],["finans","Finans"],["odeme","Toptancı Ödemeleri"],["alim","Alımlar & Giderler"],["stok","Ürün, Stok & Hazırlık"],["kurye","Kurye & Teslimat"],["personel","Personel"],["musteri","Müşteri İlişkileri"],["genel","Genel Bilgiler"],["kararlar","Kararlarım"],["panolar","Departman Panoları"],["ai","AI Ekibi"]];
 var YETKI={L0:"Yalnız inceleme",L1:"Öneri ve taslak",L2:"Önceden izinli küçük işlem",L3:"Direktör yetkisinde",L4:"Senin onayın gerekiyor",L5:"Yapay zeka uygulayamaz"};
 var DURUM={COMPLETED:"Tamamlandı",WAITING_MERT:"Senin onayını bekliyor",WAITING_REVIEW:"İkinci kontrol bekliyor",ROUTED:"Sıraya alındı",IN_ANALYSIS:"Analizde",NEW:"Yeni",BLOCKED:"Durduruldu",ERROR_FINAL:"Hatayla kapandı",APPROVED:"Onaylandı",REJECTED:"Reddedildi",IN_IMPLEMENTATION:"Uygulanıyor",EXECUTED:"Uygulandı",VERIFYING:"Doğrulanıyor",VERIFIED:"Doğrulandı","BOŞ":"Durumu yazılmamış"};
 var VERI=null, AKTIF=(location.hash||"#merkez").slice(1), YUKLENIYOR=false;
@@ -496,6 +523,98 @@ function kararlar(a){var KP=VERI.hub&&VERI.hub.kokpit,L=KP?KP.bekleyen:[],bek=VE
       G.length?el("div",{class:"liste"},G.map(kokpitKart)):bos("Bu departmandan bekleyen yok.")));}
   if(bek.length)a.appendChild(blok("Eski görev merkezi (CEO_APPROVALS)","Deneme kayıtları gösterilmez.",el("div",{class:"liste"},bek.map(kararSatiri))));}
 
+// Departman panoları: her departmanın işleri (açık / hazırladıklarımız / canlıda), senden beklenenler, ekip, kurallar ve günlük.
+// Kaynak HUB'daki KOKPIT_* sekmeleri. Soru ve kararlara cevap /api/kokpit, işlere not /api/pano-not ile yazılır.
+var PANO={dep:"",asama:"acik",notAcik:"",notlar:{},durum:{},gonderiliyor:"",istek:{}};
+try{var _pa=localStorage.getItem("panel-pano-dep");if(_pa)PANO.dep=_pa;}catch(e){}
+var PANO_GRUP={sende:"sende",acik:"acik",sirada:"acik",engel:"acik",hazir:"hazir",pencerede:"hazir",denetcide:"hazir",canlida:"canli",tamam:"canli",kapandi:"canli"};
+var PANO_HAP={sende:["Senden bekleniyor","e-kotu"],acik:["Devam ediyor","e-notr"],sirada:["Sırada","e-notr"],engel:["Takıldı","e-kotu"],hazir:["Hazır","e-dikkat"],pencerede:["Pencerede","e-dikkat"],denetcide:["Denetçide","e-dikkat"],canlida:["Canlıda","e-iyi"],tamam:["Tamamlandı","e-iyi"],kapandi:["Kapandı","e-notr"]};
+var PANO_ACIKLAMA={acik:"Üzerinde çalışılan, sırası gelmemiş ya da bir engele takılmış işler.",hazir:"Departmanın hazırladığı ama henüz canlıya alınmamış işler: plan, taslak ya da 15:00–17:00 penceresini bekleyen değişiklik.",canli:"Canlı sisteme alınmış, uygulanmış ya da kapanmış işler. En yenisi en üstte."};
+var ONC_SIRA={"kritik":0,"yüksek":1,"yuksek":1,"orta":2,"düşük":3,"dusuk":3};
+function tarihSira(s){var m=String(s||"").match(/(\d{1,2})\.(\d{1,2})\.(\d{4})(?:\s+(\d{1,2}):(\d{2}))?/);return m?m[3]+("0"+m[2]).slice(-2)+("0"+m[1]).slice(-2)+("0"+(m[4]||0)).slice(-2)+(m[5]||"00"):"";}
+function isSira(a,b){return (ONC_SIRA[a.oncelik]==null?4:ONC_SIRA[a.oncelik])-(ONC_SIRA[b.oncelik]==null?4:ONC_SIRA[b.oncelik])||tarihSira(b.guncelleme).localeCompare(tarihSira(a.guncelleme));}
+function panoNotGonder(dep,x){var K=PANO,not=(K.notlar[x.id]||"").trim();if(K.gonderiliyor)return;
+  if(!not){K.durum[x.id]={m:"Notunu yaz.",s:"kotu"};return ciz();}
+  if(!K.istek[x.id])K.istek[x.id]=yeniIstekNo();
+  K.gonderiliyor=x.id;K.durum[x.id]={m:"Gönderiliyor…",s:""};ciz();
+  fetch("/api/pano-not",{method:"POST",credentials:"same-origin",headers:{"content-type":"application/json","x-bap-panel":"1"},body:JSON.stringify({departman:dep,isId:x.id,not:not,istekNo:K.istek[x.id]})})
+    .then(function(r){return r.json();}).then(function(d){K.gonderiliyor="";
+      if(d&&d.tamam){K.durum[x.id]={m:"✓ "+d.ozet,s:"iyi"};delete K.notlar[x.id];delete K.istek[x.id];K.notAcik="";yukle(true);return;}
+      K.durum[x.id]={m:(d&&d.hata)||"Gönderilemedi.",s:"kotu"};ciz();})
+    .catch(function(){K.gonderiliyor="";K.durum[x.id]={m:"Bağlantı koptu; not yazılmış olabilir. ‘Şimdi yenile’ ile kontrol et.",s:"kotu"};ciz();});}
+function panoIsSatiri(dep,x,notlar){var K=PANO,h=PANO_HAP[x.asama]||PANO_HAP.acik,acik=K.notAcik===x.id,du=K.durum[x.id];
+  var kn=notlar.filter(function(n){return n.isId===x.id;}).slice(0,2);
+  var sol=el("div",{style:"min-width:0"},[el("h3",{text:x.baslik}),x.ne?el("p",{text:x.ne}):null,x.durum?el("p",{class:"durum-c",text:x.durum}):null,
+    el("div",{class:"meta"},[x.ajan?el("span",{text:x.ajan+(x.destek?" · destek: "+x.destek:"")}):null,x.guncelleme?el("span",{text:x.guncelleme}):null,
+      x.link?el("a",{href:x.link,target:"_blank",rel:"noopener",text:"Belge"}):null,
+      el("button",{type:"button",class:"bag-dugme",onclick:function(){K.notAcik=acik?"":x.id;ciz();}},[acik?"Vazgeç":"Not yaz"])])]);
+  kn.forEach(function(n){sol.appendChild(el("div",{class:"not-izi"},[el("b",{text:"Notun ("+n.zaman+"): "}),n.not,el("span",{style:"color:var(--gri)",text:n.islendi?" · departman okudu"+(n.islemNotu?": "+n.islemNotu:""):" · departman okuyacak"})]));});
+  if(acik){var ta=el("textarea",{class:"cevap-alan",rows:"3",placeholder:"Bu işle ilgili departmana notun…","aria-label":"Not"});ta.value=K.notlar[x.id]||"";
+    ta.addEventListener("input",function(){K.notlar[x.id]=ta.value;});
+    var b=el("button",{type:"button",class:"dugme ana-dugme",style:"margin-top:6px",onclick:function(){K.notlar[x.id]=ta.value;panoNotGonder(dep,x);}},["Notu gönder"]);if(K.gonderiliyor)b.setAttribute("disabled","");
+    sol.appendChild(el("div",{class:"cevap-kutu"},[ta,b]));setTimeout(function(){if(document.activeElement===document.body)ta.focus();},0);}
+  if(du)sol.appendChild(el("div",{class:"cevap-durum "+(du.s||""),role:"status",style:"display:block;margin-top:6px",text:du.m}));
+  var on=String(x.oncelik||"").toLowerCase().replace("ü","u");
+  return el("div",{class:"satir pano-is"},[sol,el("div",{class:"sag"},[el("span",{class:"etiket "+h[1],text:x.etiket||h[0]}),x.oncelik?el("span",{class:"onc "+on,text:x.oncelik}):null])]);}
+function panoIsListesi(dep,L,notlar,siralama){if(!L.length)return null;
+  if(siralama==="tarih")L.sort(function(a,b){return tarihSira(b.guncelleme).localeCompare(tarihSira(a.guncelleme));});else L.sort(isSira);
+  var gruplar=[],m={};L.forEach(function(x){var g=x.grup||"";if(!m[g]){m[g]=[];gruplar.push(g);}m[g].push(x);});
+  var kids=[],tek=gruplar.length===1;gruplar.forEach(function(g){if(!tek)kids.push(el("div",{class:"grup-bas",text:g||"Diğer"}));m[g].forEach(function(x){kids.push(panoIsSatiri(dep,x,notlar));});});
+  return el("div",{class:"liste"},kids);}
+function panolarSayfa(a){var KP=VERI.hub&&VERI.hub.kokpit;
+  a.appendChild(ust("Departman panoları","Her departmanın işleri, senden beklenenler ve ekibi. Cevapların ve notların BAP AI HUB'a yazılır; departman 13:00 ve 21:00 çalışmalarında okur."));
+  var h=hatalarKutusu(["hub"]);if(h)a.appendChild(h);
+  if(!KP){a.appendChild(bos("BAP AI HUB okunamadı."));return;}
+  var P=KP.panolar||{},deps=KP.departmanlar.filter(function(d){return d.aktif;});
+  if(!deps.length){a.appendChild(bos("Aktif departman yok."));return;}
+  if(!deps.some(function(d){return d.ad===PANO.dep;}))PANO.dep=deps[0].ad;
+  var bekSay=function(ad){var p=P[ad]||{};return KP.bekleyen.filter(function(x){return x.departman===ad&&x.durum==="bekliyor";}).length+(p.isler||[]).filter(function(x){return x.asama==="sende";}).length;};
+  a.appendChild(el("div",{class:"sekmeler"},deps.map(function(d){var n=bekSay(d.ad);
+    return el("button",{type:"button","aria-pressed":PANO.dep===d.ad?"true":"false",onclick:function(){PANO.dep=d.ad;PANO.notAcik="";try{localStorage.setItem("panel-pano-dep",d.ad);}catch(e){}ciz();}},[d.ad+(n?" ("+n+")":"")]);})));
+  var dep=PANO.dep,D=deps.filter(function(d){return d.ad===dep;})[0],B=P[dep]||{ayar:null,isler:[],ekip:[],bulgular:[],gunluk:[],notlar:[]},ay=B.ayar||{};
+  var gk=tarihSira(ay.guncelleme),saat=null;if(gk){var dt=new Date(+gk.slice(0,4),+gk.slice(4,6)-1,+gk.slice(6,8),+gk.slice(8,10),+gk.slice(10,12));saat=(Date.now()-dt.getTime())/36e5;}
+  a.appendChild(el("div",{class:"pano-bas"},[el("div",null,[el("h2",{text:dep}),el("p",{text:ay.altBaslik||D.faz||""})]),
+    el("div",{class:"tazelik "+(saat==null?"":saat<=14?"taze":"eski")},[el("i"),el("span",{text:ay.guncelleme?"Pano güncellemesi: "+ay.guncelleme+(ay.guncelleyen?" · "+ay.guncelleyen:""):"Departman panoyu henüz yazmadı"})])]));
+  var bek=KP.bekleyen.filter(function(x){return x.departman===dep;}),I=B.isler||[];
+  var grup=function(g){return I.filter(function(x){return (PANO_GRUP[x.asama]||"acik")===g;});};
+  var sende=grup("sende"),nBek=bek.filter(function(x){return x.durum==="bekliyor";}).length+sende.length;
+  var sec=function(g){return function(){PANO.asama=g;ciz();var s=document.getElementById("pano-isler");if(s)s.scrollIntoView({behavior:"smooth",block:"start"});};};
+  var r=function(ad,n,not,g,renk){return el("button",{type:"button",class:"rakam tikla","aria-pressed":PANO.asama===g?"true":"false",onclick:g?sec(g):function(){var s=document.getElementById("pano-sende");if(s)s.scrollIntoView({behavior:"smooth",block:"start"});}},
+    [el("div",{class:"ad",text:ad}),el("div",{class:"deger",style:renk?"color:"+renk:null,text:String(n)}),el("div",{class:"not",text:not})]);};
+  a.appendChild(el("div",{class:"rakamlar dortlu"},[r("Senden beklenen",nBek,"soru, karar ve onay",null,nBek?"var(--kotu)":null),r("Açık iş",grup("acik").length,"devam eden, sırada, takılı","acik","var(--mavi-koyu)"),
+    r("Hazırladıklarımız",grup("hazir").length,"canlıya alınmayı bekliyor","hazir","var(--dikkat)"),r("Canlıda ve tamamlanan",grup("canli").length,"uygulandı ya da kapandı","canli","var(--iyi)")]));
+  // Senden beklenenler
+  var sendeKids=[];
+  if(bek.length)sendeKids.push(el("div",{class:"liste",style:"margin-bottom:12px"},bek.map(kokpitKart)));
+  var sl=panoIsListesi(dep,sende,B.notlar||[]);if(sl)sendeKids.push(sl);
+  if(!sendeKids.length)sendeKids.push(bos("Şu an bu departmandan senden beklenen bir şey yok."));
+  var cev=(KP.cevaplanan||[]).filter(function(x){return x.departman===dep;}).slice(0,6);
+  if(cev.length)sendeKids.push(el("div",{class:"liste",style:"margin-top:12px"},[el("div",{class:"grup-bas",text:"Son cevapların"})].concat(cev.map(function(x){
+    return el("div",{class:"satir"},[el("h3",{text:x.baslik}),x.not?el("p",{text:"“"+x.not+"”"}):null,el("div",{class:"meta"},[el("span",{class:"etiket "+(x.durum==="reddedildi"?"e-kotu":"e-iyi"),text:x.durum==="reddedildi"?"Reddettin":(x.tip==="soru"?"Cevapladın":"Onayladın")}),
+      el("span",{class:"etiket "+(x.islendi?"e-iyi":"e-notr"),text:x.islendi?"Departman işledi":"Departman işleyecek"}),x.kararZamani?el("span",{text:x.kararZamani}):null,x.islemNotu?el("span",{text:x.islemNotu}):null])]);}))));
+  var sb=blok("Senden beklenenler","Başlığa tıkla, oku ve cevapla. Cevabın BAP AI HUB'a yazılır; Kararlarım'da da görünür.",el("div",null,sendeKids));sb.id="pano-sende";a.appendChild(sb);
+  // İşler
+  var g=PANO.asama;
+  var tabs=el("div",{class:"sekmeler"},[["acik","Açık işler"],["hazir","Hazırladıklarımız"],["canli","Canlıda ve tamamlanan"]].map(function(t){
+    return el("button",{type:"button","aria-pressed":g===t[0]?"true":"false",onclick:function(){PANO.asama=t[0];ciz();}},[t[1]+" ("+grup(t[0]).length+")"]);}));
+  var il=panoIsListesi(dep,grup(g),B.notlar||[],g==="canli"?"tarih":"");
+  var ib=blok("İşler",PANO_ACIKLAMA[g]+" Her iş iki cümleyle: ne ve neden · şu anki durum. Bir işe not bırakmak için “Not yaz”.",el("div",null,[tabs,il||bos(g==="hazir"?"Canlıya alınmayı bekleyen hazır iş yok.":g==="canli"?"Henüz canlıya alınan ya da kapanan iş yok.":"Açık iş yok.")]));
+  ib.id="pano-isler";a.appendChild(ib);
+  // Bulgular
+  var BL=(B.bulgular||[]).slice().sort(function(x,y){return x.sira-y.sira;});
+  if(BL.length)a.appendChild(blok("Son bulgular","Departmanın son çalışmalarında öne çıkanlar.",el("div",{class:"liste"},BL.map(function(b){return el("div",{class:"satir bulgu-k "+(b.ton||"")},[el("h3",{text:b.baslik}),el("p",{style:"white-space:pre-line",text:b.metin}),b.tarih?el("div",{class:"meta"},[el("span",{text:b.tarih})]):null]);}))));
+  // Ekip
+  var EK=(B.ekip||[]).slice().sort(function(x,y){return x.sira-y.sira;}),EH={aktif:["Aktif","e-iyi"],sirada:["Sırada","e-notr"],durdu:["Durdu","e-kotu"],test:["Test","e-dikkat"]};
+  a.appendChild(blok("Ekip",null,EK.length?el("div",{class:"ekip-izgara"},EK.map(function(x){var eh=EH[x.durum]||EH.aktif;return el("div",{class:"ajan"},[el("h3",null,[el("span",{text:x.ad}),el("span",{class:"etiket "+eh[1],text:eh[0]})]),
+    el("dl",null,[x.sorumluluk?el("div",null,[el("dt",{text:"Sorumluluk"}),el("dd",{text:x.sorumluluk})]):null,x.duzenli?el("div",null,[el("dt",{text:"Düzenli iş"}),el("dd",{text:x.duzenli})]):null,x.yetki?el("div",null,[el("dt",{text:"Yetki"}),el("dd",{text:x.yetki})]):null])]);})):bos("Ekip bilgisi henüz yazılmadı.")));
+  // Kurallar ve günlük
+  var KR=ay.kurallar||[],GN=B.gunluk||[];
+  a.appendChild(el("div",{class:"iki"},[
+    blok("Günlük","Departmanın son çalışmaları.",GN.length?el("div",{class:"liste"},GN.map(function(x){return el("div",{class:"satir"},[el("div",{class:"meta",style:"margin-top:0"},[el("span",{text:x.zaman+(x.yazan?" · "+x.yazan:"")})]),el("p",{style:"white-space:pre-line",text:x.metin})]);})):bos("Henüz günlük kaydı yok.")),
+    blok("Çalışma kuralları",null,el("div",null,[KR.length?el("div",{class:"liste"},KR.map(function(k){return el("div",{class:"satir"},[el("p",{style:"margin:0",text:k})]);})):bos("Henüz kural yazılmadı."),
+      (ay.linkler||[]).length?el("p",{style:"margin-top:10px;display:flex;flex-wrap:wrap;gap:8px"},ay.linkler.map(function(l){return el("a",{href:l.url,target:"_blank",rel:"noopener",class:"dugme",style:"text-decoration:none"},[l.ad]);})):null,
+      D.klasor?el("p",{style:"margin-top:8px"},[el("a",{href:D.klasor,target:"_blank",rel:"noopener",text:"Departman klasörü"})]):null]))]));}
+
 function ai(a){var hb=VERI.hub,ik=VERI.isKaydi;a.appendChild(ust("Yapay zeka ekibi","Departman ajanlarının BAP AI HUB'daki soruları, Genel Müdür gündemi, departman panoları ve iş kaydı."));a.appendChild(nabizSeridi("ai"));var h=hatalarKutusu(["isKaydi","hub"]);if(h)a.appendChild(h);
   var KP=hb&&hb.kokpit;
   if(KP){var GD=KP.gundem,nb=KP.bekleyen.filter(function(x){return x.durum==="bekliyor";}).length;
@@ -504,10 +623,10 @@ function ai(a){var hb=VERI.hub,ik=VERI.isKaydi;a.appendChild(ust("Yapay zeka eki
     if(GD)a.appendChild(blok("Genel Müdür gündemi — "+GD.tarih,GD.ozet,GD.maddeler.length?el("div",{class:"liste"},GD.maddeler.map(function(m){var o=String(m.oncelik).toLowerCase();
       return el("div",{class:"satir"},[el("h3",null,[el("span",{class:"etiket "+(o==="kritik"?"e-kotu":o==="yüksek"?"e-dikkat":"e-notr"),text:m.oncelik||"orta"})," "+m.baslik]),el("p",{text:m.detay}),m.departmanlar.length?el("div",{class:"meta"},[el("span",{text:m.departmanlar.join(", ")})]):null]);})):null));
     var sonIs={};((VERI.isKaydi||{}).departmanlar||[]).forEach(function(d){sonIs[d.departman]=d;});
-    a.appendChild(blok("Departman panoları","Her departmanın kendi panosu (claude.ai). Panoyu aç ile tam sayfa; sorularını Kararlarım'dan cevaplarsın.",el("div",{class:"iki"},KP.departmanlar.filter(function(d){return d.aktif;}).map(function(d){var si=sonIs[d.ad];
+    a.appendChild(blok("Departman panoları","Her departmanın panosu bu panelde: işler, senden beklenenler, ekip. Panoyu aç ile görürsün; cevaplarını orada ya da Kararlarım'dan verirsin.",el("div",{class:"iki"},KP.departmanlar.filter(function(d){return d.aktif;}).map(function(d){var si=sonIs[d.ad];
       return el("div",{class:"satir",style:"border:1px solid var(--cizgi);border-radius:var(--r-kucuk);padding:14px"},[el("h3",{text:d.ad}),d.faz?el("p",{style:"color:var(--gri)",text:d.faz}):null,
         el("div",{class:"meta"},[el("span",{class:"etiket "+(d.bekleyen?"e-dikkat":"e-iyi"),text:d.bekleyen?d.bekleyen+" bekleyen":"bekleyen yok"}),si&&si.son?el("span",{text:"son iş "+(si.saatOnce<24?si.saatOnce+" saat önce":Math.round(si.saatOnce/24)+" gün önce")}):el("span",{text:"iş kaydı yok"})]),
-        el("p",{style:"margin-top:8px"},[d.pano?el("a",{href:d.pano,target:"_blank",rel:"noopener",class:"dugme",style:"text-decoration:none;display:inline-block;margin-right:6px"},["Panoyu aç"]):null,
+        el("p",{style:"margin-top:8px"},[el("button",{type:"button",class:"dugme",style:"margin-right:6px",onclick:function(){PANO.dep=d.ad;try{localStorage.setItem("panel-pano-dep",d.ad);}catch(e){}git("panolar");}},["Panoyu aç"]),
           d.bekleyen?el("button",{type:"button",class:"dugme ana-dugme",onclick:function(){KOKPIT.dep=d.ad;location.hash="#kararlar";}},["Cevapla"]):null,
           d.klasor?el("a",{href:d.klasor,target:"_blank",rel:"noopener",style:"margin-left:6px",text:"Klasör"}):null])]);}))));}
   if(ik){var O=ik.ozet||{},OB=ik.onayBekleyen||[];
@@ -1843,7 +1962,7 @@ function kuryeAcik(a,K){var A=K.acik;
     blok("Son kapatılanlar","Tahsilatlar sekmesinden; yeni kapattıkların ‘Şimdi yenile’den sonra burada görünür ve yukarıdaki toplamlardan düşer. ‘Adisyo’ sütunu, Adisyo sipariş dosyasında ‘Ödeme Alındı’nın TRUE yapılıp yapılmadığını gösterir.",KP.length?tablo([["Kapatıldı"],["Sipariş"],["Adisyon"],["Kurye"],["Tutar",1],["İşlem"],["Adisyo"]],KP.map(function(x){return [x.zaman,(x.tarih?String(x.tarih).slice(0,5)+" ":"")+(x.saat||""),adisyonLink(x),x.kurye,para(x.tutar),el("span",{class:"etiket "+(/kes/i.test(x.islem)?"e-dikkat":"e-iyi"),text:x.islem}),
       x.adisyo?el("span",{class:"etiket "+(/TRUE/.test(x.adisyo)?"e-iyi":"e-kotu"),title:x.adisyo,text:/TRUE/.test(x.adisyo)?"ödendi işlendi":"bulunamadı"}):el("span",{class:"etiket e-notr",text:"bekliyor"})];})):bos("Henüz panelden kapatılan yok."))]));}
 
-var CIZ={genel:genelSayfa,merkez:merkez,ozet:ozet,fis:fisSayfa,satis:satis,maliyet:maliyetSayfa,kararlar:kararlar,ai:ai,
+var CIZ={genel:genelSayfa,merkez:merkez,ozet:ozet,fis:fisSayfa,satis:satis,maliyet:maliyetSayfa,kararlar:kararlar,panolar:panolarSayfa,ai:ai,
   finans:finansSayfa,
   odeme:toptanciOdemeSayfa,
   alim:alimSayfa,
@@ -1878,6 +1997,7 @@ nav();yukle(false);setInterval(function(){if(document.hidden)return;
   // Ödeme formu yarım doldurulmuşken otomatik yenileme ekranı yeniden çizip odağı kaçırmasın.
   if(AKTIF==="odeme"&&(ODEME_FORM.tutar||ODEME_FORM.aciklama||ODEME_FORM.gonderiliyor))return;
   if(AKTIF==="kararlar"&&(KOKPIT.acik||KOKPIT.gonderiliyor))return;
+  if(AKTIF==="panolar"&&(KOKPIT.acik||KOKPIT.gonderiliyor||PANO.notAcik||PANO.gonderiliyor))return;
   if(AKTIF==="kurye"&&(KESINTI_FORM.miktar||KESINTI_FORM.aciklama||KESINTI_FORM.gonderiliyor||MESAI_DUZ.acik||MESAI_DUZ.gonderiliyor))return;
   if(AKTIF==="personel"&&VARD_DUZEN)return;
   if(AKTIF==="fis"&&Object.keys(FIS.form).some(function(k){return FIS.form[k].kirli||FIS.form[k].gonderiliyor;}))return;yukle(true,true);},300000);

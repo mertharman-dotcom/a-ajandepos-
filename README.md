@@ -6,6 +6,18 @@
 | `apps-script/bap-panel-veri-kapisi/` | Veri kapısı (tabloları okur, panelden gelen girişleri yazar) | Google Apps Script: **BAP Panel Veri Kapısı** |
 | `apps-script/adisyo-siparis-toplayici/` | Toplayıcıya eklenen modüller (şube atama) | Google Apps Script: **Adisyo Sipariş Toplayıcı** |
 
+## Departman panoları (`#panolar`)
+
+Panelde **Departman Panoları** bölümü. Her departmanın panosu aynı yapıda:
+senden beklenenler, işler (açık · hazırladıklarımız · canlıda ve tamamlanan), son bulgular, ekip, kurallar ve günlük.
+
+- Kaynak BAP AI HUB'daki sekmeler: `KOKPIT_PANO`, `KOKPIT_ISLER`, `KOKPIT_EKIP`, `KOKPIT_BULGULAR`, `KOKPIT_GUNLUK`
+  (departman ajanları yazar), `KOKPIT_NOTLAR` (panelden yazılır). Sekmeler yoksa Apps Script'te `kokpitPanoKur` bir kez çalıştırılır.
+- Soru ve kararlara cevap Kararlarım'daki gibi `/api/kokpit` → `KOKPIT_ONAYLAR`.
+- Bir işe **Not yaz**: `/api/pano-not` → `KOKPIT_NOTLAR` sonuna satır (ISLENDI FALSE). Ajan okuyunca ISLENDI TRUE yazar ve not panoda "departman okudu" görünür.
+- Aşamalar: `sende` · `acik`/`sirada`/`engel` · `hazir`/`pencerede`/`denetcide` · `canlida`/`tamam`/`kapandi`.
+- Ajan talimatları: `docs/ajan-talimatlari/` (eski ve yeni halleri).
+
 ## Toptancı ödemeleri ekranı
 
 Panelde **Toptancı Ödemeleri** bölümü (`#odeme`). Girilen ödeme
