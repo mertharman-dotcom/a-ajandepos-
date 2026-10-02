@@ -338,13 +338,19 @@ function kararlar(a){var bek=VERI.hub?VERI.hub.bekleyen:[];a.appendChild(ust("Ka
   a.appendChild(blok("Görev merkezinde bekleyenler","Deneme kayıtları gösterilmez.",bek.length?el("div",{class:"liste"},bek.map(kararSatiri)):bos("Bekleyen karar yok.")));
   if(hubLink)a.appendChild(el("p",null,[el("a",{href:hubLink,target:"_blank",rel:"noopener",text:"Görev merkezi tablosunu aç"})]));}
 
-function ai(a){var hb=VERI.hub;a.appendChild(ust("Yapay zeka ekibi","Claude, Gemini ve ChatGPT'nin görev merkezinde yaptığı işler. "+(hb?hb.not:"")));a.appendChild(nabizSeridi("ai"));var h=hatalarKutusu(["hub"]);if(h)a.appendChild(h);if(!hb)return;
-  var biten=hb.motorlar.reduce(function(t,m){return t+m.biten;},0),hata=hb.motorlar.reduce(function(t,m){return t+m.hata;},0);
-  a.appendChild(el("div",{class:"rakamlar"},[rakam("Görev",String(hb.gorevToplam)),rakam("Bekleyen karar",String(hb.bekleyen.length)),rakam("Tamamlanan motor işi",String(biten)),rakam("Hatalı motor işi",String(hata),null,hata?"asagi":""),rakam("Açık denetim",String(hb.acikDenetim),hb.ciddiDenetim?hb.ciddiDenetim+" tanesi yüksek riskli":null,hb.ciddiDenetim?"asagi":"")]));
-  var tb=el("tbody",null,hb.motorlar.map(function(m){return el("tr",null,[el("td",{text:m.motor}),el("td",{class:"sag",text:String(m.toplam)}),el("td",{class:"sag",text:String(m.biten)}),el("td",{class:"sag",text:String(m.hata)})]);}));
-  a.appendChild(el("div",{class:"iki"},[blok("Motorlar","Her motorun aldığı iş ve sonucu.",hb.motorlar.length?el("div",{class:"liste kaydir"},[el("table",{class:"tablo"},[el("thead",null,[el("tr",null,[el("th",{text:"Motor"}),el("th",{class:"sag",text:"İş"}),el("th",{class:"sag",text:"Biten"}),el("th",{class:"sag",text:"Hatalı"})])]),tb])]):bos("Motor işi yok.")),
-    blok("Görev durumları",null,cubuklar(hb.gorevDurum.map(function(x){return {ad:DURUM[x.ad]||x.ad,deger:x.deger};}),function(v){return String(v);}))]));
-  var ik=VERI.isKaydi;if(ik&&ik.sonKayitlar.length)a.appendChild(blok("Departmanların son işleri","Ortak iş kaydındaki en yeni satırlar.",el("div",{class:"liste"},ik.sonKayitlar.map(function(k){return el("div",{class:"satir"},[el("h3",{text:k.departman+(k.ajan?", "+k.ajan:"")}),el("p",{text:k.ne}),el("div",{class:"meta"},[el("span",{text:k.zaman}),k.denetci?el("span",{text:"Denetçi: "+k.denetci}):null])]);}))));}
+function ai(a){var hb=VERI.hub,ik=VERI.isKaydi;a.appendChild(ust("Yapay zeka ekibi","Departman ajanlarının ortak iş kaydına yazdığı işler (BAP İş Kaydı). Eski görev merkezi (BAP AI HUB) en altta."));a.appendChild(nabizSeridi("ai"));var h=hatalarKutusu(["isKaydi","hub"]);if(h)a.appendChild(h);
+  if(ik){var O=ik.ozet||{},OB=ik.onayBekleyen||[];
+    a.appendChild(el("div",{class:"rakamlar"},[rakam("Son 24 saat",String(O.son24||0),"iş kaydı"),rakam("Son 7 gün",String(O.son7||0),"iş kaydı"),rakam("Sahip onayı bekleyen",String(OB.length),null,OB.length?"asagi":""),rakam("Denetçi bekliyor",String(O.denetciBekliyor||0),"son 30 gün")]));
+    if(OB.length)a.appendChild(blok("Senin onayını bekleyenler","İş kaydında ‘Sahip onayı gerekti mi: Evet’ olup onay sütunu boş kalan işler. Onayı iş kaydındaki ‘Sahip onayı’ sütununa yazınca buradan düşer.",el("div",{class:"liste"},OB.map(function(k){return el("div",{class:"satir"},[el("h3",{text:k.departman+(k.ajan?", "+k.ajan:"")+(k.isNo?" · "+k.isNo:"")}),el("p",{text:k.ne}),k.yeni?el("p",{style:"color:var(--gri)",text:"Yeni durum: "+k.yeni}):null,el("div",{class:"meta"},[el("span",{text:k.zaman})])]);}))));
+    var D=ik.departmanlar||[];
+    a.appendChild(el("div",{class:"iki"},[
+      blok("Departmanlar","Son iş ve iş sayısı.",tablo([["Departman"],["Son iş"],["24 saat",1],["7 gün",1]],D.map(function(d){return [d.departman,d.son?(d.saatOnce<24?d.saatOnce+" saat önce":Math.round(d.saatOnce/24)+" gün önce"):el("span",{class:"etiket e-kotu",text:"kayıt yok"}),String(d.son24),String(d.son7)];}))),
+      blok("En çok çalışan ajanlar","Son 30 gün, iş kaydı satırı.",(ik.ajanlar||[]).length?cubuklar(ik.ajanlar,function(v){return String(v);}):bos("Son 30 günde kayıt yok."))]));
+    if(ik.sonKayitlar.length)a.appendChild(blok("Departmanların son işleri","Ortak iş kaydındaki en yeni satırlar.",el("div",{class:"liste"},ik.sonKayitlar.map(function(k){return el("div",{class:"satir"},[el("h3",{text:k.departman+(k.ajan?", "+k.ajan:"")}),el("p",{text:k.ne}),el("div",{class:"meta"},[el("span",{text:k.zaman}),k.denetci?el("span",{text:"Denetçi: "+k.denetci}):null])]);}))));}
+  if(!hb)return;
+  var biten=hb.motorlar.reduce(function(t,m){return t+m.biten;},0);
+  a.appendChild(blok("Eski görev merkezi (BAP AI HUB)","Bu tabloya 28 Eylül'den beri yazılmıyor; ajanlar işlerini artık ortak iş kaydına yazıyor. Sayılar o tarihteki hâliyle duruyor.",
+    el("div",{class:"rakamlar"},[rakam("Görev",String(hb.gorevToplam)),rakam("Bekleyen karar",String(hb.bekleyen.length)),rakam("Tamamlanan motor işi",String(biten)),rakam("Açık denetim",String(hb.acikDenetim))])));}
 
 /* ---- Satış maliyeti: seçilen tarih aralığında satışlardan çıkan malzeme tüketimi ve stok durumu ---- */
 var TUK={bas:"",bit:"",tur:"hammadde",sube:"Tümü",kat:"",ara:"",hepsi:false,sira:"tutar",artan:false};

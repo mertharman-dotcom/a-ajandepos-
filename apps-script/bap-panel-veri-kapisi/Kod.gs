@@ -24,7 +24,7 @@ var TZ = 'Europe/Istanbul';
 var KAYNAK = {
   siparis:  { id: '1gdn_rbaevKx9_-pNTRKL1DDtytFxZHr9QF-jrS4cHPE', ad: 'Adisyo sipariş verisi',   bolum: 'satis',    beklenenDk: 60 },
   isKaydi:  { id: '1Lsfaxw71jGeo93AuLovkyFfAfw2H53BsYWKire5COhs', ad: 'Ortak iş kaydı',          bolum: 'merkez',   beklenenDk: 1440 },
-  hub:      { id: '1JbhHFzQYAvRXokYT3IClXgHz0vsXR3Rb0521jxBOFUQ', ad: 'Yapay zeka görev merkezi', bolum: 'ai',       beklenenDk: 1440 },
+  hub:      { id: '1JbhHFzQYAvRXokYT3IClXgHz0vsXR3Rb0521jxBOFUQ', ad: 'Yapay zeka görev merkezi', bolum: 'ai',       beklenenDk: 43200 }, // 28.09'dan beri yazılmıyor; işler Ortak iş kaydında
   gider:    { id: '1F-lWaWJN43GdQMAQWpggPmwFoFEcWARCB0GRHhR70Tw', ad: 'Aylık gider takibi',      bolum: 'finans',   beklenenDk: 10080 },
   hakedis:  { id: '139-CaKw5Dew7-PFIDAcjn6h673QJGPJ1j3mPslkttAE', ad: 'Platform hakediş',        bolum: 'finans',   beklenenDk: 1440 },
   fatura:   { id: '1JJ6UZzh8rSX1FE9Cr-UPzEAaE-2aKtM10bEvjAv2P5w', ad: 'Alış faturaları',         bolum: 'alim',     beklenenDk: 1440 },
@@ -620,19 +620,28 @@ function isKaydi_() {
   if (v.length < 2) return null;
   var b = v[0];
   var c = { tarih: kolon_(b, ['Tarih-Saat', 'Tarih']), dep: kolon_(b, ['Departman']), ajan: kolon_(b, ['Ajan']),
-            ne: kolon_(b, ['Ne yapıldı']), denetci: kolon_(b, ['Denetçi sonucu']) };
+            ne: kolon_(b, ['Ne yapıldı']), denetci: kolon_(b, ['Denetçi sonucu']), isNo: kolon_(b, ['İş No']),
+            onayGerek: kolon_(b, ['Sahip onayı gerekti mi']), onay: kolon_(b, ['Sahip onayı']), yeni: kolon_(b, ['Yeni durum']) };
   if (c.tarih < 0 || c.dep < 0) throw new Error('İş kaydında tarih ya da departman sütunu bulunamadı');
   var simdi = simdi_();
   var dep = {};
   DEPARTMANLAR.forEach(function (d) { dep[d] = { departman: d, son: null, saatOnce: null, son24: 0, son7: 0 }; });
-  var kayitlar = [];
+  var kayitlar = [], ozet = { son24: 0, son7: 0, son30: 0, denetciBekliyor: 0 }, ajan = {}, onayBekleyen = [];
   for (var i = 1; i < v.length; i++) {
     var r = v[i]; var ms = zaman_(r[c.tarih]); if (ms === null) continue;
     var ad = depEsle_(r[c.dep]); if (!ad) continue;
     var o = dep[ad]; var saat = (simdi - ms) / 3600000;
     if (o.son === null || ms > o.sonMs) { o.sonMs = ms; o.son = new Date(ms).toISOString().slice(0, 16).replace('T', ' '); o.saatOnce = Math.round(saat); }
-    if (saat <= 24) o.son24++;
-    if (saat <= 168) o.son7++;
+    if (saat <= 24) { o.son24++; ozet.son24++; }
+    if (saat <= 168) { o.son7++; ozet.son7++; }
+    if (saat <= 720) { ozet.son30++; var aj = String(c.ajan >= 0 ? r[c.ajan] : '').trim() || ad; topla_(ajan, aj, 1); }
+    var den = c.denetci >= 0 ? String(r[c.denetci] || '') : '';
+    if (/bekliyor/i.test(den) && saat <= 720) ozet.denetciBekliyor++;
+    // Sahip onayı gerekip henüz verilmemiş işler (boş, '-', 'bekliyor').
+    if (c.onayGerek >= 0 && /^(evet|e|true|gerekli|var)/i.test(String(r[c.onayGerek] || '').trim()) &&
+        (c.onay < 0 || /^(|-|—|bekliyor|bekleniyor)$/i.test(String(r[c.onay] || '').trim())))
+      onayBekleyen.push({ ms: ms, zaman: new Date(ms).toISOString().slice(0, 16).replace('T', ' '), departman: ad, ajan: c.ajan >= 0 ? r[c.ajan] : '',
+                          isNo: c.isNo >= 0 ? r[c.isNo] : '', ne: kodsuz_(c.ne >= 0 ? r[c.ne] : '').slice(0, 300), yeni: kodsuz_(c.yeni >= 0 ? r[c.yeni] : '').slice(0, 200) });
     kayitlar.push({ ms: ms, zaman: new Date(ms).toISOString().slice(0, 16).replace('T', ' '), departman: ad,
                     ajan: c.ajan >= 0 ? r[c.ajan] : '', ne: kodsuz_(c.ne >= 0 ? r[c.ne] : '').slice(0, 260),
                     denetci: c.denetci >= 0 ? r[c.denetci] : '' });
@@ -640,7 +649,9 @@ function isKaydi_() {
   kayitlar.sort(function (a, b) { return b.ms - a.ms; });
   return {
     departmanlar: DEPARTMANLAR.map(function (d) { var o = dep[d]; delete o.sonMs; return o; }),
-    sonKayitlar: kayitlar.slice(0, 15).map(function (k) { delete k.ms; return k; })
+    sonKayitlar: kayitlar.slice(0, 15).map(function (k) { delete k.ms; return k; }),
+    ozet: ozet, ajanlar: sirala_(ajan).slice(0, 15),
+    onayBekleyen: onayBekleyen.sort(function (a, b) { return b.ms - a.ms; }).slice(0, 20).map(function (k) { delete k.ms; return k; })
   };
 }
 
