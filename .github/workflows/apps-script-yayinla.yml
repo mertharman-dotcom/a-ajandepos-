@@ -3,15 +3,14 @@
 # en az bir kez "Apps Script'i Depoya Çek" ile çekilmişse (.clasp-cekim dosyası varsa) yayınlanır.
 name: Apps Script'i Yayınla
 
+# Şimdilik yalnızca elle başlatılır (GitHub › Actions › Run workflow, dal: main).
+# Temizlik bitince "push: branches: [main]" ile otomatiğe alınabilir.
 on:
   workflow_dispatch:
     inputs:
       proje:
         description: "Klasör adı (ör. stok-takip-sistemi). Boş = main'de değişen projeler"
         required: false
-  push:
-    branches: [main]
-    paths: ["apps-script/**"]
 
 jobs:
   yayinla:

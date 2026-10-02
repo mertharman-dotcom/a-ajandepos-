@@ -2,6 +2,8 @@
 # Gerekli gizli değerler: CLOUDFLARE_API_TOKEN (Pages: Edit + Workers Scripts: Edit), CLOUDFLARE_ACCOUNT_ID.
 name: Cloudflare'e Yayınla
 
+# Şimdilik yalnızca elle başlatılır (GitHub › Actions › Run workflow, dal: main).
+# Temizlik bitince "push: branches: [main]" ile otomatiğe alınabilir.
 on:
   workflow_dispatch:
     inputs:
@@ -9,9 +11,6 @@ on:
         description: "bap-sistem, bap-panel veri ikisi"
         required: true
         default: ikisi
-  push:
-    branches: [main]
-    paths: ["bap-sistem/**", "bap-panel/**"]
 
 jobs:
   yayinla:
