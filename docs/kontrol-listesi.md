@@ -75,9 +75,9 @@ doğrulanmalı. Durum: ☐ açık · ◐ devam ediyor · ☑ çözüldü.
 | | İş | Durum |
 |---|---|---|
 | T1 | 119 e-tablo sınıflandırıldı → `docs/tablo-haritasi.md` | ☑ |
-| T2 | Drive'da BAP klasör düzeni kurulup dosyalar taşınacak | ☐ sahibin onayı |
-| T3 | 9 boş "Başlıksız e-tablo" için karar; 15 eski dosya sahipte (dokunulmaz) | ⏸ |
-| T4 | Ajanlar yeni dosyalarını `4 Ajan Çalışma Dosyaları`na açsın | ☐ |
+| T2 | Drive'da BAP klasör düzeni kurulup dosyalar taşınacak | ☑ 02.10 — 17 dosya + 2 yedek klasörü taşındı |
+| T3 | 10 "Başlıksız e-tablo" `9 Arşiv`de (3'ünde veri var, bakılacak); 15 eski dosya sahipte (dokunulmaz) | ⏸ |
+| T4 | Ajanlar dosyalarını `Departmanlar/<departman>` içine açıyor; kökte açanlar (ör. "Başlıksız") bulunup düzeltilecek | ☐ |
 
 ## P · Paneller
 

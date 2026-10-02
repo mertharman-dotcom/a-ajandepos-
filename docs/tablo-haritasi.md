@@ -12,22 +12,22 @@
 | 8 · Boş / adsız | 9 |
 | 9 · Yedek | 5 |
 
-## Önerilen Drive düzeni
+## Drive düzeni (kuruldu 02.10.2026)
 
-Bütün BAP dosyaları tek bir **BAP** klasörü altında, beş alt klasörde:
-
-| Klasör | İçine ne girer | Kim dokunur |
+| Klasör | İçinde | Kim dokunur |
 |---|---|---|
-| `BAP/1 Ana Veriler` | Grup 1 — her gün kullandığın tablolar | Sen + sistem |
-| `BAP/2 Otomatik Gelen Veri` | Grup 2 — Adisyo, Kolaybi, Trendyol, kurye vb. (elle değiştirilmez) | Sadece sistem |
-| `BAP/3 Raporlar` | Grup 3 + ajanların düzenli raporları; `Kurye Günlük` alt klasörü | Sadece okursun |
-| `BAP/4 Ajan Çalışma Dosyaları` | Grup 4 — tek seferlik analizler; 30 gün sonra arşive | Ajanlar |
-| `BAP/9 Arşiv ve Yedekler` | Grup 7, 8, 9 — eski, boş, yedek | Kimse |
+| `BAP/1 Ana Veriler` | Stok Takip, GENEL BİLGİLER, AI HUB, İş Kaydı, Panel Cevapları, Günlük Fiş, Müşteri Veritabanı, Platform Hakediş, Tedarikçi Fiyat Kıyaslama, Yemek Kartı Mutabakat, Kesinti & Fiyat Motoru | Sen + sistem |
+| `BAP/2 Otomatik Gelen Veri` | Adisyo Sipariş Datası, BAP veri tablosu, Kolaybi Fatura Ham Veri, Kurye Net Çalışma Süresi, Trendyol Yorumlar, Günlük Satış ve İndirim Raporu (elle değiştirilmez) | Sadece sistem |
+| `BAP/9 Arşiv ve Yedekler` | `BAP Önemli Günlük Yedekleme` (hizliYedek), `BAP Yedek — Kurye Tablosu` (her gece kurye yedeği, 30 gün saklanır), 10 "Başlıksız e-tablo" | Kimse |
+| `Departmanlar/…` (kökte kalır) | Ajanların çalışma dosyaları, departman başına klasör. Hazırlık ve Reçete ajanı bu yolu kökten adıyla aradığı için **taşınmaz** | Ajanlar |
+
+Kökte kalanlar: 7. gruptaki 15 eski dosya (sahip karar verecek) ve fotoğraf/menü klasörleri.
 
 Kurallar:
-- Taşımak güvenli: kodlar dosyayı adresiyle (ID) bulur, klasör değişince bozulmaz.
+- Taşımak güvenli: kodlar dosyayı adresiyle (ID) bulur; kurye yedek klasörü adıyla arandığı için her yerde bulunur.
 - Silme yok: önce `9 Arşiv`e taşınır, 30 gün kimse aramazsa çöpe atılır.
-- Ajanlar yeni dosyayı doğrudan `4 Ajan Çalışma Dosyaları`na açar (ajan talimatlarına eklenecek).
+- "Başlıksız" dosyalardan 3'ünde veri var (22.09, 25.09, 26.09) — çöpe atmadan önce bakılmalı.
+- Ajan dosyaları `Departmanlar/<departman>` içine açılır.
 
 ## 1 · Ana veriler
 
