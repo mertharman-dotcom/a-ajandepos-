@@ -957,7 +957,8 @@ function kokpitOku_(ss) {
       depSay[dep] = (depSay[dep] || 0) + 1;
       bekleyen.push({ id: id, departman: dep, tip: String(al_(o, r, 'TIP')).trim() || 'karar', isNo: al_(o, r, 'IS_NO'), baslik: String(al_(o, r, 'BASLIK')).slice(0, 300),
                       aciklama: String(al_(o, r, 'ACIKLAMA')).slice(0, 2500), risk: al_(o, r, 'RISK'), talepEden: al_(o, r, 'TALEP_EDEN'),
-                      talepZamani: al_(o, r, 'TALEP_ZAMANI'), durum: durum, not: String(al_(o, r, 'SAHIP_NOTU')).slice(0, 1000), gmNot: String(al_(o, r, 'GM_NOT')).slice(0, 600) });
+                      talepZamani: al_(o, r, 'TALEP_ZAMANI'), durum: durum, not: String(al_(o, r, 'SAHIP_NOTU')).slice(0, 1000), gmNot: String(al_(o, r, 'GM_NOT')).slice(0, 600),
+                      islemNotu: String(al_(o, r, 'ISLEM_NOTU')).slice(0, 800), guncelleme: al_(o, r, 'GUNCELLEME') });
     } else if (!islendi && durum) islenmedi++;
   });
   var riskSira = { 'kritik': 0, 'yüksek': 1, 'orta': 2, 'düşük': 3 };
@@ -985,7 +986,7 @@ var PANO_SEKME = {
   KOKPIT_EKIP: ['DEPARTMAN', 'ID', 'AD', 'DURUM', 'SORUMLULUK', 'DUZENLI', 'YETKI', 'SIRA'],
   KOKPIT_BULGULAR: ['DEPARTMAN', 'BASLIK', 'METIN', 'TON', 'TARIH', 'SIRA'],
   KOKPIT_GUNLUK: ['DEPARTMAN', 'ZAMAN', 'YAZAN', 'METIN'],
-  KOKPIT_NOTLAR: ['ID', 'DEPARTMAN', 'IS_ID', 'IS_BASLIK', 'NOT', 'ZAMAN', 'ISLENDI', 'ISLEM_NOTU', 'KAYNAK']
+  KOKPIT_NOTLAR: ['ID', 'DEPARTMAN', 'IS_ID', 'IS_BASLIK', 'NOT', 'ZAMAN', 'ISLENDI', 'ISLEM_NOTU', 'KAYNAK', 'KARAR', 'CEVAP_ZAMANI', 'SONUC']
 };
 var PANO_ASAMA = { sende: 1, acik: 1, sirada: 1, engel: 1, hazir: 1, pencerede: 1, denetcide: 1, canlida: 1, tamam: 1, kapandi: 1 };
 
@@ -1042,17 +1043,21 @@ function panolarOku_(ss) {
   for (var i = t.satirlar.length - 1; i >= 0; i--) { var r = t.satirlar[i], d = dep(al_(t, r, 'DEPARTMAN')); if (!d || d.gunluk.length >= 5 || !String(al_(t, r, 'METIN')).trim()) continue;
     d.gunluk.push({ zaman: al_(t, r, 'ZAMAN'), yazan: al_(t, r, 'YAZAN'), metin: String(al_(t, r, 'METIN')).slice(0, 600) }); }
   t = tablo_(ss, 'KOKPIT_NOTLAR');
-  for (var j = t.satirlar.length - 1; j >= 0; j--) { var rn = t.satirlar[j], dn = dep(al_(t, rn, 'DEPARTMAN')); if (!dn || dn.notlar.length >= 40) continue;
-    dn.notlar.push({ isId: String(al_(t, rn, 'IS_ID')).trim(), not: String(al_(t, rn, 'NOT')).slice(0, 600), zaman: al_(t, rn, 'ZAMAN'),
-                     islendi: /^(true|evet|1)$/i.test(String(al_(t, rn, 'ISLENDI')).trim()), islemNotu: String(al_(t, rn, 'ISLEM_NOTU')).slice(0, 300) }); }
+  for (var j = t.satirlar.length - 1; j >= 0; j--) { var rn = t.satirlar[j], dn = dep(al_(t, rn, 'DEPARTMAN')); if (!dn || dn.notlar.length >= 120) continue;
+    dn.notlar.push({ id: String(al_(t, rn, 'ID')).trim(), isId: String(al_(t, rn, 'IS_ID')).trim(), not: String(al_(t, rn, 'NOT')).slice(0, 1500), zaman: al_(t, rn, 'ZAMAN'),
+                     islendi: /^(true|evet|1)$/i.test(String(al_(t, rn, 'ISLENDI')).trim()), islemNotu: String(al_(t, rn, 'ISLEM_NOTU')).slice(0, 1500),
+                     kaynak: String(al_(t, rn, 'KAYNAK')).trim() || 'Panel', karar: String(al_(t, rn, 'KARAR')).trim().toLowerCase(),
+                     cevapZamani: al_(t, rn, 'CEVAP_ZAMANI'), sonuc: String(al_(t, rn, 'SONUC')).trim().toLowerCase() }); }
   return P;
 }
 
 // Sahibin bir işe bıraktığı not: KOKPIT_NOTLAR'ın sonuna yeni satır. Departman ajanı bir sonraki çalışmasında okur ve ISLENDI yazar.
 function panoNot_(d) {
   var dep = String(d.departman || '').trim().slice(0, 60), isId = String(d.isId || '').trim().slice(0, 80), not = String(d.not || '').replace(/\r/g, '').trim().slice(0, 2000);
+  var karar = { onay: 'onay', ret: 'ret' }[String(d.karar || '')] || '';
   if (!dep) return { hata: 'Departman seçilmedi.' };
-  if (!not) return { hata: 'Notunu yaz.' };
+  if (!not && !karar) return { hata: 'Mesajını yaz.' };
+  if (!not) not = karar === 'onay' ? 'Onaylıyorum, devam edin.' : 'Reddediyorum, bu işi durdurun.';
   var istek = String(d.istekNo || '').slice(0, 60);
   var ss = SpreadsheetApp.openById(KAYNAK.hub.id), sh = ss.getSheetByName('KOKPIT_NOTLAR');
   if (!sh) { sh = ss.insertSheet('KOKPIT_NOTLAR'); sh.getRange(1, 1, 1, PANO_SEKME.KOKPIT_NOTLAR.length).setValues([PANO_SEKME.KOKPIT_NOTLAR]); sh.setFrozenRows(1); }
@@ -1063,9 +1068,13 @@ function panoNot_(d) {
   }
   var baslik = '', t = tablo_(ss, 'KOKPIT_ISLER');
   t.satirlar.forEach(function (r) { if (String(al_(t, r, 'ID')).trim() === isId && String(al_(t, r, 'DEPARTMAN')).trim() === dep) baslik = String(al_(t, r, 'BASLIK')); });
+  if (!baslik) { var o = tablo_(ss, 'KOKPIT_ONAYLAR'); o.satirlar.forEach(function (r) { if (String(al_(o, r, 'ID')).trim() === isId) baslik = String(al_(o, r, 'BASLIK')); }); }
+  var b = sh.getRange(1, 1, 1, Math.max(sh.getLastColumn(), 1)).getDisplayValues()[0];
+  if (b.length < PANO_SEKME.KOKPIT_NOTLAR.length || String(b[11] || '').trim() !== 'SONUC') sh.getRange(1, 1, 1, PANO_SEKME.KOKPIT_NOTLAR.length).setValues([PANO_SEKME.KOKPIT_NOTLAR]);
   var damga = Utilities.formatDate(new Date(), TZ, 'dd.MM.yyyy HH:mm');
-  sh.appendRow([id, dep, isId, baslik.slice(0, 200), not, damga, 'FALSE', '', 'Panel']);
-  return { tamam: true, id: id, ozet: 'Notun kaydedildi. ' + dep + ' bir sonraki çalışmasında (13:00 / 21:00) okuyacak.' };
+  sh.appendRow([id, dep, isId, baslik.slice(0, 200), not, damga, 'FALSE', '', 'Panel', karar, '', '']);
+  var ne = karar === 'onay' ? 'Onayın' : karar === 'ret' ? 'Reddin' : 'Mesajın';
+  return { tamam: true, id: id, ozet: ne + ' kaydedildi. ' + dep + ' bir sonraki çalışmasında (13:00 / 21:00) işleyip cevabını bu kartın altına yazacak.' };
 }
 
 function kokpitCevap_(d) {

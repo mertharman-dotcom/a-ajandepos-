@@ -14,7 +14,11 @@ senden beklenenler, işler (açık · hazırladıklarımız · canlıda ve tamam
 - Kaynak BAP AI HUB'daki sekmeler: `KOKPIT_PANO`, `KOKPIT_ISLER`, `KOKPIT_EKIP`, `KOKPIT_BULGULAR`, `KOKPIT_GUNLUK`
   (departman ajanları yazar), `KOKPIT_NOTLAR` (panelden yazılır). Sekmeler yoksa Apps Script'te `kokpitPanoKur` bir kez çalıştırılır.
 - Soru ve kararlara cevap Kararlarım'daki gibi `/api/kokpit` → `KOKPIT_ONAYLAR`.
-- Bir işe **Not yaz**: `/api/pano-not` → `KOKPIT_NOTLAR` sonuna satır (ISLENDI FALSE). Ajan okuyunca ISLENDI TRUE yazar ve not panoda "departman okudu" görünür.
+- Her kart (soru, karar, iş) aynı yapıda: **Yaz / Onayla / Reddet** ve altında yazışma (sen ↔ departman).
+  Bekleyen soru/karar onay-red'i `/api/kokpit` → `KOKPIT_ONAYLAR`; diğer her mesaj `/api/pano-not` → `KOKPIT_NOTLAR`
+  (ID, DEPARTMAN, IS_ID, IS_BASLIK, NOT, ZAMAN, ISLENDI, ISLEM_NOTU, KAYNAK, KARAR onay/ret/boş, CEVAP_ZAMANI, SONUC).
+  Ajan işleyince ISLEM_NOTU'na sahibe cevabı, SONUC'a yapıldı / devam ediyor / yapılamadı / soru yazar; iş sonradan bitince
+  KAYNAK "Ajan" ile yeni satır ekleyerek haber verir. Cevaplar kartın altında ve "Departmanın son cevapları"nda görünür.
 - Aşamalar: `sende` · `acik`/`sirada`/`engel` · `hazir`/`pencerede`/`denetcide` · `canlida`/`tamam`/`kapandi`.
 - Ajan talimatları: `docs/ajan-talimatlari/` (eski ve yeni halleri).
 
