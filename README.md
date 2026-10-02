@@ -26,3 +26,13 @@ Finans / Alımlar sayfalarındaki tedarikçi borcundan düşülür.
    Workers › bap-panel › *Edit code* ekranına yapıştır → *Deploy*.
 
 Sayfayı düzenlerken `bap-panel/page.html` ve `bap-panel/worker.template.js` değiştirilir; `worker.js` bunlardan üretilir.
+
+## Mutfak paneli (bap-sistem.pages.dev)
+
+`bap-sistem/index.html` — Cloudflare Pages › **bap-sistem** projesine yüklenen tek sayfa.
+Yayına alma: Workers & Pages › bap-sistem › *Create deployment* → bu dosyayı `index.html` adıyla yükle.
+
+- **Kaydet ve WhatsApp'ta Gönder**: WhatsApp penceresi butona basıldığı anda açılır, kayıt bitince
+  WhatsApp'a yönlendirilir (telefon tarayıcıları gecikmeli açılan pencereyi engelliyordu).
+  Tarayıcı yine engellerse kayıt yapılır ve altta yeşil **WhatsApp'ı Aç** butonu çıkar.
+- Kayıt (POST) istekleri otomatik tekrar denenmez; tekrar deneme aynı kaydı iki kez yazabiliyordu.
