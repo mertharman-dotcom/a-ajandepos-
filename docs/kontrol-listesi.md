@@ -83,7 +83,7 @@ doğrulanmalı. Durum: ☐ açık · ◐ devam ediyor · ☑ çözüldü.
 
 | | Sorun | Durum |
 |---|---|---|
-| P1 | Sipariş: WhatsApp kayıt sonrası açılıyordu, telefonlar engelliyordu | ☑ (yüklenmeyi bekliyor, H3) |
+| P1 | Sipariş: WhatsApp kayıt sonrası açılıyordu, telefonlar engelliyordu | ◐ depoda düzeltildi; canlıya yanlış projeye gitti (C1) |
 | P2 | Kayıt (POST) istekleri otomatik tekrar deneniyordu → çift kayıt | ☑ (H3) |
 | P3 | Yönetici şifresi istemci kodunda; personel şifresi URL'de gidiyor (düzeltme `bap-panel-backend`'de) | ☐ |
 | P4 | Sayım ekranında birim seçimi yok (Hazırlık ajanı gram/adet tahmin ediyor) | ☐ |
@@ -95,6 +95,9 @@ doğrulanmalı. Durum: ☐ açık · ◐ devam ediyor · ☑ çözüldü.
 | Y1 | 9 dağınık dal tek dalda toplandı; canlı Worker depoda olmayan sürümdü, canlıdan alındı | ☑ |
 | Y2 | `main` dalı + otomatik yayın iş akışları | ☑ 03.10 — main varsayılan dal; CLASPRC_JSON, CLOUDFLARE_API_TOKEN, CLOUDFLARE_ACCOUNT_ID eklendi; yayınlar elle başlatılır |
 | Y3 | Apps Script kodlarının canlıdan çekilmesi (`Apps Script'i Depoya Çek`) | ☑ 02.10 — 13 proje, 66 dosya |
-| Y6 | Cloudflare Worker kodlarını depoya çeken iş (`Cloudflare'i Depoya Çek`) | ◐ |
+| Y6 | Cloudflare içeriği depoda (`cloudflare/`, README'de hangi adres ne) | ☑ 03.10 |
+| C1 | WhatsApp düzeltmesi `bap-sistem` yerine yeni `bappizza` projesine yüklenmiş; çalışanlarda sorun sürüyor | ☐ yayın onayı |
+| C2 | Aynı arka uca yazan 4 mutfak paneli kopyası (bap-sistem, bappizza, damp-limit-5aba, black-credit-7dca) | ☐ tek adrese indir |
+| C3 | 2 boş Worker (billowing-credit-87e3, empty-firefly-7396) | ☐ silinebilir |
 | Y5 | Mutfak panelinin arka ucu `bap-panel-backend` (BAP PANEL Backend); `bap-satis-veri-ambari` yalnızca sipariş satırı bölme | ☑ tespit |
 | Y4 | Ortak katman: `Ayarlar.gs` + `Ortak.gs` | ☐ |
