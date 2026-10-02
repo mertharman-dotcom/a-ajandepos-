@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>BAP Merkezi Yönetim Portalı</title>
+  <style>
+    :root {
+      --bg-dark: #121824;
+      --sidebar-bg: #1a2234;
+      --sidebar-hover: #242f47;
+      --sidebar-active: #2563eb;
+      --text-main: #f1f5f9;
+      --text-muted: #94a3b8;
+      --border-color: #334155;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+    }
+
+    body {
+      display: flex;
+      height: 100vh;
+      width: 100vw;
+      background: var(--bg-dark);
+      color: var(--text-main);
+      overflow: hidden;
+    }
+
+    /* Sol Menü / Sidebar */
+    aside {
+      width: 280px;
+      min-width: 280px;
+      background: var(--sidebar-bg);
+      border-right: 1px solid var(--border-color);
+      display: flex;
+      flex-direction: column;
+      user-select: none;
+    }
+
+    .brand {
+      padding: 20px 18px;
+      font-size: 1.1rem;
+      font-weight: 700;
+      letter-spacing: 0.5px;
+      color: #38bdf8;
+      border-bottom: 1px solid var(--border-color);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .nav-group {
+      padding: 12px 0;
+      flex: 1;
+      overflow-y: auto;
+    }
+
+    .nav-header {
+      padding: 8px 18px;
+      font-size: 0.72rem;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: var(--text-muted);
+      font-weight: 600;
+    }
+
+    .nav-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 11px 18px;
+      color: var(--text-muted);
+      cursor: pointer;
+      text-decoration: none;
+      transition: all 0.2s ease;
+      font-size: 0.9rem;
+      border-left: 3px solid transparent;
+    }
+
+    .nav-item:hover {
+      background: var(--sidebar-hover);
+      color: var(--text-main);
+    }
+
+    .nav-item.active {
+      background: rgba(37, 99, 235, 0.15);
+      color: #60a5fa;
+      font-weight: 600;
+      border-left-color: var(--sidebar-active);
+    }
+
+    .nav-item span.icon {
+      margin-right: 10px;
+    }
+
+    .nav-item .label {
+      display: flex;
+      align-items: center;
+      flex: 1;
+    }
+
+    /* Harici sekmede açma butonu */
+    .ext-btn {
+      color: var(--text-muted);
+      padding: 2px 6px;
+      border-radius: 4px;
+      text-decoration: none;
+      font-size: 0.75rem;
+      opacity: 0.6;
+    }
+    .ext-btn:hover {
+      opacity: 1;
+      background: var(--border-color);
+      color: #fff;
+    }
+
+    /* Ana İçerik / Frame Alanı */
+    main {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      background: #0f172a;
+      position: relative;
+    }
+
+    .topbar {
+      height: 48px;
+      background: var(--sidebar-bg);
+      border-bottom: 1px solid var(--border-color);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 20px;
+      font-size: 0.88rem;
+    }
+
+    .topbar a {
+      color: #38bdf8;
+      text-decoration: none;
+      font-size: 0.82rem;
+    }
+    .topbar a:hover {
+      text-decoration: underline;
+    }
+
+    .frame-container {
+      flex: 1;
+      width: 100%;
+      height: 100%;
+      position: relative;
+    }
+
+    iframe {
+      width: 100%;
+      height: 100%;
+      border: none;
+      background: #ffffff;
+    }
+  </style>
+</head>
+<body>
+
+  <aside>
+    <div class="brand">
+      🚀 <span>BAP Panel Hub</span>
+    </div>
+
+    <div class="nav-group">
+      <div class="nav-header">Web & Otomasyon Panelleri</div>
+
+      <div class="nav-item active" onclick="loadTab('https://bap-genel-bilgiler.mertharman.workers.dev/', 'BAP Genel Bilgiler & Operasyon', this)">
+        <div class="label"><span class="icon">📋</span> Genel Bilgiler</div>
+        <a class="ext-btn" href="https://bap-genel-bilgiler.mertharman.workers.dev/" target="_blank" title="Yeni sekmede aç">↗</a>
+      </div>
+      
+      <div class="nav-item" onclick="loadTab('https://bap-alim-paneli.mertharman.workers.dev/', 'BAP Alım Paneli', this)">
+        <div class="label"><span class="icon">📦</span> Alım Paneli</div>
+        <a class="ext-btn" href="https://bap-alim-paneli.mertharman.workers.dev/" target="_blank" title="Yeni sekmede aç">↗</a>
+      </div>
+
+      <div class="nav-item" onclick="loadTab('https://bap-sistem.pages.dev/', 'BAP Sistem Paneli', this)">
+        <div class="label"><span class="icon">⚙️</span> Sistem Paneli</div>
+        <a class="ext-btn" href="https://bap-sistem.pages.dev/" target="_blank" title="Yeni sekmede aç">↗</a>
+      </div>
+
+      <div class="nav-item" onclick="window.open('https://script.google.com/macros/s/AKfycbwPJbZCgnURva8C--D7jmMK8t4jhaQkC3J0ps-j7fxQEgbrSAfTtLYKqtMJr9yfXtOm/exec?panel=yonetici&sekme=dash&hafta=&ay=', '_blank')">
+        <div class="label"><span class="icon">👥</span> Yönetici & Çalışan</div>
+        <a class="ext-btn" href="https://script.google.com/macros/s/AKfycbwPJbZCgnURva8C--D7jmMK8t4jhaQkC3J0ps-j7fxQEgbrSAfTtLYKqtMJr9yfXtOm/exec?panel=yonetici&sekme=dash&hafta=&ay=" target="_blank" title="Yeni sekmede aç">↗</a>
+      </div>
+
+      <div class="nav-item" onclick="window.open('https://script.google.com/macros/s/AKfycbzwJ-trbYupGDewcJ-WKsDzJr5d0hYuG2mWfo6MhV9EbNY1ErkFfER0FnDCnxqBLgQ/exec', '_blank')">
+        <div class="label"><span class="icon">🧾</span> Mahalle ve Fiş Takip</div>
+        <a class="ext-btn" href="https://script.google.com/macros/s/AKfycbzwJ-trbYupGDewcJ-WKsDzJr5d0hYuG2mWfo6MhV9EbNY1ErkFfER0FnDCnxqBLgQ/exec" target="_blank" title="Yeni sekmede aç">↗</a>
+      </div>
+
+      <div class="nav-item" onclick="window.open('https://script.google.com/macros/s/AKfycbwfNNSFMJYvSYbRtdzJrpe52_bp6O-LqQvFFzhSro3elnYYrCBmwIm-mupwxvxIX7CH/exec', '_blank')">
+        <div class="label"><span class="icon">🛵</span> Kurye Takip</div>
+        <a class="ext-btn" href="https://script.google.com/macros/s/AKfycbwfNNSFMJYvSYbRtdzJrpe52_bp6O-LqQvFFzhSro3elnYYrCBmwIm-mupwxvxIX7CH/exec" target="_blank" title="Yeni sekmede aç">↗</a>
+      </div>
+    </div>
+  </aside>
+
+  <main>
+    <div class="topbar">
+      <span id="tab-title" style="font-weight: 600;">BAP Genel Bilgiler & Operasyon</span>
+      <a id="direct-link" href="https://bap-genel-bilgiler.mertharman.workers.dev/" target="_blank">Doğrudan Bağlantıya Git ↗</a>
+    </div>
+
+    <div class="frame-container">
+      <iframe id="main-frame" src="https://bap-genel-bilgiler.mertharman.workers.dev/"></iframe>
+    </div>
+  </main>
+
+  <script>
+    function loadTab(url, title, element) {
+      document.getElementById('main-frame').src = url;
+      document.getElementById('tab-title').innerText = title;
+      document.getElementById('direct-link').href = url;
+
+      // Aktif menü vurgusunu güncelle
+      const items = document.querySelectorAll('.nav-item');
+      items.forEach(i => i.classList.remove('active'));
+      element.classList.add('active');
+    }
+  </script>
+</body>
+</html>

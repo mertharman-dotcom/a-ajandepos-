@@ -1,0 +1,1191 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>BAP Genel Bilgiler & Operasyon Portalı</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg-page: #f8fafc;
+      --bg-surface: #ffffff;
+      --bg-subtle: #f1f5f9;
+      --bg-hover: #e2e8f0;
+      
+      --text-main: #0f172a;
+      --text-muted: #64748b;
+      --text-light: #94a3b8;
+      
+      --border: #e2e8f0;
+      --border-strong: #cbd5e1;
+      
+      --primary: #2563eb;
+      --primary-light: #eff6ff;
+      --primary-hover: #1d4ed8;
+      
+      --erenkoy-color: #0284c7;
+      --erenkoy-bg: #e0f2fe;
+      --erenkoy-border: #bae6fd;
+      
+      --fikirtepe-color: #d97706;
+      --fikirtepe-bg: #fef3c7;
+      --fikirtepe-border: #fde68a;
+      
+      --success: #16a34a;
+      --success-bg: #dcfce7;
+      --danger: #dc2626;
+      --danger-bg: #fee2e2;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif; }
+
+    body {
+      background: var(--bg-page);
+      color: var(--text-main);
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+      overflow: hidden;
+    }
+
+    /* 1. ÜST HEADER (Kurumsal Açık Tema) */
+    header.app-header {
+      background: var(--bg-surface);
+      border-bottom: 1px solid var(--border);
+      padding: 10px 24px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      flex-shrink: 0;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+      z-index: 50;
+    }
+
+    .header-left {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+
+    .brand-badge {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      background: #0f172a;
+      color: #ffffff;
+      padding: 7px 14px;
+      border-radius: 10px;
+      font-weight: 800;
+      font-size: 0.92rem;
+      letter-spacing: 0.5px;
+    }
+    .brand-badge i { color: #38bdf8; }
+
+    .nav-toggle-buttons {
+      display: flex;
+      background: var(--bg-subtle);
+      padding: 3px;
+      border-radius: 10px;
+      border: 1px solid var(--border);
+    }
+
+    .nav-btn {
+      padding: 7px 16px;
+      border-radius: 8px;
+      border: none;
+      background: transparent;
+      color: var(--text-muted);
+      font-weight: 600;
+      font-size: 0.84rem;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      transition: all 0.15s ease;
+    }
+
+    .nav-btn:hover {
+      color: var(--text-main);
+    }
+
+    .nav-btn.active {
+      background: var(--bg-surface);
+      color: var(--primary);
+      font-weight: 700;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    }
+
+    .header-center {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .branch-chip {
+      background: var(--bg-subtle);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 6px 12px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 0.8rem;
+    }
+    .branch-chip .b-title { font-weight: 700; }
+    .branch-chip .b-phone { color: var(--primary); font-weight: 700; }
+
+    .hours-chip {
+      background: #f0fdf4;
+      border: 1px solid #bbf7d0;
+      padding: 6px 12px;
+      border-radius: 8px;
+      font-size: 0.8rem;
+      color: #15803d;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .header-right {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .btn {
+      padding: 7px 14px;
+      border-radius: 8px;
+      font-size: 0.82rem;
+      font-weight: 600;
+      cursor: pointer;
+      border: 1px solid transparent;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      transition: all 0.15s ease;
+      text-decoration: none;
+    }
+    .btn-primary {
+      background: var(--primary);
+      color: #ffffff;
+    }
+    .btn-primary:hover { background: var(--primary-hover); }
+    
+    .btn-white {
+      background: var(--bg-surface);
+      border-color: var(--border-strong);
+      color: var(--text-main);
+    }
+    .btn-white:hover {
+      background: var(--bg-subtle);
+    }
+
+    /* 2. ÖDEME YÖNTEMLERİ LOGO VE TİK ŞERİDİ */
+    .payments-strip {
+      background: var(--bg-surface);
+      border-bottom: 1px solid var(--border);
+      padding: 8px 24px;
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      flex-wrap: wrap;
+      flex-shrink: 0;
+    }
+
+    .payments-strip-title {
+      font-size: 0.76rem;
+      font-weight: 800;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.6px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .payment-tags-list {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+      flex: 1;
+    }
+
+    .pay-card-pill {
+      background: var(--bg-subtle);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 4px 10px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      cursor: pointer;
+      user-select: none;
+      transition: all 0.15s ease;
+      font-size: 0.8rem;
+    }
+    .pay-card-pill:hover {
+      background: var(--bg-hover);
+      border-color: var(--border-strong);
+    }
+    .pay-card-pill.active {
+      background: #eff6ff;
+      border-color: #bfdbfe;
+    }
+    .pay-card-pill .pay-logo-circle {
+      width: 22px;
+      height: 22px;
+      border-radius: 6px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.7rem;
+      font-weight: 900;
+      color: #fff;
+    }
+    .pay-card-pill .pay-name {
+      font-weight: 600;
+      color: var(--text-main);
+    }
+    .pay-card-pill .pay-check {
+      font-size: 0.8rem;
+      color: var(--text-light);
+    }
+    .pay-card-pill.active .pay-check {
+      color: var(--success);
+    }
+
+    /* 3. ANA İÇERİK ALANI */
+    .app-body {
+      display: flex;
+      flex: 1;
+      overflow: hidden;
+      position: relative;
+    }
+
+    main.content-area {
+      flex: 1;
+      padding: 16px 24px;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    .tab-section { display: none; height: 100%; flex-direction: column; }
+    .tab-section.active { display: flex; }
+
+    /* Toolbar */
+    .toolbar {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 12px;
+      align-items: center;
+      flex-shrink: 0;
+    }
+
+    .search-box {
+      position: relative;
+      flex: 1;
+      max-width: 380px;
+    }
+    .search-box input {
+      width: 100%;
+      background: var(--bg-surface);
+      border: 1px solid var(--border-strong);
+      border-radius: 8px;
+      padding: 8px 12px 8px 34px;
+      color: var(--text-main);
+      font-size: 0.85rem;
+      outline: none;
+      transition: all 0.15s;
+    }
+    .search-box input:focus {
+      border-color: var(--primary);
+      box-shadow: 0 0 0 3px rgba(37,99,235,0.1);
+    }
+    .search-box i {
+      position: absolute;
+      left: 11px;
+      top: 50%;
+      transform: translateY(-50%);
+      color: var(--text-light);
+      font-size: 0.82rem;
+    }
+
+    .filter-select {
+      background: var(--bg-surface);
+      border: 1px solid var(--border-strong);
+      border-radius: 8px;
+      padding: 8px 14px;
+      color: var(--text-main);
+      font-size: 0.85rem;
+      font-weight: 600;
+      outline: none;
+      cursor: pointer;
+    }
+    .filter-select:focus {
+      border-color: var(--primary);
+    }
+
+    .count-badge {
+      margin-left: auto;
+      font-size: 0.8rem;
+      color: var(--text-muted);
+      background: var(--bg-surface);
+      padding: 6px 14px;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      font-weight: 700;
+    }
+
+    /* Ürün Görseli Thumbnail */
+    .product-img-box {
+      width: 44px;
+      height: 44px;
+      border-radius: 8px;
+      background: var(--bg-subtle);
+      border: 1px solid var(--border-strong);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+      cursor: pointer;
+      text-decoration: none;
+      transition: all 0.15s ease;
+      position: relative;
+    }
+    .product-img-box:hover {
+      transform: scale(1.1);
+      border-color: var(--primary);
+      box-shadow: 0 2px 8px rgba(37,99,235,0.2);
+    }
+    .product-img-box img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+    .product-img-box i {
+      font-size: 1.15rem;
+      color: var(--primary);
+      opacity: 0.7;
+    }
+
+    /* Tablo Tasarımı */
+    .table-container {
+      flex: 1;
+      overflow-y: auto;
+      background: var(--bg-surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.03);
+    }
+
+    table {
+      width: 100%;
+      border-collapse: separate;
+      border-spacing: 0;
+      text-align: left;
+      font-size: 0.84rem;
+    }
+
+    thead th {
+      position: sticky;
+      top: 0;
+      background: #f8fafc;
+      color: var(--text-muted);
+      font-weight: 700;
+      text-transform: uppercase;
+      font-size: 0.72rem;
+      letter-spacing: 0.6px;
+      padding: 11px 16px;
+      border-bottom: 1px solid var(--border);
+      z-index: 10;
+    }
+
+    tbody td {
+      padding: 10px 16px;
+      border-bottom: 1px solid #f1f5f9;
+      color: var(--text-main);
+      vertical-align: middle;
+    }
+
+    tbody tr:hover td {
+      background: #f8fafc;
+    }
+
+    /* Durum Butonları */
+    .status-toggle {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      padding: 3px 10px;
+      border-radius: 20px;
+      font-size: 0.72rem;
+      font-weight: 700;
+      cursor: pointer;
+      user-select: none;
+      transition: all 0.15s;
+    }
+    .status-toggle.aktif {
+      background: var(--success-bg);
+      color: var(--success);
+      border: 1px solid #bbf7d0;
+    }
+    .status-toggle.pasif {
+      background: var(--danger-bg);
+      color: var(--danger);
+      border: 1px solid #fecaca;
+    }
+
+    /* Süre Girişi */
+    .time-input-inline {
+      background: #f8fafc;
+      border: 1px solid var(--border-strong);
+      border-radius: 6px;
+      color: var(--primary);
+      font-weight: 700;
+      padding: 4px 8px;
+      font-size: 0.8rem;
+      width: 78px;
+      text-align: center;
+      outline: none;
+      transition: all 0.15s;
+    }
+    .time-input-inline:focus {
+      border-color: var(--primary);
+      background: #ffffff;
+      box-shadow: 0 0 0 2px rgba(37,99,235,0.1);
+    }
+
+    /* Rozetler */
+    .tag-cat {
+      background: var(--bg-subtle);
+      border: 1px solid var(--border);
+      padding: 3px 8px;
+      border-radius: 6px;
+      font-size: 0.72rem;
+      font-weight: 600;
+      color: var(--text-muted);
+    }
+
+    .branch-tag {
+      padding: 4px 10px;
+      border-radius: 6px;
+      font-size: 0.74rem;
+      font-weight: 700;
+    }
+    .branch-tag.erenkoy {
+      background: var(--erenkoy-bg);
+      color: var(--erenkoy-color);
+      border: 1px solid var(--erenkoy-border);
+    }
+    .branch-tag.fikirtepe {
+      background: var(--fikirtepe-bg);
+      color: var(--fikirtepe-color);
+      border: 1px solid var(--fikirtepe-border);
+    }
+
+    .action-btn {
+      background: transparent;
+      border: none;
+      color: var(--text-light);
+      cursor: pointer;
+      font-size: 0.85rem;
+      padding: 4px 6px;
+      border-radius: 4px;
+      transition: color 0.15s;
+    }
+    .action-btn:hover { color: var(--primary); }
+    .action-btn.del:hover { color: var(--danger); }
+
+    /* 4. SAĞ AÇILIR AYAR PANELİ (Açık Tema) */
+    .settings-drawer {
+      width: 360px;
+      background: #ffffff;
+      border-left: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      position: absolute;
+      right: -370px;
+      top: 0;
+      bottom: 0;
+      transition: right 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+      box-shadow: -4px 0 20px rgba(0,0,0,0.06);
+      z-index: 200;
+    }
+    .settings-drawer.open {
+      right: 0;
+    }
+
+    .drawer-header {
+      padding: 16px 20px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: var(--bg-subtle);
+    }
+    .drawer-header h3 {
+      font-size: 0.95rem;
+      font-weight: 700;
+      color: var(--text-main);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .drawer-header h3 i { color: var(--primary); }
+
+    .drawer-body {
+      padding: 16px 20px;
+      overflow-y: auto;
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .setting-item {
+      background: var(--bg-subtle);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 10px 12px;
+    }
+    .setting-item label {
+      display: block;
+      font-size: 0.74rem;
+      font-weight: 700;
+      color: var(--text-muted);
+      margin-bottom: 5px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    .setting-item input, .setting-item textarea {
+      width: 100%;
+      background: #ffffff;
+      border: 1px solid var(--border-strong);
+      border-radius: 6px;
+      padding: 7px 10px;
+      color: var(--text-main);
+      font-size: 0.84rem;
+      outline: none;
+      font-weight: 600;
+    }
+    .setting-item input:focus, .setting-item textarea:focus {
+      border-color: var(--primary);
+    }
+
+    /* MODAL */
+    .modal-overlay {
+      position: fixed;
+      top: 0; left: 0; width: 100vw; height: 100vh;
+      background: rgba(15, 23, 42, 0.4);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+      backdrop-filter: blur(4px);
+    }
+    .modal {
+      background: #ffffff;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      width: 90%;
+      max-width: 480px;
+      padding: 22px;
+      box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1);
+    }
+    .modal-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 14px;
+      border-bottom: 1px solid var(--border);
+      padding-bottom: 10px;
+    }
+    .form-group { margin-bottom: 10px; }
+    .form-group label { display: block; font-size: 0.78rem; color: var(--text-muted); margin-bottom: 4px; font-weight: 700; }
+    .form-group input, .form-group textarea, .form-group select {
+      width: 100%;
+      padding: 8px 12px;
+      background: var(--bg-subtle);
+      border: 1px solid var(--border-strong);
+      border-radius: 6px;
+      color: var(--text-main);
+      font-size: 0.85rem;
+      outline: none;
+    }
+    .form-group input:focus, .form-group textarea:focus, .form-group select:focus {
+      border-color: var(--primary);
+      background: #ffffff;
+    }
+    .form-row { display: flex; gap: 10px; }
+    .form-row .form-group { flex: 1; }
+  </style>
+</head>
+<body>
+
+  <!-- 1. ÜST KURUMSAL HEADER -->
+  <header class="app-header">
+    <div class="header-left">
+      <div class="brand-badge">
+        <i class="fa-solid fa-pizza-slice"></i>
+        <span>BAP PANEL</span>
+      </div>
+
+      <!-- YATAY SEKMELER -->
+      <div class="nav-toggle-buttons">
+        <button class="nav-btn active" id="btn-tab-menu" onclick="switchMainTab('menu')">
+          <i class="fa-solid fa-utensils"></i> Menü Yönetimi
+        </button>
+        <button class="nav-btn" id="btn-tab-delivery" onclick="switchMainTab('delivery')">
+          <i class="fa-solid fa-motorcycle"></i> Teslimat & Bölgeler
+        </button>
+      </div>
+    </div>
+
+    <!-- Şube & Saatler -->
+    <div class="header-center">
+      <div class="branch-chip">
+        <span class="b-title" style="color:#0284c7;"><i class="fa-solid fa-store"></i> Erenköy:</span>
+        <span class="b-phone">0216 350 12 10</span>
+      </div>
+      <div class="branch-chip">
+        <span class="b-title" style="color:#d97706;"><i class="fa-solid fa-store"></i> Fikirtepe:</span>
+        <span class="b-phone">0850 220 26 30</span>
+      </div>
+      <div class="hours-chip">
+        <i class="fa-solid fa-clock"></i>
+        <span id="live-hours-display">11:00 - 23:00</span>
+      </div>
+    </div>
+
+    <!-- Sağ Aksiyonlar -->
+    <div class="header-right">
+      <a href="https://drive.google.com/drive/folders/1lfqOWH63hmAd29X_RA2IdoVNBzGcVZD3" target="_blank" class="btn btn-white" title="Google Drive Görseller Klasörü">
+        <i class="fa-solid fa-images" style="color:#0284c7;"></i> Drive Klasörü
+      </a>
+      <a href="https://docs.google.com/spreadsheets/d/1rcOUvokeb0VG3mm72-IKV1-bk0WugEcNSvDaHz41pP8/edit" target="_blank" class="btn btn-white" title="Google E-Tablo'yu Aç">
+        <i class="fa-solid fa-arrow-up-right-from-square"></i> E-Tablo
+      </a>
+      <button class="btn btn-primary" onclick="openAddMenuModal()">
+        <i class="fa-solid fa-plus"></i> Yeni Ürün
+      </button>
+      <button class="btn btn-white" onclick="toggleSettingsDrawer()" title="Santral & Al Ayarları">
+        <i class="fa-solid fa-sliders"></i> Ayarlar
+      </button>
+    </div>
+  </header>
+
+  <!-- 2. ÖDEME YÖNTEMLERİ LOGO ŞERİDİ -->
+  <div class="payments-strip">
+    <div class="payments-strip-title">
+      <i class="fa-solid fa-credit-card"></i> Ödeme Yöntemleri:
+    </div>
+    <div class="payment-tags-list" id="payment-tags-container">
+      <!-- Dinamik çizilecek -->
+    </div>
+  </div>
+
+  <!-- 3. ANA İÇERİK ALANI -->
+  <div class="app-body">
+    <main class="content-area">
+      <!-- MENÜ YÖNETİMİ TABLOSU -->
+      <section id="sec-menu" class="tab-section active">
+        <div class="toolbar">
+          <div class="search-box">
+            <i class="fa-solid fa-magnifying-glass"></i>
+            <input type="text" id="menu-search" placeholder="Ürün veya içerik ara..." oninput="renderMenu()">
+          </div>
+          <!-- KATEGORİ SIRALAMASI: Pizza -> Makarna & Gnocchi -> Salata -> Sandviç & Dürüm -> Atıştırmalık -> Tatlı -> İçecek -->
+          <select class="filter-select" id="menu-cat-filter" onchange="renderMenu()">
+            <option value="ALL">Tüm Kategoriler (Sıralı)</option>
+            <option value="Pizza">1. Pizzalar</option>
+            <option value="Makarna_Gnocchi">2. Makarna & Gnocchi</option>
+            <option value="Salata">3. Salatalar & Kaseler</option>
+            <option value="Sandvic_Durum">4. Sandviç & Dürümler</option>
+            <option value="Atıştırmalık">5. Atıştırmalıklar</option>
+            <option value="Tatlılar">6. Tatlılar</option>
+            <option value="İçecekler">7. İçecekler</option>
+          </select>
+          <div class="count-badge" id="menu-count">123 Ürün</div>
+        </div>
+
+        <div class="table-container">
+          <table>
+            <thead>
+              <tr>
+                <th style="width: 54px; text-align: center;">Görsel</th>
+                <th>Ürün Adı</th>
+                <th>Kategori</th>
+                <th>Fiyat (₺)</th>
+                <th>İçerik / Detay</th>
+                <th style="width: 100px; text-align: center;">Hazırlanma</th>
+                <th style="width: 95px; text-align: center;">Durum</th>
+                <th style="width: 75px; text-align: center;">İşlem</th>
+              </tr>
+            </thead>
+            <tbody id="menu-table-body"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- TESLİMAT BÖLGELERİ TABLOSU (ŞUBEYE GÖRE SIRALI) -->
+      <section id="sec-delivery" class="tab-section">
+        <div class="toolbar">
+          <div class="search-box">
+            <i class="fa-solid fa-magnifying-glass"></i>
+            <input type="text" id="delivery-search" placeholder="Mahalle veya ilçe ara..." oninput="renderDelivery()">
+          </div>
+          <select class="filter-select" id="delivery-branch-filter" onchange="renderDelivery()">
+            <option value="ALL">Tüm Şubeler (Sıralı)</option>
+            <option value="Erenköy">Sadece Erenköy Şubesi</option>
+            <option value="Fikirtepe">Sadece Fikirtepe Şubesi</option>
+          </select>
+          <div class="count-badge" id="delivery-count">35 Mahalle</div>
+        </div>
+
+        <div class="table-container">
+          <table>
+            <thead>
+              <tr>
+                <th>Mahalle Adı</th>
+                <th>Detaylı İlçe Tanımı</th>
+                <th>Gönderim Şubesi</th>
+                <th style="width: 130px; text-align: center;">Teslimat Süresi</th>
+                <th style="width: 75px; text-align: center;">İşlem</th>
+              </tr>
+            </thead>
+            <tbody id="delivery-table-body"></tbody>
+          </table>
+        </div>
+      </section>
+    </main>
+
+    <!-- 4. SAĞ AÇILIR AYAR PANELİ (DRAWER) -->
+    <div class="settings-drawer" id="settings-drawer">
+      <div class="drawer-header">
+        <h3><i class="fa-solid fa-sliders"></i> Santral & Al Ayarları</h3>
+        <button class="action-btn" onclick="toggleSettingsDrawer()"><i class="fa-solid fa-xmark" style="font-size:1.1rem;"></i></button>
+      </div>
+      <div class="drawer-body" id="drawer-settings-list">
+        <!-- JS ile dolacak -->
+      </div>
+      <div style="padding: 14px 20px; border-top: 1px solid var(--border); background:var(--bg-subtle);">
+        <button class="btn btn-primary" style="width:100%; justify-content:center;" onclick="saveAllAISettings()">
+          <i class="fa-solid fa-check"></i> Ayarları Kaydet
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ÜRÜN MODAL -->
+  <div class="modal-overlay" id="menu-modal">
+    <div class="modal">
+      <div class="modal-header">
+        <h3 id="modal-menu-title" style="font-size:1rem; font-weight:700;">Ürün Düzenle</h3>
+        <i class="fa-solid fa-xmark" style="cursor:pointer;" onclick="closeModal('menu-modal')"></i>
+      </div>
+      <form id="menu-form" onsubmit="saveMenuItem(event)">
+        <div class="form-group">
+          <label>Görsel URL / Google Drive Resim Linki</label>
+          <input type="text" id="m-img" placeholder="Otomatik veya özel link">
+        </div>
+        <div class="form-group">
+          <label>Ürün Adı</label>
+          <input type="text" id="m-name" required>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>Kategori</label>
+            <input type="text" id="m-category" required>
+          </div>
+          <div class="form-group">
+            <label>Fiyat (₺)</label>
+            <input type="number" id="m-price" required>
+          </div>
+        </div>
+        <div class="form-group">
+          <label>İçerik</label>
+          <textarea id="m-content" rows="2"></textarea>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>Hazırlanma Süresi</label>
+            <input type="text" id="m-time" placeholder="15 dk.">
+          </div>
+          <div class="form-group">
+            <label>Durum</label>
+            <select id="m-status">
+              <option value="Aktif">Aktif</option>
+              <option value="Pasif">Pasif</option>
+            </select>
+          </div>
+        </div>
+        <div style="display:flex; justify-content:flex-end; gap:8px; margin-top:14px;">
+          <button type="button" class="btn btn-white" onclick="closeModal('menu-modal')">İptal</button>
+          <button type="submit" class="btn btn-primary">Kaydet</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script>
+    const APPS_SCRIPT_IMAGE_ENDPOINT = "https://script.google.com/macros/s/AKfycbwIRbbQDDEft1C8ca0PfiR4Q1drfvl3z3Tab46VC-op4ZrJc6ejv0THzhDYnODfPLL5Bg/exec";
+    let driveImagesMap = {}; // Google Drive'dan gelen otomatik eşleşmiş fotoğraflar
+
+    let menuData = [{"name": "4 Formaggi Pizza", "category": "Pizza", "price": 540, "content": "Beyaz sos mozzarella peyniri roquefort peyniri parmigiano reggiano parmesan peyniri gouda peyniri", "time": "15 dk.", "status": "Aktif"}, {"name": "BAP Pizza", "category": "Pizza", "price": 1010, "content": "Domates sos mozzarella peyniri dana füme kaburga roquefort peyniri mor soğan sarımsaklı zeytinyağı", "time": "15 dk.", "status": "Aktif"}, {"name": "Buffa Di Margherita Pizza", "category": "Pizza", "price": 565, "content": "Buffalo mozzarella peyniri domates sos domates taze fesleğen", "time": "15 dk.", "status": "Aktif"}, {"name": "Burrata Pepperoni Pizza", "category": "Pizza", "price": 1710, "content": "Domates sos burrata peyniri dana pepperoni taze fesleğen tatlı acı sos", "time": "15 dk.", "status": "Aktif"}, {"name": "Burrata Pizza", "category": "Pizza", "price": 1440, "content": "Yeşil sos (pestolu) burrata peyniri (bölünmüş) dana bacon roast beef kültür mantarı ıspanak kırmızı soğan sarımsaklı zeytinyağı", "time": "15 dk.", "status": "Aktif"}, {"name": "Chicken BBQ Pizza", "category": "Pizza", "price": 495, "content": "Domates sos mozzarella peyniri tavuk parçaları barbekü sos mısır", "time": "15 dk.", "status": "Aktif"}, {"name": "Dana Bacon Pizza", "category": "Pizza", "price": 700, "content": "Domates sos mozzarella peyniri dana bacon parmigiano reggiano parmesan peyniri roka", "time": "15 dk.", "status": "Aktif"}, {"name": "Dana Jambon Pizza", "category": "Pizza", "price": 860, "content": "Domates sos mozzarella peyniri dana jambon kültür mantarı dana sucuk mısır siyah zeytin", "time": "15 dk.", "status": "Aktif"}, {"name": "Enginarlı Pizza", "category": "Pizza", "price": 705, "content": "Domates sos mozzarella peyniri enginar kalbi kuşkonmaz kapya biber", "time": "15 dk.", "status": "Aktif"}, {"name": "Fesleğenli Domatesli Pizza", "category": "Pizza", "price": 405, "content": "Domates sos mozzarella peyniri domates taze fesleğen", "time": "15 dk.", "status": "Aktif"}, {"name": "Funghi 4 Formaggi Pizza", "category": "Pizza", "price": 560, "content": "Beyaz sos mozzarella peyniri roquefort peyniri parmigiano reggiano parmesan peyniri gouda peyniri kültür mantarı", "time": "15 dk.", "status": "Aktif"}, {"name": "Funghi Pizza", "category": "Pizza", "price": 450, "content": "Domates sos mozzarella peyniri kültür mantarı siyah zeytin", "time": "15 dk.", "status": "Aktif"}, {"name": "Füme Et & Cheddarlı Pizza", "category": "Pizza", "price": 1080, "content": "Domates sos mozzarella peyniri cheddar peyniri dana füme", "time": "15 dk.", "status": "Aktif"}, {"name": "Hellim Pizza", "category": "Pizza", "price": 585, "content": "Domates sos mozzarella peyniri hellim peyniri siyah zeytin kekik cherry domates", "time": "15 dk.", "status": "Aktif"}, {"name": "Jumo Pizza", "category": "Pizza", "price": 1150, "content": "Domates sos buffalo mozzarella peyniri enginar kalbi dana bacon sarımsak parçaları parmigiano reggiano parmesan peyniri beyaz trüf yağı", "time": "15 dk.", "status": "Aktif"}, {"name": "Kids Pizza", "category": "Pizza", "price": 450, "content": "Domates sos mozzarella peyniri dana sosis mısır siyah zeytin", "time": "15 dk.", "status": "Aktif"}, {"name": "Kids Sweet Corn Pizza", "category": "Pizza", "price": 405, "content": "Domates sos mozzarella peyniri mısır", "time": "15 dk.", "status": "Aktif"}, {"name": "Margherita Ateşi Pizza", "category": "Pizza", "price": 415, "content": "Domates sos mozzarella peyniri jalapeno biber sarımsak taze fesleğen", "time": "15 dk.", "status": "Aktif"}, {"name": "Margherita Pizza", "category": "Pizza", "price": 415, "content": "Domates sos mozzarella peyniri pesto sos taze fesleğen", "time": "15 dk.", "status": "Aktif"}, {"name": "Mexico Pizza", "category": "Pizza", "price": 810, "content": "Domates sos mozzarella peyniri sucuk baharatlanmış kıyma harcı taze soğan mor soğan avokado mısır limonlu süzme yoğurt", "time": "15 dk.", "status": "Aktif"}, {"name": "Mixed Pizza", "category": "Pizza", "price": 765, "content": "Domates sos mozzarella peyniri dana sucuk dana sosis kültür mantarı mısır", "time": "15 dk.", "status": "Aktif"}, {"name": "Pepperoni Pizza", "category": "Pizza", "price": 875, "content": "Domates sos mozzarella peyniri dana pepperoni kültür mantarı siyah zeytin", "time": "15 dk.", "status": "Aktif"}, {"name": "Pesto Chicken Pizza", "category": "Pizza", "price": 540, "content": "Beyaz sos mozzarella peyniri parmesan peyniri pesto soslu sarımsak ile marine edilmiş tavuk parçaları pesto sos trüflü mayonez taze fesleğen", "time": "15 dk.", "status": "Aktif"}, {"name": "Porçini Pizza", "category": "Pizza", "price": 675, "content": "Beyaz sos mozzarella peyniri kültür mantarı porçini mantarı parmigiano reggiano parmesan peyniri", "time": "15 dk.", "status": "Aktif"}, {"name": "Roast Beef Pizza", "category": "Pizza", "price": 1060, "content": "Domates sos mozzarella peyniri dana roast beef parmigiano reggiano parmesan peyniri roka", "time": "15 dk.", "status": "Aktif"}, {"name": "Sucuklu Pizza", "category": "Pizza", "price": 675, "content": "Domates sos mozzarella peyniri dana sucuk", "time": "15 dk.", "status": "Aktif"}, {"name": "Tiftik Kaburga & Cheddarlı Pizza", "category": "Pizza", "price": 1015, "content": "Domates sos mozzarella peyniri cheddar peyniri dana füme kaburga (tiftik et)", "time": "15 dk.", "status": "Aktif"}, {"name": "Tonno Pizza", "category": "Pizza", "price": 670, "content": "Domates sos mozzarella peyniri ton balığı mor soğan siyah zeytin kapari", "time": "15 dk.", "status": "Aktif"}, {"name": "Veggie Pizza", "category": "Pizza", "price": 450, "content": "Domates sos mozzarella peyniri kültür mantarı patlıcan siyah zeytin mısır kabak", "time": "15 dk.", "status": "Aktif"}, {"name": "Şarküteri Pizza", "category": "Pizza", "price": 1215, "content": "Domates sos mozzarella peyniri dana sucuk çemensiz pastırma siyah zeytin", "time": "15 dk.", "status": "Aktif"}, {"name": "Chicken Penne Pesto", "category": "Makarna", "price": 630, "content": "Tavuk parçaları penne pasta pesto sos taze fesleğen parmigiano reggiano parmesan peyniri", "time": "15 dk.", "status": "Aktif"}, {"name": "Fettuccine Alfredo", "category": "Makarna", "price": 435, "content": "Fettuccine makarna alfredo sos kültür mantarı taze fesleğen parmigiano reggiano parmesan peyniri", "time": "10 dk.", "status": "Aktif"}, {"name": "Fettuccine Chicken Alfredo", "category": "Makarna", "price": 495, "content": "Fettuccine pasta alfredo sos tavuk parçaları kültür mantarı taze fesleğen parmigiano reggiano parmesan peyniri", "time": "10 dk.", "status": "Aktif"}, {"name": "Fettuccine Dana Tiftik Et", "category": "Makarna", "price": 910, "content": "Fettuccine kremalı cheddar sos dana füme kaburga parmesan peyniri çıtır panko acı sos", "time": "10 dk.", "status": "Aktif"}, {"name": "Fettuccine Porçini", "category": "Makarna", "price": 630, "content": "Fettuccine pasta krema sos taze fesleğen parmigiano reggiano parmesan peyniri porçini mantarı", "time": "10 dk.", "status": "Aktif"}, {"name": "Fettuccine Roquefort & Pesto", "category": "Makarna", "price": 520, "content": "Fettuccine pasta krema pestolu roquefort peynir sos taze fesleğen parmigiano reggiano parmesan peyniri", "time": "10 dk.", "status": "Aktif"}, {"name": "Glutensiz Penne Arrabbiata", "category": "Makarna", "price": 530, "content": "Glutensiz penne pasta siyah zeytin domates parçaları taze fesleğen domates sos parmigiano reggiano parmesan peyniri", "time": "15 dk.", "status": "Aktif"}, {"name": "Glutensiz Penne Bolognese", "category": "Makarna", "price": 625, "content": "Glutensiz penne pasta bolognese sos parmigiano reggiano parmesan peyniri fesleğen", "time": "15 dk.", "status": "Aktif"}, {"name": "Glutensiz Penne Buffa Mozzarella", "category": "Makarna", "price": 630, "content": "Glutensiz penne pasta buffalo mozzarella peyniri domates parçaları taze fesleğen domates sos parmigiano reggiano parmesan", "time": "15 dk.", "status": "Aktif"}, {"name": "Gnocchi & Mac Cheese", "category": "Gnocchi", "price": 590, "content": "Gnocchi pasta cheddar peynirli sos çıtır panko", "time": "10 dk.", "status": "Aktif"}, {"name": "Gnocchi Mantı", "category": "Makarna", "price": 630, "content": "Kızartılmış gnocchi domates ve kıymalı sos limonlu yoğurt", "time": "15 dk.", "status": "Aktif"}, {"name": "Gnocchi Pomodoro", "category": "Gnocchi", "price": 575, "content": "Gnocchi kremalı domatesli sos parmigiano reggiano parmesan peyniri", "time": "10 dk.", "status": "Aktif"}, {"name": "Gnocchi Spinach", "category": "Gnocchi", "price": 585, "content": "Gnocchi ıspanaklı krema sos parmigiano reggiano parmesan peyniri", "time": "10 dk.", "status": "Aktif"}, {"name": "Kids Spaghetti", "category": "Makarna", "price": 360, "content": "Spagetti pasta domates sos", "time": "10 dk.", "status": "Aktif"}, {"name": "Lasagne Bolognese", "category": "Lasagne", "price": 530, "content": "Lasagne pasta dana kıyma domates parçaları soğan renkli biber", "time": "15 dk.", "status": "Aktif"}, {"name": "Linguine Deniz Mahsullü", "category": "Makarna", "price": 865, "content": "Linguine pasta kremalı sos jumbo karides taze midye kalamar parmigiano reggiano parmesan domates parçaları sarımsak patlıcan", "time": "10 dk.", "status": "Aktif"}, {"name": "Linguine Garlic Parmesan", "category": "Makarna", "price": 405, "content": "Linguine pasta sarımsak konfit kremalı tavuk suyu parmigiano reggiano parmesan peyniri", "time": "10 dk.", "status": "Aktif"}, {"name": "Linguine Lemon Ricotta & Spinach", "category": "Makarna", "price": 505, "content": "Linguine pasta ricotta peyniri parmigiano reggiano parmesan peyniri taze ıspanak limon sarımsak", "time": "10 dk.", "status": "Aktif"}, {"name": "Linguine Pomodoro Stracciatella", "category": "Makarna", "price": 595, "content": "Domates sos biberiye kekik stracciatella peyniri acılı zeytinyağı", "time": "10 dk.", "status": "Aktif"}, {"name": "Linguine Smoked Salmon & Asparagus", "category": "Makarna", "price": 840, "content": "Linguine pasta kuşkonmaz krema sosu taze kişniş füme somon", "time": "10 dk.", "status": "Aktif"}, {"name": "Mac & Cheese", "category": "Makarna", "price": 535, "content": "Mac & cheese pasta mac & cheese sos çıtır panko", "time": "10 dk.", "status": "Aktif"}, {"name": "Penne Arrabbiata", "category": "Makarna", "price": 380, "content": "Penne pasta siyah zeytin domates parçaları taze fesleğen domates sos parmigiano reggiano parmesan", "time": "10 dk.", "status": "Aktif"}, {"name": "Penne Buffa Mozzarella", "category": "Makarna", "price": 540, "content": "Penne pasta buffalo mozzarella peyniri domates parçaları taze fesleğen domates sos parmigiano reggiano parmesan", "time": "10 dk.", "status": "Aktif"}, {"name": "Penne Pesto", "category": "Makarna", "price": 435, "content": "Penne pasta pesto sos taze fesleğen parmigiano reggiano parmesan peyniri", "time": "10 dk.", "status": "Aktif"}, {"name": "Sosisli Spaghetti", "category": "Makarna", "price": 450, "content": "Spagetti domates sos sosis", "time": "10 dk.", "status": "Aktif"}, {"name": "Spaghetti Bolognese", "category": "Makarna", "price": 540, "content": "Spaghetti pasta bolognese sos parmigiano reggiano parmesan peyniri taze fesleğen", "time": "10 dk.", "status": "Aktif"}, {"name": "Tagliatelle Karidesli", "category": "Makarna", "price": 855, "content": "Tagliatelle pasta jumbo karides kabak domates parçaları sarımsak parmigiano reggiano parmesan peyniri", "time": "10 dk.", "status": "Aktif"}, {"name": "Avokadolu Jumbo Karidesli Salata", "category": "Salata", "price": 1035, "content": "Sarımsaklı zeytinyağda marine edilmiş 200 gr jumbo karides 1.5 avokado cherry domates taze ege otları limon zeytinyağı", "time": "10 dk.", "status": "Aktif"}, {"name": "Avokadolu Kinoa Salata", "category": "Salata", "price": 575, "content": "Kinoa roka kıvırcık marul baby ıspanak avokado dilimleri cherry domates narenciye sos", "time": "10 dk.", "status": "Aktif"}, {"name": "Ayva Stracciatella Salata", "category": "Salata", "price": 899, "content": "Mevsim yeşillikleri fırınlanmış ayva stracciatella peyniri ceviz narenciye sos", "time": "10 dk.", "status": "Aktif"}, {"name": "Börülce Bowl", "category": "Salata", "price": 675, "content": "Karnabahar ve brokoli püresi üzerine acılı sotelenmiş börülce nar yeşil soğan roka", "time": "10 dk.", "status": "Aktif"}, {"name": "Chicken Cesar Salata", "category": "Salata", "price": 575, "content": "Kıvırcık sezar sos kruton ekmek kırmızı kapya biber parmesan ızgara tavuk parçaları", "time": "10 dk.", "status": "Aktif"}, {"name": "Chicken Roll Bowl", "category": "Salata", "price": 675, "content": "Tiftik tavuk limonlu dip sos karabuğday tabule fırınlanmış jülyen havuç ve kabak", "time": "10 dk.", "status": "Aktif"}, {"name": "Domates Mozzarella Salata", "category": "Salata", "price": 470, "content": "Cherry domates buffa mozzarella peyniri fesleğen kruton ekmek balsamik sos", "time": "10 dk.", "status": "Aktif"}, {"name": "Enginarlı Salata", "category": "Salata", "price": 750, "content": "Trüf yağı roka kıvırcık marul lolorosso ıspanak yeşil elma parmesan peyniri cherry domates narenciye sos enginar", "time": "10 dk.", "status": "Aktif"}, {"name": "Fit Salata", "category": "Salata", "price": 590, "content": "2 haşlanmış yumurta avokado tavuk göğüs buğday yeşillik narenciye sos", "time": "10 dk.", "status": "Aktif"}, {"name": "Füme Somon Salata", "category": "Salata", "price": 745, "content": "Roka kıvırcık marul lolorosso ıspanak füme somon kırmızı soğan cherry domates kapari balsamic glaze narenciye sos", "time": "10 dk.", "status": "Aktif"}, {"name": "Haşlanmış Tavuklu Börülce Salata", "category": "Salata", "price": 505, "content": "Marine edilmiş brokoli karnabahar börülce bulgur taze otlu sos haşlanmış tiftiklenmiş tavuk", "time": "10 dk.", "status": "Aktif"}, {"name": "Ispanaklı Tiftik Salata", "category": "Salata", "price": 905, "content": "Tiftik et ıspanak roka kültür mantarı kırmızı soğan (sotelenmiş) pancar turşusu cherry domates sarımsaklı zeytinyağı narenciye sos acılı zeytinyağı limon", "time": "10 dk.", "status": "Aktif"}, {"name": "Karpuz Semizotu Salata", "category": "Salata", "price": 660, "content": "Taze karpuz semizotu salatalık dilimleri taze peynir fesleğen nane ve limonlu zeytinyağlı sos ile", "time": "15 dk.", "status": "Aktif"}, {"name": "Kavun Mozzarella Salata", "category": "Salata", "price": 850, "content": "Taze kavun dilimleri roka fesleğen mozzarella file badem dana bacon dilimleri zeytinyağlı sos", "time": "15 dk.", "status": "Aktif"}, {"name": "Keçi Peynirli Mercimekli Salata", "category": "Salata", "price": 450, "content": "Roka kıvırcık marul baby ıspanak yeşil mercimek cherry domates keçi peyniri nar ekşili sos", "time": "10 dk.", "status": "Aktif"}, {"name": "Kinoa Köfte Bowl", "category": "Salata", "price": 630, "content": "Kinoa köftesi kuru cacık sote brokoli ve karnabahar avokado çin salatası (salatalık havuç susam)", "time": "10 dk.", "status": "Aktif"}, {"name": "Lor Peynirli Bademli Salata", "category": "Salata", "price": 450, "content": "Karışık yeşillik kavrulmuş lor peyniri kavrulmuş badem cherry domates narenciye sos", "time": "10 dk.", "status": "Aktif"}, {"name": "Narlı Hellim Salata", "category": "Salata", "price": 655, "content": "Börülce yeşil mercimek kinoa kırmızı lahana nohut roka balzamikli pancar turşusu hellim peyniri nar trüflü narenciye sos", "time": "10 dk.", "status": "Aktif"}, {"name": "Narlı Keçi Peynirli Salata", "category": "Salata", "price": 595, "content": "Börülce yeşil mercimek lahana roka keçi peyniri yeşil elma nar trüflü narenciye sos", "time": "10 dk.", "status": "Aktif"}, {"name": "Nohut Hellim Ispanak Bowl", "category": "Salata", "price": 610, "content": "Baharatlarla sotelenmiş nohut ızgara hellim peyniri domates sarımsak sotelenmiş ıspanak kızartılmış balsamikli yumurta", "time": "10 dk.", "status": "Aktif"}, {"name": "Pancarlı Humuslu Falefel Bowl", "category": "Salata", "price": 630, "content": "Pancarlı humus falafel topları mevsim yeşillikleri tahinli limon sos", "time": "15 dk.", "status": "Aktif"}, {"name": "Ton Balıklı Salata", "category": "Salata", "price": 605, "content": "Akdeniz yeşillikleri salatalık turşusu cherry domates siyah zeytin ton balığı mısır BAP sos", "time": "10 dk.", "status": "Aktif"}, {"name": "Çilek Avokado Burrata Salata", "category": "Salata", "price": 1076, "content": "Ege otları avokado çilek burrata peyniri balzamik sos pesto sos file badem fesleğen", "time": "10 dk.", "status": "Aktif"}, {"name": "Çıtır Tavuk Salata", "category": "Salata", "price": 575, "content": "Taze yeşillikler cherry domates çıtır tavuk parçaları mısır ballı acılı sos nar ekşisi balsamic glaze", "time": "10 dk.", "status": "Aktif"}, {"name": "Şeftali Stracciatella Salata", "category": "Salata", "price": 900, "content": "Sosla marine edilmiş yeşillikler şeftali dana bacon stracciatella peyniri cherry domates nar ekşisi badem parçaları balsamik sos acı sos", "time": "10 dk.", "status": "Aktif"}, {"name": "Acılı Çıtır Tavuklu Gyro", "category": "Dürümler", "price": 415, "content": "Gusto sos çıtır tavuk parçaları ballı acı sos karamelize soğan jalapeno biber beyaz lahana", "time": "15 dk.", "status": "Aktif"}, {"name": "Caprese Panini", "category": "Sandviç", "price": 395, "content": "Panini ekmeği pesto sos suda mozzarella peyniri domates", "time": "15 dk.", "status": "Aktif"}, {"name": "Ekşi Mayalı BAP Special", "category": "Sandviç", "price": 390, "content": "Ekşi mayalı ekmek üzerine acılı ballı sos dana sucuk buffa mozzarella peyniri taze fesleğen", "time": "15 dk.", "status": "Aktif"}, {"name": "Füme Dilli Sandviç", "category": "Sandviç", "price": 560, "content": "Özel BAP sandviç ekmeği ballı hardal sos füme dil turşu kapari taze roka", "time": "15 dk.", "status": "Aktif"}, {"name": "Hindi Füme Panini", "category": "Sandviç", "price": 300, "content": "Panini ekmeği hindi füme kaşar peyniri cheddar peyniri ballı hardal pesto sos roka", "time": "15 dk.", "status": "Aktif"}, {"name": "Panuozzo Caprese", "category": "Sandviç", "price": 415, "content": "Panuozzo sandviç pesto sos domates buffa mozzarella yeşillikler balsamic glaze", "time": "15 dk.", "status": "Aktif"}, {"name": "Panuozzo Cesar", "category": "Sandviç", "price": 485, "content": "Caesar sos mozzarella peyniri yeşillikler ızgara tavuk", "time": "15 dk.", "status": "Aktif"}, {"name": "Panuozzo Roastbeef", "category": "Sandviç", "price": 505, "content": "Pesto sos roast beef taze yeşillikler stracciatella balsamic glaze", "time": "15 dk.", "status": "Aktif"}, {"name": "Roast Beef Panini", "category": "Sandviç", "price": 495, "content": "Panini ekmeği roast beef pesto sos ballı hardal roka cheddar peyniri", "time": "15 dk.", "status": "Aktif"}, {"name": "Tiftik Etli Cheddarlı Panini", "category": "Sandviç", "price": 675, "content": "Panini ekmeği gusto sos tiftik kaburga cheddar peyniri karamelize soğan", "time": "15 dk.", "status": "Aktif"}, {"name": "Tiftik Etli Gyro", "category": "Dürümler", "price": 670, "content": "Tiftiklenmiş dana eti karamelize soğan gusto sos trüflü mayonez", "time": "15 dk.", "status": "Aktif"}, {"name": "Tonno Gyro", "category": "Sandviç", "price": 550, "content": "Ton balığı dilim soğan yumurta kırmızı kapya biber mayonezli özel sos ile", "time": "15 dk.", "status": "Aktif"}, {"name": "Çıtır Tavuklu Panini", "category": "Sandviç", "price": 355, "content": "Kızartılmış çıtır tavuk mayonez jalapeno biber turşusu jülyen lahana özel tatlı sos", "time": "15 dk.", "status": "Aktif"}, {"name": "Bruschetta", "category": "Atıştırmalık", "price": 325, "content": "Kızarmış ekşi mayalı ekmek üzerinde sarımsaklı domates ve fesleğen", "time": "15 dk.", "status": "Aktif"}, {"name": "Caprese", "category": "Atıştırmalık", "price": 450, "content": "Buffalo mozzarella peyniri domates fesleğen sos", "time": "15 dk.", "status": "Aktif"}, {"name": "Combo Tabağı", "category": "Atıştırmalık", "price": 520, "content": "3 parça frankfurter sosis 2 adet çıtır tavuk 3 adet mozzarella stick kaşık patates kızartması ketçap mayonez", "time": "15 dk.", "status": "Aktif"}, {"name": "Fit & Crispy Combo", "category": "Atıştırmalık", "price": 630, "content": "Kinoa köftesi (4 adet) falafel topları (5 adet) kızartılmış gnocchi taze kekik ve limon zestli krem yoğurt", "time": "15 dk.", "status": "Aktif"}, {"name": "Mozzarella Sticks", "category": "Atıştırmalık", "price": 325, "content": "5 adet mozzarella sticks kaşık patates kızartması ketçap mayonez", "time": "15 dk.", "status": "Aktif"}, {"name": "Patates Kızartması", "category": "Atıştırmalık", "price": 225, "content": "Kaşık patates kızartması ketçap ve mayonez ile", "time": "15 dk.", "status": "Aktif"}, {"name": "Trüflü Parmesanlı Patates Kızartması", "category": "Atıştırmalık", "price": 325, "content": "Kaşık patates kızartması trüf yağı parmigiano reggiano parmesan peyniri ketçap ve mayonez ile", "time": "15 dk.", "status": "Aktif"}, {"name": "Çıtır Tavuk", "category": "Atıştırmalık", "price": 395, "content": "5 adet çıtır tavuk kaşık patates kızartması ketçap mayonez", "time": "15 dk.", "status": "Aktif"}, {"name": "Chia Puding Çilekli", "category": "Tatlılar", "price": 350, "content": "Chia tohumu süzme yoğurt bal çilek", "time": "10 dk.", "status": "Aktif"}, {"name": "Glutensiz Sufle", "category": "Tatlılar", "price": 350, "content": "Glutensiz çikolatalı sufle", "time": "10 dk.", "status": "Aktif"}, {"name": "Nutella Fruit Pizza", "category": "Tatlılar", "price": 315, "content": "Pizza hamuru üzerinde Nutella çilek muz (belli dönemlerde mevsim meyveleri)", "time": "15 dk.", "status": "Aktif"}, {"name": "Sufle", "category": "Tatlılar", "price": 315, "content": "Çikolatalı sufle", "time": "10 dk.", "status": "Aktif"}, {"name": "Tiramisu", "category": "Tatlılar", "price": 315, "content": "Mascarpone peynirli tiramisu kreması espresso savoiardi bisküvi kakao", "time": "5 dk.", "status": "Aktif"}, {"name": "Coca Cola", "category": "İçecekler", "price": 110, "content": "Coca-Cola kutu (33 cl)", "time": "0 dk.", "status": "Aktif"}, {"name": "Cola Zero", "category": "İçecekler", "price": 110, "content": "Coca-Cola şekersiz kutu (33 cl)", "time": "0 dk.", "status": "Aktif"}, {"name": "Damla Sade Soda", "category": "İçecekler", "price": 80, "content": "Damla sade soda cam şişe (33 cl)", "time": "0 dk.", "status": "Aktif"}, {"name": "Damla Soda", "category": "İçecekler", "price": 75, "content": "Damla soda cam şişe (33 cl)", "time": "0 dk.", "status": "Aktif"}, {"name": "Damla Su", "category": "İçecekler", "price": 65, "content": "Damla su cam şişe (33 cl)", "time": "0 dk.", "status": "Aktif"}, {"name": "Fuse tea Limon", "category": "İçecekler", "price": 110, "content": "Fuse Tea limon kutu (33 cl)", "time": "0 dk.", "status": "Aktif"}, {"name": "Fuse tea Şeftali", "category": "İçecekler", "price": 110, "content": "Fuse Tea şeftali kutu (33 cl)", "time": "0 dk.", "status": "Aktif"}, {"name": "San Pellegrino Limon", "category": "İçecekler", "price": 260, "content": "San Pellegrino Lemon cam şişe (20 cl)", "time": "0 dk.", "status": "Aktif"}, {"name": "San Pellegrino Portakal", "category": "İçecekler", "price": 260, "content": "San Pellegrino Aranciata (portakal limon) cam şişe (20 cl)", "time": "0 dk.", "status": "Aktif"}, {"name": "San Pellegrino Soda", "category": "İçecekler", "price": 130, "content": "San Pellegrino soda cam şişe (33 cl)", "time": "0 dk.", "status": "Aktif"}, {"name": "San Pellegrino Soda 25cl", "category": "İçecekler", "price": 160, "content": "San Pellegrino soda cam şişe (25 cl)", "time": "0 dk.", "status": "Aktif"}, {"name": "Schweppes Bitter Limon", "category": "İçecekler", "price": 140, "content": "Schweppes bitter limon cam şişe (25 cl)", "time": "0 dk.", "status": "Aktif"}, {"name": "Schweppes Mandalina", "category": "İçecekler", "price": 130, "content": "Schweppes mandalina cam şişe (25 cl)", "time": "0 dk.", "status": "Aktif"}, {"name": "Sprite", "category": "İçecekler", "price": 110, "content": "Sprite kutu (33 cl)", "time": "0 dk.", "status": "Aktif"}, {"name": "Susurluk Ayran", "category": "İçecekler", "price": 90, "content": "Susurluk ayranı küçük boy (24.5 cl)", "time": "0 dk.", "status": "Aktif"}];
+    let deliveryData = [{"name": "19 Mayıs", "full": "19 Mayıs Mah - Kadıköy", "branch": "Erenköy", "delivery_time": "35 dk."}, {"name": "Altıntepe", "full": "Altıntepe - Maltepe", "branch": "Erenköy", "delivery_time": "30 dk."}, {"name": "Bostancı", "full": "Bostancı Mah - Kadıköy", "branch": "Erenköy", "delivery_time": "40 dk."}, {"name": "Caddebostan", "full": "Caddebostan Mah - Kadıköy", "branch": "Erenköy", "delivery_time": "25 dk."}, {"name": "Erenköy", "full": "Erenköy Mah - Kadıköy", "branch": "Erenköy", "delivery_time": "20 dk."}, {"name": "Kozyatağı", "full": "Kozyatağı Mah - Kadıköy", "branch": "Erenköy", "delivery_time": "35 dk."}, {"name": "Suadiye", "full": "Suadiye Mah - Kadıköy", "branch": "Erenköy", "delivery_time": "25 dk."}, {"name": "Acıbadem", "full": "Acıbadem Mah - Üsküdar", "branch": "Fikirtepe", "delivery_time": "25 dk."}, {"name": "Acıbadem Kadıköy", "full": "Acıbadem Mah - Kadıköy", "branch": "Fikirtepe", "delivery_time": "35 dk."}, {"name": "Altunizade", "full": "Altunizade Mah - Üsküdar", "branch": "Fikirtepe", "delivery_time": "40 dk."}, {"name": "Barbaros", "full": "Barbaros - Ataşehir", "branch": "Fikirtepe", "delivery_time": "45 dk."}, {"name": "Caferağa", "full": "Caferağa Mah - Kadıköy", "branch": "Fikirtepe", "delivery_time": "35 dk."}, {"name": "Cumhuriyet", "full": "Cumhuriyet Mah - Üsküdar", "branch": "Fikirtepe", "delivery_time": "45 dk."}, {"name": "Dumlupınar", "full": "Dumlupınar Mah - Kadıköy", "branch": "Fikirtepe", "delivery_time": "25 dk."}, {"name": "Eğitim", "full": "Eğitim Mah - Kadıköy", "branch": "Fikirtepe", "delivery_time": "25 dk."}, {"name": "Fenerbahçe", "full": "Fenerbahçe Mah - Kadıköy", "branch": "Fikirtepe", "delivery_time": "35 dk."}, {"name": "Feneryolu", "full": "Feneryolu Mah - Kadıköy", "branch": "Fikirtepe", "delivery_time": "30 dk."}, {"name": "Fetih", "full": "Fetih Mah - Ataşehir", "branch": "Fikirtepe", "delivery_time": "30 dk."}, {"name": "Fikirtepe", "full": "Fikirtepe Mah - Kadıköy", "branch": "Fikirtepe", "delivery_time": "40 dk."}, {"name": "Finanskent", "full": "Finanskent Mah - Ümraniye", "branch": "Fikirtepe", "delivery_time": "45 dk."}, {"name": "Göztepe", "full": "Göztepe Mah - Kadıköy", "branch": "Fikirtepe", "delivery_time": "25 dk."}, {"name": "Hasanpaşa", "full": "Hasanpaşa Mah - Kadıköy", "branch": "Fikirtepe", "delivery_time": "35 dk."}, {"name": "Koşuyolu", "full": "Koşuyolu Mah - Kadıköy", "branch": "Fikirtepe", "delivery_time": "35 dk."}, {"name": "Küçük Çamlıca", "full": "Küçük Çamlıca - Üsküdar", "branch": "Fikirtepe", "delivery_time": "35 dk."}, {"name": "Kısıklı", "full": "Kısıklı Mah - Üsküdar", "branch": "Fikirtepe", "delivery_time": "45 dk."}, {"name": "Merdivenköy", "full": "Merdivenköy Mah - Kadıköy", "branch": "Fikirtepe", "delivery_time": "35 dk."}, {"name": "Osmanağa", "full": "Osmanağa Mah - Kadıköy", "branch": "Fikirtepe", "delivery_time": "35 dk."}, {"name": "Rasimpaşa", "full": "Rasimpaşa Mah - Kadıköy", "branch": "Fikirtepe", "delivery_time": "35 dk."}, {"name": "Sahrayı Cedit", "full": "Sahrayı Cedit Mah - Kadıköy", "branch": "Fikirtepe", "delivery_time": "35 dk."}, {"name": "Sahrayıcedit", "full": "Sahrayı Cedit Mah - Kadıköy", "branch": "Fikirtepe", "delivery_time": "30 dk."}, {"name": "Site", "full": "Site Mah - Ümraniye", "branch": "Fikirtepe", "delivery_time": "45 dk."}, {"name": "Yeni Sahra", "full": "Yeni Sahra - Ataşehir", "branch": "Fikirtepe", "delivery_time": "45 dk."}, {"name": "Zühtüpaşa", "full": "Zühtüpaşa Mah - Kadıköy", "branch": "Fikirtepe", "delivery_time": "30 dk."}, {"name": "Örnek", "full": "Örnek Mah - Ataşehir", "branch": "Fikirtepe", "delivery_time": "45 dk."}, {"name": "Ünalan", "full": "Ünalan Mah - Üsküdar", "branch": "Fikirtepe", "delivery_time": "35 dk."}];
+
+    const categoryPriority = {
+      "Pizza": 1,
+      "Makarna": 2,
+      "Gnocchi": 2,
+      "Lasagne": 2,
+      "Salata": 3,
+      "Sandviç": 4,
+      "Dürümler": 4,
+      "Atıştırmalık": 5,
+      "Tatlılar": 6,
+      "İçecekler": 7
+    };
+
+    let paymentMethods = [
+      {"name": "Nakit", "color": "#16a34a", "icon": "₺", "active": true},
+      {"name": "Kredi Kartı", "color": "#2563eb", "icon": "💳", "active": true},
+      {"name": "Pluxee (Sodexo)", "color": "#db2777", "icon": "P", "active": true},
+      {"name": "Setcard", "color": "#d97706", "icon": "S", "active": true},
+      {"name": "Edenred", "color": "#dc2626", "icon": "E", "active": true},
+      {"name": "Multinet", "color": "#7c3aed", "icon": "M", "active": true},
+      {"name": "Metropolcard", "color": "#0d9488", "icon": "M", "active": true},
+      {"name": "Tokenflex", "color": "#4f46e5", "icon": "T", "active": true},
+      {"name": "Paye Card", "color": "#0891b2", "icon": "P", "active": true},
+      {"name": "Havale / EFT", "color": "#475569", "icon": "🏦", "active": true}
+    ];
+
+    let aiSettings = [
+      {"key": "Yetkili Telefon", "val": "5325550253", "type": "text"},
+      {"key": "Sipariş Dışı Aktar", "val": "Evet", "type": "text"},
+      {"key": "Yemeksepeti Aktar", "val": "Evet", "type": "text"},
+      {"key": "Trendyol Aktar", "val": "Evet", "type": "text"},
+      {"key": "Getir Aktar", "val": "Evet", "type": "text"},
+      {"key": "Müşteri Şikayet Aktar", "val": "Evet", "type": "text"},
+      {"key": "Karşılama Mesajı", "val": "Merhaba, BAP Pizza ya hoşgeldiniz, size nasıl yardımcı olabilirim?", "type": "textarea"},
+      {"key": "Kapanış Mesajı", "val": "Siparişiniz alınmıştır. Afiyet olsun, tekrar görüşmek dileğiyle", "type": "textarea"}
+    ];
+
+    let currentEditingMenuIndex = -1;
+
+    // Metin Normalizasyonu (Türkçe karakter ve boşlukları eşleştirmek için)
+    function normalizeItemName(str) {
+      if (!str) return '';
+      return str.toLowerCase()
+        .replace(/ğ/g, 'g').replace(/ü/g, 'u').replace(/ş/g, 's')
+        .replace(/ı/g, 'i').replace(/ö/g, 'o').replace(/ç/g, 'c')
+        .replace(/[^a-z0-9]/g, '');
+    }
+
+    // Drive'daki tüm resimleri tek seferde otomatik çek ve eşleştir
+    function fetchDriveImages() {
+      if (!APPS_SCRIPT_IMAGE_ENDPOINT) return;
+      fetch(APPS_SCRIPT_IMAGE_ENDPOINT)
+        .then(res => res.json())
+        .then(data => {
+          driveImagesMap = data || {};
+          renderMenu(); // Resimler geldiğinde menüyü canlı fotoğraflarla tazele
+        })
+        .catch(err => console.log("Drive fotoğrafları yüklenirken hata:", err));
+    }
+
+    function updateLiveHours() {
+      const days = ["Pazar", "Pazartesi", "Salı", "Çarşamba", "Perşembe", "Cuma", "Cumartesi"];
+      const now = new Date();
+      const d = now.getDay();
+      let h = (d === 5 || d === 6) ? "11:00 - 02:00" : "11:00 - 23:00";
+      document.getElementById('live-hours-display').innerText = `Bugün (${days[d]}): ${h}`;
+    }
+
+    function renderPaymentStrip() {
+      const c = document.getElementById('payment-tags-container');
+      c.innerHTML = '';
+      paymentMethods.forEach((p, idx) => {
+        const pill = document.createElement('div');
+        pill.className = `pay-card-pill ${p.active ? 'active' : ''}`;
+        pill.onclick = () => togglePayment(idx);
+        pill.innerHTML = `
+          <div class="pay-logo-circle" style="background:${p.color};">${p.icon}</div>
+          <span class="pay-name">${p.name}</span>
+          <i class="fa-solid fa-circle-check pay-check"></i>
+        `;
+        c.appendChild(pill);
+      });
+    }
+
+    function togglePayment(idx) {
+      paymentMethods[idx].active = !paymentMethods[idx].active;
+      renderPaymentStrip();
+    }
+
+    function renderMenu() {
+      const q = document.getElementById('menu-search').value.toLowerCase();
+      const cat = document.getElementById('menu-cat-filter').value;
+      const tbody = document.getElementById('menu-table-body');
+      tbody.innerHTML = '';
+
+      menuData.sort((a, b) => {
+        const orderA = categoryPriority[a.category] || 99;
+        const orderB = categoryPriority[b.category] || 99;
+        if (orderA !== orderB) return orderA - orderB;
+        return a.name.localeCompare(b.name, 'tr');
+      });
+
+      let count = 0;
+      menuData.forEach((item, index) => {
+        if (cat === 'Makarna_Gnocchi') {
+          if (!['Makarna', 'Gnocchi', 'Lasagne'].includes(item.category)) return;
+        } else if (cat === 'Sandvic_Durum') {
+          if (!['Sandviç', 'Dürümler'].includes(item.category)) return;
+        } else if (cat !== 'ALL' && item.category !== cat) {
+          return;
+        }
+
+        if (q && !item.name.toLowerCase().includes(q) && !item.content.toLowerCase().includes(q)) return;
+
+        count++;
+        const isAktif = item.status.toLowerCase() === 'aktif';
+        const tr = document.createElement('tr');
+        
+        const catIcons = {
+          'Pizza': 'fa-pizza-slice',
+          'Makarna': 'fa-bowl-rice',
+          'Gnocchi': 'fa-bowl-food',
+          'Lasagne': 'fa-layer-group',
+          'Salata': 'fa-leaf',
+          'Sandviç': 'fa-bread-slice',
+          'Dürümler': 'fa-scroll',
+          'Atıştırmalık': 'fa-cookie-bite',
+          'Tatlılar': 'fa-cake-candles',
+          'İçecekler': 'fa-bottle-water'
+        };
+        const defaultIcon = catIcons[item.category] || 'fa-utensils';
+
+        // OTOMATİK EŞLEŞTİRME: Ürün adına göre Drive'daki resmi bul
+        const normName = normalizeItemName(item.name);
+        const autoDriveImg = driveImagesMap[normName] || item.img;
+
+        let imgHtml = '';
+        if (autoDriveImg) {
+          imgHtml = `<img src="${autoDriveImg}" alt="${item.name}" onerror="this.style.display='none'; this.nextElementSibling.style.display='block';"><i class="fa-solid ${defaultIcon}" style="display:none;"></i>`;
+        } else {
+          imgHtml = `<i class="fa-solid ${defaultIcon}"></i>`;
+        }
+
+        tr.innerHTML = `
+          <td style="width: 54px; text-align: center;">
+            <div class="product-img-box" onclick="openEditMenuModal(${index})" title="Görseli İncele / Değiştir">
+              ${imgHtml}
+            </div>
+          </td>
+          <td style="font-weight:700; color:#0f172a;">${item.name}</td>
+          <td><span class="tag-cat">${item.category}</span></td>
+          <td style="font-weight:800; color:#2563eb;">${item.price} ₺</td>
+          <td style="color:#64748b; font-size:0.82rem; max-width:320px;">${item.content || '-'}</td>
+          <td style="text-align:center;">
+            <input type="text" class="time-input-inline" value="${item.time}" onchange="updateMenuTime(${index}, this.value)">
+          </td>
+          <td style="text-align:center;">
+            <div class="status-toggle ${isAktif ? 'aktif' : 'pasif'}" onclick="toggleMenuStatus(${index})">
+              <i class="fa-solid fa-circle" style="font-size:0.45rem;"></i>
+              <span>${item.status}</span>
+            </div>
+          </td>
+          <td style="text-align:center;">
+            <button class="action-btn" onclick="openEditMenuModal(${index})" title="Düzenle"><i class="fa-solid fa-pen"></i></button>
+            <button class="action-btn del" onclick="deleteMenuItem(${index})" title="Sil"><i class="fa-solid fa-trash"></i></button>
+          </td>
+        `;
+        tbody.appendChild(tr);
+      });
+
+      document.getElementById('menu-count').innerText = `${count} / ${menuData.length} Ürün`;
+    }
+
+    function toggleMenuStatus(i) {
+      menuData[i].status = menuData[i].status.toLowerCase() === 'aktif' ? 'Pasif' : 'Aktif';
+      renderMenu();
+    }
+
+    function updateMenuTime(i, val) {
+      menuData[i].time = val;
+    }
+
+    function renderDelivery() {
+      const q = document.getElementById('delivery-search').value.toLowerCase();
+      const br = document.getElementById('delivery-branch-filter').value;
+      const tbody = document.getElementById('delivery-table-body');
+      tbody.innerHTML = '';
+
+      deliveryData.sort((a, b) => {
+        if (a.branch === b.branch) return a.name.localeCompare(b.name, 'tr');
+        return a.branch === 'Erenköy' ? -1 : 1;
+      });
+
+      let count = 0;
+      deliveryData.forEach((d, idx) => {
+        if (br !== 'ALL' && d.branch !== br) return;
+        if (q && !d.name.toLowerCase().includes(q) && !d.full.toLowerCase().includes(q)) return;
+
+        count++;
+        const branchClass = d.branch.toLowerCase() === 'erenköy' ? 'erenkoy' : 'fikirtepe';
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td style="font-weight:700; color:#0f172a;">${d.name}</td>
+          <td style="color:#64748b;">${d.full}</td>
+          <td><span class="branch-tag ${branchClass}">${d.branch}</span></td>
+          <td style="text-align:center;">
+            <input type="text" class="time-input-inline" value="${d.delivery_time}" onchange="updateDeliveryTime(${idx}, this.value)">
+          </td>
+          <td style="text-align:center;">
+            <button class="action-btn" onclick="editDeliveryPrompt(${idx})" title="Düzenle"><i class="fa-solid fa-pen"></i></button>
+          </td>
+        `;
+        tbody.appendChild(tr);
+      });
+
+      document.getElementById('delivery-count').innerText = `${count} Mahalle`;
+    }
+
+    function updateDeliveryTime(idx, val) {
+      deliveryData[idx].delivery_time = val;
+    }
+
+    function editDeliveryPrompt(idx) {
+      const cur = deliveryData[idx];
+      const newT = prompt(`${cur.name} için yeni teslimat süresi:`, cur.delivery_time);
+      if (newT !== null) {
+        deliveryData[idx].delivery_time = newT;
+        renderDelivery();
+      }
+    }
+
+    function renderSettingsDrawer() {
+      const c = document.getElementById('drawer-settings-list');
+      c.innerHTML = '';
+      aiSettings.forEach((s, idx) => {
+        const div = document.createElement('div');
+        div.className = 'setting-item';
+        if (s.type === 'textarea') {
+          div.innerHTML = `
+            <label>${s.key}</label>
+            <textarea id="ai-input-${idx}" rows="2">${s.val}</textarea>
+          `;
+        } else {
+          div.innerHTML = `
+            <label>${s.key}</label>
+            <input type="text" id="ai-input-${idx}" value="${s.val}">
+          `;
+        }
+        c.appendChild(div);
+      });
+    }
+
+    function toggleSettingsDrawer() {
+      document.getElementById('settings-drawer').classList.toggle('open');
+    }
+
+    function saveAllAISettings() {
+      aiSettings.forEach((s, idx) => {
+        const input = document.getElementById(`ai-input-${idx}`);
+        if (input) s.val = input.value;
+      });
+      toggleSettingsDrawer();
+      alert("Santral & AI ayarları güncellendi!");
+    }
+
+    function switchMainTab(tab) {
+      document.getElementById('btn-tab-menu').classList.toggle('active', tab === 'menu');
+      document.getElementById('btn-tab-delivery').classList.toggle('active', tab === 'delivery');
+
+      document.getElementById('sec-menu').classList.toggle('active', tab === 'menu');
+      document.getElementById('sec-delivery').classList.toggle('active', tab === 'delivery');
+    }
+
+    function openAddMenuModal() {
+      currentEditingMenuIndex = -1;
+      document.getElementById('modal-menu-title').innerText = "Yeni Ürün Ekle";
+      document.getElementById('m-img').value = '';
+      document.getElementById('m-name').value = '';
+      document.getElementById('m-category').value = 'Pizza';
+      document.getElementById('m-price').value = '';
+      document.getElementById('m-content').value = '';
+      document.getElementById('m-time').value = '15 dk.';
+      document.getElementById('m-status').value = 'Aktif';
+      document.getElementById('menu-modal').style.display = 'flex';
+    }
+
+    function openEditMenuModal(index) {
+      currentEditingMenuIndex = index;
+      const item = menuData[index];
+      const normName = normalizeItemName(item.name);
+      document.getElementById('modal-menu-title').innerText = "Ürün Düzenle";
+      document.getElementById('m-img').value = item.img || driveImagesMap[normName] || '';
+      document.getElementById('m-name').value = item.name;
+      document.getElementById('m-category').value = item.category;
+      document.getElementById('m-price').value = item.price;
+      document.getElementById('m-content').value = item.content;
+      document.getElementById('m-time').value = item.time;
+      document.getElementById('m-status').value = item.status;
+      document.getElementById('menu-modal').style.display = 'flex';
+    }
+
+    function saveMenuItem(e) {
+      e.preventDefault();
+      let inputImg = document.getElementById('m-img').value.trim();
+      if (inputImg.includes('drive.google.com') && inputImg.includes('/d/')) {
+        const fileId = inputImg.split('/d/')[1].split('/')[0];
+        inputImg = `https://lh3.googleusercontent.com/d/${fileId}`;
+      } else if (inputImg.includes('drive.google.com') && inputImg.includes('id=')) {
+        const fileId = inputImg.split('id=')[1].split('&')[0];
+        inputImg = `https://lh3.googleusercontent.com/d/${fileId}`;
+      }
+
+      const obj = {
+        img: inputImg,
+        name: document.getElementById('m-name').value,
+        category: document.getElementById('m-category').value,
+        price: Number(document.getElementById('m-price').value),
+        content: document.getElementById('m-content').value,
+        time: document.getElementById('m-time').value,
+        status: document.getElementById('m-status').value
+      };
+      if (currentEditingMenuIndex >= 0) {
+        menuData[currentEditingMenuIndex] = obj;
+      } else {
+        menuData.unshift(obj);
+      }
+      closeModal('menu-modal');
+      renderMenu();
+    }
+
+    function deleteMenuItem(index) {
+      if (confirm(`"${menuData[index].name}" ürününü silmek istediğinize emin misiniz?`)) {
+        menuData.splice(index, 1);
+        renderMenu();
+      }
+    }
+
+    function closeModal(id) {
+      document.getElementById(id).style.display = 'none';
+    }
+
+    updateLiveHours();
+    renderPaymentStrip();
+    renderMenu();
+    renderDelivery();
+    renderSettingsDrawer();
+    fetchDriveImages(); // Drive klasöründeki fotoğrafları otomatik eşleştir
+  </script>
+</body>
+</html>
