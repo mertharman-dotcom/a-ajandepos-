@@ -361,7 +361,7 @@ input,select,textarea{width:100%;background:var(--bg);border:1.5px solid var(--b
             <button class="btn btn-ghost btn-sm" onclick="receteSifirla()">← Geri</button>
           </div>
           <div style="padding:14px 15px" id="recete-detay"></div>
-          
+
           <div class="kat-row">
             <div class="kat-label">Kaç kat?</div>
             <div class="kat-ctrl">
@@ -370,7 +370,7 @@ input,select,textarea{width:100%;background:var(--bg);border:1.5px solid var(--b
               <button class="kbtn" onclick="chKat(0.25)">+</button>
             </div>
           </div>
-          
+
           <div style="padding:0 15px 14px" id="hesap-wrap"></div>
           <div class="fg" style="border-bottom:none">
             <div class="fl">Not</div>
@@ -414,7 +414,7 @@ input,select,textarea{width:100%;background:var(--bg);border:1.5px solid var(--b
       <div class="ph">
         <div><div class="ptitle">Zayi 🗑️</div><div class="psub" id="zayi-sub">Çoklu Ürün Seç ve Kaydet</div></div>
       </div>
-      
+
       <div id="zayi-adim1">
         <div class="card">
           <div class="ch"><div class="ct">Ne zayi edildi?</div></div>
@@ -585,6 +585,7 @@ let S_subeler = [];
 let S_aktifTed = null;
 let S_wpGonderildi = false;
 let S_sonSiparis = null;
+let S_duzeltmeModu = false;
 let S_ymStok = [];
 let TR = { gelen:[], giden:[], hedefSube:null, urunler:[], secili:{}, kat:null };
 
@@ -625,7 +626,10 @@ function apiLocalYaz(key,data){
 }
 async function apiFetchJson(url, options){
   let sonHata=null;
-  for(let deneme=0; deneme<2; deneme++){
+  // Kayıt (POST) istekleri tekrar denenmez: ilk istek sunucuda yazılmış ama cevabı
+  // bozuk gelmiş olabilir; ikinci deneme aynı siparişi/zayiyi iki kez yazar.
+  const denemeSayisi=(options && options.method==='POST') ? 1 : 2;
+  for(let deneme=0; deneme<denemeSayisi; deneme++){
     try{
       const ayirici=url.includes('?')?'&':'?';
       const hedef=deneme ? url+ayirici+'_r='+Date.now() : url;
@@ -847,7 +851,7 @@ async function planYukle(){
           <div class="plan-blok-t">👨‍🍳 Bugün Yapılan Hazırlıklar</div>
           <span class="badge b-ok">${(d.bugunHazirliklar||[]).length} kayıt</span>
         </div>
-        ${(d.bugunHazirliklar||[]).length > 0 
+        ${(d.bugunHazirliklar||[]).length > 0
           ? (d.bugunHazirliklar||[]).map(h=>`
               <div class="plan-satir">
                 <div style="font-size:18px;width:24px;text-align:center">🥣</div>
@@ -1117,6 +1121,7 @@ async function siparisYukle(){
           <div class="wp-title">💬 WhatsApp'ta Gönder</div>
           <div class="wp-prev" id="wp-siparis-text"></div>
           <button class="btn-wp" id="wp-gonder-btn" onclick="siparisKaydetVeWhatsApp()">✅ Kaydet ve WhatsApp'ta Gönder</button>
+          <a class="btn-wp" id="wp-yedek-link" href="#" target="_blank" rel="noopener" style="display:none;text-decoration:none;background:#128c7e">📲 WhatsApp'ı Aç</a>
         </div>
         <button id="siparis-duzelt-btn" class="btn btn-ghost" style="display:none;width:100%;padding:13px;font-size:14px;border-radius:var(--radius);margin-top:8px" onclick="sonSiparisiDuzelt()">✏️ Son Siparişi Düzelt</button>
       </div>`;
@@ -1134,6 +1139,7 @@ async function siparisYukle(){
 function tedSec(idx, btn){
   S_aktifTed = idx;
   S_wpGonderildi = false;
+  S_duzeltmeModu = false;
   document.querySelectorAll('#ted-butonlar button').forEach(b=>{
     const i = parseInt(b.getAttribute('onclick').match(/\d+/)[0]);
     const t = S_takvim[i];
@@ -1281,7 +1287,12 @@ function siparisListesiHazirla(idx){
   document.getElementById('siparis-wp-box').style.display = 'block';
   const gBtn = document.getElementById('wp-gonder-btn');
   gBtn.style.background = '#25d366';
-  gBtn.textContent = "✅ Kaydet ve WhatsApp'ta Gönder";
+  if(!S_duzeltmeModu){
+    gBtn.textContent = "✅ Kaydet ve WhatsApp'ta Gönder";
+    gBtn.onclick = siparisKaydetVeWhatsApp;
+  }
+  const yedek = document.getElementById('wp-yedek-link');
+  if(yedek) yedek.style.display = 'none';
   S_wpGonderildi = false;
   document.getElementById('siparis-wp-box').scrollIntoView({behavior:'smooth'});
 }
@@ -1299,31 +1310,70 @@ function siparisGirilenleriTopla(){
   return out;
 }
 
-function whatsappAc(){
+function whatsappUrl(){
   const txt=document.getElementById('wp-siparis-text')?.textContent||'';
   const ted=(S_aktifTed!==null)?S_takvim[S_aktifTed]:null;
   const tel=ted&&ted.telefon?ted.telefon:'';
-  window.open(tel?'https://wa.me/'+tel+'?text='+encodeURIComponent(txt):'https://wa.me/?text='+encodeURIComponent(txt),'_blank');
+  return tel?'https://wa.me/'+tel+'?text='+encodeURIComponent(txt):'https://wa.me/?text='+encodeURIComponent(txt);
+}
+
+// Telefon tarayıcıları (özellikle iPhone Safari) yeni pencereyi yalnızca butona
+// basıldığı ANDA açmaya izin verir. Kayıt 2-5 sn sürdüğü için pencere tıklama
+// anında boş açılır, kayıt bitince WhatsApp adresine yönlendirilir.
+function whatsappPencereHazirla(){
+  let w=null;
+  try{ w=window.open('','_blank'); }catch(e){ w=null; }
+  if(w){
+    try{ w.document.write('<meta name="viewport" content="width=device-width,initial-scale=1"><p style="font-family:sans-serif;font-size:18px;padding:24px;color:#555">⏳ Sipariş kaydediliyor, WhatsApp birazdan açılacak…</p>'); }catch(e){}
+  }
+  return w;
+}
+// Kayıt bittikten sonra: hazır pencereyi WhatsApp'a yönlendirir. Pencere açılamadıysa
+// (tarayıcı engellediyse) yeşil "WhatsApp'ı Aç" butonu gerçek bir dokunuşla açar.
+function whatsappYonlendir(w){
+  const url=whatsappUrl();
+  const yedek=document.getElementById('wp-yedek-link');
+  if(yedek){ yedek.href=url; yedek.style.display='flex'; }
+  if(w && !w.closed){
+    try{ w.location.href=url; return true; }catch(e){}
+  }
+  return false;
+}
+function whatsappPencereKapat(w){
+  try{ if(w && !w.closed) w.close(); }catch(e){}
 }
 
 async function siparisKaydetVeWhatsApp(){
   if(S_aktifTed===null){toast2('⚠️ Tedarikçi seçiniz');return;}
   const girilenler=siparisGirilenleriTopla(); if(!girilenler.length){toast2('⚠️ Miktar giriniz');return;}
   const btn=document.getElementById('wp-gonder-btn'); if(btn.disabled)return;
+  const pencere=whatsappPencereHazirla();   // await'ten ÖNCE: tıklama anında açılmalı
   btn.disabled=true; btn.textContent='⏳ Önce kaydediliyor...';
   const ted=S_takvim[S_aktifTed];
+  let kaydedildi=false;
   try{
     const r=await apiPost({action:'siparisKaydet',calisanAdi:S.girisYapan?.adi||'Bilinmiyor',tedarikci:ted.adi,sube:ted.sube||S_seciliSube||'',urunler:girilenler,wpGonderildi:false,tarih:new Date().toLocaleDateString('tr-TR')});
-    if(!r.basari){toast2('⚠️ '+(r.hata||'Kayıt başarısız'));return;}
+    if(!r.basari){whatsappPencereKapat(pencere);toast2('⚠️ '+(r.hata||'Kayıt başarısız'));btn.textContent="✅ Kaydet ve WhatsApp'ta Gönder";return;}
+    kaydedildi=true;
     S_sonSiparis={siparisId:r.siparisId,tedIdx:S_aktifTed,urunler:girilenler.slice(),calisanAdi:S.girisYapan?.adi||'Bilinmiyor'};
-    whatsappAc();
+    const acildi=whatsappYonlendir(pencere);
     apiPost({action:'siparisWpIsaretle',siparisId:r.siparisId}).catch(()=>{});
-    toast2('✅ Sipariş kaydedildi · WhatsApp açıldı');
     document.getElementById('siparis-duzelt-btn').style.display='block';
-    btn.textContent='✅ Kaydedildi · WhatsApp Açıldı';
     hepsiniSifirla(S_aktifTed);
-  }catch(e){toast2('⚠️ Kayıt yapılamadı — WhatsApp açılmadı');}
-  finally{btn.disabled=false;}
+    if(acildi){
+      toast2('✅ Sipariş kaydedildi · WhatsApp açıldı');
+      btn.textContent='✅ Kaydedildi · WhatsApp Açıldı';
+    } else {
+      toast2("✅ Kaydedildi · WhatsApp için alttaki butona bas",6000);
+      btn.textContent="✅ Kaydedildi · aşağıdan WhatsApp'ı aç";
+    }
+  }catch(e){
+    whatsappPencereKapat(pencere);
+    // Cevap gelmedi ama kayıt sunucuda yazılmış olabilir: tekrar basmadan önce Mal Kabul'den kontrol edilmeli.
+    toast2('⚠️ Kayıt sonucu alınamadı — tekrar basmadan önce Mal Kabul sekmesini kontrol et',7000);
+    btn.textContent="✅ Kaydet ve WhatsApp'ta Gönder";
+  }
+  finally{btn.disabled=false; if(kaydedildi) btn.blur();}
 }
 
 function sonSiparisiDuzelt(){
@@ -1341,8 +1391,10 @@ function sonSiparisiDuzelt(){
     if(i>=0){const el=document.getElementById('qty_'+idx+'_'+i); if(el) el.value=k.miktar;}
   });
   const box=document.getElementById('siparis-wp-box'); box.style.display='block';
+  S_duzeltmeModu=true;
   const btn=document.getElementById('wp-gonder-btn'); btn.textContent='💾 Düzeltmeyi Kaydet ve WhatsApp\'ı Aç';
   btn.onclick=siparisDuzeltVeWhatsApp;
+  const yedek=document.getElementById('wp-yedek-link'); if(yedek) yedek.style.display='none';
   box.scrollIntoView({behavior:'smooth'});
   toast2('✏️ Miktarları düzeltip alttaki butona basın');
 }
@@ -1350,16 +1402,22 @@ function sonSiparisiDuzelt(){
 async function siparisDuzeltVeWhatsApp(){
   if(!S_sonSiparis)return;
   const girilenler=siparisGirilenleriTopla(); if(!girilenler.length){toast2('⚠️ Sipariş tamamen boş bırakılamaz');return;}
-  const btn=document.getElementById('wp-gonder-btn'); btn.disabled=true; btn.textContent='⏳ Düzeltme kaydediliyor...';
+  const btn=document.getElementById('wp-gonder-btn'); if(btn.disabled)return;
+  const pencere=whatsappPencereHazirla();   // await'ten ÖNCE: tıklama anında açılmalı
+  btn.disabled=true; btn.textContent='⏳ Düzeltme kaydediliyor...';
   try{
     const r=await apiPost({action:'siparisDuzelt',siparisId:S_sonSiparis.siparisId,calisanAdi:S.girisYapan?.adi||'Bilinmiyor',urunler:girilenler});
-    if(!r.basari){toast2('⚠️ '+(r.hata||'Düzeltilemedi'));return;}
+    if(!r.basari){whatsappPencereKapat(pencere);toast2('⚠️ '+(r.hata||'Düzeltilemedi'));btn.textContent='💾 Düzeltmeyi Kaydet ve WhatsApp\'ı Aç';return;}
     S_sonSiparis.urunler=girilenler.slice();
-    siparisListesiHazirla(S_aktifTed);
-    whatsappAc();
-    toast2('✅ Düzeltme kaydedildi · WhatsApp açıldı');
-    btn.onclick=siparisKaydetVeWhatsApp; btn.textContent='✅ Kaydet ve WhatsApp\'ta Gönder';
-  }catch(e){toast2('⚠️ Düzeltme kaydedilemedi');}
+    S_duzeltmeModu=false;
+    siparisListesiHazirla(S_aktifTed);          // mesaj metnini düzeltilmiş miktarlarla yeniler
+    const acildi=whatsappYonlendir(pencere);
+    toast2(acildi?'✅ Düzeltme kaydedildi · WhatsApp açıldı':'✅ Düzeltme kaydedildi · WhatsApp için alttaki butona bas',acildi?2800:6000);
+  }catch(e){
+    whatsappPencereKapat(pencere);
+    toast2('⚠️ Düzeltme sonucu alınamadı — tekrar basmadan önce Mal Kabul sekmesini kontrol et',7000);
+    btn.textContent='💾 Düzeltmeyi Kaydet ve WhatsApp\'ı Aç';
+  }
   finally{btn.disabled=false;}
 }
 
@@ -1705,16 +1763,16 @@ async function zayiTipSec(tip,el){
   const ambSec=document.getElementById('zayi-ambalaj-secim');
   if(ambSec) ambSec.style.display='none';
   S.zayi.ambalajSecim=null;
-  
+
   const b={hammadde:'Hammadde Listesi 🌾',yarimamul:'Yarı Mamul Listesi 👨‍🍳',urun:'Ürün Listesi 🍕',ambalaj:'Ambalaj Listesi 📦'};
   document.getElementById('zayi-adim2-baslik').textContent=b[tip];
   document.getElementById('zayi-secili-urun-adi').textContent = '— Ürün Seçiniz —';
   S.zayi.urun = null;
-  
+
   document.getElementById('zayi-adim1').style.display='none';
   document.getElementById('zayi-adim2').style.display='block';
   document.getElementById('zayi-urun-listesi').innerHTML='<div class="loading"><div class="spinner"></div></div>';
-  
+
   let liste=[];
   try {
     if(tip==='hammadde'){
@@ -1769,7 +1827,7 @@ async function zayiTipSec(tip,el){
       }
     }
   } catch(e) { console.error(e); }
-  
+
   zayiListeCiz(liste);
 }
 
@@ -1777,7 +1835,7 @@ function zayiListeCiz(liste){
   const sirali = [...(liste||[])].sort((a,b)=>(a.adi||'').localeCompare(b.adi||'','tr'));
   const katlar = [...new Set(sirali.map(u => (u.kategori || 'Diğer').toString().trim()))].filter(k => k);
   const katBar = document.getElementById('zayi-kat-bar');
-  
+
   if (katlar.length > 1) {
     katBar.style.display = 'flex';
     katBar.innerHTML = ['Tümü', ...katlar].map((k, i) => {
@@ -1927,7 +1985,7 @@ function zayiGeri(a){ if(a===2){ document.getElementById('zayi-adim3').style.dis
 async function zayiKaydet(){
   if(!S.zayi.sebep){toast2('⚠️ Sebep seçiniz');return;}
   if(S.zayi.sepet.length === 0){toast2('⚠️ Liste boş');return;}
-  
+
   toast2('⏳ Zayiler Kaydediliyor...',8000);
   const sorumlu = document.getElementById('zayi-sorumlu').value;
   const aciklama = document.getElementById('zayi-aciklama').value;

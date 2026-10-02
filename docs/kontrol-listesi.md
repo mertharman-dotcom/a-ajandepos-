@@ -9,7 +9,7 @@ doğrulanmalı. Durum: ☐ açık · ◐ devam ediyor · ☑ çözüldü.
 |---|---|---|
 | H1 | Stok Ajanı gece tetikleyicisini sil (`ajanGecelik`) — soru cevaplanınca stoğa yanlış satır yazıyor | ☑ 02.10 |
 | H2 | `hizliYedek()` ile Stok dosyasının yedeğini al | ☑ 02.10 |
-| H3 | Düzeltilmiş mutfak panelini (`bap-sistem/index.html`) Cloudflare'e yükle, telefondan dene | ◐ yeni sürüm yüklendi mi teyit edilecek |
+| H3 | Düzeltilmiş mutfak panelini (`bap-sistem/index.html`) Cloudflare'e yükle, telefondan dene | ☑ 02.10 bap-sistem'e yayınlandı, canlı = depo |
 | H4 | Yönetici şifresini değiştir — `131220` panel kaynağında açık yazıyordu | ⏸ sahibi erteledi (P3 ile birlikte) |
 
 ## K · Kararlar
@@ -83,7 +83,7 @@ doğrulanmalı. Durum: ☐ açık · ◐ devam ediyor · ☑ çözüldü.
 
 | | Sorun | Durum |
 |---|---|---|
-| P1 | Sipariş: WhatsApp kayıt sonrası açılıyordu, telefonlar engelliyordu | ◐ depoda düzeltildi; canlıya yanlış projeye gitti (C1) |
+| P1 | Sipariş: WhatsApp kayıt sonrası açılıyordu, telefonlar engelliyordu | ☑ 02.10 bap-sistem.pages.dev'de yayında |
 | P2 | Kayıt (POST) istekleri otomatik tekrar deneniyordu → çift kayıt | ☑ (H3) |
 | P3 | Yönetici şifresi istemci kodunda; personel şifresi URL'de gidiyor (düzeltme `bap-panel-backend`'de) | ☐ |
 | P4 | Sayım ekranında birim seçimi yok (Hazırlık ajanı gram/adet tahmin ediyor) | ☐ |
@@ -96,8 +96,8 @@ doğrulanmalı. Durum: ☐ açık · ◐ devam ediyor · ☑ çözüldü.
 | Y2 | `main` dalı + otomatik yayın iş akışları | ☑ 03.10 — main varsayılan dal; CLASPRC_JSON, CLOUDFLARE_API_TOKEN, CLOUDFLARE_ACCOUNT_ID eklendi; yayınlar elle başlatılır |
 | Y3 | Apps Script kodlarının canlıdan çekilmesi (`Apps Script'i Depoya Çek`) | ☑ 02.10 — 13 proje, 66 dosya |
 | Y6 | Cloudflare içeriği depoda (`cloudflare/`, README'de hangi adres ne) | ☑ 03.10 |
-| C1 | WhatsApp düzeltmesi `bap-sistem` yerine yeni `bappizza` projesine yüklenmiş; çalışanlarda sorun sürüyor | ☐ yayın onayı |
-| C2 | Aynı arka uca yazan 4 mutfak paneli kopyası (bap-sistem, bappizza, damp-limit-5aba, black-credit-7dca) | ☐ tek adrese indir |
-| C3 | 2 boş Worker (billowing-credit-87e3, empty-firefly-7396) | ☐ silinebilir |
+| C1 | WhatsApp düzeltmesi `bap-sistem` yerine yeni `bappizza` projesine yüklenmiş; çalışanlarda sorun sürüyor | ☑ 02.10 bap-sistem'e yayınlandı |
+| C2 | Aynı arka uca yazan 4 mutfak paneli kopyası (bap-sistem, bappizza, damp-limit-5aba, black-credit-7dca) | ☑ 02.10 kopyalar silindi, tek adres bap-sistem.pages.dev |
+| C3 | 2 boş Worker (billowing-credit-87e3, empty-firefly-7396) | ☑ 02.10 silindi |
 | Y5 | Mutfak panelinin arka ucu `bap-panel-backend` (BAP PANEL Backend); `bap-satis-veri-ambari` yalnızca sipariş satırı bölme | ☑ tespit |
 | Y4 | Ortak katman: `Ayarlar.gs` + `Ortak.gs` | ☐ |
