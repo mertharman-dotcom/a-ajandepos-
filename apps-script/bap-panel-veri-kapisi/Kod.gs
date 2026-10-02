@@ -972,10 +972,102 @@ function kokpitOku_(ss) {
   if (gs.length) { var son = gs[gs.length - 1], md = []; try { md = JSON.parse(al_(g, son, 'MADDELER_JSON') || '[]'); } catch (e) { md = []; }
     gundem = { tarih: al_(g, son, 'TARIH'), ozet: String(al_(g, son, 'OZET')).slice(0, 1500),
                maddeler: (md || []).slice(0, 10).map(function (m) { return { oncelik: m.oncelik || '', baslik: String(m.baslik || '').slice(0, 200), detay: String(m.detay || '').slice(0, 800), departmanlar: m.departmanlar || [] }; }) }; }
-  return { toplam: toplam, bekleyen: bekleyen.slice(0, 200), islenmedi: islenmedi, departmanlar: departmanlar, gundem: gundem };
+  return { toplam: toplam, bekleyen: bekleyen.slice(0, 200), islenmedi: islenmedi, departmanlar: departmanlar, gundem: gundem,
+           cevaplanan: cevaplanan_(o), panolar: panolarOku_(ss) };
 }
 
 // d: { id, karar: 'onaylandi' | 'reddedildi' | 'beklet', not }
+// Departman panoları: ajanlar HUB'daki KOKPIT_PANO / KOKPIT_ISLER / KOKPIT_EKIP / KOKPIT_BULGULAR / KOKPIT_GUNLUK
+// sekmelerine yazar; panel okur. Sahibin işlere bıraktığı notlar KOKPIT_NOTLAR'a yazılır (tur: 'panoNot').
+var PANO_SEKME = {
+  KOKPIT_PANO: ['DEPARTMAN', 'GUNCELLEME', 'GUNCELLEYEN', 'ALT_BASLIK', 'KURALLAR', 'LINKLER'],
+  KOKPIT_ISLER: ['DEPARTMAN', 'ID', 'GRUP', 'BASLIK', 'NE', 'DURUM', 'AJAN', 'DESTEK', 'ONCELIK', 'ASAMA', 'ETIKET', 'GUNCELLEME', 'LINK'],
+  KOKPIT_EKIP: ['DEPARTMAN', 'ID', 'AD', 'DURUM', 'SORUMLULUK', 'DUZENLI', 'YETKI', 'SIRA'],
+  KOKPIT_BULGULAR: ['DEPARTMAN', 'BASLIK', 'METIN', 'TON', 'TARIH', 'SIRA'],
+  KOKPIT_GUNLUK: ['DEPARTMAN', 'ZAMAN', 'YAZAN', 'METIN'],
+  KOKPIT_NOTLAR: ['ID', 'DEPARTMAN', 'IS_ID', 'IS_BASLIK', 'NOT', 'ZAMAN', 'ISLENDI', 'ISLEM_NOTU', 'KAYNAK']
+};
+var PANO_ASAMA = { sende: 1, acik: 1, sirada: 1, engel: 1, hazir: 1, pencerede: 1, denetcide: 1, canlida: 1, tamam: 1, kapandi: 1 };
+
+// Apps Script düzenleyicisinden bir kez çalıştırılabilir: eksik pano sekmelerini başlıklarıyla açar, var olana dokunmaz.
+function kokpitPanoKur() {
+  var ss = SpreadsheetApp.openById(KAYNAK.hub.id), acilan = [];
+  Object.keys(PANO_SEKME).forEach(function (ad) {
+    if (ss.getSheetByName(ad)) return;
+    var sh = ss.insertSheet(ad); sh.getRange(1, 1, 1, PANO_SEKME[ad].length).setValues([PANO_SEKME[ad]]); sh.setFrozenRows(1); acilan.push(ad);
+  });
+  Logger.log(acilan.length ? 'Açılan sekmeler: ' + acilan.join(', ') : 'Bütün pano sekmeleri zaten var.');
+}
+
+function cevaplanan_(o) {
+  var L = [];
+  o.satirlar.forEach(function (r) {
+    var durum = String(al_(o, r, 'DURUM')).trim().toLowerCase();
+    if (durum !== 'onaylandi' && durum !== 'reddedildi') return;
+    L.push({ id: String(al_(o, r, 'ID')).trim(), departman: String(al_(o, r, 'DEPARTMAN')).trim(), tip: String(al_(o, r, 'TIP')).trim() || 'karar',
+             baslik: String(al_(o, r, 'BASLIK')).slice(0, 300), durum: durum, not: String(al_(o, r, 'SAHIP_NOTU')).slice(0, 600),
+             kararZamani: al_(o, r, 'KARAR_ZAMANI'), islendi: /^(true|evet|1)$/i.test(String(al_(o, r, 'ISLENDI')).trim()),
+             islemNotu: String(al_(o, r, 'ISLEM_NOTU')).slice(0, 400) });
+  });
+  var k = function (s) { var m = String(s || '').match(/(\d{1,2})\.(\d{1,2})\.(\d{4})\s*(\d{1,2})?:?(\d{2})?/); return m ? m[3] + ('0' + m[2]).slice(-2) + ('0' + m[1]).slice(-2) + ('0' + (m[4] || 0)).slice(-2) + (m[5] || '00') : ''; };
+  L.sort(function (a, b) { return k(b.kararZamani).localeCompare(k(a.kararZamani)); });
+  var say = {};
+  return L.filter(function (x) { say[x.departman] = (say[x.departman] || 0) + 1; return say[x.departman] <= 10; });
+}
+
+function panolarOku_(ss) {
+  var P = {}, dep = function (ad) { ad = String(ad || '').trim(); if (!ad) return null; return P[ad] = P[ad] || { ayar: null, isler: [], ekip: [], bulgular: [], gunluk: [], notlar: [] }; };
+  var t = tablo_(ss, 'KOKPIT_PANO');
+  t.satirlar.forEach(function (r) { var d = dep(al_(t, r, 'DEPARTMAN')); if (!d) return;
+    d.ayar = { guncelleme: al_(t, r, 'GUNCELLEME'), guncelleyen: al_(t, r, 'GUNCELLEYEN'), altBaslik: String(al_(t, r, 'ALT_BASLIK')).slice(0, 600),
+               kurallar: String(al_(t, r, 'KURALLAR')).split(/\n+/).map(function (x) { return x.trim(); }).filter(String).slice(0, 15),
+               linkler: String(al_(t, r, 'LINKLER')).split(/\n+/).map(function (x) { var p = x.split('|'); var u = String(p[p.length - 1] || '').trim();
+                 return /^https:\/\//.test(u) ? { ad: (p.length > 1 ? p[0] : 'Bağlantı').trim().slice(0, 60), url: u } : null; }).filter(Boolean).slice(0, 6) }; });
+  t = tablo_(ss, 'KOKPIT_ISLER');
+  t.satirlar.forEach(function (r) { var d = dep(al_(t, r, 'DEPARTMAN')), id = String(al_(t, r, 'ID')).trim(); if (!d || !id || d.isler.length >= 150) return;
+    var a = String(al_(t, r, 'ASAMA')).trim().toLowerCase();
+    d.isler.push({ id: id, grup: String(al_(t, r, 'GRUP')).slice(0, 80), baslik: String(al_(t, r, 'BASLIK')).slice(0, 200), ne: String(al_(t, r, 'NE')).slice(0, 400),
+                   durum: String(al_(t, r, 'DURUM')).slice(0, 400), ajan: String(al_(t, r, 'AJAN')).slice(0, 120), destek: String(al_(t, r, 'DESTEK')).slice(0, 120),
+                   oncelik: String(al_(t, r, 'ONCELIK')).trim().toLowerCase(), asama: PANO_ASAMA[a] ? a : 'acik', etiket: String(al_(t, r, 'ETIKET')).slice(0, 40),
+                   guncelleme: al_(t, r, 'GUNCELLEME'), link: /^https:\/\//.test(String(al_(t, r, 'LINK')).trim()) ? String(al_(t, r, 'LINK')).trim() : '' }); });
+  t = tablo_(ss, 'KOKPIT_EKIP');
+  t.satirlar.forEach(function (r) { var d = dep(al_(t, r, 'DEPARTMAN')); if (!d || !String(al_(t, r, 'AD')).trim()) return;
+    d.ekip.push({ id: al_(t, r, 'ID'), ad: String(al_(t, r, 'AD')).slice(0, 80), durum: String(al_(t, r, 'DURUM')).trim().toLowerCase(), sorumluluk: String(al_(t, r, 'SORUMLULUK')).slice(0, 300),
+                  duzenli: String(al_(t, r, 'DUZENLI')).slice(0, 300), yetki: String(al_(t, r, 'YETKI')).slice(0, 300), sira: Number(al_(t, r, 'SIRA')) || 99 }); });
+  t = tablo_(ss, 'KOKPIT_BULGULAR');
+  t.satirlar.forEach(function (r) { var d = dep(al_(t, r, 'DEPARTMAN')); if (!d || !String(al_(t, r, 'BASLIK')).trim() || d.bulgular.length >= 8) return;
+    d.bulgular.push({ baslik: String(al_(t, r, 'BASLIK')).slice(0, 200), metin: String(al_(t, r, 'METIN')).slice(0, 700), ton: String(al_(t, r, 'TON')).trim().toLowerCase(),
+                      tarih: al_(t, r, 'TARIH'), sira: Number(al_(t, r, 'SIRA')) || 99 }); });
+  t = tablo_(ss, 'KOKPIT_GUNLUK');
+  for (var i = t.satirlar.length - 1; i >= 0; i--) { var r = t.satirlar[i], d = dep(al_(t, r, 'DEPARTMAN')); if (!d || d.gunluk.length >= 5 || !String(al_(t, r, 'METIN')).trim()) continue;
+    d.gunluk.push({ zaman: al_(t, r, 'ZAMAN'), yazan: al_(t, r, 'YAZAN'), metin: String(al_(t, r, 'METIN')).slice(0, 600) }); }
+  t = tablo_(ss, 'KOKPIT_NOTLAR');
+  for (var j = t.satirlar.length - 1; j >= 0; j--) { var rn = t.satirlar[j], dn = dep(al_(t, rn, 'DEPARTMAN')); if (!dn || dn.notlar.length >= 40) continue;
+    dn.notlar.push({ isId: String(al_(t, rn, 'IS_ID')).trim(), not: String(al_(t, rn, 'NOT')).slice(0, 600), zaman: al_(t, rn, 'ZAMAN'),
+                     islendi: /^(true|evet|1)$/i.test(String(al_(t, rn, 'ISLENDI')).trim()), islemNotu: String(al_(t, rn, 'ISLEM_NOTU')).slice(0, 300) }); }
+  return P;
+}
+
+// Sahibin bir işe bıraktığı not: KOKPIT_NOTLAR'ın sonuna yeni satır. Departman ajanı bir sonraki çalışmasında okur ve ISLENDI yazar.
+function panoNot_(d) {
+  var dep = String(d.departman || '').trim().slice(0, 60), isId = String(d.isId || '').trim().slice(0, 80), not = String(d.not || '').replace(/\r/g, '').trim().slice(0, 2000);
+  if (!dep) return { hata: 'Departman seçilmedi.' };
+  if (!not) return { hata: 'Notunu yaz.' };
+  var istek = String(d.istekNo || '').slice(0, 60);
+  var ss = SpreadsheetApp.openById(KAYNAK.hub.id), sh = ss.getSheetByName('KOKPIT_NOTLAR');
+  if (!sh) { sh = ss.insertSheet('KOKPIT_NOTLAR'); sh.getRange(1, 1, 1, PANO_SEKME.KOKPIT_NOTLAR.length).setValues([PANO_SEKME.KOKPIT_NOTLAR]); sh.setFrozenRows(1); }
+  var id = 'NOT-' + (istek || Utilities.getUuid()).replace(/[^A-Za-z0-9-]/g, '').slice(0, 36);
+  if (sh.getLastRow() > 1) {
+    var ids = sh.getRange(2, 1, sh.getLastRow() - 1, 1).getDisplayValues();
+    for (var i = ids.length - 1; i >= 0 && i >= ids.length - 200; i--) if (String(ids[i][0]).trim() === id) return { tamam: true, id: id, ozet: 'Not zaten kaydedilmiş.' };
+  }
+  var baslik = '', t = tablo_(ss, 'KOKPIT_ISLER');
+  t.satirlar.forEach(function (r) { if (String(al_(t, r, 'ID')).trim() === isId && String(al_(t, r, 'DEPARTMAN')).trim() === dep) baslik = String(al_(t, r, 'BASLIK')); });
+  var damga = Utilities.formatDate(new Date(), TZ, 'dd.MM.yyyy HH:mm');
+  sh.appendRow([id, dep, isId, baslik.slice(0, 200), not, damga, 'FALSE', '', 'Panel']);
+  return { tamam: true, id: id, ozet: 'Notun kaydedildi. ' + dep + ' bir sonraki çalışmasında (13:00 / 21:00) okuyacak.' };
+}
+
 function kokpitCevap_(d) {
   var id = String(d.id || '').trim().slice(0, 80); if (!id) return { hata: 'Kayıt yok.' };
   var karar = { onaylandi: 'onaylandi', reddedildi: 'reddedildi', beklet: 'beklet' }[d.karar];
@@ -2938,6 +3030,11 @@ function doPost(e) {
     var kkp = LockService.getScriptLock(); kkp.waitLock(20000);
     try { return json_(kokpitCevap_(d)); } catch (err) { return json_({ hata: String(err.message || err) }); }
     finally { kkp.releaseLock(); CacheService.getScriptCache().remove('panel_v1_n'); }
+  }
+  if (d.tur === 'panoNot') {
+    var kpn = LockService.getScriptLock(); kpn.waitLock(20000);
+    try { return json_(panoNot_(d)); } catch (err) { return json_({ hata: String(err.message || err) }); }
+    finally { kpn.releaseLock(); CacheService.getScriptCache().remove('panel_v1_n'); }
   }
   if (d.tur === 'musteri') {
     try { return json_(musteriDetay_(d)); } catch (err) { return json_({ hata: String(err.message || err) }); }
