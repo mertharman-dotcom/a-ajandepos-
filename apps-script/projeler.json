@@ -48,6 +48,12 @@
       "ad": "Trendyol Veri Çekme",
       "scriptId": "1-XzSk76z8Yg1WLzcNgqH-ulglMGNJflYsxGB-M_pOznn_1vNpyJw8dAg",
       "deploymentId": ""
+    },
+    {
+      "klasor": "bap-personel",
+      "ad": "BAP_Personel",
+      "scriptId": "1p6RXpTJKWGpxPJ_ZX896yR7CQU--mWVlchuG7VMOtc5v9oEKsMOc5jrh",
+      "deploymentId": ""
     }
   ]
 }
