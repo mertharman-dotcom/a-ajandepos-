@@ -14,10 +14,10 @@
       "deploymentId": ""
     },
     {
-      "klasor": "mutfak-panel-api",
-      "ad": "Mutfak paneli API (Apps Script adı: BAP Satış Veri Ambarı) — bap-sistem.pages.dev buna bağlı",
+      "klasor": "bap-satis-veri-ambari",
+      "ad": "BAP Satış Veri Ambarı (sipariş satırlarını bölme)",
       "scriptId": "1weu8Tol4GH1afr9BhVafYblyoVrRw2A3maW99ZxFHvFt5912FLBPG_CB",
-      "deploymentId": "AKfycbzczj4XzNQTIJu5NadZTDl6btT-7pOIOV3XNj4ZlsGxYJn7xlW0ks_f7AV-dx3vTi6X"
+      "deploymentId": ""
     },
     {
       "klasor": "bap-panel-veri-kapisi",
@@ -63,9 +63,9 @@
     },
     {
       "klasor": "bap-panel-backend",
-      "ad": "BAP PANEL Backend (kullanılıyor mu? çekildikten sonra incelenecek)",
+      "ad": "BAP PANEL Backend — mutfak panelinin (bap-sistem.pages.dev) API'si: siparisKaydet, uretimKaydet, zayiKaydet…",
       "scriptId": "1XQZ6HwneMvnyS5Kh4LksBmjZtxr5eahqgNub4VjKLXn_fEqI_yk8T2j3",
-      "deploymentId": ""
+      "deploymentId": "AKfycbzczj4XzNQTIJu5NadZTDl6btT-7pOIOV3XNj4ZlsGxYJn7xlW0ks_f7AV-dx3vTi6X"
     },
     {
       "klasor": "bap-rapor-ajani",

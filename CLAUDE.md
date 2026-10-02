@@ -26,7 +26,7 @@ sade ve "senin yapman gereken" adımlarıyla yazılır.
 | Klasör | Ne | Nerede çalışır |
 |---|---|---|
 | `apps-script/<proje>/` | Apps Script projeleri | Google Apps Script — kimlikler `apps-script/projeler.json` |
-| `bap-sistem/` | Mutfak paneli (tek sayfa) | Cloudflare Pages › bap-sistem → bap-sistem.pages.dev |
+| `bap-sistem/` | Mutfak paneli (tek sayfa); arka ucu `apps-script/bap-panel-backend` | Cloudflare Pages › bap-sistem → bap-sistem.pages.dev |
 | `bap-panel/` | Yönetim paneli (`page.html` + `worker.template.js` → `node build.js` → `worker.js`) | Cloudflare Worker › bap-panel |
 | `departman-pano/` | Departman panoları | — |
 | `docs/` | Veri sözlüğü, kontrol listesi, ajan talimatları | — |
