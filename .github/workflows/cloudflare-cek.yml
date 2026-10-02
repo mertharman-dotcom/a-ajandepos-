@@ -20,9 +20,14 @@ jobs:
       - name: Worker listesini ve kodlarını indir
         run: |
           set -e
+          CF_TOKEN=$(printf '%s' "$CF_TOKEN" | tr -d '[:space:]'); CF_HESAP=$(printf '%s' "$CF_HESAP" | tr -d '[:space:]')
+          echo "CF_TOKEN=$CF_TOKEN" >> "$GITHUB_ENV"; echo "CF_HESAP=$CF_HESAP" >> "$GITHUB_ENV"
+          echo "hesap kimliği uzunluğu: ${#CF_HESAP} (32 olmalı)"
+          curl -sS -H "Authorization: Bearer $CF_TOKEN" https://api.cloudflare.com/client/v4/user/tokens/verify | jq -c '{basari:.success, durum:.result.status, hata:.errors}'
           api="https://api.cloudflare.com/client/v4/accounts/$CF_HESAP"
           mkdir -p cloudflare/workers
-          curl -fsS -H "Authorization: Bearer $CF_TOKEN" "$api/workers/scripts" > /tmp/liste.json
+          curl -sS -H "Authorization: Bearer $CF_TOKEN" "$api/workers/scripts" > /tmp/liste.json
+          jq -e '.success' /tmp/liste.json >/dev/null || { echo "::error::Cloudflare: $(jq -c .errors /tmp/liste.json)"; exit 1; }
           jq -r '.result[] | [.id, (.modified_on // ""), (.created_on // "")] | @tsv' /tmp/liste.json > /tmp/liste.tsv
           { echo "# Cloudflare Worker listesi (çekim: $(date -u +%F))"; echo; echo "| Worker | Son değişiklik | Oluşturulma |"; echo "|---|---|---|"
             awk -F'\t' '{print "| " $1 " | " substr($2,1,10) " | " substr($3,1,10) " |"}' /tmp/liste.tsv; } > cloudflare/workers/LISTE.md
