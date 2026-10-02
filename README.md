@@ -180,6 +180,37 @@ Kesilecek fiş = YS + Trendyol online
 - **BAP veri tablosu › Kesilen Fişler** (eski kayıtlar) yalnız okunur, hiç yazılmaz; yeni tabloda olmayan günler panelde "Eski tablodan" diye görünür.
 - **Hesaplanan ve kesilen fiş farkı**: Bugün / Dün / Bu hafta / Geçen hafta / Son 7 gün / Son 30 gün / Bu ay / Geçen ay seçilir (veri kapısı önceki ayın 1'inden bugüne hesaplar). Seçilen dönemde kesilmesi gereken toplam, kesilen toplam (fiş adediyle), fark (yalnız fişi kaydedilmiş günlerden) ve kaydı olmayan günler; altında gün gün grafik ve tablo. Fişi kaydedilmemiş günler kırmızı.
 
+## Kurye mesai boşlukları (HemenYolda Köprü v1.2)
+
+HemenYolda Google sunucularını engellediği için (GEO 403) veri yalnızca tarayıcıdaki Köprü koduyla gelir.
+`apps-script/kurye-net-calisma-suresi/Kopru.gs`, kurye tablosunun script projesindeki Köprü dosyasının yerine konur
+(`__KOPRU_ANAHTAR__` ve `__KOPRU_URL__` gerçek değerlerle doldurulur; anahtar repoya yazılmaz).
+v1.1 bir günü herhangi bir mesai satırı varsa bir daha sormuyordu; sonradan eklenen kurye o günleri hiç almıyordu.
+v1.2'de `kopruGunleriYenidenCek(['15.09.2026', ...])`, `kopruEylulYenidenCek()` ve `kopruSon7GunYenidenCek()` seçilen günleri
+mesai + siparişle birlikte yeniden çekmeye işaretler; kuyruk önce bugün/dün, sonra eksik/işaretli günler, en son açık
+vardiya/açık hesap tazelemesi sırasıyla dolar. Gün yazılınca işaret kalkar.
+
+## Mesai düzeltme (Kural 2.1)
+
+`apps-script/kurye-net-calisma-suresi/Kural.gs` kurye tablosunun projesindeki kural dosyasının yerine konur (2.0 → 2.1):
+- **Mesai Düzeltme** sekmesi (panelden yazılır): Tarih, Kurye, Esas Giriş, Esas Çıkış, Yöntem (Son paket / Saat / Olduğu gibi),
+  Açıklama, Giren, Kayıt Zamanı. Verilen tarafta kesinti, o saatten önce/sonra fiilen çevrimiçi geçen süredir; gerekçede
+  kimin neye göre düzelttiği ve otomatik hesap yazar, Durum "Düzeltildi" olur. Düzeltme yoksa otomatik hesap geçerli.
+- Son paketin restorandan çıkış saati / km yoksa kapanışta son teslim esas alınır (eskiden hiç kesilmiyordu).
+- Erken giriş kesintisi çevrimdışı araları artık kesmiyor; Kesinti İstisnaları açıklaması başlığından okunuyor.
+
+Panel › Kurye › Kesintiler: **Kontrol edilecek mesailer** (son 3 hafta; son paketten sonra 15 dk'dan fazla boşta kalınıp
+kesilmeyen günler — vardiyasız ya da vardiyasından erken çıkan kurye — ve 45 dk üstü kapanış). "Son pakette kapat",
+"Saat gir", "Doğru" ve "Geri al". Kayıttan sonra veri kapısı Köprü web uygulamasına `tur: 'kural'` gönderip
+`kuraliUygula()`'yı çalıştırır (Script Properties: `KOPRU_URL`, `KOPRU_ANAHTAR`; yoksa bir sonraki yenilemede).
+
+## Yönetim Kokpiti (BAP AI HUB) ve Kararlarım
+
+Departman ajanlarının sahibe soruları / kararları / görev emirleri BAP AI HUB'daki `KOKPIT_ONAYLAR`, departman panoları
+`KOKPIT_DEPARTMANLAR`, Genel Müdür gündemi `KOKPIT_GUNDEM` sekmesinde (ayrıntı: `docs/ajan-talimatlari/README.md`).
+Panel › Kararlarım: departman filtresi, risk sırası, Onayla / Reddet / Beklet ya da soruya cevap (`/api/kokpit`).
+Panel › AI Ekibi: bekleyen sayısı, Genel Müdür gündemi, departman pano kartları (Panoyu aç / Cevapla), İş Kaydı özeti.
+
 ## Yayına alma
 
 > **Adres değişmesin:** Apps Script'te hiçbir zaman *Yeni dağıtım* yapmayın ve eski dağıtımı arşivlemeyin.
