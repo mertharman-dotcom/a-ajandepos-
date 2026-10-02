@@ -56,12 +56,12 @@ var KOPRU_SURUM = '1.2';
  * SABIT tutuluyor: uretilen kod ile sunucudaki deger asla ayrisamasin diye.
  * NOT: Bu deger disari sizdiysa degistirip yeni surum dagit.
  */
-var KOPRU_ANAHTAR = '__KOPRU_ANAHTAR__';
+var KOPRU_ANAHTAR = '9da1e5281cabba3ab4e9ea49';
 
 /**
  * WEB UYGULAMASI ADRESI (.../exec ile biten).
  */
-var KOPRU_URL = '__KOPRU_URL__';
+var KOPRU_URL = 'https://script.google.com/macros/s/AKfycbycl72LacvdDnCnkZDT4GtsfYDep7Bq35pyjt6hw3uf7j6zWfqbHmx-WXhcaEAdMYpG/exec';
 
 function _kopruAnahtar() { return KOPRU_ANAHTAR; }
 
