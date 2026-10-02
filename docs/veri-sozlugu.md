@@ -43,6 +43,12 @@ Bütün e-tabloların listesi ve önerilen Drive düzeni: `docs/tablo-haritasi.m
 ## Birimler
 
 - Hammadde stoğu `Tbl_Hammaddeler` **I** (ölçü birimi) cinsinden tutulur; reçete miktarı ona çevrilir.
-- Birim maliyet = J (paket fiyatı) / H (paket içeriği). H veya I boşsa maliyet ve stok yanlış çıkar.
+- Birim maliyet = J (paket fiyatı) / H (paket içeriği). H veya I boşsa maliyet ve stok yanlış çıkar
+  (02.10: Barilla 2 kg satırında boştu, panel penne porsiyonunu 14.000 TL hesapladı — M7). Panel artık bu kalemleri
+  tutara 0 yazıp "eksik" listesinde gösteriyor.
+- **J, H kadar malın fiyatıdır**, faturadaki birim fiyat değil. Fatura kg ile kesilip ürün kasa (H = 7,5 kg) olarak
+  tutuluyorsa J = kg fiyatı × 7,5. Fatura litre kutu başına kesilip H = 1 lt ise J = kutu fiyatı (krema, süt — M1).
+- `Fatura_Eslestirme` C (çarpan) = **faturadaki 1 adet kaç stok birimi (I) eder**. Metro kremayı kutu kutu faturaladığı
+  için çarpan 1'dir, 12 yazılınca hem fiyat 12'ye bölündü hem stok 12 kat şişti (M1).
 - Yarı mamul stoğu Takip_tipi biriminde (adet → porsiyon, gr → gram).
 - Ambalaj ve direkt satış stoğu **Merkez** şubesinde tutulur.
