@@ -113,7 +113,8 @@ function satislariIsle() {
   if (son < 2) return;
 
   var isaretKol = isaretKolonuHazirla(sh);
-  var genislik  = Math.max(isaretKol, K_KATLER, K_URUNLER, K_ADETLER, K_FIYATLAR);
+  var durumKol  = sm_durumKolonu(sh);   // S2: "Durum" başlıklı sütun (yoksa 0)
+  var genislik  = Math.max(isaretKol, durumKol, K_KATLER, K_URUNLER, K_ADETLER, K_FIYATLAR);
       var veri      = sh.getRange(2, 1, son - 1, genislik).getValues();
 
   var ctx   = sm_baglamOlustur(stokSS);
@@ -121,7 +122,7 @@ function satislariIsle() {
 
   var dusum = {};
   var isaretler = [];
-  var islenen = 0, degisti = false;
+  var islenen = 0, degisti = false, iptalSayi = 0, acikSayi = 0;
 
  function ekle(ad, tip, sube, miktar, birim, detay, siparisId) {
   if (!ad || !(miktar > 0)) return;
@@ -177,6 +178,14 @@ function satislariIsle() {
 
 var urunlerStr = (row[K_URUNLER - 1] || "").toString();
     if (!sipId || !urunlerStr.trim()) continue;
+
+    // S2: yalnızca kapanmış siparişler stoktan düşer. İptal edilen "İPTAL" diye işaretlenip atlanır;
+    // henüz açık olan işaretlenmez, kapandığında sonraki turda düşülür.
+    if (durumKol) {
+      var durum = sade(row[durumKol - 1]);
+      if (durum.indexOf("iptal") !== -1) { isaretler[i] = ["İPTAL"]; degisti = true; iptalSayi++; continue; }
+      if (durum && durum.indexOf("kapa") !== 0) { acikSayi++; continue; }
+    }
 
     var sipTarih = satisTarihi(row[K_TARIH - 1]);
     if (sipTarih && sipTarih < basla) { isaretler[i] = ["✓"]; degisti = true; continue; }
@@ -272,6 +281,7 @@ ekle(
   sipId
 );
 }
+    }   // ürün döngüsü (S1: bu parantez eksikti)
 
     isaretler[i] = ["✓"];
     islenen++;
@@ -282,6 +292,7 @@ ekle(
   if (degisti) sh.getRange(2, isaretKol, isaretler.length, 1).setValues(isaretler);
   sm_uyarilariYaz(stokSS, ctx.uyarilar);
 
+  if (iptalSayi || acikSayi) Logger.log("Durum: " + iptalSayi + " iptal sipariş atlandı, " + acikSayi + " açık sipariş sonraki tura kaldı.");
   Logger.log("Tamamlandı: " + islenen + " sipariş işlendi, " + Object.keys(dusum).length + " kalem düşüldü, " + ctx.uyarilar.length + " uyarı.");
 }
 
@@ -786,7 +797,7 @@ function ambalajKurallari(ss) {
   if (!sh) return sonuc;
   var d = sh.getDataRange().getValues();
   for (var i = 1; i < d.length; i++) {
-    var kosul = trKucuk(d[i][0]).trim();
+    var kosul = sade(d[i][0]);   // S3: "Ürün" / "urun" / "URUN" hepsi "urun" olur
     var esles = (d[i][1] || "").toString().trim();
     var malzeme = (d[i][2] || "").toString().trim();
     if (!esles || !malzeme) continue;
@@ -1558,19 +1569,15 @@ function satisTetikleyiciKur() {
 }
 
 function onOpen() {
+  // S7/S8: riskli tek seferlik düğmeler (eskileri işaretle, tüm satış düşümlerini geri al, NotebookLM geri al,
+  // YM birim dönüşümü) ve eski maliyet raporu menüden kaldırıldı. Fonksiyonlar duruyor; gerekirse editörden çalıştırılır.
+  // Maliyet raporu artık yalnızca BAP Maliyet modülünden üretilir.
   SpreadsheetApp.getUi().createMenu("🍕 BAP Stok")
     .addItem("Manuel Satış İşle", "stokMotoru")
     .addItem("⏱ Otomatik Tetikleyici Kur (5 dk)", "satisTetikleyiciKur")
     .addItem("⏱ Fiyat Senkron Tetikleyicisi Kur (00:40 / 14:40)", "fiyatTetikleyiciKur")
     .addSeparator()
     .addItem("💰 Fiyatları Kolaybi'den Güncelle", "fiyatlariGuncelle")
-    .addItem("📊 Maliyet Raporu Oluştur / Güncelle", "maliyetRaporuOlustur")
-    .addItem("🔍 Tek Ürün Maliyet Detayı", "maliyetDetayGoster")
-    .addSeparator()
-    .addItem("⚠️ Kurulum: Eskileri İşaretle", "eskileriIsaretle")
-    .addItem("🔁 Tek Sefer: YM Stoğunu Takip Birimine Çevir", "ymStokTakipBirimineGec")
-    .addItem("↩️ NotebookLM (v6.3) Düşümlerini Geri Al", "notebookDusumleriniGeriAl")
-    .addItem("🧹 Temizlik: Tüm Satış Düşümlerini Geri Al", "satisDusumleriniGeriAl")
     .addToUi();
 }
 
@@ -1602,8 +1609,16 @@ function sm_stokYaz(sh, rows, eskiSatirSayisi) {
   }
 }
 
+/** Satış tablosunda başlığı "Durum" olan sütun (1 tabanlı); yoksa 0. */
+function sm_durumKolonu(sh) {
+  var bas = sh.getRange(1, 1, 1, sh.getLastColumn()).getValues()[0];
+  for (var i = 0; i < bas.length; i++) if (sade(bas[i]) === "durum") return i + 1;
+  return 0;
+}
+
 function sm_islendiMi(v) {
   if (v === true) return true;
+  if (sade(v) === "iptal") return true;
   var s = (v || "").toString().trim().toLowerCase();
   return s === "✓" || s === "true" || s === "doğru" || s === "islendi" || s === "işlendi" || s === "1";
 }
@@ -1702,7 +1717,6 @@ function trKucuk(s) {
 
 function nrm(s) {
   return trKucuk(s).replace(/[\s.,\-*/()'"&:;!?]/g, "");
-}
 }
 
 function satisSiparisIdleriniDoldur() {

@@ -26,13 +26,13 @@ doğrulanmalı. Durum: ☐ açık · ◐ devam ediyor · ☑ çözüldü.
 
 | | Sorun | Etki | Durum |
 |---|---|---|---|
-| S1 | `satislariIsle` içinde süslü parantez kayması — **canlıda doğrulandı 02.10**: onOpen, dusumleriUygula, fiyatlariGuncelleOtomatik, maliyetRaporuOlustur üst düzeyde yok | Bir çalışmada birden çok sipariş varsa stok fazla düşer, log tekrarlanır; menü ve fiyat tetikleyicisi "fonksiyon bulunamadı" verebilir | ☐ |
-| S2 | İptal/açık siparişler düşülüyor olabilir (Durum sütununa bakmıyor) ⚠️ | Fazla stok düşümü | ☐ |
-| S3 | Ambalaj_Kurallari'nda "Ürün" (Ü ile) yazılırsa kategori kuralı sayılıyor ⚠️ | Ürüne özel ambalaj düşmüyor | ☐ |
+| S1 | `satislariIsle` içinde süslü parantez kayması — **canlıda doğrulandı 02.10**: onOpen, dusumleriUygula, fiyatlariGuncelleOtomatik, maliyetRaporuOlustur üst düzeyde yok | Bir çalışmada birden çok sipariş varsa stok fazla düşer, log tekrarlanır; menü ve fiyat tetikleyicisi "fonksiyon bulunamadı" verebilir | ◐ depoda düzeltildi, yayın bekliyor |
+| S2 | İptal/açık siparişler düşülüyor olabilir (Durum sütununa bakmıyor) ⚠️ | Fazla stok düşümü | ◐ depoda düzeltildi, yayın bekliyor |
+| S3 | Ambalaj_Kurallari'nda "Ürün" (Ü ile) yazılırsa kategori kuralı sayılıyor ⚠️ | Ürüne özel ambalaj düşmüyor | ◐ depoda düzeltildi, yayın bekliyor |
 | S4 | Satış tablosu sütun numarasıyla okunuyor | Adisyo sütun değiştirirse sessizce yanlış okur | ☐ |
 | S5 | Benzer isim eşiği 0,82 ile yanlış ürüne bağlanabiliyor | Gizli hata | ☐ |
 | S6 | J (son alış fiyatı) hem Alış motoru (00:30) hem `fiyatlariGuncelle` (00:40) yazıyor | Fiyat gidip gelir | ☐ |
-| S7 | Riskli menü düğmeleri: Eskileri İşaretle, Tüm Satış Düşümlerini Geri Al, NotebookLM Geri Al | Yanlışlıkla basılırsa veri bozulur | ☐ |
+| S7 | Riskli menü düğmeleri: Eskileri İşaretle, Tüm Satış Düşümlerini Geri Al, NotebookLM Geri Al | Yanlışlıkla basılırsa veri bozulur | ◐ depoda düzeltildi, yayın bekliyor |
 | S9 | Stok Takip projesinde `BAP Maliyet.gs` (Maliyet Modülü'nün kopyası) ve `KolayBi ürün karşılaştırma.gs`, Satış Motoru ile aynı adlı fonksiyonlar tanımlıyor (nrm, sade, sayi, stokDosyasi, receteHaritasi, ymHaritasi, ambalajKurallari, maliyetDetay) | Hangisinin çalışacağı dosya sırasına bağlı; S1 düzelince Satış Motoru da bunlarla çakışacak | ☐ |
 | S8 | İçindeki eski maliyet raporu Maliyet Modülü ile aynı tabloları farklı hesapla yazıyor | Çelişen rakamlar | ☐ |
 
