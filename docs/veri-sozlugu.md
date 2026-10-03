@@ -41,6 +41,8 @@ Bütün e-tabloların listesi ve önerilen Drive düzeni: `docs/tablo-haritasi.m
 | Ürün maliyeti | STOK › Tbl_Maliyetler | Stok Takip içindeki `BAP Maliyet.gs` (04:00) — canlıda çalışan bu | Raporlar | Ayrı `BAP Maliyet` projesi emekliye ayrılacak (D17); stok motorundaki eski rapor silinecek (S8) |
 | Trendyol yorum ve puanları | TRENDYOL › Degerlendirmeler | `yorumlariCek` (04:15) | Özet, puan tablosu, müşteri veritabanı | — |
 | Trendyol menüsü ve fiyatı (platformdaki hali) | TRENDYOL › Menu_Ham | `menuCek` (03:30) | Menu_Sorun, Menu_Fark | Asıl menü GENEL › Menü; bu yalnızca Trendyol'daki görüntü |
+| Trendyol puanı × sipariş adedi (gün × mağaza), yarın tahmini | TRENDYOL › Puan_Siparis, Puan_Tahmin | `gunlukPuanRaporu` (23:50) | Sahip, panel | Puan_Siparis her gece baştan üretilir; sipariş adedi SATIS'tan okunur, kopya değil |
+| Trendyol iadeleri | TRENDYOL › Iadeler | `iadeleriCek` (10 dk) | Sahip | — |
 | Reçete durumu | GENEL › Menü I sütunu | Maliyet Modülü | — | Stok motoru da yazıyor (S8) |
 
 ## Birimler

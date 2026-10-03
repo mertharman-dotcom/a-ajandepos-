@@ -90,6 +90,7 @@ function yorumlariCek() {
       });
       if (res.getResponseCode() !== 200) {
         Logger.log(m.marka + ' HATA ' + res.getResponseCode() + ': ' + res.getContentText().slice(0, 200));
+        tyErisimHatasi_('Yorumlar', res.getResponseCode(), res.getContentText());
         break;
       }
       const j = JSON.parse(res.getContentText());

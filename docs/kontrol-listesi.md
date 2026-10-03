@@ -84,9 +84,10 @@ doğrulanmalı. Durum: ☐ açık · ◐ devam ediyor · ☑ çözüldü.
 | | Sorun / iş | Durum |
 |---|---|---|
 | R1 | Trendyol API kimlik bilgileri (token) üç `.gs` dosyasında açık yazılı ve depoda. Script Properties'e taşınmalı; depo herkese açıksa Trendyol panelinden yenilenmeli | ☐ |
-| R2 | Uber Eats geçişinde yorum/puan servisleri 403 döner; kod sessizce devam ediyor. 403 gelince Make bildirimi gönderilmeli | ☐ |
+| R2 | Uber Eats geçişinde yorum/puan servisleri 403 döner; kod sessizce devam ediyor. 403 gelince Make bildirimi gönderilmeli | ◐ kod yazıldı (`tyErisimHatasi_`), yayın bekliyor |
 | R3 | Degerlendirmeler sekmesinde "Eşleşti = HAYIR" satırları çok (örnek: Ocak 2026). Adisyo eşleşmesi yalnızca son 20.000 satıra bakıyor (`GERI_SATIR`); eski kayıtlar için normal olabilir ⚠️ bakılacak | ☐ |
-| R4 | Trendyol yol haritası TY-1 … TY-7 (puan, tahmin, menü, cevap, iade, teslimat süresi) — `docs/trendyol-api.md` | ☐ |
+| R4 | Trendyol yol haritası TY-1 … TY-7 (puan, tahmin, menü, cevap, iade, teslimat süresi) — `docs/trendyol-api.md` | ◐ 1. aşama kodu yazıldı (yayın + `raporTetikleyiciKur()` bekliyor) |
+| R5 | Yeni iadede bildirim — Trendyol 4 saat içinde karar istiyor; şu an iade takibi yoktu | ◐ `iadeleriCek` 10 dk'da bir, yayın bekliyor |
 
 ## P · Paneller
 
