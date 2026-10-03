@@ -56,6 +56,7 @@ Tablolarda yapılan her değişikliğin eski ve yeni değeri **STOK › Fiyat_Du
 | M11 | Rende mozzarella J = 4.380 TL koli fiyatı (6 × 2 kg = 12 kg) ama H = 2 kg → kg fiyatı 2.190 TL okunuyor (doğrusu ≈ 365) | 28 pizza/panini 2–3 kat pahalı görünüyor | ☐ H 12 yapılmalı (ya da J 2 kg fiyatı); M3/M4 kuralıyla birlikte |
 | M12 | Stracciatella 500 gr = 1.700 TL (kg 3.400 TL) ⚠️ | Panuozzo Roastbeef %64, Linguine Pomodoro Stracciatella %56 görünüyor | ☐ sahibinden fiyat teyidi |
 | M13 | Ekşi Mayalı Ekmek (UNO 450 g) H ve I boştu | Gramla yazılan reçetede maliyet 0 girerdi | ☑ 03.10 sahip teyidi: 450 g, 12 dilim, uçtaki 2 dilim kullanılmıyor → H/I = 450 gr., reçete 2 dilim = 90 gr (fire dahil); Fiyat_Duzeltme_28.09 satır 31–32 |
+| M15 | Sebzede kasa fiyatı yok (sahip, 03.10): J kilo fiyatı. Cherry (H=5) ve pembe domates (H=7,5) kasa ağırlığına bölünüyordu | 25 üründe domates maliyeti eksik çıkıyordu (kilosu 20 / 13 TL) | ☑ 03.10 H=1 yapıldı (Fiyat_Duzeltme_28.09 satır 33–34). M4'teki bu iki ürün için risk kalktı |
 | M14 | 40'tan fazla reçete satırında miktar noktalı ("0.25", "0.1") — Türkçe tabloda metin olarak duruyor | Stok ve maliyet motoru sayı okuyamayabilir | ☐ virgüle çevrilecek (kuru rapor → onay) |
 
 ## V · Veri (gecelik ajan raporundan, 02.10)
