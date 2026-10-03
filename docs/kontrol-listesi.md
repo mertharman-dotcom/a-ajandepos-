@@ -79,6 +79,15 @@ doğrulanmalı. Durum: ☐ açık · ◐ devam ediyor · ☑ çözüldü.
 | T3 | 10 "Başlıksız e-tablo" `9 Arşiv`de (3'ünde veri var, bakılacak); 15 eski dosya sahipte (dokunulmaz) | ⏸ |
 | T4 | Ajanlar dosyalarını `Departmanlar/<departman>` içine açıyor; kökte açanlar (ör. "Başlıksız") bulunup düzeltilecek | ☐ |
 
+## R · Trendyol (`docs/trendyol-api.md`)
+
+| | Sorun / iş | Durum |
+|---|---|---|
+| R1 | Trendyol API kimlik bilgileri (token) üç `.gs` dosyasında açık yazılı ve depoda. Script Properties'e taşınmalı; depo herkese açıksa Trendyol panelinden yenilenmeli | ☐ |
+| R2 | Uber Eats geçişinde yorum/puan servisleri 403 döner; kod sessizce devam ediyor. 403 gelince Make bildirimi gönderilmeli | ☐ |
+| R3 | Degerlendirmeler sekmesinde "Eşleşti = HAYIR" satırları çok (örnek: Ocak 2026). Adisyo eşleşmesi yalnızca son 20.000 satıra bakıyor (`GERI_SATIR`); eski kayıtlar için normal olabilir ⚠️ bakılacak | ☐ |
+| R4 | Henüz çekilmeyen servisler (iade, açık/kapalı, teslimat süresi, bölge…) — öncelik sırası `docs/trendyol-api.md`'de | ☐ ileride |
+
 ## P · Paneller
 
 | | Sorun | Durum |
