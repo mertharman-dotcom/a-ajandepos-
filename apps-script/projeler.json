@@ -1,0 +1,83 @@
+{
+  "_aciklama": "Her Apps Script projesinin kimliği. scriptId: Apps Script › Proje Ayarları › Komut dosyası kimliği. deploymentId: yalnızca web uygulaması olan projeler için (Dağıt › Dağıtımları yönet › Dağıtım kimliği). Boş olan proje çekilmez/yayınlanmaz.",
+  "projeler": [
+    {
+      "klasor": "stok-takip-sistemi",
+      "ad": "Stok Takip Sistemi (Stok dosyasına bağlı)",
+      "scriptId": "1KZwsWFCau17hsoCbZhWVgJnkkBMjndVt85swB8k-_26bmBXitPF-8pxM",
+      "deploymentId": ""
+    },
+    {
+      "klasor": "maliyet-modulu",
+      "ad": "BAP Maliyet Modülü (Apps Script adı: BAP Maliyet)",
+      "scriptId": "1j7VtJFjU-bcYTP1bjfbiobqUrzk6HuDw1A0DELhKgLmH8uWHtfBVr-kf",
+      "deploymentId": ""
+    },
+    {
+      "klasor": "bap-satis-veri-ambari",
+      "ad": "BAP Satış Veri Ambarı (sipariş satırlarını bölme)",
+      "scriptId": "1weu8Tol4GH1afr9BhVafYblyoVrRw2A3maW99ZxFHvFt5912FLBPG_CB",
+      "deploymentId": ""
+    },
+    {
+      "klasor": "bap-panel-veri-kapisi",
+      "ad": "BAP Panel Veri Kapısı",
+      "scriptId": "1pSeFJy8wKVUJIO6F12ZWC4jw47bFQyfflpg82WVj_MeUneYkPihgLBSx",
+      "deploymentId": ""
+    },
+    {
+      "klasor": "kolaybi-fatura-ham-veri",
+      "ad": "Kolaybi Fatura Ham Veri (Apps Script adı: BAP Alım Tedarikci)",
+      "scriptId": "1sngC4he3SAV2h2kYbfSIQm73y5rxOPGjgSRwy2yvIDia67C1gZkKC2zs",
+      "deploymentId": ""
+    },
+    {
+      "klasor": "adisyo-siparis-toplayici",
+      "ad": "Adisyo Sipariş Toplayıcı",
+      "scriptId": "1nXO68Ygde2mjR95OK3GQtdskDIXDgIXbH4JZfNj5krfInJ4Tm6DhrM6y",
+      "deploymentId": ""
+    },
+    {
+      "klasor": "kurye-net-calisma-suresi",
+      "ad": "Kurye Net Çalışma Süresi (Apps Script adı: Hemenyolda Veri Çekme sabit)",
+      "scriptId": "1N-uO3TfFKSYYUN1bxaYJIqIPz-CFjkKt3MMpsl_RRcLKyVUnKocYXUkC",
+      "deploymentId": ""
+    },
+    {
+      "klasor": "trendyol-veri-cekme",
+      "ad": "Trendyol Veri Çekme",
+      "scriptId": "1-XzSk76z8Yg1WLzcNgqH-ulglMGNJflYsxGB-M_pOznn_1vNpyJw8dAg",
+      "deploymentId": ""
+    },
+    {
+      "klasor": "bap-personel",
+      "ad": "BAP_Personel",
+      "scriptId": "1p6RXpTJKWGpxPJ_ZX896yR7CQU--mWVlchuG7VMOtc5v9oEKsMOc5jrh",
+      "deploymentId": ""
+    },
+    {
+      "klasor": "indirim-orani",
+      "ad": "İndirim Oranı",
+      "scriptId": "1pIxL9A86rSzIM46PIJ0aXr4Zmmkk0CpgfA6cUsY49NfmeffAl4tQPfKO",
+      "deploymentId": ""
+    },
+    {
+      "klasor": "bap-panel-backend",
+      "ad": "BAP PANEL Backend — mutfak panelinin (bap-sistem.pages.dev) API'si: siparisKaydet, uretimKaydet, zayiKaydet…",
+      "scriptId": "1XQZ6HwneMvnyS5Kh4LksBmjZtxr5eahqgNub4VjKLXn_fEqI_yk8T2j3",
+      "deploymentId": "AKfycbzczj4XzNQTIJu5NadZTDl6btT-7pOIOV3XNj4ZlsGxYJn7xlW0ks_f7AV-dx3vTi6X"
+    },
+    {
+      "klasor": "bap-rapor-ajani",
+      "ad": "BAP Rapor Ajanı (kullanılıyor mu? çekildikten sonra incelenecek)",
+      "scriptId": "1l-oB-NTqlmxqn21cRCyxp8kjrsLuH5v5mqWIt9GfgWQDPeSmZxMLVNtR",
+      "deploymentId": ""
+    },
+    {
+      "klasor": "bap-genel-bilgiler",
+      "ad": "BAP Genel Bilgiler (Menü dosyasının scripti)",
+      "scriptId": "1c9_oyU55IFnyKNDjm1IMGRt0914UD71bsVEzcFHxXyNXAhwT_Lx7pcCT",
+      "deploymentId": ""
+    }
+  ]
+}

@@ -1,26 +1,17 @@
 # BAP Yönetim Paneli
 
+> **Çalışma kuralları:** `CLAUDE.md` · **Hangi bilgi nerede:** `docs/veri-sozlugu.md` · **Açık işler:** `docs/kontrol-listesi.md`
+>
+> **Yayın:** sahibin onayından sonra `main`den elle başlatılır (`.github/workflows/`):
+> Apps Script → *Apps Script'i Yayınla*, mutfak paneli + yönetim paneli → *Cloudflare'e Yayınla*.
+> Canlıdaki Apps Script kodunu depoya almak için GitHub › Actions › *Apps Script'i Depoya Çek* › Run workflow.
+> Aşağıdaki "elle yapıştır" adımları otomatik yayın kurulana kadar geçerlidir.
+
 | Klasör | Ne | Nerede çalışır |
 |---|---|---|
 | `bap-panel/` | Panel sayfası ve Cloudflare Worker | `bap-panel.mertharman.workers.dev` |
 | `apps-script/bap-panel-veri-kapisi/` | Veri kapısı (tabloları okur, panelden gelen girişleri yazar) | Google Apps Script: **BAP Panel Veri Kapısı** |
 | `apps-script/adisyo-siparis-toplayici/` | Toplayıcıya eklenen modüller (şube atama) | Google Apps Script: **Adisyo Sipariş Toplayıcı** |
-
-## Departman panoları (`#panolar`)
-
-Panelde **Departman Panoları** bölümü. Her departmanın panosu aynı yapıda:
-senden beklenenler, işler (açık · hazırladıklarımız · canlıda ve tamamlanan), son bulgular, ekip, kurallar ve günlük.
-
-- Kaynak BAP AI HUB'daki sekmeler: `KOKPIT_PANO`, `KOKPIT_ISLER`, `KOKPIT_EKIP`, `KOKPIT_BULGULAR`, `KOKPIT_GUNLUK`
-  (departman ajanları yazar), `KOKPIT_NOTLAR` (panelden yazılır). Sekmeler yoksa Apps Script'te `kokpitPanoKur` bir kez çalıştırılır.
-- Soru ve kararlara cevap Kararlarım'daki gibi `/api/kokpit` → `KOKPIT_ONAYLAR`.
-- Her kart (soru, karar, iş) aynı yapıda: **Yaz / Onayla / Reddet** ve altında yazışma (sen ↔ departman).
-  Bekleyen soru/karar onay-red'i `/api/kokpit` → `KOKPIT_ONAYLAR`; diğer her mesaj `/api/pano-not` → `KOKPIT_NOTLAR`
-  (ID, DEPARTMAN, IS_ID, IS_BASLIK, NOT, ZAMAN, ISLENDI, ISLEM_NOTU, KAYNAK, KARAR onay/ret/boş, CEVAP_ZAMANI, SONUC).
-  Ajan işleyince ISLEM_NOTU'na sahibe cevabı, SONUC'a yapıldı / devam ediyor / yapılamadı / soru yazar; iş sonradan bitince
-  KAYNAK "Ajan" ile yeni satır ekleyerek haber verir. Cevaplar kartın altında ve "Departmanın son cevapları"nda görünür.
-- Aşamalar: `sende` · `acik`/`sirada`/`engel` · `hazir`/`pencerede`/`denetcide` · `canlida`/`tamam`/`kapandi`.
-- Ajan talimatları: `docs/ajan-talimatlari/` (eski ve yeni halleri).
 
 ## Toptancı ödemeleri ekranı
 
@@ -124,37 +115,6 @@ Panelde **Kurye & Teslimat** bölümü (`#kurye`). **Kurye Net Çalışma Süres
   kesinti sonrası tutar üzerinden — kurye panelindeki Haftalık Bordro & Hakediş ile aynı hesap.
 - Müşteri adı, telefonu, adresi ve sipariş içeriği panele gönderilmez.
 
-## Kurye mesai boşlukları (HemenYolda Köprü v1.2)
-
-HemenYolda Google sunucularını engellediği için (GEO 403) veri yalnızca tarayıcıdaki Köprü koduyla gelir.
-`apps-script/kurye-net-calisma-suresi/Kopru.gs`, kurye tablosunun script projesindeki Köprü dosyasının yerine konur
-(`__KOPRU_ANAHTAR__` ve `__KOPRU_URL__` gerçek değerlerle doldurulur; anahtar repoya yazılmaz).
-v1.1 bir günü herhangi bir mesai satırı varsa bir daha sormuyordu; sonradan eklenen kurye o günleri hiç almıyordu.
-v1.2'de `kopruGunleriYenidenCek(['15.09.2026', ...])`, `kopruEylulYenidenCek()` ve `kopruSon7GunYenidenCek()` seçilen günleri
-mesai + siparişle birlikte yeniden çekmeye işaretler; kuyruk önce bugün/dün, sonra eksik/işaretli günler, en son açık
-vardiya/açık hesap tazelemesi sırasıyla dolar. Gün yazılınca işaret kalkar.
-
-## Mesai düzeltme (Kural 2.1)
-
-`apps-script/kurye-net-calisma-suresi/Kural.gs` kurye tablosunun projesindeki kural dosyasının yerine konur (2.0 → 2.1):
-- **Mesai Düzeltme** sekmesi (panelden yazılır): Tarih, Kurye, Esas Giriş, Esas Çıkış, Yöntem (Son paket / Saat / Olduğu gibi),
-  Açıklama, Giren, Kayıt Zamanı. Verilen tarafta kesinti, o saatten önce/sonra fiilen çevrimiçi geçen süredir; gerekçede
-  kimin neye göre düzelttiği ve otomatik hesap yazar, Durum "Düzeltildi" olur. Düzeltme yoksa otomatik hesap geçerli.
-- Son paketin restorandan çıkış saati / km yoksa kapanışta son teslim esas alınır (eskiden hiç kesilmiyordu).
-- Erken giriş kesintisi çevrimdışı araları artık kesmiyor; Kesinti İstisnaları açıklaması başlığından okunuyor.
-
-Panel › Kurye › Kesintiler: **Kontrol edilecek mesailer** (son 3 hafta; son paketten sonra 15 dk'dan fazla boşta kalınıp
-kesilmeyen günler — vardiyasız ya da vardiyasından erken çıkan kurye — ve 45 dk üstü kapanış). "Son pakette kapat",
-"Saat gir", "Doğru" ve "Geri al". Kayıttan sonra veri kapısı Köprü web uygulamasına `tur: 'kural'` gönderip
-`kuraliUygula()`'yı çalıştırır (Script Properties: `KOPRU_URL`, `KOPRU_ANAHTAR`; yoksa bir sonraki yenilemede).
-
-## Yönetim Kokpiti (BAP AI HUB) ve Kararlarım
-
-Departman ajanlarının sahibe soruları / kararları / görev emirleri BAP AI HUB'daki `KOKPIT_ONAYLAR`, departman panoları
-`KOKPIT_DEPARTMANLAR`, Genel Müdür gündemi `KOKPIT_GUNDEM` sekmesinde (ayrıntı: `docs/ajan-talimatlari/README.md`).
-Panel › Kararlarım: departman filtresi, risk sırası, Onayla / Reddet / Beklet ya da soruya cevap (`/api/kokpit`).
-Panel › AI Ekibi: bekleyen sayısı, Genel Müdür gündemi, departman pano kartları (Panoyu aç / Cevapla), İş Kaydı özeti.
-
 ## Vardiya girişi
 
 Panelde **Personel › Vardiya planı** sekmesi. Son 4 hafta ile önümüzdeki 4 hafta seçilip
@@ -227,6 +187,37 @@ Kesilecek fiş = YS + Trendyol online
 - **BAP veri tablosu › Kesilen Fişler** (eski kayıtlar) yalnız okunur, hiç yazılmaz; yeni tabloda olmayan günler panelde "Eski tablodan" diye görünür.
 - **Hesaplanan ve kesilen fiş farkı**: Bugün / Dün / Bu hafta / Geçen hafta / Son 7 gün / Son 30 gün / Bu ay / Geçen ay seçilir (veri kapısı önceki ayın 1'inden bugüne hesaplar). Seçilen dönemde kesilmesi gereken toplam, kesilen toplam (fiş adediyle), fark (yalnız fişi kaydedilmiş günlerden) ve kaydı olmayan günler; altında gün gün grafik ve tablo. Fişi kaydedilmemiş günler kırmızı.
 
+## Kurye mesai boşlukları (HemenYolda Köprü v1.2)
+
+HemenYolda Google sunucularını engellediği için (GEO 403) veri yalnızca tarayıcıdaki Köprü koduyla gelir.
+`apps-script/kurye-net-calisma-suresi/Kopru.gs`, kurye tablosunun script projesindeki Köprü dosyasının yerine konur
+(`__KOPRU_ANAHTAR__` ve `__KOPRU_URL__` gerçek değerlerle doldurulur; anahtar repoya yazılmaz).
+v1.1 bir günü herhangi bir mesai satırı varsa bir daha sormuyordu; sonradan eklenen kurye o günleri hiç almıyordu.
+v1.2'de `kopruGunleriYenidenCek(['15.09.2026', ...])`, `kopruEylulYenidenCek()` ve `kopruSon7GunYenidenCek()` seçilen günleri
+mesai + siparişle birlikte yeniden çekmeye işaretler; kuyruk önce bugün/dün, sonra eksik/işaretli günler, en son açık
+vardiya/açık hesap tazelemesi sırasıyla dolar. Gün yazılınca işaret kalkar.
+
+## Mesai düzeltme (Kural 2.1)
+
+`apps-script/kurye-net-calisma-suresi/Kural.gs` kurye tablosunun projesindeki kural dosyasının yerine konur (2.0 → 2.1):
+- **Mesai Düzeltme** sekmesi (panelden yazılır): Tarih, Kurye, Esas Giriş, Esas Çıkış, Yöntem (Son paket / Saat / Olduğu gibi),
+  Açıklama, Giren, Kayıt Zamanı. Verilen tarafta kesinti, o saatten önce/sonra fiilen çevrimiçi geçen süredir; gerekçede
+  kimin neye göre düzelttiği ve otomatik hesap yazar, Durum "Düzeltildi" olur. Düzeltme yoksa otomatik hesap geçerli.
+- Son paketin restorandan çıkış saati / km yoksa kapanışta son teslim esas alınır (eskiden hiç kesilmiyordu).
+- Erken giriş kesintisi çevrimdışı araları artık kesmiyor; Kesinti İstisnaları açıklaması başlığından okunuyor.
+
+Panel › Kurye › Kesintiler: **Kontrol edilecek mesailer** (son 3 hafta; son paketten sonra 15 dk'dan fazla boşta kalınıp
+kesilmeyen günler — vardiyasız ya da vardiyasından erken çıkan kurye — ve 45 dk üstü kapanış). "Son pakette kapat",
+"Saat gir", "Doğru" ve "Geri al". Kayıttan sonra veri kapısı Köprü web uygulamasına `tur: 'kural'` gönderip
+`kuraliUygula()`'yı çalıştırır (Script Properties: `KOPRU_URL`, `KOPRU_ANAHTAR`; yoksa bir sonraki yenilemede).
+
+## Yönetim Kokpiti (BAP AI HUB) ve Kararlarım
+
+Departman ajanlarının sahibe soruları / kararları / görev emirleri BAP AI HUB'daki `KOKPIT_ONAYLAR`, departman panoları
+`KOKPIT_DEPARTMANLAR`, Genel Müdür gündemi `KOKPIT_GUNDEM` sekmesinde (ayrıntı: `docs/ajan-talimatlari/README.md`).
+Panel › Kararlarım: departman filtresi, risk sırası, Onayla / Reddet / Beklet ya da soruya cevap (`/api/kokpit`).
+Panel › AI Ekibi: bekleyen sayısı, Genel Müdür gündemi, departman pano kartları (Panoyu aç / Cevapla), İş Kaydı özeti.
+
 ## Yayına alma
 
 > **Adres değişmesin:** Apps Script'te hiçbir zaman *Yeni dağıtım* yapmayın ve eski dağıtımı arşivlemeyin.
@@ -261,3 +252,29 @@ G'yi elle değiştirirsen o satır "Elle" olur ve script bir daha dokunmaz (hüc
 Rapor: `Sube_Gunluk` (günlük özet) ve `Sube_Pas_Detay` (paslanan siparişler) sekmeleri + mail/WhatsApp.
 
 Kurulum: dosyayı toplayıcı projesine ekle → `subeAtamaKurulum` → Kurye_Sube'yi doldur → `subeAtamaTest` → `subeAtamaGeriye` → `subeRaporuGeriye`.
+
+## Mutfak paneli (bap-sistem.pages.dev)
+
+`bap-sistem/index.html` — Cloudflare Pages › **bap-sistem** projesine yüklenen tek sayfa.
+Yayına alma: Workers & Pages › bap-sistem › *Create deployment* → bu dosyayı `index.html` adıyla yükle.
+
+- **Kaydet ve WhatsApp'ta Gönder**: WhatsApp penceresi butona basıldığı anda açılır, kayıt bitince
+  WhatsApp'a yönlendirilir (telefon tarayıcıları gecikmeli açılan pencereyi engelliyordu).
+  Tarayıcı yine engellerse kayıt yapılır ve altta yeşil **WhatsApp'ı Aç** butonu çıkar.
+- Kayıt (POST) istekleri otomatik tekrar denenmez; tekrar deneme aynı kaydı iki kez yazabiliyordu.
+
+## Departman panoları (`#panolar`)
+
+Panelde **Departman Panoları** bölümü. Her departmanın panosu aynı yapıda:
+senden beklenenler, işler (açık · hazırladıklarımız · canlıda ve tamamlanan), son bulgular, ekip, kurallar ve günlük.
+
+- Kaynak BAP AI HUB'daki sekmeler: `KOKPIT_PANO`, `KOKPIT_ISLER`, `KOKPIT_EKIP`, `KOKPIT_BULGULAR`, `KOKPIT_GUNLUK`
+  (departman ajanları yazar), `KOKPIT_NOTLAR` (panelden yazılır). Sekmeler yoksa Apps Script'te `kokpitPanoKur` bir kez çalıştırılır.
+- Soru ve kararlara cevap Kararlarım'daki gibi `/api/kokpit` → `KOKPIT_ONAYLAR`.
+- Her kart (soru, karar, iş) aynı yapıda: **Yaz / Onayla / Reddet** ve altında yazışma (sen ↔ departman).
+  Bekleyen soru/karar onay-red'i `/api/kokpit` → `KOKPIT_ONAYLAR`; diğer her mesaj `/api/pano-not` → `KOKPIT_NOTLAR`
+  (ID, DEPARTMAN, IS_ID, IS_BASLIK, NOT, ZAMAN, ISLENDI, ISLEM_NOTU, KAYNAK, KARAR onay/ret/boş, CEVAP_ZAMANI, SONUC).
+  Ajan işleyince ISLEM_NOTU'na sahibe cevabı, SONUC'a yapıldı / devam ediyor / yapılamadı / soru yazar; iş sonradan bitince
+  KAYNAK "Ajan" ile yeni satır ekleyerek haber verir. Cevaplar kartın altında ve "Departmanın son cevapları"nda görünür.
+- Aşamalar: `sende` · `acik`/`sirada`/`engel` · `hazir`/`pencerede`/`denetcide` · `canlida`/`tamam`/`kapandi`.
+- Ajan talimatları: `docs/ajan-talimatlari/` (eski ve yeni halleri).

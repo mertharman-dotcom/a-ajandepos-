@@ -1,0 +1,41 @@
+# Cloudflare'de adı verilen Worker / Pages projelerini SİLER. Geri alınamaz; yalnızca sahibin onayıyla,
+# içeriği önce "Cloudflare'i Depoya Çek" ile depoya alınmış olanlar için çalıştırılır.
+# Korunanlar (bap-panel, bap-sistem) listede olsa bile silinmez.
+name: Cloudflare'den Sil
+
+on:
+  workflow_dispatch:
+    inputs:
+      workers:
+        description: "Silinecek Worker adları (boşlukla ayrılmış)"
+        required: false
+      pages:
+        description: "Silinecek Pages proje adları (boşlukla ayrılmış)"
+        required: false
+
+jobs:
+  sil:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Sil
+        env:
+          CF_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CF_HESAP: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          WORKERS: ${{ github.event.inputs.workers }}
+          PAGES: ${{ github.event.inputs.pages }}
+        run: |
+          CF_TOKEN=$(printf '%s' "$CF_TOKEN" | tr -d '[:space:]'); CF_HESAP=$(printf '%s' "$CF_HESAP" | tr -d '[:space:]')
+          api="https://api.cloudflare.com/client/v4/accounts/$CF_HESAP"
+          korunan=" bap-panel bap-sistem "
+          hata=0
+          for w in $WORKERS; do
+            case "$korunan" in *" $w "*) echo "⛔ $w korunuyor, silinmedi"; continue;; esac
+            s=$(curl -sS -X DELETE -H "Authorization: Bearer $CF_TOKEN" "$api/workers/scripts/$w?force=true" | jq -c '{ok:.success, hata:.errors}')
+            echo "Worker $w → $s"; echo "$s" | grep -q '"ok":true' || hata=1
+          done
+          for p in $PAGES; do
+            case "$korunan" in *" $p "*) echo "⛔ $p korunuyor, silinmedi"; continue;; esac
+            s=$(curl -sS -X DELETE -H "Authorization: Bearer $CF_TOKEN" "$api/pages/projects/$p" | jq -c '{ok:.success, hata:.errors}')
+            echo "Pages $p → $s"; echo "$s" | grep -q '"ok":true' || hata=1
+          done
+          exit $hata

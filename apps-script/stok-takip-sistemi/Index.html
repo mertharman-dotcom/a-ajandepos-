@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --primary: #1F4E78;
+      --accent: #E26B00;
+      --bg: #0F172A;
+      --card-bg: #1E293B;
+      --text: #F8FAFC;
+      --muted: #94A3B8;
+      --border: #334155;
+      --cyan: #38BDF8;
+      --gold: #FBBF24;
+      --red: #EF4444;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Inter', sans-serif; }
+    body { background: var(--bg); color: var(--text); padding: 20px; }
+    
+    .navbar {
+      background: linear-gradient(135deg, #1E293B, #0F172A);
+      border: 1px solid var(--border);
+      padding: 18px 25px; border-radius: 14px;
+      display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;
+    }
+    .btn-action {
+      background: var(--accent); color: white; border: none; padding: 10px 18px;
+      border-radius: 8px; font-weight: 700; font-size: 13.5px; cursor: pointer;
+    }
+
+    .tabs { display: flex; gap: 12px; margin-bottom: 20px; }
+    .tab-btn {
+      background: var(--card-bg); border: 1px solid var(--border); color: var(--muted);
+      padding: 12px 24px; border-radius: 10px; font-weight: 700; font-size: 14px; cursor: pointer;
+    }
+    .tab-btn.active { background: var(--accent); color: white; border-color: var(--accent); }
+
+    .search-box {
+      width: 100%; max-width: 400px; padding: 12px 16px; border-radius: 8px;
+      background: var(--card-bg); border: 1px solid var(--border); color: white;
+      margin-bottom: 20px; font-size: 14px;
+    }
+
+    .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(360px, 1fr)); gap: 20px; }
+    .card { background: var(--card-bg); border: 1px solid var(--border); border-radius: 16px; overflow: hidden; display: flex; flex-direction: column; }
+    
+    .card-img {
+      width: 100%; height: 230px; background: #020617;
+      display: flex; align-items: center; justify-content: center; overflow: hidden; position: relative;
+    }
+    .card-img img { width: 100%; height: 100%; object-fit: cover; }
+    .no-img { color: var(--muted); font-size: 13px; font-weight: 600; text-align: center; padding: 15px; }
+    
+    .badge {
+      position: absolute; top: 12px; left: 12px; background: rgba(15,23,42,0.9);
+      color: var(--cyan); padding: 4px 10px; border-radius: 14px; font-size: 11px; font-weight: 800;
+    }
+    .skt-badge {
+      position: absolute; bottom: 12px; right: 12px; background: var(--red);
+      color: white; padding: 4px 10px; border-radius: 6px; font-size: 11px; font-weight: 800;
+    }
+
+    .card-body { padding: 18px; flex: 1; display: flex; flex-direction: column; gap: 12px; }
+    .title { font-size: 18px; font-weight: 800; color: #FFF; }
+    
+    .rec-table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+    .rec-table td { padding: 6px 0; border-bottom: 1px dashed rgba(255,255,255,0.06); }
+    .qty { color: var(--cyan); font-weight: 700; text-align: right; }
+
+    .prep-box {
+      background: #0B1120; border-left: 3px solid var(--accent); padding: 8px 12px;
+      font-size: 11.5px; line-height: 1.4; color: #CBD5E1; border-radius: 0 6px 6px 0;
+    }
+
+    /* Modal */
+    .modal {
+      display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+      background: rgba(0,0,0,0.8); z-index: 1000; justify-content: center; align-items: center;
+    }
+    .modal-box {
+      background: #1E293B; padding: 25px; border-radius: 14px; width: 90%; max-width: 450px; border: 1px solid var(--border);
+    }
+    .modal-input {
+      width: 100%; padding: 10px; margin-bottom: 12px; border-radius: 6px;
+      background: #0F172A; border: 1px solid var(--border); color: white;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="navbar">
+    <div>
+      <h1 style="font-size: 20px; font-weight: 900;">B.A.P Canlı Mutfak & Hazırlık Paneli</h1>
+      <p style="font-size: 12px; color: var(--muted); margin-top: 3px;">Google Drive Entegre Otomatik Fotoğraf Eşleşmesi</p>
+    </div>
+    <button class="btn-action" onclick="openModal()">💡 Reçete Önerisi Bildir</button>
+  </div>
+
+  <div class="tabs">
+    <button class="tab-btn active" onclick="switchSection('products', this)">🍕 Menü Ürünleri</button>
+    <button class="tab-btn" onclick="switchSection('preps', this)">🥣 Mutfak Hazırlıkları (Yarı Mamul & Soslar)</button>
+  </div>
+
+  <input type="text" id="searchBox" class="search-box" placeholder="Ürün veya malzeme ara..." onkeyup="filterCards()">
+
+  <div class="grid" id="mainGrid">Yükleniyor...</div>
+
+  <!-- Öneri Modal -->
+  <div class="modal" id="oneriModal">
+    <div class="modal-box">
+      <h3 style="margin-bottom: 12px; color: var(--cyan);">Reçete Revizyon / Öneri Bildir</h3>
+      <input type="text" id="oUrun" class="modal-input" placeholder="Ürün veya Hazırlık Adı">
+      <input type="text" id="oAd" class="modal-input" placeholder="Adınız Soyadınız">
+      <select id="oTip" class="modal-input">
+        <option>Gramaj Değişikliği</option>
+        <option>SKT / Saklama Süresi</option>
+        <option>Sos / Malzeme İlavesi</option>
+        <option>Yeni Ürün Önerisi</option>
+      </select>
+      <textarea id="oNot" class="modal-input" rows="3" placeholder="Önerinizi detaylandırın..."></textarea>
+      <div style="display: flex; gap: 10px;">
+        <button class="btn-action" style="flex:1;" onclick="sendOneri()">Gönder</button>
+        <button class="btn-action" style="flex:1; background:#475569;" onclick="closeModal()">İptal</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    let rawData = { products: [], preparations: [] };
+    let currentTab = 'products';
+
+    function loadData() {
+      google.script.run.withSuccessHandler(data => {
+        rawData = data;
+        renderSection();
+      }).getKitchenData();
+    }
+
+    function switchSection(type, btn) {
+      currentTab = type;
+      document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      renderSection();
+    }
+
+    function renderSection() {
+      const container = document.getElementById('mainGrid');
+      const q = document.getElementById('searchBox').value.toLowerCase().trim();
+      const list = currentTab === 'products' ? rawData.products : rawData.preparations;
+      container.innerHTML = "";
+
+      const filtered = list.filter(item => {
+        return item.name.toLowerCase().includes(q) || 
+               item.ingredients.some(i => i.name.toLowerCase().includes(q));
+      });
+
+      if (filtered.length === 0) {
+        container.innerHTML = '<div style="color:var(--muted); padding:30px;">Aradığınız kriterde kayıt bulunamadı.</div>';
+        return;
+      }
+
+      filtered.forEach(item => {
+        const card = document.createElement('div');
+        card.className = 'card';
+
+        const imgHtml = item.imageUrl 
+          ? `<img src="${item.imageUrl}" alt="${item.name}" loading="lazy">` 
+          : `<div class="no-img">📷 Drive klasörüne <b>"${item.name}.jpg"</b> ekleyin</div>`;
+
+        const prepText = currentTab === 'products'
+          ? (item.category.includes('Pizza') ? '1. Beze <b>33 cm</b> açılır. 2. Sos 1.5 ölçek (100 gr) merkezden yayılır. 3. Peynir 1 ölçek (140 gr) serilir. 4. Üst 350°C / Alt 280°C fırında 4 dk pişirilir.' : 'İstasyon porsiyon adımlarına göre hazırlanır.')
+          : 'Hazırlık sonrası uygun Gastronorm küvete alınıp +4°C dolapta muhafaza edilir.';
+
+        const sktHtml = currentTab === 'preps' ? `<span class="skt-badge">SKT: 3 Gün (+4°C)</span>` : '';
+
+        card.innerHTML = `
+          <div class="card-img">
+            ${imgHtml}
+            <span class="badge">${item.category}</span>
+            ${sktHtml}
+          </div>
+          <div class="card-body">
+            <div class="title">${item.name}</div>
+            <table class="rec-table">
+              <tbody>
+                ${item.ingredients.map(i => `
+                  <tr>
+                    <td>${i.name}</td>
+                    <td class="qty">${i.qty}</td>
+                  </tr>
+                `).join('')}
+              </tbody>
+            </table>
+            <div class="prep-box">${prepText}</div>
+          </div>
+        `;
+        container.appendChild(card);
+      });
+    }
+
+    function filterCards() { renderSection(); }
+    function openModal() { document.getElementById('oneriModal').style.display = 'flex'; }
+    function closeModal() { document.getElementById('oneriModal').style.display = 'none'; }
+    function sendOneri() {
+      const u = document.getElementById('oUrun').value;
+      const a = document.getElementById('oAd').value;
+      const t = document.getElementById('oTip').value;
+      const n = document.getElementById('oNot').value;
+      google.script.run.withSuccessHandler(res => {
+        alert(res.message);
+        closeModal();
+      }).submitRecipeSuggestion(u, a, t, n);
+    }
+
+    loadData();
+  </script>
+</body>
+</html>

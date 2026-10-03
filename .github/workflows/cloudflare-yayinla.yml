@@ -1,0 +1,52 @@
+# main'deki mutfak panelini (bap-sistem) ve yönetim panelini (bap-panel Worker'ı) canlıya gönderir.
+# Gerekli gizli değerler: CLOUDFLARE_API_TOKEN (Pages: Edit + Workers Scripts: Edit), CLOUDFLARE_ACCOUNT_ID.
+name: Cloudflare'e Yayınla
+
+# main'e bap-sistem/ ya da bap-panel/ değişikliği gelince kendiliğinden çalışır;
+# istenirse elle de başlatılır (GitHub › Actions › Run workflow, dal: main).
+on:
+  push:
+    branches: [main]
+    paths: ['bap-sistem/**', 'bap-panel/**']
+  workflow_dispatch:
+    inputs:
+      hedef:
+        description: "bap-sistem, bap-panel veri ikisi"
+        required: true
+        default: ikisi
+
+concurrency: { group: cloudflare-yayin, cancel-in-progress: false }
+
+jobs:
+  yayinla:
+    runs-on: ubuntu-latest
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+    steps:
+      - uses: actions/checkout@v4
+        with: { fetch-depth: 0 }
+      - uses: actions/setup-node@v4
+        with: { node-version: 20 }
+      - name: Hedefleri belirle
+        id: h
+        run: |
+          h="${{ github.event.inputs.hedef }}"
+          if [ -z "$h" ]; then
+            once="${{ github.event.before }}"
+            if [ -z "$once" ] || ! git cat-file -e "$once" 2>/dev/null; then once=HEAD~1; fi
+            d=$(git diff --name-only "$once" HEAD)
+            echo "$d" | grep -q '^bap-sistem/' && h="$h bap-sistem"
+            echo "$d" | grep -q '^bap-panel/' && h="$h bap-panel"
+          fi
+          [ "$h" = "ikisi" ] && h="bap-sistem bap-panel"
+          echo "hedef=$h" >> "$GITHUB_OUTPUT"; echo "Hedef: $h"
+      - name: Mutfak paneli (Pages › bap-sistem)
+        if: contains(steps.h.outputs.hedef, 'bap-sistem')
+        run: npx -y wrangler@3 pages deploy bap-sistem --project-name bap-sistem --branch main --commit-dirty=true
+      - name: Yönetim paneli (Worker › bap-panel)
+        if: contains(steps.h.outputs.hedef, 'bap-panel')
+        run: |
+          node bap-panel/build.js
+          # --keep-vars: Cloudflare'deki GAS_URL / GAS_KEY gibi ayarlara dokunmaz
+          npx -y wrangler@3 deploy bap-panel/worker.js --name bap-panel --compatibility-date 2024-09-23 --keep-vars

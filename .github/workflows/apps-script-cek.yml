@@ -1,0 +1,50 @@
+# Apps Script'teki CANLI kodu depoya çeker (sadece okur, Apps Script'e hiçbir şey yazmaz).
+# Sonuç "kod-cekimi/<tarih>" adlı yeni bir dala yazılır; inceledikten sonra main'e birleştirilir.
+# Gerekli gizli değer: CLASPRC_JSON (clasp login sonrası oluşan .clasprc.json içeriği).
+name: Apps Script'i Depoya Çek
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  cek:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 20 }
+      - name: clasp kur ve oturum aç
+        env: { CLASPRC_JSON: "${{ secrets.CLASPRC_JSON }}" }
+        run: |
+          test -n "$CLASPRC_JSON" || { echo "::error::CLASPRC_JSON gizli değeri tanımlı değil"; exit 1; }
+          npm i -g @google/clasp@2.4.2
+          printf '%s' "$CLASPRC_JSON" > ~/.clasprc.json
+      - name: Projeleri çek
+        run: |
+          set -e
+          jq -c '.projeler[] | select(.scriptId != "")' apps-script/projeler.json | while read -r p; do
+            klasor=$(echo "$p" | jq -r .klasor); id=$(echo "$p" | jq -r .scriptId)
+            echo "::group::$klasor"
+            mkdir -p "apps-script/$klasor"
+            ( cd "apps-script/$klasor"
+              printf '{"scriptId":"%s","rootDir":".","fileExtension":"gs"}' "$id" > .clasp.json
+              clasp pull
+              [ -f .clasp-cekim ] || date -u +%FT%TZ > .clasp-cekim )   # yalnızca ilk çekimde yazılır
+            echo "::endgroup::"
+          done
+      - name: Yeni dala yaz
+        run: |
+          dal="kod-cekimi/$(date -u +%Y%m%d-%H%M)"
+          git config user.name "github-actions"; git config user.email "github-actions@users.noreply.github.com"
+          git add -A apps-script
+          git stash
+          git fetch -q origin main && git checkout -q -B "$dal" origin/main   # en güncel main'in üzerine
+          git stash pop
+          git add -A apps-script
+          git diff --cached --quiet && { echo "Değişiklik yok: depo canlıyla aynı."; exit 0; }
+          git commit -m "Apps Script canlı kodunu çek ($(date -u +%F))"
+          git push origin "$dal"
+          echo "Çekilen kod: $dal" >> "$GITHUB_STEP_SUMMARY"
