@@ -25,7 +25,7 @@ function doGet(e) {
   try {
     if (action === 'getSubeler')          return jsonRes(getSubeler());
     if (action === 'getYariMamuller')     return jsonRes(getYariMamuller());
-    if (action === 'getRecete')          return jsonRes(getRecete(p.adi));
+    if (action === 'getRecete')          return jsonRes(getRecete(p.adi, sube));
     if (action === 'getHammaddeler')      return jsonRes(getHammaddeler(p.sadeceTakip === 'true', sube));
     if (action === 'getCalisanlar')       return jsonRes(getCalisanlar());
     if (action === 'sifreKontrol')        return jsonRes(sifreKontrol(p));
@@ -54,6 +54,7 @@ function doPost(e) {
   try {
     const data = JSON.parse(e.postData.contents);
     if (data.action === 'uretimKaydet')       return jsonRes(uretimKaydet(data));
+    if (data.action === 'tekrarYenile')       return jsonRes(tekrarYenile(data));
     if (data.action === 'stokDuzelt')         return jsonRes(stokDuzelt(data));
     if (data.action === 'zayiKaydet')         return jsonRes(zayiKaydet(data.data || data));
     if (data.action === 'siparisKaydet')      return jsonRes(siparisKaydet(data));
@@ -359,7 +360,7 @@ function getYariMamulRapor(sube) {
   return { kritik, normal, farklilar, toplam: liste.length, sube: sube || '' };
 }
 
-function getRecete(adi) {
+function getRecete(adi, sube) {
   const ss = SpreadsheetApp.openById(SHEET_ID);
   const sh = sekmeBul(ss, 'Tbl_YariMamulRecete');
   if (!sh) return { hata: 'Sekme bulunamadi' };
@@ -367,9 +368,18 @@ function getRecete(adi) {
   const malzemeler = [];
   for (let i = 1; i < rows.length; i++) {
     if (rows[i][0] !== adi) continue;
+    // F sütunu (Tekrar_Parti): malzeme kaç partide bir yenileniyor (ör. konfi yağı 10).
+    // Miktar (C) parti başına ortalama payı tutar; stok ve maliyet bunu kullanır.
+    const tekrar = Number(rows[i][5]) || 0;
     malzemeler.push({
       hammadde: rows[i][1], bazMiktar: rows[i][2],
-      birim: rows[i][3], aciklama: rows[i][4], kategori: rows[i][5],
+      birim: rows[i][3], aciklama: rows[i][4], kategori: tekrar ? '' : rows[i][5],
+      tekrar: tekrar > 1 ? tekrar : 0,
+    });
+  }
+  if (sube) {
+    malzemeler.forEach(m => {
+      if (m.tekrar) m.tekrarDurum = tekrarDurum_(ss, adi, m.hammadde, sube, m.tekrar);
     });
   }
   const ciktiSh = sekmeBul(ss, 'Tbl_YariMamul tablosuna Cikti_Tipi');
@@ -391,6 +401,63 @@ function getRecete(adi) {
     }
   }
   return { adi, malzemeler, cikti };
+}
+
+// ============================================================
+// TEKRAR KULLANILAN MALZEME (ör. konfi yağı 10 partide bir değişir)
+// Tekrar_Kullanim_Log: her yenileme bir satır. Sayaç = son yenilemeden bu yana
+// Uretim_Girisleri'ndeki parti (kat) toplamı, şube ve yarı mamul bazında.
+// ============================================================
+const TEKRAR_LOG_SEKME = 'Tekrar_Kullanim_Log';
+const TEKRAR_LOG_BASLIK = ['Zaman', 'Sube', 'Yari_Mamul', 'Malzeme', 'Sebep', 'Calisan'];
+
+function tekrarSonYenileme_(ss, ym, malzeme, sube) {
+  const sh = sekmeBul(ss, TEKRAR_LOG_SEKME);
+  if (!sh) return null;
+  const rows = sh.getDataRange().getValues();
+  let son = null;
+  for (let i = 1; i < rows.length; i++) {
+    if (nrm(rows[i][1]) !== nrm(sube) || nrm(rows[i][2]) !== nrm(ym) || nrm(rows[i][3]) !== nrm(malzeme)) continue;
+    const z = rows[i][0] instanceof Date ? rows[i][0] : null;
+    if (z && (!son || z > son)) son = z;
+  }
+  return son;
+}
+
+function tekrarDurum_(ss, ym, malzeme, sube, tekrar) {
+  const son = tekrarSonYenileme_(ss, ym, malzeme, sube);
+  if (!son) return { basladi: false, parti: 0, tekrar, degistir: false, sonYenileme: '' };
+  let parti = 0;
+  const uSh = sekmeBul(ss, 'Uretim_Girisleri');
+  if (uSh) {
+    const rows = uSh.getDataRange().getValues();
+    for (let i = 1; i < rows.length; i++) {
+      const z = rows[i][9];
+      if (!(z instanceof Date) || z < son) continue;
+      if (nrm(rows[i][1]) !== nrm(sube) || nrm(rows[i][2]) !== nrm(ym)) continue;
+      parti += Number(rows[i][3]) || 1;
+    }
+  }
+  return { basladi: true, parti, tekrar, degistir: parti >= tekrar,
+    sonYenileme: Utilities.formatDate(son, 'Europe/Istanbul', 'dd.MM.yyyy HH:mm') };
+}
+
+function tekrarLogYaz_(ss, sube, ym, malzeme, sebep, calisan) {
+  let sh = sekmeBul(ss, TEKRAR_LOG_SEKME);
+  if (!sh) {
+    sh = ss.insertSheet(TEKRAR_LOG_SEKME);
+    sh.appendRow(TEKRAR_LOG_BASLIK);
+  }
+  sh.appendRow([new Date(), sube, ym, malzeme, sebep || '', calisan || '']);
+}
+
+// Panelden "yağı şimdi değiştirdim" (küf, bozulma ya da sayacı ilk kez başlatma).
+function tekrarYenile(data) {
+  const { yariMamulAdi, malzeme, sube, sebep, calisanAdi } = data;
+  if (!sube || !yariMamulAdi || !malzeme) return { basari: false, hata: 'Eksik bilgi' };
+  const ss = SpreadsheetApp.openById(SHEET_ID);
+  tekrarLogYaz_(ss, sube, yariMamulAdi, malzeme, sebep || 'Elle', calisanAdi);
+  return { basari: true, mesaj: malzeme + ' yenilendi, sayaç sıfırlandı (' + sube + ')' };
 }
 
 function getHammaddeler(sadeceTakip, sube) {
@@ -1358,7 +1425,7 @@ function uretimKaydet(data) {
   const { yariMamulAdi, kat, calisanAdi, not, tarih, sube } = data;
   if (!sube) return { basari: false, hata: 'Sube secili degil' };
 
-  const recete = getRecete(yariMamulAdi);
+  const recete = getRecete(yariMamulAdi, sube);
   if (!recete.malzemeler || !recete.malzemeler.length) {
     return { basari: false, hata: yariMamulAdi + ' recete bulunamadi' };
   }
@@ -1421,6 +1488,22 @@ function uretimKaydet(data) {
     stokHareket(yariMamulAdi, 'YM', sube, toplamMiktar, 'Uretim', kat + ' kat · ' + ciktiAciklama, calisanAdi || '');
   }
 
+  // Tekrar kullanılan malzeme: süresi dolduysa (ya da sayaç hiç başlamadıysa) bu parti
+  // taze malzemeyle yapılır; yenileme, üretim satırından ÖNCE yazılır ki bu parti yeni
+  // dönemin 1. partisi sayılsın.
+  const tekrarMesajlari = [];
+  recete.malzemeler.forEach(m => {
+    const d = m.tekrarDurum;
+    if (!d) return;
+    if (!d.basladi || d.degistir) {
+      tekrarLogYaz_(ss, sube, yariMamulAdi, m.hammadde,
+        d.basladi ? d.tekrar + '. parti doldu' : 'Sayaç başlatıldı', calisanAdi);
+      tekrarMesajlari.push(m.hammadde + ' yenilendi, sayaç 1/' + m.tekrar);
+    } else {
+      tekrarMesajlari.push(m.hammadde + ' ' + (d.parti + Number(kat || 1)) + '/' + m.tekrar);
+    }
+  });
+
   const uretimSh = sekmeBul(ss, 'Uretim_Girisleri');
   if (uretimSh) {
     uretimSh.appendRow([
@@ -1431,8 +1514,9 @@ function uretimKaydet(data) {
     ]);
   }
 
-  return { basari: true, yariMamulAdi, kat, ciktiAciklama, eksikler, sube,
-    mesaj: yariMamulAdi + ' kaydedildi (' + sube + '). Cikti: ' + ciktiAciklama };
+  return { basari: true, yariMamulAdi, kat, ciktiAciklama, eksikler, sube, tekrarMesajlari,
+    mesaj: yariMamulAdi + ' kaydedildi (' + sube + '). Cikti: ' + ciktiAciklama +
+      (tekrarMesajlari.length ? ' · ' + tekrarMesajlari.join(' · ') : '') };
 }
 
 function zayiKaydet(data) {

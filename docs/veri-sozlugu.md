@@ -25,6 +25,8 @@ Bütün e-tabloların listesi ve önerilen Drive düzeni: `docs/tablo-haritasi.m
 | Ürün reçetesi | STOK › Tbl_Receteler | Elle | Stok motoru, Maliyet, Hazırlık, Reçete Kontrol, Mutfak Paneli | ⏳ Tbl_UrunRecete (K1) |
 | Yarı mamul çıktı bilgisi (parti, porsiyon, takip birimi) | STOK › Tbl_YariMamul (sekme adı: "Tbl_YariMamul tablosuna Cikti_Tipi") | Elle | Hepsi | — |
 | Yarı mamul reçetesi | STOK › Tbl_YariMamulRecete | Elle | Hepsi | — |
+| Tekrar kullanılan malzeme (kaç partide bir yenilenir, ör. konfi yağı 10) | STOK › Tbl_YariMamulRecete, F sütunu `Tekrar_Parti` (C = parti başına ortalama pay) | Elle | Mutfak paneli (hazırlık ekranı) | — |
+| Tekrar kullanılan malzemenin yenilenme zamanları (sayaç) | STOK › Tekrar_Kullanim_Log (Zaman, Sube, Yari_Mamul, Malzeme, Sebep, Calisan) | Mutfak paneli (üretim kaydı, "Küf / bozulma" butonu) | Mutfak paneli | — |
 | Hammadde kartı: fatura adı (B), kısa ad (C), paket (F/H/I), son alış fiyatı (J), koli (P) | STOK › Tbl_Hammaddeler | Elle + Alış motoru (J) | Hepsi | J'yi iki kod yazıyor (S6) |
 | Ambalaj kartı | STOK › Ambalaj_Hammadde | Elle | Hepsi | — |
 | Direkt satış kartı (içecek vb.) | STOK › Direktsatisurunler | Elle | Hepsi | — |

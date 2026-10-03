@@ -57,6 +57,7 @@ Tablolarda yapılan her değişikliğin eski ve yeni değeri **STOK › Fiyat_Du
 | M12 | Stracciatella H = 500 gr ama J = 1.700 TL kilo fiyatı (paket 500 g, 850 TL) | Panuozzo Roastbeef %64, Linguine Pomodoro Stracciatella %56 görünüyordu | ☑ 03.10 sahip teyidi, H = 1000 (Fiyat_Duzeltme_28.09 satır 35) → %47 ve %34 |
 | M13 | Ekşi Mayalı Ekmek (UNO 450 g) H ve I boştu | Gramla yazılan reçetede maliyet 0 girerdi | ☑ 03.10 sahip teyidi: 450 g, 12 dilim, uçtaki 2 dilim kullanılmıyor → H/I = 450 gr., reçete 2 dilim = 90 gr (fire dahil); Fiyat_Duzeltme_28.09 satır 31–32 |
 | M15 | Sebzede kasa fiyatı yok (sahip, 03.10): J kilo fiyatı. Cherry (H=5) ve pembe domates (H=7,5) kasa ağırlığına bölünüyordu | 25 üründe domates maliyeti eksik çıkıyordu (kilosu 20 / 13 TL) | ☑ 03.10 H=1 yapıldı (Fiyat_Duzeltme_28.09 satır 33–34). M4'teki bu iki ürün için risk kalktı |
+| M16 | Konfi yağı her partide sıfırdan kullanılmıyor (10 partide bir yenileniyor, küfte hemen) | 700 gr yağın tamamı her partiye yazılırsa domates maliyeti ve yağ stok düşümü 10 kat çıkar | ☑ 03.10 reçetede 70 gr (ortalama pay), F `Tekrar_Parti` = 10 · ◐ mutfak paneli sayacı (YENİLE uyarısı + küf butonu, `Tekrar_Kullanim_Log`) PR'da, yayın bekliyor |
 | M14 | 40'tan fazla reçete satırında miktar noktalı ("0.25", "0.1") — Türkçe tabloda metin olarak duruyor | Stok ve maliyet motoru sayı okuyamayabilir | ☐ virgüle çevrilecek (kuru rapor → onay) |
 
 ## V · Veri (gecelik ajan raporundan, 02.10)
