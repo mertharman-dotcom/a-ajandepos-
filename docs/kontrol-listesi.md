@@ -21,6 +21,7 @@ doğrulanmalı. Durum: ☐ açık · ◐ devam ediyor · ☑ çözüldü.
 | K3 | Ürün listesinin tek kaynağı GENEL › Menü | Evet | ☐ |
 | K4 | Satışın tek kaynağı SATIS › Satıs Verileri (Make.com) | Evet | ☐ |
 | K5 | Satış adı ↔ reçete eşleştirmesi tek tabloda, üç motor da onu okusun | Evet | ☐ |
+| K6 | Dilimli/yapraklı ürünlerin (ekmek, sucuk, pastırma, fesleğen…) mutfak birimi ve gramı Tbl_Hammaddeler'de iki sütunda tutulsun (`Mutfak_Birimi` = dilim, `Mutfak_Birimi_Gram` = 8); reçete gram tutar, mutfak reçete kartı "6 dilim" gösterir | Evet | ☐ sahip onayı |
 
 ## S · Stok motoru (satış → stok)
 
@@ -51,7 +52,11 @@ Tablolarda yapılan her değişikliğin eski ve yeni değeri **STOK › Fiyat_Du
 | M7 | Tbl_Hammaddeler'de H ve I boş satırlar paket fiyatını gram fiyatı yapıyordu: Barilla penne 2 kg, Calve hardal, midye, tane karabiber, acı sos, bulgur, domates, karbonat, nar ekşisi | 02.10 panelinde yarı mamul 279.247 TL (cironun %191'i); penne porsiyonu 14.000 TL | ☑ 02.10 9 satır dolduruldu · ☑ panel koruması (`bilesen_`: birim boş/uyuşmuyorsa 0 + eksik listesi; `cc` = ml) — test: `tests/veri-kapisi-maliyet-testi.js` · ☐ yayın |
 | M8 | Reçetede birim türü tablodakiyle uyuşmayan 5 satır: Maydanoz 15 gr (tabloda adet), Havuç/Kabak/Kereviz adet (tabloda kg), Tost ekmeği "Paket" (tabloda gr), Limon suyu 0,5 adet (tabloda lt) | M7 korumasıyla tutara 0 girer, eksik listesinde görünür | ☐ reçete birimleri düzeltilecek |
 | M9 | Tarifi ya da parti çıktısı eksik yarı mamuller: Konfi domates, Konfi sarımsak, Acılı zeytinyağ, Pancarlı humus ("Humur" yazım hatası), Tavuk suyu, Karabuğday tabule, Humus, Falafel, Bulgur haşlanmış, File badem kavurma, Sotelenmiş kabak-havuç, Panini ekmeği, Lasagne Bolognese, Ispanak sos | Maliyete 0 giriyor | ☐ sahibinden tarif / parti çıktısı |
-| M10 | Panelde reçetesi bulunamayan satışlar (02.10, cironun %8,7'si): Şeftali Stracciatella Salata, Tiftik Etli Ispanaklı Salata, Börülce Bowl, Chicken Roll Bowl, Bap Ekşi Mayalı Special Sandviç, Linguine Deniz Mahsullü, Karpuz Semizotu Salata; içecekler (Coca-Cola, Ayran, Su, Fuse Tea) | Maliyet eksik | ☐ K5 tablosu ya da `Maliyet_Eslestirme` sekmesi |
+| M10 | Panelde reçetesi bulunamayan satışlar (02.10, cironun %8,7'si): Şeftali Stracciatella Salata, Tiftik Etli Ispanaklı Salata, Börülce Bowl, Chicken Roll Bowl, Bap Ekşi Mayalı Special Sandviç, Linguine Deniz Mahsullü, Karpuz Semizotu Salata; içecekler (Coca-Cola, Ayran, Su, Fuse Tea) | Maliyet eksik | ◐ 03.10 Füme Dilli Sandviç ve Ekşi Mayalı BAP Special reçeteleri girildi (Tbl_Receteler 747–753) · ☐ K5 tablosu ya da `Maliyet_Eslestirme` sekmesi |
+| M11 | Rende mozzarella J = 4.380 TL koli fiyatı (6 × 2 kg = 12 kg) ama H = 2 kg → kg fiyatı 2.190 TL okunuyor (doğrusu ≈ 365) | 28 pizza/panini 2–3 kat pahalı görünüyor | ☐ H 12 yapılmalı (ya da J 2 kg fiyatı); M3/M4 kuralıyla birlikte |
+| M12 | Stracciatella 500 gr = 1.700 TL (kg 3.400 TL) ⚠️ | Panuozzo Roastbeef %64, Linguine Pomodoro Stracciatella %56 görünüyor | ☐ sahibinden fiyat teyidi |
+| M13 | Ekşi Mayalı Ekmek (UNO 450 g) H ve I boş; sahip paketi 400 g / 14 dilim hatırlıyor ⚠️ | Reçete paket payıyla yazıldı (2 dilim = 0,143 adet); gramla yazılan reçetede 0 girerdi | ☐ paket ağırlığı ve dilim sayısı teyit, H/I doldurulacak |
+| M14 | 40'tan fazla reçete satırında miktar noktalı ("0.25", "0.1") — Türkçe tabloda metin olarak duruyor | Stok ve maliyet motoru sayı okuyamayabilir | ☐ virgüle çevrilecek (kuru rapor → onay) |
 
 ## V · Veri (gecelik ajan raporundan, 02.10)
 
