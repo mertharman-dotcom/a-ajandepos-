@@ -277,7 +277,8 @@ export default {
       let govde;
       try { govde = await request.json(); } catch (e) { return json({ hata: 'Geçersiz istek.' }, 400); }
       const ileti = JSON.stringify({ key: env.GAS_KEY, tur: 'panoNot', departman: String(govde.departman || '').slice(0, 60), isId: String(govde.isId || '').slice(0, 80),
-        not: String(govde.not || '').slice(0, 2000), istekNo: String(govde.istekNo || '').slice(0, 60) });
+        not: String(govde.not || '').slice(0, 2000), istekNo: String(govde.istekNo || '').slice(0, 60),
+        karar: ['onay', 'ret'].indexOf(govde.karar) >= 0 ? govde.karar : '' });
       try {
         const r = await fetch(env.GAS_URL, { method: 'POST', headers: { 'content-type': 'application/json' }, body: ileti, redirect: 'follow' });
         const metin = await r.text();

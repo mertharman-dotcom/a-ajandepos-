@@ -3,21 +3,26 @@
 # en az bir kez "Apps Script'i Depoya Çek" ile çekilmişse (.clasp-cekim dosyası varsa) yayınlanır.
 name: Apps Script'i Yayınla
 
-# Şimdilik yalnızca elle başlatılır (GitHub › Actions › Run workflow, dal: main).
-# Temizlik bitince "push: branches: [main]" ile otomatiğe alınabilir.
+# main'e apps-script/ altında değişiklik gelince yalnız değişen projeler için kendiliğinden çalışır;
+# istenirse elle de başlatılır (GitHub › Actions › Run workflow, dal: main).
 on:
+  push:
+    branches: [main]
+    paths: ['apps-script/**', '!apps-script/projeler.json', '!apps-script/**/.clasp-cekim', '!apps-script/**/.clasp.json']
   workflow_dispatch:
     inputs:
       proje:
         description: "Klasör adı (ör. stok-takip-sistemi). Boş = main'de değişen projeler"
         required: false
 
+concurrency: { group: apps-script-yayin, cancel-in-progress: false }
+
 jobs:
   yayinla:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-        with: { fetch-depth: 2 }
+        with: { fetch-depth: 0 }
       - uses: actions/setup-node@v4
         with: { node-version: 20 }
       - name: clasp kur ve oturum aç
@@ -32,7 +37,9 @@ jobs:
           if [ -n "${{ github.event.inputs.proje }}" ]; then
             liste="${{ github.event.inputs.proje }}"
           else
-            liste=$(git diff --name-only HEAD~1 HEAD -- apps-script | awk -F/ 'NF>2{print $2}' | sort -u | tr '\n' ' ')
+            once="${{ github.event.before }}"
+            if [ -z "$once" ] || ! git cat-file -e "$once" 2>/dev/null; then once=HEAD~1; fi
+            liste=$(git diff --name-only "$once" HEAD -- apps-script | grep -vE '/\.clasp(-cekim|\.json)$' | awk -F/ 'NF>2{print $2}' | sort -u | tr '\n' ' ')
           fi
           echo "liste=$liste" >> "$GITHUB_OUTPUT"; echo "Projeler: $liste"
       - name: Yayınla
@@ -47,6 +54,12 @@ jobs:
             ( cd "apps-script/$klasor"
               printf '{"scriptId":"%s","rootDir":".","fileExtension":"gs"}' "$id" > .clasp.json
               clasp push -f
-              if [ -n "$dep" ]; then clasp deploy -i "$dep" -d "git ${GITHUB_SHA::7}"; fi )
+              # Web uygulaması olan projede adresi değiştirmeden yeni sürümü canlıya al.
+              # deploymentId yazılı değilse projedeki tek sürümlü dağıtım kullanılır; birden fazlaysa durur.
+              if [ -z "$dep" ] && jq -e '.webapp' appsscript.json >/dev/null 2>&1; then
+                dep=$(clasp deployments | grep -E '^- ' | grep -v '@HEAD' | awk '{print $2}')
+                [ "$(printf '%s\n' "$dep" | grep -c .)" = "1" ] || { echo "::error::$klasor: web dağıtımı bulunamadı ya da birden fazla; projeler.json'a deploymentId yazın"; exit 1; }
+              fi
+              if [ -n "$dep" ]; then clasp deploy -i "$dep" -d "git ${GITHUB_SHA::7}"; echo "$klasor: $dep yeni sürüme alındı"; fi )
             echo "::endgroup::"
           done

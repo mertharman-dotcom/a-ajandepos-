@@ -2,15 +2,20 @@
 # Gerekli gizli değerler: CLOUDFLARE_API_TOKEN (Pages: Edit + Workers Scripts: Edit), CLOUDFLARE_ACCOUNT_ID.
 name: Cloudflare'e Yayınla
 
-# Şimdilik yalnızca elle başlatılır (GitHub › Actions › Run workflow, dal: main).
-# Temizlik bitince "push: branches: [main]" ile otomatiğe alınabilir.
+# main'e bap-sistem/ ya da bap-panel/ değişikliği gelince kendiliğinden çalışır;
+# istenirse elle de başlatılır (GitHub › Actions › Run workflow, dal: main).
 on:
+  push:
+    branches: [main]
+    paths: ['bap-sistem/**', 'bap-panel/**']
   workflow_dispatch:
     inputs:
       hedef:
         description: "bap-sistem, bap-panel veri ikisi"
         required: true
         default: ikisi
+
+concurrency: { group: cloudflare-yayin, cancel-in-progress: false }
 
 jobs:
   yayinla:
@@ -20,7 +25,7 @@ jobs:
       CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
     steps:
       - uses: actions/checkout@v4
-        with: { fetch-depth: 2 }
+        with: { fetch-depth: 0 }
       - uses: actions/setup-node@v4
         with: { node-version: 20 }
       - name: Hedefleri belirle
@@ -28,7 +33,9 @@ jobs:
         run: |
           h="${{ github.event.inputs.hedef }}"
           if [ -z "$h" ]; then
-            d=$(git diff --name-only HEAD~1 HEAD)
+            once="${{ github.event.before }}"
+            if [ -z "$once" ] || ! git cat-file -e "$once" 2>/dev/null; then once=HEAD~1; fi
+            d=$(git diff --name-only "$once" HEAD)
             echo "$d" | grep -q '^bap-sistem/' && h="$h bap-sistem"
             echo "$d" | grep -q '^bap-panel/' && h="$h bap-panel"
           fi
