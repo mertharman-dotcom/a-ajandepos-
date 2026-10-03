@@ -55,7 +55,7 @@ Tablolarda yapılan her değişikliğin eski ve yeni değeri **STOK › Fiyat_Du
 | M10 | Panelde reçetesi bulunamayan satışlar (02.10, cironun %8,7'si): Şeftali Stracciatella Salata, Tiftik Etli Ispanaklı Salata, Börülce Bowl, Chicken Roll Bowl, Bap Ekşi Mayalı Special Sandviç, Linguine Deniz Mahsullü, Karpuz Semizotu Salata; içecekler (Coca-Cola, Ayran, Su, Fuse Tea) | Maliyet eksik | ◐ 03.10 Füme Dilli Sandviç ve Ekşi Mayalı BAP Special reçeteleri girildi (Tbl_Receteler 747–753) · ☐ K5 tablosu ya da `Maliyet_Eslestirme` sekmesi |
 | M11 | Rende mozzarella J = 4.380 TL koli fiyatı (6 × 2 kg = 12 kg) ama H = 2 kg → kg fiyatı 2.190 TL okunuyor (doğrusu ≈ 365) | 28 pizza/panini 2–3 kat pahalı görünüyor | ☐ H 12 yapılmalı (ya da J 2 kg fiyatı); M3/M4 kuralıyla birlikte |
 | M12 | Stracciatella 500 gr = 1.700 TL (kg 3.400 TL) ⚠️ | Panuozzo Roastbeef %64, Linguine Pomodoro Stracciatella %56 görünüyor | ☐ sahibinden fiyat teyidi |
-| M13 | Ekşi Mayalı Ekmek (UNO 450 g) H ve I boş; sahip paketi 400 g / 14 dilim hatırlıyor ⚠️ | Reçete paket payıyla yazıldı (2 dilim = 0,143 adet); gramla yazılan reçetede 0 girerdi | ☐ paket ağırlığı ve dilim sayısı teyit, H/I doldurulacak |
+| M13 | Ekşi Mayalı Ekmek (UNO 450 g) H ve I boştu | Gramla yazılan reçetede maliyet 0 girerdi | ☑ 03.10 sahip teyidi: 450 g, 12 dilim, uçtaki 2 dilim kullanılmıyor → H/I = 450 gr., reçete 2 dilim = 90 gr (fire dahil); Fiyat_Duzeltme_28.09 satır 31–32 |
 | M14 | 40'tan fazla reçete satırında miktar noktalı ("0.25", "0.1") — Türkçe tabloda metin olarak duruyor | Stok ve maliyet motoru sayı okuyamayabilir | ☐ virgüle çevrilecek (kuru rapor → onay) |
 
 ## V · Veri (gecelik ajan raporundan, 02.10)
