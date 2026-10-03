@@ -624,6 +624,14 @@ function bilesen_(T, ad, miktar, birim, tip, derin, urun) {
   }
   if (hm) {
     if (!(hm.birimFiyat > 0)) eksikEkle_(T, ad + ' (alış fiyatı yok)', urun);
+    // Tablodaki ölçü birimi boşsa ya da reçetedekiyle aynı türde değilse (gr ↔ adet) miktar çevrilemez:
+    // çevrilmeden çarpılınca paket fiyatı gram fiyatı sayılıyordu (02.10: penne porsiyonu 14.000 TL). Tutara 0 girer, eksik listesinde görünür.
+    var ka = birimAile_(birim), ha = birimAile_(hm.birim);
+    if (ka && (ha ? ka[0] !== ha[0] : ka[0] === 'k')) {
+      eksikEkle_(T, ad + (ha ? ' (birim uyuşmuyor: reçetede ' + birim + ', tabloda ' + hm.birim + ')'
+                             : ' (paket içeriği / ölçü birimi boş: ' + hm.tamAd + ')'), urun);
+      return { mk: malKaydet_(T, 'hammadde', hm), miktar: miktar, tutar: 0 };
+    }
     var qh = cevir_(miktar, birim, hm.birim);
     return { mk: malKaydet_(T, 'hammadde', hm), miktar: qh, tutar: qh * hm.birimFiyat };
   }
@@ -795,7 +803,7 @@ function tamKolon_(b, adlar, varsayilan) {
 // Birim ailesi: ['k', çarpan] ağırlık/hacim (gr = ml = 1), ['a', 1] adet.
 function birimAile_(b) {
   var n = norm_(b);
-  if (/^(gr|g|gram|grm)$/.test(n) || /^ml$/.test(n)) return ['k', 1];
+  if (/^(gr|g|gram|grm)$/.test(n) || /^(ml|cc)$/.test(n)) return ['k', 1];
   if (/^(kg|kilo|kilogram)$/.test(n) || /^(lt|l|litre|liter)$/.test(n)) return ['k', 1000];
   if (n === 'cl') return ['k', 10];
   if (/^(adet|ad|tane|porsiyon|paket|dilim|yaprak)$/.test(n)) return ['a', 1];
