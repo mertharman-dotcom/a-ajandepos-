@@ -12,6 +12,7 @@ tutamaz; gerekiyorsa sahipten okur. ⏳ = karar/geçiş bekliyor (bkz. `kontrol-
 | SATIS | BAP Adisyo Sipariş Datası (Make.com doldurur) | `1gdn_rbaevKx9_-pNTRKL1DDtytFxZHr9QF-jrS4cHPE` |
 | SATIS2 | BAP veri tablosu (Detay sekmesi) | `152FdGaQUhwyd0ytcTbM1OI6beNZsXBJhCM-GoG2Bzvw` |
 | FATURA | Kolaybi Fatura Ham Veri | `1JJ6UZzh8rSX1FE9Cr-UPzEAaE-2aKtM10bEvjAv2P5w` |
+| TRENDYOL | Trendyol Yorumlar (Trendyol API çeker; ayrıntı `docs/trendyol-api.md`) | `1KLWCEBwFMHCTrTnCYLhv2ctg5PvGtS9DNzoMXF-Z1JE` |
 
 Bütün e-tabloların listesi ve önerilen Drive düzeni: `docs/tablo-haritasi.md`.
 
@@ -38,6 +39,10 @@ Bütün e-tabloların listesi ve önerilen Drive düzeni: `docs/tablo-haritasi.m
 | Tedarikçi siparişleri | STOK › Siparis_Kayitlari | Mutfak paneli | Alış motoru (şube tahmini), Mal Kabul | — |
 | Üretim / Sayım / Zayi / Transfer girişleri | STOK › Uretim_Girisleri, Sayim_Girisleri, Zayi_Girisleri, Transferler | Mutfak paneli | Hazırlık, stok | — |
 | Ürün maliyeti | STOK › Tbl_Maliyetler | Stok Takip içindeki `BAP Maliyet.gs` (04:00) — canlıda çalışan bu | Raporlar | Ayrı `BAP Maliyet` projesi emekliye ayrılacak (D17); stok motorundaki eski rapor silinecek (S8) |
+| Trendyol yorum ve puanları | TRENDYOL › Degerlendirmeler | `yorumlariCek` (04:15) | Özet, puan tablosu, müşteri veritabanı | — |
+| Trendyol menüsü ve fiyatı (platformdaki hali) | TRENDYOL › Menu_Ham | `menuCek` (03:30) | Menu_Sorun, Menu_Fark | Asıl menü GENEL › Menü; bu yalnızca Trendyol'daki görüntü |
+| Trendyol puanı × sipariş adedi (gün × mağaza), yarın tahmini | TRENDYOL › Puan_Siparis, Puan_Tahmin | `gunlukPuanRaporu` (23:50) | Sahip, panel | Puan_Siparis her gece baştan üretilir; sipariş adedi SATIS'tan okunur, kopya değil |
+| Trendyol iadeleri | TRENDYOL › Iadeler | `iadeleriCek` (10 dk) | Sahip | — |
 | Reçete durumu | GENEL › Menü I sütunu | Maliyet Modülü | — | Stok motoru da yazıyor (S8) |
 
 ## Birimler

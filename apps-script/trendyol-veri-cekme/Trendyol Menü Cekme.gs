@@ -85,6 +85,7 @@ function menuCek() {
     });
     if (res.getResponseCode() !== 200) {
       Logger.log(m.marka + ' HATA ' + res.getResponseCode() + ': ' + res.getContentText().slice(0, 200));
+      tyErisimHatasi_('Menü', res.getResponseCode(), res.getContentText());
       return;
     }
     const j = JSON.parse(res.getContentText());

@@ -172,6 +172,7 @@ function resmiPuanKaydet_() {
       });
       if (res.getResponseCode() !== 200) {
         Logger.log(m.marka + ' stats ' + res.getResponseCode() + ': ' + res.getContentText().slice(0, 120));
+        tyErisimHatasi_('Puan', res.getResponseCode(), res.getContentText());
         return;
       }
       const j = JSON.parse(res.getContentText()), a = j.averageScores || {};
