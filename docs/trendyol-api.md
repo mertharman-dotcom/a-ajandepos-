@@ -14,22 +14,24 @@ kimlikle gider.
 | Menü (ürün, açıklama, fiyat) | `GET product/.../products` | `Trendyol Menü Cekme.gs › menuCek` | Menu_Ham, Menu_Sorun, Menu_Fark | Her gece 03:30 |
 | Fiyat güncelleme | `product/...` (gönderim + batch kontrol) | `Trendyol Fiyat Güncelleme.gs` | Fiyat sekmesi + log | Elle |
 
-## Henüz çekilmeyenler (ileride)
+## Yol haritası (sahibin 03.10 istekleri)
 
-Öncelik, paket servisin %80 olmasına göre verildi.
+| # | İstek | Ne var | Ne eklenecek | Yazar mı? | Aşama |
+|---|---|---|---|---|---|
+| TY-1 | Günlük puan + düne göre değişim + puanın sipariş sayısına etkisi | `Puan_Resmi` (Trendyol'un gösterdiği puan, her gece), `Puan_Gunluk` (90/30 günlük ortalama) | "Değişim" sütunu; şube × gün Trendyol sipariş adedi (SATIS'tan) yan yana; haftanın günü etkisinden arındırılmış karşılaştırma; panelde grafik | Hayır | 1 |
+| TY-2 | Yarın puan tahmini (90 günden düşecek yorumlar) | 90 günlük kayan ortalama hesabı var | Yarın pencereden çıkacak yorumlar → "yeni yorum gelmezse yarın puan X"; "4,8'e çıkmak için kaç 5 yıldız gerekir". Trendyol kuralı `Puan_Resmi` ile ayarlanır | Hayır | 1 |
+| TY-3 | Uber Eats geçişi / 403 uyarısı (R2) | Sadece log | 403 gelince bildirim | Hayır | 1 |
+| TY-4 | Menü tutarlılığı + onayla düzeltme | `Menu_Sorun`, `Menu_Fark`, `Fiyat_Guncelle` (onaylı fiyat gönderimi) | GENEL › Menü ile fiyat/ürün farkı; açıklama ↔ reçete (Tbl_Receteler) içerik farkı; kategori uyumu; boy/fiyat merdiveni. İsim/açıklama/kategori güncelleme API'si belgeden doğrulanacak | Onaylı | 2 |
+| TY-5 | Yorumlara cevap: taslak → onay → gönder | Yorumlar çekiliyor | Taslak cevap (yapay zekâ), onay kutusu, `POST .../answer`; ret nedenleri (`rejectedReason`) izlenir | Onaylı | 2 |
+| TY-6 | İade: bildirim + sebep analizi + onay/ret önerisi | — | 5-10 dk'da bir iade çekme; sipariş, kurye, teslim süresi, müşteri geçmişi, önceki puanlarla birlikte öneri; karar sahipte, `PUT claimAccept/Reject` | Onaylı | 3 |
+| TY-7 | Bölge ve yoğunluğa göre otomatik teslimat süresi | Adisyo siparişleri 5 dk'da bir geliyor (sipariş, çıkış, teslim zamanı, mahalle, kurye) | Son 45-60 dk'nın gerçek teslim süresi → süre basamağı (ör. 20-25 / 25-30 / 35-40); iniş-çıkış titreşimini önleyen eşik; en az/en çok sınırı. Önce 1 hafta yalnızca öneri (kuru), sonra otomatik | Otomatik (sınırlı) | 4 |
 
-| # | Servis | Bize ne kazandırır | Öncelik |
-|---|---|---|---|
-| TY-A | **İade siparişleri çekme** (`claims`) | Hangi ürün / şube / kurye iade alıyor, iade tutarı ne. Düşük puanla birlikte okununca "sorun lezzet mi teslimat mı" netleşir; iade edilen ürün maliyeti zarar olarak raporlanabilir | Yüksek |
-| TY-B | **Çalışma durumu** (açık/kapalı) — okuma | Mağazanın Trendyol'da gün içinde kaç dakika kapalı kaldığını kaydetmek (kapalı = kaçan sipariş). Saatlik anlık görüntü yeter | Yüksek |
-| TY-C | **Teslimat süresi** | Trendyol'da gösterilen süre ile Adisyo'daki gerçek kurye süresinin karşılaştırılması; yoğun saatte süreyi uzatmak puanı korur | Orta |
-| TY-D | **Teslimat bölgeleri** | Hangi mahalleye servis veriyoruz, min. sepet; Adisyo mahalle satışlarıyla yan yana konunca "bölge kârlı mı" sorusu cevaplanır | Orta |
-| TY-E | **Restoran bilgileri** | Mağaza kimlikleri, adres, durum — kodlardaki sabit listeyi doğrulamak için tek seferlik | Düşük |
-| TY-F | **Çalışma saatleri** — okuma | Panelde saatleri görmek; tatil/bayram değişikliği kontrolü | Düşük |
-| TY-G | **Yoruma cevap verme** (`POST .../answer`) | Düşük puanlara şablon cevap. **Veri yazar** → önce kuru çalışma + sahip onayı; otomatik tekrar denenmez (CLAUDE.md kural 4 ve 6) | Düşük, dikkatli |
+**Belge eksikleri:** Teslimat süresi güncelleme (mağaza bazında mı, bölge bazında mı?), iade çekme ve
+onay/ret, ürün adı/açıklama güncelleme sayfalarının istek örnekleri gerekiyor
+(`developers.tgoapps.com` buradan açılamıyor).
 
-Yazan servisler (bölge/saat/durum/süre **güncelleme**, iade onay-red, yoruma cevap) şimdilik kapsam dışı:
-yanlış çalışırsa mağazayı kapatabilir veya müşteriye cevap gider. Önce yalnızca **okuyan** servisler eklenir.
+**Diğer öneriler:** sabah özeti (puan, değişim, yarın tahmini, bekleyen iade/cevap); mağaza Trendyol'da
+beklenmedik kapalıysa uyarı; ürün bazında lezzet puanı; kurye bazında teslimat puanı.
 
 ## Bilinen riskler
 
