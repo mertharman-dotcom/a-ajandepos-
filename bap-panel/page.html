@@ -2082,16 +2082,35 @@ function musteriIade(a,M){var bugunAy=M.bugun.slice(0,7);
   a.appendChild(blok("Bu ay kimden kaynaklandı","Kabul edilen iadelerin tutarı. Sorumlu iade sebebinden önerilir; tablodaki Sorumlu sütunundan değiştirilebilir.",cubuklar(Object.keys(sor).map(function(k){return {ad:k,deger:sor[k]};}).sort(function(x,y){return y.deger-x.deger;}))));
   a.appendChild(blok("Son 60 günün iadeleri",null,M.iade.length?tablo([["Tarih"],["Mağaza"],["Sebep"],["Sorumlu"],["Kurye"],["Tutar",1],["Durum"],["Kuryeden düşüş"]],M.iade.map(function(x){var d=IADE_DURUM[x.durum]||[x.durum,"e-notr"];
     return [saatTr(x.zaman),magKisa(x.magaza),el("span",{title:x.not,text:x.sebep}),x.sorumlu,x.kurye||"—",para(x.tutar),el("span",{class:"etiket "+d[1],text:d[0]}),x.kesinti?el("span",{title:x.kesinti,text:x.kesinti.split(" ")[0]}):"—"];})):bos("Son 60 günde iade yok.")));}
+// Bekleyen bir yorum: müşteri yorumu, düzeltilebilir taslak, telafi kutusu, onay düğmesi.
+// Onay /api/yorum-onay ile tabloya yazılır; Trendyol'a gönderimi Trendyol projesi bir kez yapar.
+var YORUM_FORM={};
+function yorumOnayKarti(x){var F=YORUM_FORM[x.id]=YORUM_FORM[x.id]||{metin:x.cevap,telafi:x.telafi,kirli:false,gonderiliyor:false,durum:"",sinif:"",bitti:false};
+  var ta=el("textarea",{class:"cevap-alan",rows:"3",maxlength:"1000","aria-label":"Cevap metni"});ta.value=F.metin;
+  var tf=el("input",{type:"checkbox"});tf.checked=!!F.telafi;
+  var dur=el("span",{class:"cevap-durum "+F.sinif,role:"status",text:F.durum});
+  var dug=el("button",{type:"button",class:"dugme ana-dugme",text:F.gonderiliyor?"Gönderiliyor…":"Onayla ve gönder"});
+  ta.addEventListener("input",function(){F.metin=ta.value;F.kirli=true;});tf.addEventListener("change",function(){F.telafi=tf.checked;F.kirli=true;});
+  if(F.gonderiliyor||F.bitti){ta.setAttribute("disabled","");tf.setAttribute("disabled","");dug.setAttribute("disabled","");}
+  dug.addEventListener("click",function(){if(F.gonderiliyor||F.bitti)return;var m=F.metin.replace(/\s+/g," ").trim();
+    if(!m){F.durum="Cevap boş olamaz.";F.sinif="kotu";ciz();return;}
+    F.gonderiliyor=true;F.durum="Kaydediliyor…";F.sinif="";ciz();
+    fetch("/api/yorum-onay",{method:"POST",credentials:"same-origin",headers:{"content-type":"application/json","x-bap-panel":"1"},body:JSON.stringify({id:x.id,cevap:m,telafi:!!F.telafi})})
+      .then(function(r){return r.json();}).then(function(d){F.gonderiliyor=false;
+        if(d&&d.tamam){F.bitti=true;F.kirli=false;F.durum="✓ Onaylandı"+(d.zatenOnayli?" (zaten onaylıydı)":"")+"; 15 dakika içinde Trendyol'a gider.";F.sinif="iyi";ciz();return;}
+        F.durum=(d&&d.hata)||"Kaydedilemedi.";F.sinif="kotu";ciz();})
+      .catch(function(){F.gonderiliyor=false;F.durum="Bağlantı koptu; onay yazılmış olabilir. ‘Şimdi yenile’ ile kontrol et, gerekirse yeniden bas (iki kez gönderilmez).";F.sinif="kotu";ciz();});});
+  return el("div",{class:"satir"},[el("h3",null,[magKisa(x.magaza)+" · "+puanYaz(x.puan,1)+"★ ",/HATA/.test(x.durum)?el("span",{class:"etiket e-kotu",text:"taslak yazılamadı, kendin yaz"}):null]),
+    el("div",{style:"margin-top:6px",text:"Müşteri: “"+x.yorum+"”"}),
+    el("div",{style:"margin-top:8px"},[ta]),
+    el("div",{class:"meta",style:"align-items:center"},[el("label",{style:"display:flex;gap:6px;align-items:center"},[tf,"Telafi sözü var (gönderilince Telafi_Listesi'ne yazılır)"]),el("span",{text:saatTr(x.zaman)})]),
+    el("div",{style:"margin-top:8px;display:flex;gap:12px;align-items:center;flex-wrap:wrap"},[dug,dur])]);}
 function iadeBekleyen(M){return M.iade.filter(function(x){return x.durum==="WaitingInAction";});}
 function simdiTr(){var d=new Date(Date.now()+3*3600000);return d.toISOString().slice(0,16).replace("T"," ");}
 
 function musteriYorum(a,M){var link=(kaynaklar("musteri")[0]||{}).link;
-  a.appendChild(el("div",{class:"bilgi"},["Taslakları yapay zekâ yazar; onaylamak ya da düzeltmek için ",link?el("a",{href:link,target:"_blank",rel:"noopener",text:"Trendyol Yorumlar tablosunu"}):"Trendyol Yorumlar tablosunu"," açıp Yorum_Cevap sekmesinde Onay kutusunu işaretle. Onaylanan cevap 15 dakika içinde Trendyol'a bir kez gönderilir."]));
-  a.appendChild(blok("Onay bekleyen cevaplar",null,M.yorumBekleyen.length?el("div",{class:"liste"},M.yorumBekleyen.map(function(x){
-    return el("div",{class:"satir"},[el("h3",null,[magKisa(x.magaza)+" · "+puanYaz(x.puan,1)+"★ ",x.telafi?el("span",{class:"etiket e-dikkat",text:"telafi sözü var"}):null,/HATA/.test(x.durum)?el("span",{class:"etiket e-kotu",text:"taslak yazılamadı"}):null]),
-      el("div",{style:"margin-top:6px",text:"Müşteri: “"+x.yorum+"”"}),
-      el("div",{style:"margin-top:6px;color:var(--mavi-koyu)",text:x.cevap?"Taslak: "+x.cevap:"Taslak yok — tabloda kendin yazabilirsin."}),
-      el("div",{class:"meta"},[el("span",{text:saatTr(x.zaman)})])]);})):bos("Onay bekleyen cevap yok.")));
+  a.appendChild(el("div",{class:"bilgi"},["Taslakları yapay zekâ yazar. Metni istersen düzelt, sonra ‘Onayla ve gönder’e bas: cevap 15 dakika içinde Trendyol'a bir kez gönderilir. İstersen ",link?el("a",{href:link,target:"_blank",rel:"noopener",text:"tablodan"}):"tablodan"," de onaylayabilirsin."]));
+  a.appendChild(blok("Onay bekleyen cevaplar",null,M.yorumBekleyen.length?el("div",{class:"liste"},M.yorumBekleyen.map(yorumOnayKarti)):bos("Onay bekleyen cevap yok.")));
   a.appendChild(blok("Son gönderilenler","Trendyol cevabı önce inceler; reddederse nedeni burada görünür.",M.yorumSon.length?tablo([["Gönderim"],["Mağaza"],["Puan",1],["Cevap"],["Trendyol"]],M.yorumSon.map(function(x){
     var td=x.trendyol==="APPROVED"?["yayında","e-iyi"]:x.trendyol==="REJECTED"?["reddedildi"+(x.ret?": "+x.ret:""),"e-kotu"]:/^HATA/.test(x.durum)?["gönderilemedi","e-kotu"]:["inceleniyor","e-notr"];
     return [saatTr(x.gonderim),magKisa(x.magaza),puanYaz(x.puan,1),el("span",{title:x.cevap,text:x.cevap.length>90?x.cevap.slice(0,90)+"…":x.cevap}),el("span",{class:"etiket "+td[1],title:x.durum,text:td[0]})];})):bos("Henüz gönderilen cevap yok.")));}
@@ -2133,6 +2152,7 @@ nav();yukle(false);setInterval(function(){if(document.hidden)return;
     if((AKTIF==="panolar"||AKTIF==="kararlar")&&(PANO.acik||PANO.gonderiliyor))return;
   if(AKTIF==="kurye"&&(KESINTI_FORM.miktar||KESINTI_FORM.aciklama||KESINTI_FORM.gonderiliyor||MESAI_DUZ.acik||MESAI_DUZ.gonderiliyor))return;
   if(AKTIF==="personel"&&VARD_DUZEN)return;
+  if(AKTIF==="musteri"&&Object.keys(YORUM_FORM).some(function(k){return YORUM_FORM[k].kirli||YORUM_FORM[k].gonderiliyor;}))return;
   if(AKTIF==="fis"&&Object.keys(FIS.form).some(function(k){return FIS.form[k].kirli||FIS.form[k].gonderiliyor;}))return;yukle(true,true);},300000);
 })();
 </script>

@@ -51,6 +51,7 @@ effort `low`, `fallbacks: "default"`; anahtar Script Properties › `CLAUDE_API_
 4. **Gönderim:** 10 dk'da bir onaylılar `POST .../reviews/{reviewId}/answer` ile **bir kez** gönderilir
    (otomatik tekrar yok, kural 6); Durum = GÖNDERİLDİ. Sonra Trendyol'un onay/ret sonucu (`restaurantAnswer.status`,
    `rejectedReason`) okunup yazılır; reddedilen taslaklar kurallara eklenir.
+   Onay panelden de verilebilir (Müşteri İlişkileri › Yorum cevapları; veri kapısı yalnız Onay/Cevap/Telafi Sözü yazar).
 5. **Sonra (güven oluşunca):** 5★ ve kısa övgü yorumları için otomatik onay seçeneği.
 
 ## Servis notları (sahibin yapıştırdığı belgelerden, 03.10)

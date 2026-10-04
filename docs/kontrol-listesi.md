@@ -117,6 +117,7 @@ Tablolarda yapılan her değişikliğin eski ve yeni değeri **STOK › Fiyat_Du
 | R8 | Yorum cevapları: Yorum_Cevap sekmesi, Claude taslağı, sahip onayı, Trendyol'a tek gönderim; telafi sözü Telafi_Listesi'ne (telefonsuz, adres Not'ta) | ◐ |
 | R9 | Telafi_Listesi otomatik eşleşmesi telefonla çalışıyor; Trendyol müşterisi (maskeli telefon) adresle tanınmalı — Adisyo toplayıcıda `telafiKontrol_`'e adres anahtarı eklenecek | ☐ |
 | R10 | Panel › Müşteri İlişkileri: Trendyol puanı + sipariş (30 gün, mağaza başına), yarın tahmini, iadeler (bekleyen, bu ayın mutfak/kurye zararı), yorum cevapları (onay bekleyen, son gönderilen). Veri kapısı `musteri_()` Trendyol Yorumlar tablosunu okur | ◐ 05.10 yayına alındı |
+| R11 | Panelden yorum cevabı onayı: Müşteri İlişkileri › Yorum cevapları'nda metni düzelt + telafi kutusu + 'Onayla ve gönder' → `/api/yorum-onay` → veri kapısı `yorumOnay_` yalnız Yorum_Cevap'a Onay yazar; Trendyol'a gönderimi Trendyol projesi bir kez yapar | ◐ 05.10 yayına alındı |
 
 ## P · Paneller
 
