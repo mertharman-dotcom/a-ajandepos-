@@ -127,7 +127,7 @@ Tablolarda yapılan her değişikliğin eski ve yeni değeri **STOK › Fiyat_Du
 | P8 | Müşteriye iade IBAN'a havaleyle yapılıyor. Pluxee'de `sanal-pos-iade-islemleri` sayfasından karta doğrudan iade yapılabiliyor (Yemekpay / Trendyol Yemek satırlarında "İade Yap") | ⏸ park — sahip ileride isteyecek |
 | P9 | Edenred (Ticket) kurye çekimleri tabloya gelmiyordu. `mac-kopru/edenred.mjs`: gerçek Chrome ile giriş (telefon + VKN + SMS, reCAPTCHA), şube × terminal × sayfa; KURYE › Edenred; kart ajanında 'Edenred' kaynağı | ◐ 04.10 Mac'te denendi: otomatik giriş + 57 işlem (28.09–04.10). Bekleyen: yayın (kurye köprüsü `kodYaz`/`edenred`), iPhone Kestirmeler kuralı, `com.bap.edenred` zamanlayıcısı |
 | P10 | MacBook `pluxee.mjs`: kod istemeden önce eski kodu silmiyordu → 04.10 12:00 "kod reddedildi" | ◐ düzeltme komutu sahibe verildi (yedek: `pluxee.mjs.kodsil-oncesi`) |
-| P11 | Pluxee kod/kayıt işlerini yapan Apps Script web uygulaması (`ayar.json › pluxee.webapp`, `pluxeeKodIste/Oku/Sil`, `tur:'pluxee'`) depoda yok; "Pluxee bağlantısı" e-postası buradan | ☐ sahipten Komut dosyası kimliği bekleniyor → `projeler.json` |
+| P11 | Pluxee kod/kayıt işleri kurye projesinin içindeymiş (`Pluxee.gs`, `PluxeeKodSayfa.gs`, `Kopru.gs` pluxee türleri, doGet `?sayfa=pluxee`); sabahki canlı çekim dalı `kod-cekimi/20261004-1034` birleştirilmemişti | ☑ 04.10 #8 ile depoya alındı. **Olay:** #6/#7 yayını bu dosyaları sildi, Pluxee 16:34–17:16 arası çalışmadı. Kural: yayından önce açık `kod-cekimi/*` dalı var mı bakılır, varsa önce o birleştirilir |
 
 ## Y · Yapı
 
