@@ -50,6 +50,7 @@ Bütün e-tabloların listesi ve önerilen Drive düzeni: `docs/tablo-haritasi.m
 | Pluxee kart çekimleri (işlem zamanı, tutar) | KURYE › Pluxee | MacBook'taki Pluxee çekimi | Yemek kartı ajanı (veri kapısı `pluxeeCekimleri_`) | — |
 | Paye kart çekimleri (Sofra gün sonu raporunun satırları + Rapor Günü + Mesaj ID) | KURYE › Paye | Rapor ajanı `payeGunSonuAktar` (Gmail'deki "Gün Sonu Raporu" eki; yalnız ekler) | Yemek kartı ajanı (veri kapısı `payeCekimleri_`) | — |
 | Kapatılan açık hesaplar | KURYE › Tahsilatlar | Panel (elle) + yemek kartı ajanı (kaynak 'Pluxee Ajanı' / 'Paye Ajanı') | Panel, bordro | — |
+| Pluxee haftalık fatura (onay, kesim sonucu, tutarlar) | KURYE › Pluxee Fatura | Panel (onay) + MacBook Pluxee programı (kesim sonucu) | Panel › Finans | — |
 
 ## Birimler
 
