@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// edenred.mjs v0.1 — Edenred (Ticket Restaurant) terminal bazlı işlem listesi.
+// edenred.mjs v0.2 — Edenred (Ticket Restaurant) terminal bazlı işlem listesi.
 // Giriş telefon + VKN + SMS; sitede reCAPTCHA olduğu için Mac'teki gerçek Chrome açılır (playwright-core).
 //   node edenred.mjs --terminal                          son geriGun günü, kodu terminalden sor
 //   node edenred.mjs --terminal 28.09.2026 04.10.2026    tarih aralığı
@@ -45,16 +45,16 @@ async function oturumAcik(page) {
 
 async function girisYap(page) {
   await page.goto(KOK + '/is-ortaklari/login/', { waitUntil: 'networkidle' });
-  // VKN ve telefon kutuları (görünenleri doldur; gizli alan varsa onu da)
-  const vkn = page.locator('input[name="vkn"]:visible').first();
-  if (await vkn.count()) await vkn.fill(ED.vkn);
-  const tel = page.locator('input[type="tel"]:visible, input[name="phoneNumber"]:visible').first();
-  if (await tel.count()) { await tel.click(); await tel.fill(''); await tel.pressSequentially(ED.telefon, { delay: 40 }); }
-  await page.evaluate(({ v, t }) => {
-    document.querySelectorAll('input[type="hidden"][name="vkn"]').forEach(i => { i.value = v; });
-    document.querySelectorAll('input[type="hidden"][name="phoneNumber"]').forEach(i => { i.value = t; });
-  }, { v: ED.vkn, t: ED.telefon });
-  const dugme = page.getByRole('button', { name: /giri|devam|sms|gönder|doğrula/i }).first();
+  // Çerez penceresi düğmeleri örtmesin
+  await page.locator('#onetrust-reject-all-handler').click({ timeout: 3000 }).catch(() => {});
+  // Sayfa (04.10.2026): VKN = input[name=vkn]; telefon = #phoneNumber (maskeli, "(5__) ___ __ __"),
+  // gönderilen değer gizli input[name=phoneNumber]; "Beni hatırla" = #remindMe; düğme "GİRİŞ YAP".
+  await page.locator('input[name="vkn"]').first().fill(ED.vkn);
+  const tel = page.locator('#phoneNumber').first();
+  await tel.click(); await tel.fill(''); await tel.pressSequentially(ED.telefon, { delay: 60 });
+  await page.evaluate(t => { document.querySelectorAll('input[type="hidden"][name="phoneNumber"]').forEach(i => { i.value = t; }); }, ED.telefon);
+  await page.locator('#remindMe').check().catch(() => {});
+  const dugme = page.locator('button[type="submit"][class*="login-sub"], button[type="submit"]:has-text("GİRİŞ")').first();
   if (await dugme.count()) await dugme.click().catch(() => {});
   else log('giriş düğmesi bulunamadı — açılan Chrome penceresinde elle bas');
   await page.waitForURL(/\/login\/confirm/, { timeout: 120000 });   // elle basılırsa da yakalar
@@ -90,15 +90,32 @@ async function terminaller(page, sube) {
   return [...bul];
 }
 
+// Sayfa ilk 10 satırı HTML olarak verir; devamı sitenin kendi "aşağı kaydırınca yükle" adresinden JSON gelir:
+// ?page=2,3…&startDate&endDate&terminalId&branchId&sub-product=&filter=1 → { totalItemCount, transactions: [...] }
 async function islemler(page, sube, terminal, bas, bit) {
-  const u = `${LISTE}?startDate=${encodeURIComponent(bas)}&endDate=${encodeURIComponent(bit)}&terminalId=${terminal}&branchId=${sube}`;
-  await page.goto(u, { waitUntil: 'domcontentloaded' });
-  return page.$$eval('table', ts => {
+  const q = `startDate=${encodeURIComponent(bas)}&endDate=${encodeURIComponent(bit)}&terminalId=${terminal}&branchId=${sube}`;
+  await page.goto(`${LISTE}?${q}`, { waitUntil: 'domcontentloaded' });
+  const l = await page.$$eval('table', ts => {
     const t = ts.find(x => /Kart No|İşlem Tutarı/i.test(x.innerText)); if (!t) return [];
     const b = [...t.querySelectorAll('thead th, tr:first-child th')].map(h => h.innerText.trim());
     return [...t.querySelectorAll('tbody tr')].map(tr => [...tr.querySelectorAll('td')].map(td => td.innerText.trim()))
       .filter(c => c.length >= 4).map(c => Object.fromEntries(b.map((h, i) => [h, c[i] || ''])));
   });
+  if (l.length < 10) return l;
+  let toplam = null;
+  for (let sayfa = 2; sayfa <= 100; sayfa++) {
+    const r = await page.request.get(`${LISTE}?page=${sayfa}&${q}&sub-product=&filter=1`,
+      { headers: { 'x-requested-with': 'XMLHttpRequest', accept: 'application/json, text/javascript, */*; q=0.01' } });
+    let j; try { j = JSON.parse(await r.text()); } catch (_) { log(`  ${terminal}: ${sayfa}. sayfa okunamadı`); break; }
+    if (toplam === null && j.totalItemCount) toplam = Number(j.totalItemCount);
+    const t = j.transactions || [];
+    for (const x of t) l.push({ 'Üye No': x.redId, 'Terminal No': x.terminalNumber, 'Terminal Günsonu Tarihi': String(x.endDayDate || '').replace('T', ' '),
+      'İşlem Tarihi': String(x.trancationDate || '').replace('T', ' '), 'Kart No': x.cardNumber, 'İşlem Tutarı (TL)': x.amount + ' ₺' });
+    if (!t.length || (toplam !== null && l.length >= toplam)) break;
+    await bekle(400);
+  }
+  if (toplam !== null && l.length !== toplam) log(`  ${terminal}: uyarı — site ${toplam} diyor, ${l.length} alındı`);
+  return l;
 }
 
 /* ---------- ana ---------- */
