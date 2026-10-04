@@ -37,7 +37,8 @@ const TYR = {
   SATIS_BASLIK: {          // ana tabloda başlık adları (sütun numarasıyla okunmaz)
     TARIH: 'Sipariş Tarihi', CIKIS: 'Hazırlanma (Şube Çıkış)', TESLIM: 'Teslim Zamanı',
     KANAL: 'Sipariş Kanalı', MARKA: 'Marka', TEL: 'Müşteri Telefon', MAHALLE: 'Mahalle',
-    TUTAR: 'Toplam Tutar', KURYE: 'Kurye', DURUM: 'Durum', ID: 'Sipariş ID', URUN: 'Ürünler'
+    TUTAR: 'Toplam Tutar', KURYE: 'Kurye', DURUM: 'Durum', ID: 'Sipariş ID', URUN: 'Ürünler',
+    MUSTERI: 'Müşteri Adı', ADRES: 'Müşteri Adres'
   }
 };
 
@@ -275,7 +276,7 @@ function tyrSatisOku_() {
       const teslim = tyrTarih_(r[i.TESLIM]);
       siparis[tel.slice(k + 1).trim()] = {
         id: r[i.ID], marka: r[i.MARKA], kurye: r[i.KURYE], mahalle: r[i.MAHALLE],
-        tutar: r[i.TUTAR], urun: r[i.URUN],
+        tutar: r[i.TUTAR], urun: r[i.URUN], musteri: r[i.MUSTERI], adres: r[i.ADRES],
         dk: (t && teslim && teslim > t) ? Math.round((teslim - t) / 60000) : ''
       };
     }
@@ -682,8 +683,11 @@ function sabahOzeti() {
     if (bek.length) iade = '\n\n↩️ Bekleyen iade: ' + bek.length + ' kalem — Iadeler sekmesine bak.';
   }
 
+  let yorum = '';
+  try { yorum = yorumBekleyenOzeti_(); } catch (e) { Logger.log('Yorum özeti: ' + e); }
+
   tyBildir_('📊 Trendyol sabah özeti — ' + Utilities.formatDate(new Date(), 'Europe/Istanbul', 'dd.MM.yyyy'),
-            satir.join('\n\n') + iade);
+            satir.join('\n\n') + iade + yorum);
 }
 
 /* ============================================================
@@ -737,12 +741,13 @@ function tyrTarih_(x) {
  * 7) TETİKLEYİCİ
  * ============================================================ */
 function raporTetikleyiciKur() {
-  const adlar = ['gunlukPuanRaporu', 'iadeleriCek', 'sabahOzeti'];
+  const adlar = ['gunlukPuanRaporu', 'iadeleriCek', 'sabahOzeti', 'yorumCevapCalistir'];
   ScriptApp.getProjectTriggers()
     .filter(t => adlar.indexOf(t.getHandlerFunction()) >= 0)
     .forEach(t => ScriptApp.deleteTrigger(t));
   ScriptApp.newTrigger('gunlukPuanRaporu').timeBased().atHour(23).nearMinute(50).everyDays(1).create();
   ScriptApp.newTrigger('iadeleriCek').timeBased().everyMinutes(10).create();
+  ScriptApp.newTrigger('yorumCevapCalistir').timeBased().everyMinutes(15).create();
   ScriptApp.newTrigger('sabahOzeti').timeBased().atHour(10).nearMinute(45).everyDays(1).create();
-  Logger.log('Kuruldu: gunlukPuanRaporu 23:50, iadeleriCek 10 dk, sabahOzeti 10:45');
+  Logger.log('Kuruldu: gunlukPuanRaporu 23:50, iadeleriCek 10 dk, yorumCevapCalistir 15 dk, sabahOzeti 10:45');
 }

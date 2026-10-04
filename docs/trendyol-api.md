@@ -16,6 +16,7 @@ kimlikle gider.
 | Günlük puan raporu + yarın tahmini | (yorum + puan verisi, SATIS) | `Trendyol Gunluk Rapor.gs › gunlukPuanRaporu` | Puan_Siparis, Puan_Tahmin | Her gece ~23:50 |
 | İadeler (yalnız okur, bildirir) | `GET claim/meal/suppliers/{supplierId}/claims` | `Trendyol Gunluk Rapor.gs › iadeleriCek` | Iadeler | 10 dk'da bir |
 | İade özeti (ay × sorumlu, mutfak zararı, kurye bazında) | — | `Trendyol Gunluk Rapor.gs › iadeOzetiYenile` | Iade_Ozet | gunlukPuanRaporu ile her gece |
+| Yorum cevapları (taslak → onay → gönder) | `GET reviews/filter` + `POST .../reviews/{reviewId}/answer` + Claude API | `Trendyol Yorum Cevap.gs › yorumCevapCalistir` | Yorum_Cevap (+ telafi sözü → Telafi_Listesi) | 15 dk'da bir |
 | İadeyi kuryeden düş | — (Kurye › Kesintiler'e yazar) | `Trendyol Gunluk Rapor.gs › iadeKesintileriIsle` | Iadeler (Kuryeden Düş / Düşülecek TL / Kesinti Durumu) | iadeleriCek ile 10 dk'da bir |
 | Sabah özeti (e-posta + Make) | — | `Trendyol Gunluk Rapor.gs › sabahOzeti` | — | Her sabah ~10:45 |
 
@@ -34,7 +35,10 @@ kimlikle gider.
 **Kurulum (TY-1, TY-2, TY-3, TY-6'nın okuma kısmı):** yayından sonra Apps Script'te bir kez
 `raporTetikleyiciKur()` çalıştırılır. Trendyol'a hiçbir şey yazılmaz.
 
-## TY-5 Yorum cevapları — tasarım (sahiple konuşuldu, 05.10)
+## TY-5 Yorum cevapları — tasarım (sahiple konuşuldu, 05.10; kod: `Trendyol Yorum Cevap.gs`)
+
+Sahip kararları: imza yok; telafi sözü yalnızca sorun bizden kaynaklıysa ve tutar yazmadan. Model `claude-opus-5-5`,
+effort `low`, `fallbacks: "default"`; anahtar Script Properties › `CLAUDE_API_KEY`.
 
 1. **Toplama:** `yorumlariCek` zaten çekiyor. Yorum metni olan ve restoran cevabı olmayan
    (`hasComment=true`, `hasRestaurantAnswer=false`) yorumlar `Yorum_Cevap` sekmesine düşer.

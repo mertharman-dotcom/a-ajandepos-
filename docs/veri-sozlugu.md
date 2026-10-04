@@ -44,6 +44,7 @@ Bütün e-tabloların listesi ve önerilen Drive düzeni: `docs/tablo-haritasi.m
 | Trendyol yorum ve puanları | TRENDYOL › Degerlendirmeler | `yorumlariCek` (04:15) | Özet, puan tablosu, müşteri veritabanı | — |
 | Trendyol menüsü ve fiyatı (platformdaki hali) | TRENDYOL › Menu_Ham | `menuCek` (03:30) | Menu_Sorun, Menu_Fark | Asıl menü GENEL › Menü; bu yalnızca Trendyol'daki görüntü |
 | Trendyol puanı × sipariş adedi (gün × mağaza), yarın tahmini | TRENDYOL › Puan_Siparis, Puan_Tahmin | `gunlukPuanRaporu` (23:50) | Sahip, panel | Puan_Siparis her gece baştan üretilir; sipariş adedi SATIS'tan okunur, kopya değil |
+| Trendyol yorum cevapları (taslak, onay, gönderim, Trendyol sonucu) | TRENDYOL › Yorum_Cevap | `yorumCevapCalistir` + sahip (onay) | Sahip | — |
 | Trendyol iadeleri | TRENDYOL › Iadeler | `iadeleriCek` (10 dk) | Sahip | — |
 | Kurye kesintileri (TL / dakika) | KURYE › Kesintiler (`1LG7naAbMM9aL3K0QNzzrjXomC2LXjx4rdSCYNYWzDQo`) | Elle + `iadeKesintileriIsle` (Iadeler'de "Kuryeden Düş" işaretli satırlar) | Kurye bordrosu (`kesintiOku`) | Iadeler'deki "Kesinti Durumu" yalnızca durum notu, kopya değil |
 | Reçete durumu | GENEL › Menü I sütunu | Maliyet Modülü | — | Stok motoru da yazıyor (S8) |
