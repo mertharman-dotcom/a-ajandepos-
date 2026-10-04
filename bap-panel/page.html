@@ -1907,20 +1907,35 @@ function kuryeEslestirme(a,K){var E=K.eslestirme;
   ciz4();a.appendChild(kap);}
 
 var HESAP_ISLEM={};// siparisId → {durum:"gidiyor"|"tamam"|"hata", islem, mesaj}
+// Ödeme yöntemi seçenekleri: açık hesaplarda geçen yöntemler + sık kullanılanlar.
+var KURYE_ODEME_YONTEMLERI=["Nakit","Kredi/Banka Kartı","Havale/EFT","Paye Kart","Paye Kod","Pluxee (Sodexo) Pass Mobil","Sodexo Kart","Multinet","Multinet Kodu","SetCard","SetCard Kodu","Metropol","Metropol Kodu","Ticket Edenred","Token Flex","SmarTicket","Online (platform)"];
 function hesapKapat(x,islem,yenidenCiz){
-  var bahsis="";
-  if(islem==="tahsil"){var b=window.prompt("Adisyon "+x.no+" — "+x.kurye+", "+para(x.tutar)+" ("+x.odeme+")\n\nBahşiş (tip) varsa tutarını yaz; yoksa boş bırakıp Tamam'a bas.","");
-    if(b===null)return;b=String(b).trim().replace(/\./g,"").replace(",",".");if(b&&!(parseFloat(b)>=0)){window.alert("Bahşiş tutarı sayı olmalı.");return;}bahsis=b&&parseFloat(b)>0?String(parseFloat(b)):"";}
-  var soru=islem==="kes"?x.kurye+" için "+para(x.tutar)+" tutarında kesinti yazılacak ve haftalık bordrosundan düşülecek.\n\nAdisyon "+x.no+" ("+gunAd(x.gun)+", "+x.odeme+"). Onaylıyor musun?"
-    :"Adisyon "+x.no+" — "+x.kurye+", "+para(x.tutar)+" ("+x.odeme+") tahsil edildi olarak kapatılacak"+(bahsis?"; ayrıca "+para(+bahsis)+" bahşiş ayrı yazılacak":"")+". Onaylıyor musun?";
-  if(!window.confirm(soru))return;
-  HESAP_ISLEM[x.id]={durum:"gidiyor",islem:islem};yenidenCiz();
-  fetch("/api/hesap",{method:"POST",credentials:"same-origin",headers:{"content-type":"application/json","x-bap-panel":"1"},body:JSON.stringify({siparisId:x.id,islem:islem,bahsis:bahsis})})
-    .then(function(r){return r.json();}).then(function(d){
-      if(d&&d.tamam)HESAP_ISLEM[x.id]={durum:"tamam",islem:islem,mesaj:d.zatenKapali?"Zaten kapatılmıştı":(islem==="kes"?"Kuryeden kesildi":"Tahsil edildi"+(d.bahsis?" + "+para(d.bahsis)+" bahşiş":""))};
-      else HESAP_ISLEM[x.id]={durum:"hata",islem:islem,mesaj:(d&&d.hata)||"Kaydedilemedi."};
-    }).catch(function(){HESAP_ISLEM[x.id]={durum:"hata",islem:islem,mesaj:"Bağlantı koptu; kayıt yazılmış olabilir. Paneli yenileyip kontrol et."};})
-    .then(yenidenCiz);}
+  var K=(VERI&&VERI.kurye&&VERI.kurye.acik)||{},vs={};KURYE_ODEME_YONTEMLERI.concat(x.odeme?[x.odeme]:[]).forEach(function(o){vs[o]=1;});
+  (K.liste||[]).forEach(function(y){if(y.odeme)vs[y.odeme]=1;});
+  var d=el("dialog",{class:"musteri-pencere","aria-label":"Hesabı kapat"}),kapat=function(){try{d.close();}catch(e){}d.remove();};
+  var sec=el("select",{class:"cevap-alan","aria-label":"Ödeme yöntemi"},Object.keys(vs).sort(function(p,q){return p.localeCompare(q,"tr");}).map(function(o){var op=el("option",{value:o,text:o+(o===x.odeme?" (sistemdeki)":"")});if(o===x.odeme)op.selected=true;return op;}));
+  var bah=el("input",{type:"text",inputmode:"decimal",class:"cevap-alan",placeholder:"Bahşiş varsa tutar (örn. 50)","aria-label":"Bahşiş"});
+  var uyari=el("p",{style:"font-size:13px;color:var(--gri);margin:6px 0 0"});
+  function guncelle(){uyari.textContent=sec.value!==x.odeme?"Ödeme yöntemi "+x.odeme+" → "+sec.value+" olarak Tahsilatlar'a yazılacak; eski yöntem notta kalır.":"";}
+  sec.addEventListener("change",guncelle);
+  var tamam=el("button",{type:"button",class:"dugme ana-dugme",onclick:function(){
+    var bahsis="";if(islem==="tahsil"){var b=String(bah.value||"").trim().replace(/\./g,"").replace(",",".");if(b&&!(parseFloat(b)>=0)){uyari.textContent="Bahşiş tutarı sayı olmalı.";return;}bahsis=b&&parseFloat(b)>0?String(parseFloat(b)):"";}
+    var odeme=sec.value;kapat();
+    HESAP_ISLEM[x.id]={durum:"gidiyor",islem:islem};yenidenCiz();
+    fetch("/api/hesap",{method:"POST",credentials:"same-origin",headers:{"content-type":"application/json","x-bap-panel":"1"},body:JSON.stringify({siparisId:x.id,islem:islem,bahsis:bahsis,odeme:odeme!==x.odeme?odeme:""})})
+      .then(function(r){return r.json();}).then(function(r){
+        if(r&&r.tamam)HESAP_ISLEM[x.id]={durum:"tamam",islem:islem,mesaj:r.zatenKapali?"Zaten kapatılmıştı":(islem==="kes"?"Kuryeden kesildi":"Tahsil edildi"+(r.bahsis?" + "+para(r.bahsis)+" bahşiş":""))+(r.odemeDegisti?" · ödeme: "+r.odeme:"")};
+        else HESAP_ISLEM[x.id]={durum:"hata",islem:islem,mesaj:(r&&r.hata)||"Kaydedilemedi."};
+      }).catch(function(){HESAP_ISLEM[x.id]={durum:"hata",islem:islem,mesaj:"Bağlantı koptu; kayıt yazılmış olabilir. Paneli yenileyip kontrol et."};})
+      .then(yenidenCiz);}},[islem==="kes"?"Kuryeden kes":"Tahsil edildi"]);
+  d.appendChild(el("div",null,[
+    el("strong",{style:"font-size:17px;display:block;margin-bottom:6px",text:"Adisyon "+x.no+" — "+x.kurye}),
+    el("p",{style:"margin:0 0 12px",text:gunAd(x.gun)+(x.saat?" "+x.saat:"")+" · "+para(x.tutar)+" · sistemde: "+x.odeme}),
+    islem==="kes"?el("p",{style:"margin:0 0 10px;color:var(--kotu)",text:para(x.tutar)+" kuryenin bu haftaki bordrosundan kesilecek (bugünün tarihiyle, açıklamada adisyon no ile)."}):null,
+    el("label",{style:"display:block;margin-bottom:10px"},["Gerçek ödeme yöntemi",sec]),
+    islem==="tahsil"?el("label",{style:"display:block"},["Bahşiş",bah]):null,uyari,
+    el("div",{style:"display:flex;gap:8px;margin-top:14px"},[tamam,el("button",{type:"button",class:"dugme",onclick:kapat},["Vazgeç"])])]));
+  d.addEventListener("close",function(){d.remove();});document.body.appendChild(d);try{d.showModal();}catch(e){d.setAttribute("open","");}}
 
 // Açık hesapta adisyon numarasına tıklanınca müşteri bilgisi (ayrı istekle, yalnız o sipariş için).
 function musteriGoster(x){var d=el("dialog",{class:"musteri-pencere","aria-label":"Sipariş ayrıntısı"});var ic=el("div",{class:"cevap-durum",text:"Yükleniyor…"});

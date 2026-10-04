@@ -227,6 +227,31 @@ function doPost(e) {
       return _kopruYanit({ ok: true });
     }
 
+    // ---- Pluxee (pluxee.mjs) ----
+    if (g.tur === 'pluxee') return _kopruYanit(pluxeeYaz(g.satirlar || []));
+    if (g.tur === 'pluxeeKodIste' || g.tur === 'pluxeeKodOku' || g.tur === 'pluxeeKodSil') {
+      var kSh = SpreadsheetApp.openById(PLUXEE_SS_ID).getSheetByName(PLUXEE_KOD_SEKME);
+      if (!kSh) return _kopruYanit({ hata: '"' + PLUXEE_KOD_SEKME + '" sekmesi yok' });
+      var hucre = kSh.getRange('B2');
+      if (g.tur === 'pluxeeKodOku') {
+        var kod = String(hucre.getDisplayValue() || '').replace(/\D/g, '');
+        return _kopruYanit({ ok: true, kod: (kod.length >= 4 && kod.length <= 8) ? kod : '' });
+      }
+      if (g.tur === 'pluxeeKodSil') {
+        hucre.setNumberFormat('@').setValue('');
+        return _kopruYanit({ ok: true });
+      }
+      // pluxeeKodIste: kodu iPhone Kestirmeler SMS'ten kendisi yazıyor; e-posta / WhatsApp bildirimi kaldırıldı (sahibin isteği, 04.10).
+      // Kutu burada temizlenmez: SMS bu istekten önce gelmiş olabilir. Eski kodu pluxee.mjs girişten önce pluxeeKodSil ile siler.
+      return _kopruYanit({ ok: true });
+    }
+    // Doğrulama kodları (Edenred vb.): MacBook programı kodIste der, iPhone Kestirmeler SMS'teki kodu kodYaz ile bırakır,
+    // program kodOku ile alır. Yalnız son kodIste'den SONRA yazılan kod verilir (eski kodla giriş denenmesin).
+    if (/^kod(Iste|Yaz|Oku|Sil|Durum)$/.test(String(g.tur))) return _kopruYanit(_kopruKod(g));
+
+    // Edenred terminal bazlı işlemler (MacBook edenred.mjs): 'Edenred' sekmesine yalnız yeni satırlar eklenir.
+    if (g.tur === 'edenred') return _kopruYanit(_kopruEdenredYaz(g.satirlar || []));
+
     return _kopruYanit({ hata: 'Bilinmeyen tür.' });
   } catch (err) {
     return _kopruYanit({ hata: String(err && err.message || err) });
@@ -811,4 +836,49 @@ function kopruDurum() {
   Logger.log(m);
   try { SpreadsheetApp.getUi().alert('Köprü Durumu', m, SpreadsheetApp.getUi().ButtonSet.OK); } catch (e) {}
   return m;
+}
+
+
+/* ---------- Doğrulama kodu kutusu ---------- */
+function _kopruKod(g) {
+  var kaynak = String(g.kaynak || '').toLowerCase().replace(/[^a-z]/g, '');
+  if (!kaynak) return { hata: 'kaynak yok' };
+  var p = PropertiesService.getScriptProperties(), kIste = 'KOD_ISTE_' + kaynak, kKod = 'KOD_' + kaynak;
+  if (g.tur === 'kodIste') { p.setProperty(kIste, String(Date.now())); p.deleteProperty(kKod); return { ok: true }; }
+  if (g.tur === 'kodSil') { p.deleteProperty(kKod); return { ok: true }; }
+  if (g.tur === 'kodYaz') {
+    // Kestirmeler "Eşleşenler"i liste/sözlük olarak da gönderebilir: içindeki ilk 4–8 haneli sayı alınır.
+    var ham = typeof g.kod === 'string' ? g.kod : JSON.stringify(g.kod || ''), m = ham.match(/\d{4,8}/), kod = m ? m[0] : '';
+    p.setProperty('KOD_SON_GELEN_' + kaynak, JSON.stringify({ ham: ham.slice(0, 200), zaman: Utilities.formatDate(new Date(), TZ, 'dd.MM.yyyy HH:mm:ss') }));
+    if (!kod) return { hata: 'geçersiz kod', gelen: ham.slice(0, 100) };
+    p.setProperty(kKod, JSON.stringify({ kod: kod, zaman: Date.now() }));
+    return { ok: true };
+  }
+  if (g.tur === 'kodDurum') return { ok: true, sonGelen: JSON.parse(p.getProperty('KOD_SON_GELEN_' + kaynak) || 'null') };
+  var x = p.getProperty(kKod); if (!x) return { ok: true, kod: null };
+  x = JSON.parse(x);
+  if (x.zaman < Number(p.getProperty(kIste) || 0)) return { ok: true, kod: null };
+  return { ok: true, kod: x.kod };
+}
+
+/* ---------- Edenred işlemleri ---------- */
+var EDENRED_BASLIK = ['İşlem Zamanı', 'Tutar (TL)', 'Terminal No', 'Şube', 'Günsonu Zamanı', 'Kart No', 'Kayıt Zamanı'];
+// satirlar: [{ zaman: 'dd.MM.yyyy HH:mm:ss', tutar: sayı, terminal, sube, gunsonu, kart }]
+function _kopruEdenredYaz(satirlar) {
+  var ss = SpreadsheetApp.openById(SS_ID), sh = ss.getSheetByName('Edenred');
+  if (!sh) { sh = ss.insertSheet('Edenred'); sh.appendRow(EDENRED_BASLIK); sh.setFrozenRows(1); sh.getRange(1, 1, 1, EDENRED_BASLIK.length).setFontWeight('bold'); }
+  var anahtar = function (z, t, ter, k) { return [String(z).slice(0, 19), Number(t).toFixed(2), String(ter), String(k)].join('|'); };
+  var var_ = {};
+  if (sh.getLastRow() > 1) {
+    var n = Math.min(6000, sh.getLastRow() - 1);
+    sh.getRange(sh.getLastRow() - n + 1, 1, n, 6).getDisplayValues().forEach(function (r) { var_[anahtar(r[0], String(r[1]).replace(/\./g, '').replace(',', '.'), r[2], r[5])] = 1; });
+  }
+  var damga = Utilities.formatDate(new Date(), TZ, 'dd.MM.yyyy HH:mm:ss'), yeni = [];
+  satirlar.forEach(function (x) {
+    if (!x || !x.zaman || !(Number(x.tutar) > 0)) return;
+    var k = anahtar(x.zaman, x.tutar, x.terminal, x.kart); if (var_[k]) return; var_[k] = 1;
+    yeni.push(["'" + x.zaman, Number(x.tutar), "'" + x.terminal, "'" + (x.sube || ''), "'" + (x.gunsonu || ''), "'" + (x.kart || ''), damga]);
+  });
+  if (yeni.length) sh.getRange(sh.getLastRow() + 1, 1, yeni.length, EDENRED_BASLIK.length).setValues(yeni);
+  return { ok: true, eklenen: yeni.length, atlanan: satirlar.length - yeni.length };
 }
