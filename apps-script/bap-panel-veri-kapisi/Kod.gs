@@ -2285,18 +2285,21 @@ function kurye_() {
     mesaiDk: 0, mesaiPaket: 0, gun: 0, gecGiris: 0, gecGirisDk: 0, erkenDk: 0, kapanisDk: 0, maliyet: 0 }; }
 
   // Siparişler: süre aşamaları, gecikme sebebi, kurye başına paket
-  var s = sonSatirlar_(ss, 'Siparişler', 6000, ['Tarih', 'Sipariş ID', 'Adisyon No', 'Kurye', 'Platform', 'Sipariş Saati', 'Atama (dk)', 'Hazırlık (dk)', 'Yol (dk)', 'Toplam (dk)', 'Mesafe (km)', 'Durum', 'Adres']);
+  var s = sonSatirlar_(ss, 'Siparişler', 6000, ['Tarih', 'Sipariş ID', 'Adisyon No', 'Kurye', 'Platform', 'Sipariş Saati', 'Atama (dk)', 'Hazırlık (dk)', 'Yol (dk)', 'Toplam (dk)', 'Mesafe (km)', 'Durum', 'Adres', 'Teslim Saati', 'Ödeme Yöntemi', 'Tutar (TL)', 'Hesap']);
   var seri = {}; for (var i = 0; i < 14; i++) seri[gunEkle_(ilkSeri, i)] = { adet: 0, dk: 0, n: 0, gec: 0, maliyet: 0 };
-  var saat = {}, dagilim = [0, 0, 0, 0, 0], platform = {}, enKotu = [], sonSiparisMs = null, mahalleSay = {}, siparisGun = {}, siparisSaat = {};
+  var saat = {}, dagilim = [0, 0, 0, 0, 0], platform = {}, enKotu = [], sonSiparisMs = null, mahalleSay = {}, siparisGun = {}, siparisSaat = {}, sipHesap = {};
   KURYE_DONEMLER.forEach(function (d) { mahalleSay[d] = {}; });
   if (s) {
     var c = { tarih: kolon_(s.b, ['Tarih']), no: kolon_(s.b, ['Adisyon No']), kurye: kolon_(s.b, ['Kurye']), plat: kolon_(s.b, ['Platform']), sip: kolon_(s.b, ['Sipariş Saati']),
               at: kolon_(s.b, ['Atama (dk)']), hz: kolon_(s.b, ['Hazırlık (dk)']), yol: kolon_(s.b, ['Yol (dk)']), top: kolon_(s.b, ['Toplam (dk)']), km: kolon_(s.b, ['Mesafe (km)']),
-              durum: kolon_(s.b, ['Durum']), adres: kolon_(s.b, ['Adres']), id: kolon_(s.b, ['Sipariş ID']) };
+              durum: kolon_(s.b, ['Durum']), adres: kolon_(s.b, ['Adres']), id: kolon_(s.b, ['Sipariş ID']),
+              tes: kolon_(s.b, ['Teslim Saati']), od: kolon_(s.b, ['Ödeme Yöntemi']), tut: kolon_(s.b, ['Tutar (TL)']), hesap: kolon_(s.b, ['Hesap']) };
     s.v.forEach(function (r) {
-      if (c.id >= 0) { var sid = siparisNo_(r[c.id]); if (sid) siparisSaat[sid] = String(r[c.sip] || '').slice(0, 5); }
+      if (c.id >= 0) { var sid = siparisNo_(r[c.id]); if (sid) siparisSaat[sid] = String(r[c.sip] || '').slice(0, 5);
+        if (sid && c.hesap >= 0) sipHesap[sid] = { hesap: String(r[c.hesap] || '').trim(), tarih: r[c.tarih], no: r[c.no], plat: r[c.plat], kurye: r[c.kurye],
+          odeme: c.od >= 0 ? r[c.od] : '', tutar: c.tut >= 0 ? r[c.tut] : '', durum: r[c.durum], teslim: c.tes >= 0 ? r[c.tes] : '' }; }
       var gun = gunStr_(r[c.tarih]); if (!gun) return;
-      if (c.durum >= 0 && /iptal|iade/i.test(r[c.durum])) return;
+      if (c.durum >= 0 && iptalMi_(r[c.durum])) return;
       var ad = String(r[c.kurye] || '').trim() || 'Atanmamış', plat = String(r[c.plat] || '').trim() || 'Belirtilmemiş';
       var at = sayi_(r[c.at]), hz = sayi_(r[c.hz]), yol = sayi_(r[c.yol]), top = sayi_(r[c.top]), km = sayi_(r[c.km]);
       var sureVar = top > 0 && top < 240; // uçuk değerler (unutulan teslim) ortalamayı bozmasın
@@ -2442,8 +2445,9 @@ function kurye_() {
 
   // Açık hesaplar: 'Ödenmez' (işletme/personel siparişi) kuryeden alınacak para değil, ayrı sayılır.
   // Panelden kapatılanlar ('Tahsilatlar' sekmesi) listeden düşer.
-  var kapali = tahsilatlar_(ss), al = acikListe_(ss, kapali, bugun, siparisSaat), acikL = al.liste, haric = al.haric;
-  // Kasada Adisyo'ya 'Ödeme Alındı' işlenmiş olanlar açık sayılmaz; yemek kartı (Pluxee / Paye) çekimi bulunanlar işaretlenir.
+  // Kaynak: Siparişler sekmesinin 'Hesap' = AÇIK satırları + eski kayıtlar için 'Açık Hesaplar' sekmesi (acikListe_).
+  var kapali = tahsilatlar_(ss), al = acikListe_(ss, kapali, bugun, siparisSaat, sipHesap), acikL = al.liste, haric = al.haric;
+  // Kasada Adisyo'ya 'Ödeme Alındı' işlenmiş olanlar açık sayılmaz; yemek kartı (Pluxee / Paye / Edenred) çekimi bulunanlar işaretlenir.
   var adisyoOdendi = [], kanitHata = '';
   try { var kn = acikKanit_(ss, acikL); acikL = acikL.filter(function (x) { if (x.adisyo === 'odendi') { adisyoOdendi.push(x); return false; } return true; }); }
   catch (err) { kanitHata = String(err.message || err); }
@@ -2483,24 +2487,48 @@ function kurye_() {
   return out;
 }
 
-// 'Açık Hesaplar' sekmesinden hâlâ açık olanlar ('Tahsilatlar'da kapatılanlar düşer). 'Ödenmez' (işletme/personel siparişi)
-// kuryeden alınacak para değil, ayrı sayılır. Panel (kurye_) ve yemek kartı ajanı aynı listeyi kullanır.
-function acikListe_(ss, kapali, bugun, siparisSaat) {
-  var a = sonSatirlar_(ss, 'Açık Hesaplar', 2000), acikL = [], haric = { adet: 0, tutar: 0 };
+// Hâlâ açık hesaplar ('Tahsilatlar'da kapatılanlar düşer). Kaynak: Siparişler sekmesinin 'Hesap' = AÇIK satırları
+// (sipHesap; son 6000 satır, ~1 ay) + bu pencereden eski kayıtlar için 'Açık Hesaplar' sekmesi. O sekme yalnız köprü bitince
+// tazelendiği için geride kalabiliyor (04.10); Siparişler esas alınır. 'Ödenmez' (işletme/personel siparişi) ayrı sayılır.
+// Panel (kurye_) ve yemek kartı ajanı aynı listeyi kullanır.
+function acikListe_(ss, kapali, bugun, siparisSaat, sipHesap) {
+  sipHesap = sipHesap || sipHesapOku_(ss);
+  var a = sonSatirlar_(ss, 'Açık Hesaplar', 2000), acikL = [], haric = { adet: 0, tutar: 0 }, gorulen = {};
+  function acikEkle(id, tarih, no, plat, kurye, odeme, tutarH, durum, teslim) {
+    var gun = gunStr_(tarih); if (!gun) return;
+    odeme = String(odeme || '').trim(); var tutar = sayi_(tutarH);
+    if (id) { if (gorulen[id]) return; gorulen[id] = 1; }
+    if (id && kapali.idler[id]) return;
+    if (/ödenmez|odenmez/i.test(odeme)) { haric.adet++; haric.tutar += tutar; return; }
+    var yas = Math.round((Date.parse(bugun + 'T00:00:00Z') - Date.parse(gun + 'T00:00:00Z')) / 86400000);
+    acikL.push({ id: id, gun: gun, tarih: tarih, yas: yas, no: no, saat: siparisSaat[id] || '', platform: plat || '', kurye: String(kurye || '').trim() || 'Atanmamış', odeme: odeme, tutar: tutar,
+      durum: durum || '', teslim: String(teslim || '').trim() });
+  }
+  Object.keys(sipHesap).forEach(function (id) { var x = sipHesap[id]; if (x.hesap !== 'AÇIK') return;
+    acikEkle(id, x.tarih, x.no, x.plat, x.kurye, x.odeme, x.tutar, x.durum, x.teslim); });
   if (a) {
     var ca = { tarih: kolon_(a.b, ['Tarih']), no: kolon_(a.b, ['Adisyon No']), id: kolon_(a.b, ['Sipariş ID']), plat: kolon_(a.b, ['Platform']), kurye: kolon_(a.b, ['Kurye']),
                odeme: kolon_(a.b, ['Ödeme Yöntemi']), tutar: kolon_(a.b, ['Tutar (TL)', 'Tutar']), durum: kolon_(a.b, ['Durum']), teslim: kolon_(a.b, ['Teslim Saati']) };
     a.v.forEach(function (r) {
-      var gun = gunStr_(r[ca.tarih]); if (!gun) return;
-      var odeme = String(r[ca.odeme] || '').trim(), tutar = sayi_(r[ca.tutar]), id = siparisNo_(r[ca.id]);
-      if (id && kapali.idler[id]) return;
-      if (/ödenmez|odenmez/i.test(odeme)) { haric.adet++; haric.tutar += tutar; return; }
-      var yas = Math.round((Date.parse(bugun + 'T00:00:00Z') - Date.parse(gun + 'T00:00:00Z')) / 86400000);
-      acikL.push({ id: id, gun: gun, tarih: r[ca.tarih], yas: yas, no: r[ca.no], saat: siparisSaat[id] || '', platform: r[ca.plat] || '', kurye: String(r[ca.kurye] || '').trim() || 'Atanmamış', odeme: odeme, tutar: tutar,
-        durum: r[ca.durum] || '', teslim: ca.teslim >= 0 ? String(r[ca.teslim] || '').trim() : '' });
+      var id = siparisNo_(r[ca.id]);
+      if (id && sipHesap[id]) return; // Siparişler'de güncel hali var (açıksa yukarıda eklendi, değilse artık açık değil)
+      acikEkle(id, r[ca.tarih], r[ca.no], r[ca.plat], r[ca.kurye], r[ca.odeme], r[ca.tutar], r[ca.durum], ca.teslim >= 0 ? r[ca.teslim] : '');
     });
   }
   return { liste: acikL, haric: haric };
+}
+
+// Siparişler › sipariş ID → { hesap, tarih, no, plat, kurye, odeme, tutar, durum, teslim } (kurye_ aynısını kendi okumasında kurar)
+function sipHesapOku_(ss) {
+  var s = sonSatirlar_(ss, 'Siparişler', 6000, ['Tarih', 'Sipariş ID', 'Adisyon No', 'Kurye', 'Platform', 'Durum', 'Teslim Saati', 'Ödeme Yöntemi', 'Tutar (TL)', 'Hesap']), out = {};
+  if (!s) return out;
+  var c = { tarih: kolon_(s.b, ['Tarih']), no: kolon_(s.b, ['Adisyon No']), kurye: kolon_(s.b, ['Kurye']), plat: kolon_(s.b, ['Platform']), durum: kolon_(s.b, ['Durum']),
+            id: kolon_(s.b, ['Sipariş ID']), tes: kolon_(s.b, ['Teslim Saati']), od: kolon_(s.b, ['Ödeme Yöntemi']), tut: kolon_(s.b, ['Tutar (TL)']), hesap: kolon_(s.b, ['Hesap']) };
+  if (c.id < 0 || c.hesap < 0) return out;
+  s.v.forEach(function (r) { var sid = siparisNo_(r[c.id]); if (!sid) return;
+    out[sid] = { hesap: String(r[c.hesap] || '').trim(), tarih: r[c.tarih], no: r[c.no], plat: r[c.plat], kurye: r[c.kurye],
+      odeme: c.od >= 0 ? r[c.od] : '', tutar: c.tut >= 0 ? r[c.tut] : '', durum: r[c.durum], teslim: c.tes >= 0 ? r[c.tes] : '' }; });
+  return out;
 }
 
 // Açık hesapları kanıtlara karşı kontrol eder (hiçbir şey yazmaz):
@@ -3034,7 +3062,7 @@ function seferler_(ss, bugun) {
   var soz = subeSozlugu_(), yarin = gunEkle_(bugun, 1), kisi = {};
   s.v.forEach(function (r) {
     var gun = gunStr_(r[c.tarih]); if (gun !== bugun && gun !== yarin) return;
-    var durum = String(r[c.durum] || ''); if (/iptal|iade/i.test(durum)) return;
+    var durum = String(r[c.durum] || ''); if (iptalMi_(durum)) return;
     var ad = String(r[c.kurye] || '').trim(); if (!ad) return;
     var mh = mahalleAdi_(r[c.adres]), sb = siparisSubesi_(soz, gun, r[c.no], mh);
     (kisi[ad] = kisi[ad] || []).push({ id: siparisNo_(r[c.id]), no: r[c.no], platform: r[c.plat] || '', mahalle: mh, km: sayi_(r[c.km]),
@@ -3177,7 +3205,7 @@ function kuryeEslestirme_() {
   var kno = {}, kAdlar = {};
   if (ks) { var ck = { tarih: kolon_(ks.b, ['Tarih']), no: kolon_(ks.b, ['Adisyon No']), kurye: kolon_(ks.b, ['Kurye']), plat: kolon_(ks.b, ['Platform']), sip: kolon_(ks.b, ['Sipariş Saati']), durum: kolon_(ks.b, ['Durum']) };
     ks.v.forEach(function (r) { var no = String(r[ck.no] || '').trim(), ms = zaman_(String(r[ck.tarih]).trim() + ' ' + String(r[ck.sip] || '').trim()); if (!no || ms === null) return;
-      if (/iptal|iade/i.test(r[ck.durum] || '')) return; var ad = String(r[ck.kurye] || '').trim(); if (ad) kAdlar[ad] = 1;
+      if (iptalMi_(r[ck.durum])) return; var ad = String(r[ck.kurye] || '').trim(); if (ad) kAdlar[ad] = 1;
       (kno[no] = kno[no] || []).push({ ms: ms, kurye: ad, platform: r[ck.plat] || '' }); }); }
   // Adisyo
   var ss = SpreadsheetApp.openById(KAYNAK.siparis.id), sh = ss.getSheetByName('Satıs Verileri'); if (!sh) throw new Error("Adisyo dosyasında 'Satıs Verileri' yok");
@@ -3196,7 +3224,7 @@ function kuryeEslestirme_() {
   v.forEach(function (r, i) {
     var ms = zaman_(r[c.tarih]); if (ms === null) return; var gun = isGunu_(ms); if (gun < bas || gun > bugun) return;
     if (c.tip >= 0 && !/paket/i.test(r[c.tip] || '')) return;
-    if (c.durum >= 0 && /iptal|iade/i.test(r[c.durum] || '')) return;
+    if (c.durum >= 0 && iptalMi_(r[c.durum])) return;
     var no = String(r[c.no] || '').trim(), id = String(r[c.id] || '').trim(); if (!no || !id) return;
     out.ozet.paket++;
     var aday = (kno[no] || []).map(function (x) { return { x: x, fark: Math.abs(x.ms - ms) }; }).filter(function (y) { return y.fark <= 20 * 60000; }).sort(function (p, q) { return p.fark - q.fark; })[0];
@@ -3494,6 +3522,8 @@ function cevapKaydet_(bolum, kaynak, satir, konu, cevap, damga) {
 
 function json_(o) { return ContentService.createTextOutput(JSON.stringify(o)).setMimeType(ContentService.MimeType.JSON); }
 
+// Adisyo 'İPTAL' yazar: /iptal/i büyük İ'yi tanımaz, bu yüzden norm_ üzerinden bakılır.
+function iptalMi_(v) { var n = norm_(v); return n.indexOf('iptal') >= 0 || n.indexOf('iade') >= 0; }
 function norm_(s) {
   return String(s == null ? '' : s).replace(/İ/g, 'i').toLowerCase()
     .replace(/ı/g, 'i').replace(/ş/g, 's').replace(/ğ/g, 'g').replace(/ü/g, 'u').replace(/ö/g, 'o').replace(/ç/g, 'c')
