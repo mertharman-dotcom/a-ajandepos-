@@ -1908,9 +1908,9 @@ function kuryeEslestirme(a,K){var E=K.eslestirme;
 
 var HESAP_ISLEM={};// siparisId → {durum:"gidiyor"|"tamam"|"hata", islem, mesaj}
 // Ödeme yöntemi seçenekleri: açık hesaplarda geçen yöntemler + sık kullanılanlar.
-var ODEME_YONTEMLERI=["Nakit","Kredi/Banka Kartı","Paye Kart","Paye Kod","Pluxee (Sodexo) Pass Mobil","Sodexo Kart","Multinet","Multinet Kodu","SetCard","SetCard Kodu","Metropol","Metropol Kodu","Ticket Edenred","Token Flex","SmarTicket","Online (platform)"];
+var KURYE_ODEME_YONTEMLERI=["Nakit","Kredi/Banka Kartı","Havale/EFT","Paye Kart","Paye Kod","Pluxee (Sodexo) Pass Mobil","Sodexo Kart","Multinet","Multinet Kodu","SetCard","SetCard Kodu","Metropol","Metropol Kodu","Ticket Edenred","Token Flex","SmarTicket","Online (platform)"];
 function hesapKapat(x,islem,yenidenCiz){
-  var K=(VERI&&VERI.kurye&&VERI.kurye.acik)||{},vs={};ODEME_YONTEMLERI.concat(x.odeme?[x.odeme]:[]).forEach(function(o){vs[o]=1;});
+  var K=(VERI&&VERI.kurye&&VERI.kurye.acik)||{},vs={};KURYE_ODEME_YONTEMLERI.concat(x.odeme?[x.odeme]:[]).forEach(function(o){vs[o]=1;});
   (K.liste||[]).forEach(function(y){if(y.odeme)vs[y.odeme]=1;});
   var d=el("dialog",{class:"musteri-pencere","aria-label":"Hesabı kapat"}),kapat=function(){try{d.close();}catch(e){}d.remove();};
   var sec=el("select",{class:"cevap-alan","aria-label":"Ödeme yöntemi"},Object.keys(vs).sort(function(p,q){return p.localeCompare(q,"tr");}).map(function(o){var op=el("option",{value:o,text:o+(o===x.odeme?" (sistemdeki)":"")});if(o===x.odeme)op.selected=true;return op;}));
