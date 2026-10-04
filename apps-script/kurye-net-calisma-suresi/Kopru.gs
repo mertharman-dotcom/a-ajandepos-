@@ -229,7 +229,7 @@ function doPost(e) {
 
     // Doğrulama kodları (Edenred vb.): MacBook programı kodIste der, iPhone Kestirmeler SMS'teki kodu kodYaz ile bırakır,
     // program kodOku ile alır. Yalnız son kodIste'den SONRA yazılan kod verilir (eski kodla giriş denenmesin).
-    if (g.tur === 'kodIste' || g.tur === 'kodYaz' || g.tur === 'kodOku' || g.tur === 'kodSil') return _kopruYanit(_kopruKod(g));
+    if (/^kod(Iste|Yaz|Oku|Sil|Durum)$/.test(String(g.tur))) return _kopruYanit(_kopruKod(g));
 
     // Edenred terminal bazlı işlemler (MacBook edenred.mjs): 'Edenred' sekmesine yalnız yeni satırlar eklenir.
     if (g.tur === 'edenred') return _kopruYanit(_kopruEdenredYaz(g.satirlar || []));
@@ -829,11 +829,14 @@ function _kopruKod(g) {
   if (g.tur === 'kodIste') { p.setProperty(kIste, String(Date.now())); p.deleteProperty(kKod); return { ok: true }; }
   if (g.tur === 'kodSil') { p.deleteProperty(kKod); return { ok: true }; }
   if (g.tur === 'kodYaz') {
-    var kod = String(g.kod || '').replace(/\D/g, '');
-    if (!/^\d{4,8}$/.test(kod)) return { hata: 'geçersiz kod' };
+    // Kestirmeler "Eşleşenler"i liste/sözlük olarak da gönderebilir: içindeki ilk 4–8 haneli sayı alınır.
+    var ham = typeof g.kod === 'string' ? g.kod : JSON.stringify(g.kod || ''), m = ham.match(/\d{4,8}/), kod = m ? m[0] : '';
+    p.setProperty('KOD_SON_GELEN_' + kaynak, JSON.stringify({ ham: ham.slice(0, 200), zaman: Utilities.formatDate(new Date(), TZ, 'dd.MM.yyyy HH:mm:ss') }));
+    if (!kod) return { hata: 'geçersiz kod', gelen: ham.slice(0, 100) };
     p.setProperty(kKod, JSON.stringify({ kod: kod, zaman: Date.now() }));
     return { ok: true };
   }
+  if (g.tur === 'kodDurum') return { ok: true, sonGelen: JSON.parse(p.getProperty('KOD_SON_GELEN_' + kaynak) || 'null') };
   var x = p.getProperty(kKod); if (!x) return { ok: true, kod: null };
   x = JSON.parse(x);
   if (x.zaman < Number(p.getProperty(kIste) || 0)) return { ok: true, kod: null };
