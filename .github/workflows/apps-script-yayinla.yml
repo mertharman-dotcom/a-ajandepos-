@@ -62,6 +62,18 @@ jobs:
             echo "::group::$klasor"
             ( cd "apps-script/$klasor"
               printf '{"scriptId":"%s","rootDir":".","fileExtension":"gs"}' "$id" > .clasp.json
+              # clasp push, canlıda olup depoda olmayan dosyaları SİLER. 04.10'da Apps Script editöründe eklenmiş
+              # Pluxee.gs böyle silindi, kurye bağlantısı bozuldu. Canlıda fazladan dosya varsa yayın durur.
+              burasi=$PWD; gecici=$(mktemp -d)
+              printf '{"scriptId":"%s","rootDir":"%s","fileExtension":"gs"}' "$id" "$gecici" > "$gecici/.clasp.json"
+              ( cd "$gecici" && clasp pull >/dev/null )
+              fazla=$( cd "$gecici" && find . -type f ! -name '.clasp.json' | sed 's|^\./||' | while read -r f; do [ -f "$burasi/$f" ] || echo "$f"; done )
+              rm -rf "$gecici"
+              if [ -n "$fazla" ]; then
+                echo "::error::$klasor: canlıda depoda olmayan dosya var, yayın durduruldu (silinirdi): $(echo $fazla)."
+                echo "::error::Önce 'Apps Script'i Depoya Çek' çalıştırın ve çıkan kod-cekimi dalını main'e birleştirin."
+                exit 1
+              fi
               clasp push -f
               # Web uygulaması olan projede adresi değiştirmeden yeni sürümü canlıya al.
               # deploymentId yazılı değilse projedeki tek sürümlü dağıtım kullanılır; birden fazlaysa durur.

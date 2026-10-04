@@ -135,4 +135,6 @@ Tablolarda yapılan her değişikliğin eski ve yeni değeri **STOK › Fiyat_Du
 | C3 | 2 boş Worker (billowing-credit-87e3, empty-firefly-7396) | ☑ 02.10 silindi |
 | Y5 | Mutfak panelinin arka ucu `bap-panel-backend` (BAP PANEL Backend); `bap-satis-veri-ambari` yalnızca sipariş satırı bölme | ☑ tespit |
 | Y7 | Apps Script yayını **elle** başlatılınca (`workflow_dispatch`) yalnız son commit'teki projeleri yayınlıyor (`github.event.before` boş gelir); iki yayın arasındaki önceki birleştirmeler atlanabilir. Otomatik yayında (push) sorun yok — M7 düzeltmesi 03.10 01:26 otomatik yayınla canlıya geçti | ◐ elle başlatmada taban = son başarılı yayın; `main`'e birleştirilmeyi bekliyor |
+| Y8 | 04.10: canlıda Apps Script editöründe eklenmiş `Pluxee.gs` / `PluxeeKodSayfa.gs`, depoda olmadığı için yayında silindi → kurye Pluxee bağlantısı 'Bilinmeyen tür' aldı (PR #8 ile geri getirildi) | ◐ yayın artık canlıda depoda olmayan dosya görünce duruyor; birleştirilmeyi bekliyor |
+| Y9 | Depoda ikinci bir yapay zekâ (ChatGPT) çalışmaya başladı → aynı kurallar `AGENTS.md`'de (Codex bu dosyayı okur) | ◐ birleştirilmeyi bekliyor |
 | Y4 | Ortak katman: `Ayarlar.gs` + `Ortak.gs` | ☐ |
