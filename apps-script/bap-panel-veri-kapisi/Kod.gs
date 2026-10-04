@@ -2194,7 +2194,7 @@ function kurye_() {
     s.v.forEach(function (r) {
       if (c.id >= 0) { var sid = siparisNo_(r[c.id]); if (sid) siparisSaat[sid] = String(r[c.sip] || '').slice(0, 5); }
       var gun = gunStr_(r[c.tarih]); if (!gun) return;
-      if (c.durum >= 0 && /iptal|iade/i.test(r[c.durum])) return;
+      if (c.durum >= 0 && iptalMi_(r[c.durum])) return;
       var ad = String(r[c.kurye] || '').trim() || 'Atanmamış', plat = String(r[c.plat] || '').trim() || 'Belirtilmemiş';
       var at = sayi_(r[c.at]), hz = sayi_(r[c.hz]), yol = sayi_(r[c.yol]), top = sayi_(r[c.top]), km = sayi_(r[c.km]);
       var sureVar = top > 0 && top < 240; // uçuk değerler (unutulan teslim) ortalamayı bozmasın
@@ -2762,7 +2762,7 @@ function seferler_(ss, bugun) {
   var soz = subeSozlugu_(), yarin = gunEkle_(bugun, 1), kisi = {};
   s.v.forEach(function (r) {
     var gun = gunStr_(r[c.tarih]); if (gun !== bugun && gun !== yarin) return;
-    var durum = String(r[c.durum] || ''); if (/iptal|iade/i.test(durum)) return;
+    var durum = String(r[c.durum] || ''); if (iptalMi_(durum)) return;
     var ad = String(r[c.kurye] || '').trim(); if (!ad) return;
     var mh = mahalleAdi_(r[c.adres]), sb = siparisSubesi_(soz, gun, r[c.no], mh);
     (kisi[ad] = kisi[ad] || []).push({ id: siparisNo_(r[c.id]), no: r[c.no], platform: r[c.plat] || '', mahalle: mh, km: sayi_(r[c.km]),
@@ -2905,7 +2905,7 @@ function kuryeEslestirme_() {
   var kno = {}, kAdlar = {};
   if (ks) { var ck = { tarih: kolon_(ks.b, ['Tarih']), no: kolon_(ks.b, ['Adisyon No']), kurye: kolon_(ks.b, ['Kurye']), plat: kolon_(ks.b, ['Platform']), sip: kolon_(ks.b, ['Sipariş Saati']), durum: kolon_(ks.b, ['Durum']) };
     ks.v.forEach(function (r) { var no = String(r[ck.no] || '').trim(), ms = zaman_(String(r[ck.tarih]).trim() + ' ' + String(r[ck.sip] || '').trim()); if (!no || ms === null) return;
-      if (/iptal|iade/i.test(r[ck.durum] || '')) return; var ad = String(r[ck.kurye] || '').trim(); if (ad) kAdlar[ad] = 1;
+      if (iptalMi_(r[ck.durum])) return; var ad = String(r[ck.kurye] || '').trim(); if (ad) kAdlar[ad] = 1;
       (kno[no] = kno[no] || []).push({ ms: ms, kurye: ad, platform: r[ck.plat] || '' }); }); }
   // Adisyo
   var ss = SpreadsheetApp.openById(KAYNAK.siparis.id), sh = ss.getSheetByName('Satıs Verileri'); if (!sh) throw new Error("Adisyo dosyasında 'Satıs Verileri' yok");
@@ -2924,7 +2924,7 @@ function kuryeEslestirme_() {
   v.forEach(function (r, i) {
     var ms = zaman_(r[c.tarih]); if (ms === null) return; var gun = isGunu_(ms); if (gun < bas || gun > bugun) return;
     if (c.tip >= 0 && !/paket/i.test(r[c.tip] || '')) return;
-    if (c.durum >= 0 && /iptal|iade/i.test(r[c.durum] || '')) return;
+    if (c.durum >= 0 && iptalMi_(r[c.durum])) return;
     var no = String(r[c.no] || '').trim(), id = String(r[c.id] || '').trim(); if (!no || !id) return;
     out.ozet.paket++;
     var aday = (kno[no] || []).map(function (x) { return { x: x, fark: Math.abs(x.ms - ms) }; }).filter(function (y) { return y.fark <= 20 * 60000; }).sort(function (p, q) { return p.fark - q.fark; })[0];
@@ -3217,6 +3217,8 @@ function cevapKaydet_(bolum, kaynak, satir, konu, cevap, damga) {
 
 function json_(o) { return ContentService.createTextOutput(JSON.stringify(o)).setMimeType(ContentService.MimeType.JSON); }
 
+// Adisyo 'İPTAL' yazar: /iptal/i büyük İ'yi tanımaz, bu yüzden norm_ üzerinden bakılır.
+function iptalMi_(v) { var n = norm_(v); return n.indexOf('iptal') >= 0 || n.indexOf('iade') >= 0; }
 function norm_(s) {
   return String(s == null ? '' : s).replace(/İ/g, 'i').toLowerCase()
     .replace(/ı/g, 'i').replace(/ş/g, 's').replace(/ğ/g, 'g').replace(/ü/g, 'u').replace(/ö/g, 'o').replace(/ç/g, 'c')
