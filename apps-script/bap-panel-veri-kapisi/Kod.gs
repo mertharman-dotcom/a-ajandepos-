@@ -1338,38 +1338,28 @@ function iadeIslem_(d) {
   if (!id) return { hata: 'İade bulunamadı.' };
   var sh = SpreadsheetApp.openById(KAYNAK.yorum.id).getSheetByName('Iadeler');
   if (!sh || sh.getLastRow() < 2) return { hata: 'Iadeler sekmesi bulunamadı.' };
-  var lc = sh.getLastColumn(), b = sh.getRange(1, 1, 1, lc).getDisplayValues()[0];
-  var c = { id: kolon_(b, ['Claim Item ID']), du: kolon_(b, ['Durum']), so: kolon_(b, ['Sorumlu']), kd: kolon_(b, ['Kuryeden Düş']),
-            dt: kolon_(b, ['Düşülecek TL']), ks: kolon_(b, ['Kesinti Durumu']), is: kolon_(b, ['İşlem']), isd: kolon_(b, ['İşlem Durumu']),
-            ku: kolon_(b, ['Kurye']), tl: kolon_(b, ['Tutar']) };
-  // kolon_ önek eşleşmesi yapar: 'İşlem' başlığı 'İşlem Durumu'nu yakalamasın
-  c.is = b.map(function (x) { return String(x).trim(); }).indexOf('İşlem');
+  // Trendyol projesinin henüz eklemediği istek sütunlarını burada ekle (o proje de aynı adla arar, çift olmaz)
+  var bas = sh.getRange(1, 1, 1, sh.getLastColumn()).getDisplayValues()[0].map(function (x) { return String(x).trim(); });
+  var eksik = ['Kuryeden Düş', 'Düşülecek TL', 'Kesinti Durumu', 'Sorumlu', 'İşlem', 'İşlem Durumu'].filter(function (x) { return bas.indexOf(x) < 0; });
+  if (eksik.length) { sh.getRange(1, bas.length + 1, 1, eksik.length).setValues([eksik]).setFontWeight('bold'); bas = bas.concat(eksik); }
+  var ix = function (ad) { return bas.indexOf(ad); };   // tam ad (kolon_ önek eşleşmesi 'İşlem'i 'İşlem Durumu' ile karıştırabilir)
+  var c = { id: ix('Claim Item ID'), du: ix('Durum'), so: ix('Sorumlu'), kd: ix('Kuryeden Düş'), dt: ix('Düşülecek TL'),
+            ks: ix('Kesinti Durumu'), is: ix('İşlem'), isd: ix('İşlem Durumu'), ku: ix('Kurye'), tl: ix('Tutar') };
   if (c.id < 0 || c.du < 0) return { hata: "Iadeler'de beklenen başlıklar yok." };
-  var v = sh.getRange(2, 1, sh.getLastRow() - 1, lc).getValues(), i;
+  var lc = bas.length, v = sh.getRange(2, 1, sh.getLastRow() - 1, lc).getValues(), i;
   for (i = 0; i < v.length; i++) if (String(v[i][c.id]) === id) break;
   if (i >= v.length) return { hata: 'İade tabloda bulunamadı; panel verisini yenileyin.' };
-  var r = v[i], satir = i + 2, yapilan = [];
+  var r = v[i], satir = i + 2, yaz = [], yapilan = [];
 
+  // 1) önce hepsini doğrula — biri hatalıysa hiçbir şey yazılmaz
   if (d.sorumlu) {
     if (['Kurye', 'Mutfak', 'Müşteri/Platform', 'Belirsiz'].indexOf(d.sorumlu) < 0) return { hata: 'Geçersiz sorumlu.' };
-    if (c.so < 0) return { hata: 'Sorumlu sütunu henüz yok; 10 dakika sonra tekrar deneyin.' };
-    sh.getRange(satir, c.so + 1).setValue(d.sorumlu); yapilan.push('sorumlu: ' + d.sorumlu);
+    yaz.push([c.so, d.sorumlu]); yapilan.push('sorumlu: ' + d.sorumlu);
   }
-  if (d.kuryeDus) {
-    if (c.kd < 0 || c.dt < 0) return { hata: 'Kuryeden Düş sütunu henüz yok; 10 dakika sonra tekrar deneyin.' };
-    if (/^YAZILDI/.test(String(r[c.ks] || ''))) return { hata: 'Bu iade kuryeden zaten düşülmüş.' };
-    if (!String(r[c.ku] || '').trim()) return { hata: 'Bu iadede kurye yok; önce tabloda Kurye sütununu doldurun.' };
-    var tl = Math.round(sayi_(d.tl) * 100) / 100;
-    if (!(tl > 0) || tl > Math.max(5000, sayi_(r[c.tl]) * 2)) return { hata: 'Geçerli bir tutar yazın.' };
-    sh.getRange(satir, c.dt + 1).setValue(tl);
-    sh.getRange(satir, c.kd + 1).setValue(true);
-    yapilan.push('kuryeden ' + tl + ' TL');
-  }
+  var istek = null;
   if (d.islem === 'kabul' || d.islem === 'ret') {
-    if (c.is < 0 || c.isd < 0) return { hata: 'İşlem sütunu henüz yok; 10 dakika sonra tekrar deneyin.' };
     if (String(r[c.du]) !== 'WaitingInAction') return { hata: 'Bu iade artık karar beklemiyor (' + r[c.du] + ').' };
     if (String(r[c.is] || '').trim()) return { tamam: true, zatenIstendi: true, yapilan: ['istek zaten var: ' + r[c.is]] };
-    var istek;
     if (d.islem === 'kabul') istek = 'KABUL';
     else {
       var kod = Number(d.kod);
@@ -1378,11 +1368,21 @@ function iadeIslem_(d) {
       if (!not) return { hata: 'Ret için kısa bir açıklama yazın (Trendyol inceleyecek).' };
       istek = 'RET ' + kod + ' | ' + not;
     }
-    sh.getRange(satir, c.is + 1).setValue(istek);
-    sh.getRange(satir, c.isd + 1).setValue('');
-    yapilan.push(d.islem === 'kabul' ? 'kabul isteği' : 'ret isteği');
+    yaz.push([c.is, istek], [c.isd, '']); yapilan.push(d.islem === 'kabul' ? 'kabul isteği' : 'ret isteği');
+  }
+  if (d.kuryeDus) {
+    var tl = Math.round(sayi_(d.tl) * 100) / 100;
+    if (/^YAZILDI/.test(String(r[c.ks] || ''))) {
+      if (!istek) return { hata: 'Bu iade kuryeden zaten düşülmüş.' };   // kabulle birlikte geldiyse kabulü engelleme
+    } else {
+      if (!String(r[c.ku] || '').trim()) return { hata: 'Bu iadede kurye yok; önce tabloda Kurye sütununu doldurun.' };
+      if (!(tl > 0) || tl > Math.max(5000, sayi_(r[c.tl]) * 2)) return { hata: 'Geçerli bir tutar yazın.' };
+      yaz.push([c.dt, tl], [c.kd, true]); yapilan.push('kuryeden ' + tl + ' TL');
+    }
   }
   if (!yapilan.length) return { hata: 'Yapılacak işlem seçilmedi.' };
+  // 2) sonra yaz
+  yaz.forEach(function (x) { sh.getRange(satir, x[0] + 1).setValue(x[1]); });
   return { tamam: true, yapilan: yapilan };
 }
 
