@@ -121,7 +121,8 @@ Tablolarda yapılan her değişikliğin eski ve yeni değeri **STOK › Fiyat_Du
 | P2 | Kayıt (POST) istekleri otomatik tekrar deneniyordu → çift kayıt | ☑ (H3) |
 | P3 | Yönetici şifresi istemci kodunda; personel şifresi URL'de gidiyor (düzeltme `bap-panel-backend`'de) | ☐ |
 | P4 | Sayım ekranında birim seçimi yok (Hazırlık ajanı gram/adet tahmin ediyor) | ☐ |
-| P5 | Pluxee açık hesapları elle kapatılıyordu. **Pluxee ajanı** (`pluxeeAjani`, veri kapısı, saatlik): emin olduğunu kapatır, emin olmadığını panelde (Kurye › Açık hesaplar › Pluxee ajanı) sorar | ◐ kuru modda (`PLUXEE_AJAN_KURU = true`); sahibi paneldeki ‘Emin oldukları’ listesini onaylayınca açılacak ⚠️ saatlik `puantajTaramasi` tetikleyicisinin kurulu olduğu doğrulanmalı |
+| P5 | Pluxee / Paye açık hesapları elle kapatılıyordu. **Yemek kartı ajanı** (`kartAjani`, veri kapısı, saatlik): emin olduğunu kapatır, emin olmadığını panelde (Kurye › Açık hesaplar › Yemek kartı ajanı) sorar. Paye çekimleri: rapor ajanı `payeGunSonuAktar` Gmail'deki Sofra gün sonu ekinden KURYE › Paye'ye ekler | ◐ kuru modda (`KART_AJAN_KURU = true`); sahibi ‘Emin oldukları’ listesini onaylayınca açılacak. ⚠️ `payeKurulum()` bir kez çalıştırılmalı (Gmail izni). ⚠️ Paye sütun adları gerçek raporla doğrulanmadı (panel hata verirse `PAYE_SUTUN` düzeltilir). ⚠️ saatlik `puantajTaramasi` tetikleyicisi kurulu mu |
+| P6 | Pluxee doğrulama kodu bildirimleri gece dakikalarca tekrar gidiyor (MacBook'taki Pluxee çekimi; e-posta + WhatsApp) | ◐ 04.10 WhatsApp: Make 'BAP Bildirim - Script WA' senaryosuna 'Pluxee' başlıklıları atlayan filtre kondu. E-posta MacBook'tan gidiyor, depoda değil |
 
 ## Y · Yapı
 

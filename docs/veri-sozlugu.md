@@ -13,6 +13,7 @@ tutamaz; gerekiyorsa sahipten okur. ⏳ = karar/geçiş bekliyor (bkz. `kontrol-
 | SATIS2 | BAP veri tablosu (Detay sekmesi) | `152FdGaQUhwyd0ytcTbM1OI6beNZsXBJhCM-GoG2Bzvw` |
 | FATURA | Kolaybi Fatura Ham Veri | `1JJ6UZzh8rSX1FE9Cr-UPzEAaE-2aKtM10bEvjAv2P5w` |
 | TRENDYOL | Trendyol Yorumlar (Trendyol API çeker; ayrıntı `docs/trendyol-api.md`) | `1KLWCEBwFMHCTrTnCYLhv2ctg5PvGtS9DNzoMXF-Z1JE` |
+| KURYE | Kurye Net Çalışma Süresi (HemenYolda köprüsü, Pluxee çekimi, açık hesaplar) | `1LG7naAbMM9aL3K0QNzzrjXomC2LXjx4rdSCYNYWzDQo` |
 
 Bütün e-tabloların listesi ve önerilen Drive düzeni: `docs/tablo-haritasi.md`.
 
@@ -46,6 +47,9 @@ Bütün e-tabloların listesi ve önerilen Drive düzeni: `docs/tablo-haritasi.m
 | Trendyol puanı × sipariş adedi (gün × mağaza), yarın tahmini | TRENDYOL › Puan_Siparis, Puan_Tahmin | `gunlukPuanRaporu` (23:50) | Sahip, panel | Puan_Siparis her gece baştan üretilir; sipariş adedi SATIS'tan okunur, kopya değil |
 | Trendyol iadeleri | TRENDYOL › Iadeler | `iadeleriCek` (10 dk) | Sahip | — |
 | Reçete durumu | GENEL › Menü I sütunu | Maliyet Modülü | — | Stok motoru da yazıyor (S8) |
+| Pluxee kart çekimleri (işlem zamanı, tutar) | KURYE › Pluxee | MacBook'taki Pluxee çekimi | Yemek kartı ajanı (veri kapısı `pluxeeCekimleri_`) | — |
+| Paye kart çekimleri (Sofra gün sonu raporunun satırları + Rapor Günü + Mesaj ID) | KURYE › Paye | Rapor ajanı `payeGunSonuAktar` (Gmail'deki "Gün Sonu Raporu" eki; yalnız ekler) | Yemek kartı ajanı (veri kapısı `payeCekimleri_`) | — |
+| Kapatılan açık hesaplar | KURYE › Tahsilatlar | Panel (elle) + yemek kartı ajanı (kaynak 'Pluxee Ajanı' / 'Paye Ajanı') | Panel, bordro | — |
 
 ## Birimler
 
