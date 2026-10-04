@@ -123,6 +123,7 @@ Tablolarda yapılan her değişikliğin eski ve yeni değeri **STOK › Fiyat_Du
 | P4 | Sayım ekranında birim seçimi yok (Hazırlık ajanı gram/adet tahmin ediyor) | ☐ |
 | P5 | Pluxee / Paye açık hesapları elle kapatılıyordu. **Yemek kartı ajanı** (`kartAjani`, veri kapısı, saatlik): emin olduğunu kapatır, emin olmadığını panelde (Kurye › Açık hesaplar › Yemek kartı ajanı) sorar. Paye çekimleri: rapor ajanı `payeGunSonuAktar` Gmail'deki Sofra gün sonu ekinden KURYE › Paye'ye ekler | ◐ kuru modda (`KART_AJAN_KURU = true`); sahibi ‘Emin oldukları’ listesini onaylayınca açılacak. ⚠️ `payeKurulum()` bir kez çalıştırılmalı (Gmail izni). ⚠️ Paye sütun adları gerçek raporla doğrulanmadı (panel hata verirse `PAYE_SUTUN` düzeltilir). ⚠️ saatlik `puantajTaramasi` tetikleyicisi kurulu mu |
 | P6 | Pluxee doğrulama kodu bildirimleri gece dakikalarca tekrar gidiyor (MacBook'taki Pluxee çekimi; e-posta + WhatsApp) | ◐ 04.10 WhatsApp: Make 'BAP Bildirim - Script WA' senaryosuna 'Pluxee' başlıklıları atlayan filtre kondu. E-posta MacBook'tan gidiyor, depoda değil |
+| P7 | Pluxee haftalık fatura elle kesiliyor (Cuma 23:55, ayın 1–6'sı hariç; ayın son günü 23:55; 3 günde al) — `docs/pluxee-fatura.md` | ◐ panel onayı + takvim + 21:00 hatırlatması yazıldı. Faturayı kesen adım MacBook programında yazılacak (sahip başındayken). KolayBi taslağı 2. aşama |
 
 ## Y · Yapı
 
