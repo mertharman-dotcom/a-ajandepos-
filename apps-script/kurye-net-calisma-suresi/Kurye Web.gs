@@ -49,12 +49,22 @@ var IZINLI_SEKMELER = [
 
 /* ==================== GIRIS ==================== */
 
-    function doGet(e) {
+        function doGet(e) {
   var p = (e && e.parameter) || {};
  if (p.adim) return _kopruGet(e);
+  // iPhone Kestirmeler: diğer doğrulama kodları (Edenred vb.) — Pluxee ile aynı anahtar, GET ?sayfa=kod&kaynak=edenred&kod=<SMS metni>
+  if (p.sayfa === 'kod' && p.kaynak) {
+    if (p.k !== 'DU0HVwX0K-xgyCjnudnUYOeB') return ContentService.createTextOutput('Yetkisiz');
+    return ContentService.createTextOutput(JSON.stringify(_kopruKod({ tur: 'kodYaz', kaynak: p.kaynak, kod: String(p.kod || '') })));
+  }
+  if (p.sayfa === 'pluxee') {
+    if (p.kod) return ContentService.createTextOutput(
+      p.k === 'DU0HVwX0K-xgyCjnudnUYOeB' ? pluxeeKodYaz(String(p.kod)) : 'Yetkisiz');
+    return pluxeeKodSayfasi_();
+  }
   if (W_ANAHTAR && String(p.k || '') !== W_ANAHTAR) {
     if (p.veri || p.json) return _wJson({ hata: 'Erişim anahtarı geçersiz.' });
-    return HtmlService.createHtmlOutput(
+        return HtmlService.createHtmlOutput(
       '<p style="font:15px system-ui;padding:40px;text-align:center;color:#c0392f">' +
       'Erişim anahtarı gerekli.</p>');
   }

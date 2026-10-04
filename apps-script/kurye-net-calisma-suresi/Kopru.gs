@@ -227,6 +227,24 @@ function doPost(e) {
       return _kopruYanit({ ok: true });
     }
 
+    // ---- Pluxee (pluxee.mjs) ----
+    if (g.tur === 'pluxee') return _kopruYanit(pluxeeYaz(g.satirlar || []));
+    if (g.tur === 'pluxeeKodIste' || g.tur === 'pluxeeKodOku' || g.tur === 'pluxeeKodSil') {
+      var kSh = SpreadsheetApp.openById(PLUXEE_SS_ID).getSheetByName(PLUXEE_KOD_SEKME);
+      if (!kSh) return _kopruYanit({ hata: '"' + PLUXEE_KOD_SEKME + '" sekmesi yok' });
+      var hucre = kSh.getRange('B2');
+      if (g.tur === 'pluxeeKodOku') {
+        var kod = String(hucre.getDisplayValue() || '').replace(/\D/g, '');
+        return _kopruYanit({ ok: true, kod: (kod.length >= 4 && kod.length <= 8) ? kod : '' });
+      }
+      if (g.tur === 'pluxeeKodSil') {
+        hucre.setNumberFormat('@').setValue('');
+        return _kopruYanit({ ok: true });
+      }
+      // pluxeeKodIste: kodu iPhone Kestirmeler SMS'ten kendisi yazıyor; e-posta / WhatsApp bildirimi kaldırıldı (sahibin isteği, 04.10).
+      // Kutu burada temizlenmez: SMS bu istekten önce gelmiş olabilir. Eski kodu pluxee.mjs girişten önce pluxeeKodSil ile siler.
+      return _kopruYanit({ ok: true });
+    }
     // Doğrulama kodları (Edenred vb.): MacBook programı kodIste der, iPhone Kestirmeler SMS'teki kodu kodYaz ile bırakır,
     // program kodOku ile alır. Yalnız son kodIste'den SONRA yazılan kod verilir (eski kodla giriş denenmesin).
     if (/^kod(Iste|Yaz|Oku|Sil|Durum)$/.test(String(g.tur))) return _kopruYanit(_kopruKod(g));
