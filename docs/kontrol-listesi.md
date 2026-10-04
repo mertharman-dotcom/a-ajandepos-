@@ -21,6 +21,7 @@ doğrulanmalı. Durum: ☐ açık · ◐ devam ediyor · ☑ çözüldü.
 | K3 | Ürün listesinin tek kaynağı GENEL › Menü | Evet | ☐ |
 | K4 | Satışın tek kaynağı SATIS › Satıs Verileri (Make.com) | Evet | ☐ |
 | K5 | Satış adı ↔ reçete eşleştirmesi tek tabloda, üç motor da onu okusun | Evet | ☐ |
+| K6 | Dilimli/yapraklı ürünlerin (ekmek, sucuk, pastırma, fesleğen…) mutfak birimi ve gramı Tbl_Hammaddeler'de iki sütunda tutulsun (`Mutfak_Birimi` = dilim, `Mutfak_Birimi_Gram` = 8); reçete gram tutar, mutfak reçete kartı "6 dilim" gösterir | Evet | ☐ sahip onayı |
 
 ## S · Stok motoru (satış → stok)
 
@@ -50,8 +51,14 @@ Tablolarda yapılan her değişikliğin eski ve yeni değeri **STOK › Fiyat_Du
 | M6 | Dana Tiftik Et çıktısı "kg / 5200" girilmişti (5.200 kg okunuyordu) | Tiftikli ürünler %8–9 görünüyordu | ☑ 29.09 "gr." yapıldı (gramı ≈ 1,85 TL) |
 | M7 | Tbl_Hammaddeler'de H ve I boş satırlar paket fiyatını gram fiyatı yapıyordu: Barilla penne 2 kg, Calve hardal, midye, tane karabiber, acı sos, bulgur, domates, karbonat, nar ekşisi | 02.10 panelinde yarı mamul 279.247 TL (cironun %191'i); penne porsiyonu 14.000 TL | ☑ 02.10 9 satır dolduruldu · ☑ panel koruması (`bilesen_`: birim boş/uyuşmuyorsa 0 + eksik listesi; `cc` = ml) — test: `tests/veri-kapisi-maliyet-testi.js` · ☐ yayın |
 | M8 | Reçetede birim türü tablodakiyle uyuşmayan 5 satır: Maydanoz 15 gr (tabloda adet), Havuç/Kabak/Kereviz adet (tabloda kg), Tost ekmeği "Paket" (tabloda gr), Limon suyu 0,5 adet (tabloda lt) | M7 korumasıyla tutara 0 girer, eksik listesinde görünür | ☐ reçete birimleri düzeltilecek |
-| M9 | Tarifi ya da parti çıktısı eksik yarı mamuller: Konfi domates, Konfi sarımsak, Acılı zeytinyağ, Pancarlı humus ("Humur" yazım hatası), Tavuk suyu, Karabuğday tabule, Humus, Falafel, Bulgur haşlanmış, File badem kavurma, Sotelenmiş kabak-havuç, Panini ekmeği, Lasagne Bolognese, Ispanak sos | Maliyete 0 giriyor | ☐ sahibinden tarif / parti çıktısı |
-| M10 | Panelde reçetesi bulunamayan satışlar (02.10, cironun %8,7'si): Şeftali Stracciatella Salata, Tiftik Etli Ispanaklı Salata, Börülce Bowl, Chicken Roll Bowl, Bap Ekşi Mayalı Special Sandviç, Linguine Deniz Mahsullü, Karpuz Semizotu Salata; içecekler (Coca-Cola, Ayran, Su, Fuse Tea) | Maliyet eksik | ☐ K5 tablosu ya da `Maliyet_Eslestirme` sekmesi |
+| M9 | Tarifi ya da parti çıktısı eksik yarı mamuller: Konfi sarımsak, Pancarlı humus ("Humur" yazım hatası), Tavuk suyu, Karabuğday tabule, Humus, Falafel, Bulgur haşlanmış, File badem kavurma, Sotelenmiş kabak-havuç, Panini ekmeği, Lasagne Bolognese, Ispanak sos | Maliyete 0 giriyor | ☐ sahibinden tarif / parti çıktısı · ☑ 03.10 Acılı Zeytinyağ eklendi (500 ml zeytinyağ + 100 gr kırmızı biber pul → 600 ml) · ☑ 03.10 Konfi domates eklendi (parti 500 gr = 16 adet) |
+| M10 | Panelde reçetesi bulunamayan satışlar (02.10, cironun %8,7'si): Şeftali Stracciatella Salata, Tiftik Etli Ispanaklı Salata, Börülce Bowl, Chicken Roll Bowl, Bap Ekşi Mayalı Special Sandviç, Linguine Deniz Mahsullü, Karpuz Semizotu Salata; içecekler (Coca-Cola, Ayran, Su, Fuse Tea) | Maliyet eksik | ◐ 03.10 Füme Dilli Sandviç ve Ekşi Mayalı BAP Special reçeteleri girildi (Tbl_Receteler 747–753) · ☐ K5 tablosu ya da `Maliyet_Eslestirme` sekmesi |
+| M11 | Rende mozzarella J = 4.380 TL koli fiyatı (6 × 2 kg = 12 kg) ama H = 2 kg → kg fiyatı 2.190 TL okunuyor (doğrusu ≈ 365) | 28 pizza/panini 2–3 kat pahalı görünüyor | ☐ H 12 yapılmalı (ya da J 2 kg fiyatı); M3/M4 kuralıyla birlikte |
+| M12 | Stracciatella H = 500 gr ama J = 1.700 TL kilo fiyatı (paket 500 g, 850 TL) | Panuozzo Roastbeef %64, Linguine Pomodoro Stracciatella %56 görünüyordu | ☑ 03.10 sahip teyidi, H = 1000 (Fiyat_Duzeltme_28.09 satır 35) → %47 ve %34 |
+| M13 | Ekşi Mayalı Ekmek (UNO 450 g) H ve I boştu | Gramla yazılan reçetede maliyet 0 girerdi | ☑ 03.10 sahip teyidi: 450 g, 12 dilim, uçtaki 2 dilim kullanılmıyor → H/I = 450 gr., reçete 2 dilim = 90 gr (fire dahil); Fiyat_Duzeltme_28.09 satır 31–32 |
+| M15 | Sebzede kasa fiyatı yok (sahip, 03.10): J kilo fiyatı. Cherry (H=5) ve pembe domates (H=7,5) kasa ağırlığına bölünüyordu | 25 üründe domates maliyeti eksik çıkıyordu (kilosu 20 / 13 TL) | ☑ 03.10 H=1 yapıldı (Fiyat_Duzeltme_28.09 satır 33–34). M4'teki bu iki ürün için risk kalktı |
+| M16 | Konfi yağı her partide sıfırdan kullanılmıyor (10 partide bir yenileniyor, küfte hemen) | 700 gr yağın tamamı her partiye yazılırsa domates maliyeti ve yağ stok düşümü 10 kat çıkar | ☑ 03.10 reçetede 70 gr (ortalama pay), F `Tekrar_Parti` = 10 · ◐ mutfak paneli sayacı (YENİLE uyarısı + küf butonu, `Tekrar_Kullanim_Log`) PR'da, yayın bekliyor |
+| M14 | 40'tan fazla reçete satırında miktar noktalı ("0.25", "0.1") — Türkçe tabloda metin olarak duruyor | Stok ve maliyet motoru sayı okuyamayabilir | ☐ virgüle çevrilecek (kuru rapor → onay) |
 
 ## V · Veri (gecelik ajan raporundan, 02.10)
 

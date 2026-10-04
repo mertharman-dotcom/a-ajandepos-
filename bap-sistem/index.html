@@ -1029,7 +1029,7 @@ async function ymSec(adi){
 function receteGoster(){
   const r=S.seciliRecete,kat=S.kat;
   if(!r||!r.malzemeler) return;
-  document.getElementById('recete-detay').innerHTML=`<div class="recete-box"><div class="recete-title">📋 Malzemeler (${kat} kat)</div>${r.malzemeler.map(m=>`<div class="recete-row"><span class="mal">${m.hammadde}${m.aciklama?' ('+m.aciklama+')':''}</span><span class="mik">${+(m.bazMiktar*kat).toFixed(2)} ${m.birim}</span></div>`).join('')}</div>`;
+  document.getElementById('recete-detay').innerHTML=`<div class="recete-box"><div class="recete-title">📋 Malzemeler (${kat} kat)</div>${r.malzemeler.map(m=>m.tekrar?tekrarSatir(m,kat):`<div class="recete-row"><span class="mal">${m.hammadde}${m.aciklama?' ('+m.aciklama+')':''}</span><span class="mik">${+(m.bazMiktar*kat).toFixed(2)} ${m.birim}</span></div>`).join('')}</div>${r.malzemeler.filter(m=>m.tekrar).map(tekrarKutu).join('')}`;
   if(S.seciliCikti){
     const c=S.seciliCikti, top=+(c.bazMiktar*kat).toFixed(0);
     let cv='', cs='';
@@ -1053,6 +1053,31 @@ function receteGoster(){
     }
     document.getElementById('hesap-wrap').innerHTML=`<div class="cikti-box"><div class="cikti-title">✅ Tahmini Çıktı</div><div class="cikti-val">${cv}</div>${cs?'<div class="cikti-sub">'+cs+'</div>':''}</div>`;
   }
+}
+
+// Tekrar kullanılan malzeme (ör. konfi yağı): N partide bir yenilenir.
+// Sayaç dolduysa ya da hiç başlamadıysa bu parti taze malzemeyle yapılır.
+function tekrarTaze(m){const d=m.tekrarDurum;return !d||!d.basladi||d.degistir;}
+function tekrarSatir(m,kat){
+  const tam=+(m.bazMiktar*m.tekrar*kat).toFixed(0), d=m.tekrarDurum||{};
+  if(tekrarTaze(m)) return `<div class="recete-row" style="border:2px solid var(--red);border-radius:8px;padding:8px"><span class="mal"><b>🔁 ${m.hammadde}: YENİLE</b><br><small>Eskisini dök, taze koy${d.basladi?' · '+d.tekrar+' parti doldu':''}</small></span><span class="mik"><b>${tam} ${m.birim}</b></span></div>`;
+  return `<div class="recete-row"><span class="mal">♻️ ${m.hammadde}<br><small>Önceki partiden kalan kullanılır · ${d.parti+1}. parti / ${d.tekrar}</small></span><span class="mik">ekleme yok</span></div>`;
+}
+function tekrarKutu(m){
+  const d=m.tekrarDurum||{};
+  const bilgi=d.basladi?('Son yenileme: '+d.sonYenileme+' · '+d.parti+' parti yapıldı'):'Sayaç bu üretimle başlayacak';
+  return `<div style="margin-top:10px;padding:10px 12px;border:1px dashed var(--muted);border-radius:10px;font-size:13px"><div style="color:var(--muted)">${bilgi}</div><button type="button" class="btn btn-outline" style="margin-top:8px;width:100%;justify-content:center" data-malzeme="${m.hammadde}" onclick="tekrarYenileTikla(this.dataset.malzeme)">Küf / bozulma: ${m.hammadde} şimdi yenilendi</button></div>`;
+}
+let tekrarGonderiliyor=false;
+async function tekrarYenileTikla(malzeme){
+  if(tekrarGonderiliyor||!S.seciliYM) return;
+  tekrarGonderiliyor=true; toast2('⏳ Kaydediliyor...',8000);
+  try{
+    const r=await apiPost({action:'tekrarYenile',yariMamulAdi:S.seciliYM,malzeme,sebep:'Küf / bozulma',calisanAdi:S.girisYapan?.adi||'Bilinmiyor'});
+    if(r.basari){ toast2('✅ '+r.mesaj); const t=await api({action:'getRecete',adi:S.seciliYM}); S.seciliRecete=t; S.seciliCikti=t.cikti; receteGoster(); }
+    else toast2('⚠️ '+(r.hata||'Hata'));
+  }catch(e){toast2('⚠️ Bağlantı hatası',4000);}
+  finally{tekrarGonderiliyor=false;}
 }
 
 function chKat(d){
