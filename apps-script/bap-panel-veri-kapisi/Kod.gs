@@ -1242,9 +1242,10 @@ function satirlar_(ss, ad) {
  *   Iadeler       son 60 gün
  *   Yorum_Cevap   onay bekleyen taslaklar + son gönderilenler
  */
+var TY_DEGERLENDIRME = 'Degerlendirmeler';
 function musteri_() {
   var ss = SpreadsheetApp.openById(KAYNAK.yorum.id), bugun = isGunu_(simdi_());
-  var out = { bugun: bugun, puan: [], tahmin: [], iade: [], yorumBekleyen: [], yorumSon: [] };
+  var out = { bugun: bugun, puan: [], tahmin: [], iade: [], yorumBekleyen: [], yorumSon: [], dusukYorum: [] };
   var bos = function (v) { return v === '' || v === null || v === undefined; };
   var num = function (v) { return bos(v) ? null : sayi_(v); };
   var k = function (t, ad) { return kolon_(t.b, [ad]); };
@@ -1257,6 +1258,16 @@ function musteri_() {
       var g = gunStr_(r[c.g]); if (!g || g < bas) return;
       out.puan.push({ gun: g, magaza: String(r[c.m]), ty: num(r[c.ty]), degisim: num(r[c.d]), hesap: num(r[c.h]),
                       siparis: num(r[c.s]) || 0, normal: num(r[c.n]) });
+    });
+  }
+
+  // 1 yıldızlı değerlendirmeler (ortalama 2'nin altı), son 30 gün — grafikte kırmızı nokta
+  t = satirlar_(ss, TY_DEGERLENDIRME);
+  if (t.r.length) {
+    c = { t: k(t, 'Değerlendirme Tarihi'), m: k(t, 'Mağaza'), o: k(t, 'Ortalama'), y: k(t, 'Yorum'), u: k(t, 'Ürünler') };
+    t.r.forEach(function (r) {
+      var g = gunStr_(r[c.t]), o = num(r[c.o]); if (!g || g < bas || o === null || o >= 2) return;
+      out.dusukYorum.push({ gun: g, magaza: String(r[c.m]), puan: o, yorum: String(r[c.y] || '').slice(0, 200), urunler: String(r[c.u] || '').slice(0, 100) });
     });
   }
 
@@ -1277,7 +1288,8 @@ function musteri_() {
   if (t.r.length) {
     c = { o: k(t, 'Oluşma'), sk: k(t, 'Son Karar Saati'), m: k(t, 'Mağaza'), no: k(t, 'Sipariş No'), d: k(t, 'Durum'), sb: k(t, 'Sebep'),
           nt: k(t, 'Müşteri Notu'), tl: k(t, 'Tutar'), ku: k(t, 'Kurye'), ur: k(t, 'Ürünler'), on: k(t, 'Ön Değerlendirme'),
-          so: k(t, 'Sorumlu'), ks: k(t, 'Kesinti Durumu') };
+          so: k(t, 'Sorumlu'), ks: k(t, 'Kesinti Durumu'), id: k(t, 'Claim Item ID'), is: k(t, 'İşlem'), isd: k(t, 'İşlem Durumu'),
+          kd: k(t, 'Kuryeden Düş'), dt: k(t, 'Düşülecek TL') };
     t.r.forEach(function (r) {
       var ms = zaman_(r[c.o]); if (ms === null) return;
       var g = new Date(ms).toISOString().slice(0, 10); if (g < bas) return;
@@ -1286,7 +1298,9 @@ function musteri_() {
         magaza: String(r[c.m]), no: String(r[c.no]), durum: String(r[c.d]), sebep: String(r[c.sb]), not: String(r[c.nt] || '').slice(0, 160),
         tutar: num(r[c.tl]) || 0, kurye: c.ku >= 0 ? String(r[c.ku] || '') : '', urunler: c.ur >= 0 ? String(r[c.ur] || '').slice(0, 120) : '',
         oneri: c.on >= 0 ? String(r[c.on] || '').slice(0, 200) : '', sorumlu: c.so >= 0 ? String(r[c.so] || 'Belirsiz') : 'Belirsiz',
-        kesinti: c.ks >= 0 ? String(r[c.ks] || '') : '' });
+        kesinti: c.ks >= 0 ? String(r[c.ks] || '') : '', id: String(r[c.id] || ''),
+        islem: c.is >= 0 ? String(r[c.is] || '') : '', islemDurumu: c.isd >= 0 ? String(r[c.isd] || '') : '',
+        kuryedenDus: c.kd >= 0 && r[c.kd] === true, dusulecek: c.dt >= 0 ? num(r[c.dt]) : null });
     });
     out.iade.sort(function (a, b) { return a.zaman < b.zaman ? 1 : -1; });
   }
@@ -1312,6 +1326,64 @@ function musteri_() {
     out.yorumSon = gonderilen.sort(function (a, b) { return a.gonderim < b.gonderim ? 1 : -1; }).slice(0, 15);
   }
   return out;
+}
+
+/* Panelden iade işlemi: Iadeler sekmesine yalnız istek yazar, Trendyol'a hiçbir şey göndermez.
+     sorumlu   → Sorumlu sütunu
+     kuryeDus  → Kuryeden Düş = işaretli (+ Düşülecek TL); kesintiyi Trendyol projesi 10 dk içinde Kurye › Kesintiler'e yazar
+     kabul/ret → İşlem = "KABUL" / "RET <kod> | not"; Trendyol'a kabul/reddi Trendyol projesi 10 dk içinde BİR KEZ gönderir */
+var IADE_RET_KODLARI = [5000, 5001, 5002, 5003, 5004, 5005, 5006, 5007, 5016, 5017];
+function iadeIslem_(d) {
+  var id = String(d.id || '').trim();
+  if (!id) return { hata: 'İade bulunamadı.' };
+  var sh = SpreadsheetApp.openById(KAYNAK.yorum.id).getSheetByName('Iadeler');
+  if (!sh || sh.getLastRow() < 2) return { hata: 'Iadeler sekmesi bulunamadı.' };
+  var lc = sh.getLastColumn(), b = sh.getRange(1, 1, 1, lc).getDisplayValues()[0];
+  var c = { id: kolon_(b, ['Claim Item ID']), du: kolon_(b, ['Durum']), so: kolon_(b, ['Sorumlu']), kd: kolon_(b, ['Kuryeden Düş']),
+            dt: kolon_(b, ['Düşülecek TL']), ks: kolon_(b, ['Kesinti Durumu']), is: kolon_(b, ['İşlem']), isd: kolon_(b, ['İşlem Durumu']),
+            ku: kolon_(b, ['Kurye']), tl: kolon_(b, ['Tutar']) };
+  // kolon_ önek eşleşmesi yapar: 'İşlem' başlığı 'İşlem Durumu'nu yakalamasın
+  c.is = b.map(function (x) { return String(x).trim(); }).indexOf('İşlem');
+  if (c.id < 0 || c.du < 0) return { hata: "Iadeler'de beklenen başlıklar yok." };
+  var v = sh.getRange(2, 1, sh.getLastRow() - 1, lc).getValues(), i;
+  for (i = 0; i < v.length; i++) if (String(v[i][c.id]) === id) break;
+  if (i >= v.length) return { hata: 'İade tabloda bulunamadı; panel verisini yenileyin.' };
+  var r = v[i], satir = i + 2, yapilan = [];
+
+  if (d.sorumlu) {
+    if (['Kurye', 'Mutfak', 'Müşteri/Platform', 'Belirsiz'].indexOf(d.sorumlu) < 0) return { hata: 'Geçersiz sorumlu.' };
+    if (c.so < 0) return { hata: 'Sorumlu sütunu henüz yok; 10 dakika sonra tekrar deneyin.' };
+    sh.getRange(satir, c.so + 1).setValue(d.sorumlu); yapilan.push('sorumlu: ' + d.sorumlu);
+  }
+  if (d.kuryeDus) {
+    if (c.kd < 0 || c.dt < 0) return { hata: 'Kuryeden Düş sütunu henüz yok; 10 dakika sonra tekrar deneyin.' };
+    if (/^YAZILDI/.test(String(r[c.ks] || ''))) return { hata: 'Bu iade kuryeden zaten düşülmüş.' };
+    if (!String(r[c.ku] || '').trim()) return { hata: 'Bu iadede kurye yok; önce tabloda Kurye sütununu doldurun.' };
+    var tl = Math.round(sayi_(d.tl) * 100) / 100;
+    if (!(tl > 0) || tl > Math.max(5000, sayi_(r[c.tl]) * 2)) return { hata: 'Geçerli bir tutar yazın.' };
+    sh.getRange(satir, c.dt + 1).setValue(tl);
+    sh.getRange(satir, c.kd + 1).setValue(true);
+    yapilan.push('kuryeden ' + tl + ' TL');
+  }
+  if (d.islem === 'kabul' || d.islem === 'ret') {
+    if (c.is < 0 || c.isd < 0) return { hata: 'İşlem sütunu henüz yok; 10 dakika sonra tekrar deneyin.' };
+    if (String(r[c.du]) !== 'WaitingInAction') return { hata: 'Bu iade artık karar beklemiyor (' + r[c.du] + ').' };
+    if (String(r[c.is] || '').trim()) return { tamam: true, zatenIstendi: true, yapilan: ['istek zaten var: ' + r[c.is]] };
+    var istek;
+    if (d.islem === 'kabul') istek = 'KABUL';
+    else {
+      var kod = Number(d.kod);
+      if (IADE_RET_KODLARI.indexOf(kod) < 0) return { hata: 'Ret nedenini seçin.' };
+      var not = String(d.not || '').replace(/\s+/g, ' ').trim().slice(0, 400);
+      if (!not) return { hata: 'Ret için kısa bir açıklama yazın (Trendyol inceleyecek).' };
+      istek = 'RET ' + kod + ' | ' + not;
+    }
+    sh.getRange(satir, c.is + 1).setValue(istek);
+    sh.getRange(satir, c.isd + 1).setValue('');
+    yapilan.push(d.islem === 'kabul' ? 'kabul isteği' : 'ret isteği');
+  }
+  if (!yapilan.length) return { hata: 'Yapılacak işlem seçilmedi.' };
+  return { tamam: true, yapilan: yapilan };
 }
 
 /* Panelden yorum cevabı onayı: Yorum_Cevap'ta o satırın Cevap metnini (düzeltildiyse) ve Telafi Sözü'nü yazar,
@@ -3176,6 +3248,11 @@ function doPost(e) {
     var kpn = LockService.getScriptLock(); kpn.waitLock(20000);
     try { return json_(panoNot_(d)); } catch (err) { return json_({ hata: String(err.message || err) }); }
     finally { kpn.releaseLock(); CacheService.getScriptCache().remove('panel_v1_n'); }
+  }
+  if (d.tur === 'iadeIslem') {
+    var kii = LockService.getScriptLock(); kii.waitLock(20000);
+    try { return json_(iadeIslem_(d)); } catch (err) { return json_({ hata: String(err.message || err) }); }
+    finally { kii.releaseLock(); }
   }
   if (d.tur === 'yorumOnay') {
     var kyo = LockService.getScriptLock(); kyo.waitLock(20000);

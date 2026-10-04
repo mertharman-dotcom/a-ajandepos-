@@ -46,7 +46,7 @@ const TYR_IADE_BASLIK = ['Claim Item ID', 'Claim ID', 'Oluşma', 'Son Karar Saat
   'Sipariş No', 'Durum', 'Sebep', 'Müşteri Notu', 'Tutar', 'İade Şekli', 'Tür', 'Fotoğraf',
   'Adisyo Sipariş ID', 'Ürünler', 'Kurye', 'Mahalle', 'Sipariş→Teslim (dk)', 'Ön Değerlendirme',
   'Kapanış Nedeni', 'Kapanış Tarihi', 'Bildirildi', 'Kuryeden Düş', 'Düşülecek TL', 'Kesinti Durumu',
-  'Sorumlu'];
+  'Sorumlu', 'İşlem', 'İşlem Durumu'];
 
 /* iade sebebine göre varsayılan sorumlu; Iadeler'de Sorumlu sütunundan elle değiştirilebilir */
 const TYR_SORUMLULAR = ['Kurye', 'Mutfak', 'Müşteri/Platform', 'Belirsiz'];
@@ -314,6 +314,8 @@ function iadeleriCek() {
   const saticilar = {};
   TY.MAGAZALAR.forEach(m => saticilar[m.supplier] = m.token);
 
+  try { iadeIslemleriYap_(sh); } catch (e) { Logger.log('İade işlemi hatası: ' + e); }
+
   const bitis = Date.now(), baslangic = bitis - TYR.IADE_GUN * 86400000;
   let satis = null;
   const yeni = [], bildirilecek = [];
@@ -363,7 +365,7 @@ function iadeleriCek() {
             it.status || '', sebep, it.note || '', it.price || '', c.sellerRefundType || '',
             c.type || '', foto, s.id || '', s.urun || '', s.kurye || '', s.mahalle || '', s.dk,
             tyrIadeOneri_(sebepId, s, foto), kapanis, kapTarih, bekliyor ? new Date() : '',
-            false, '', '', tyrSorumluBul_(sebepId, sebep)
+            false, '', '', tyrSorumluBul_(sebepId, sebep), '', ''
           ];
           mevcut[it.id] = { satir: 0, durum: it.status || '' };
           yeni.push(kayit);
@@ -487,6 +489,63 @@ function tyrEksikBasliklariEkle_(sh, liste) {
   if (!eksik.length) return;
   sh.getRange(1, sh.getLastColumn() + 1, 1, eksik.length).setValues([eksik])
     .setFontWeight('bold').setBackground('#f1f3f4');
+}
+
+/* ============================================================
+ * 4d) PANELDEN İSTENEN KABUL / RET
+ * Panel (veri kapısı) Iadeler'de "İşlem" sütununa "KABUL" ya da "RET 5006 | not" yazar.
+ * Burada, Durum'u WaitingInAction ve İşlem Durumu boş olan satırlar Trendyol'a BİR KEZ gönderilir
+ * (önce "GÖNDERİLİYOR" yazılır; otomatik tekrar yok — CLAUDE.md kural 6).
+ * ============================================================ */
+function iadeIslemleriYap_(sh) {
+  if (sh.getLastRow() < 2) return;
+  const b = tyrBasliklar_(sh);
+  const iIs = b('İşlem'), iID = b('İşlem Durumu');
+  const v = sh.getRange(2, 1, sh.getLastRow() - 1, sh.getLastColumn()).getValues();
+  const magaza = {};
+  TY.MAGAZALAR.forEach(m => magaza[m.marka] = m);
+  v.forEach((r, k) => {
+    const istek = String(r[iIs] || '').trim();
+    if (!istek || String(r[iID] || '').trim()) return;
+    const satir = k + 2;
+    if (String(r[b('Durum')]) !== 'WaitingInAction') {
+      sh.getRange(satir, iID + 1).setValue('YAPILMADI: iade artık karar beklemiyor (' + r[b('Durum')] + ')');
+      return;
+    }
+    const m = magaza[r[b('Mağaza')]];
+    if (!m) { sh.getRange(satir, iID + 1).setValue('YAPILMADI: mağaza bilinmiyor'); return; }
+    let yol, govde;
+    if (/^KABUL/i.test(istek)) {
+      yol = 'accept'; govde = { claimItemIds: [String(r[b('Claim Item ID')])] };
+    } else {
+      const x = istek.match(/^RET\s+(\d{4})\s*\|?\s*(.*)$/i);
+      if (!x) { sh.getRange(satir, iID + 1).setValue('YAPILMADI: istek anlaşılamadı'); return; }
+      yol = 'unresolve';
+      govde = { claimItemIds: [String(r[b('Claim Item ID')])], reasonId: Number(x[1]), note: x[2].slice(0, 500) };
+    }
+    sh.getRange(satir, iID + 1).setValue('GÖNDERİLİYOR');
+    SpreadsheetApp.flush();
+    let sonuc;
+    try {
+      const res = UrlFetchApp.fetch('https://api.tgoapis.com/integrator/claim/meal/suppliers/' + m.supplier +
+        '/claims/' + r[b('Claim ID')] + '/' + yol, {
+        method: 'put', contentType: 'application/json',
+        headers: { 'Authorization': 'Basic ' + m.token,
+                   'User-Agent': m.supplier + ' - SelfIntegration', 'Accept': 'application/json' },
+        payload: JSON.stringify(govde), muteHttpExceptions: true
+      });
+      const kod = res.getResponseCode();
+      sonuc = (kod >= 200 && kod < 300)
+        ? (yol === 'accept' ? 'KABUL EDİLDİ ' : 'REDDEDİLDİ (' + govde.reasonId + ') ') +
+          Utilities.formatDate(new Date(), 'Europe/Istanbul', 'dd.MM HH:mm')
+        : 'HATA ' + kod + ': ' + res.getContentText().slice(0, 150);
+      if (!(kod >= 200 && kod < 300)) tyErisimHatasi_('İade işlemi', kod, res.getContentText());
+    } catch (e) {
+      sonuc = 'HATA (bağlantı) — yapıldı mı belli değil, Trendyol panelinden bak: ' + e;
+    }
+    sh.getRange(satir, iID + 1).setValue(sonuc);
+    Logger.log('İade işlemi ' + r[b('Sipariş No')] + ': ' + sonuc);
+  });
 }
 
 /* sebep kodu (yoksa sebep adı) → varsayılan sorumlu */

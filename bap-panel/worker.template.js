@@ -215,6 +215,26 @@ export default {
       } catch (e) { return json({ hata: 'Veri kapısına ulaşılamadı.' }, 502); }
     }
 
+    if (url.pathname === '/api/iade-islem' && request.method === 'POST') {
+      // Trendyol iade işlemi (sorumlu / kuryeden düş / kabul / ret isteği): yalnızca panelin kendisinden gelen istek.
+      // Veri kapısı yalnız Iadeler sekmesine istek yazar; Trendyol'a gönderimi Trendyol projesi bir kez yapar.
+      if (request.headers.get('x-bap-panel') !== '1' || (request.headers.get('origin') || url.origin) !== url.origin) {
+        return json({ hata: 'İzin verilmeyen istek.' }, 403);
+      }
+      let govde;
+      try { govde = await request.json(); } catch (e) { return json({ hata: 'Geçersiz istek.' }, 400); }
+      const ileti = JSON.stringify({ key: env.GAS_KEY, tur: 'iadeIslem', id: String(govde.id || '').slice(0, 80),
+        sorumlu: String(govde.sorumlu || '').slice(0, 30), kuryeDus: govde.kuryeDus === true, tl: String(govde.tl || '').slice(0, 20),
+        islem: govde.islem === 'kabul' || govde.islem === 'ret' ? govde.islem : '', kod: String(govde.kod || '').slice(0, 6),
+        not: String(govde.not || '').slice(0, 400) });
+      try {
+        const r = await fetch(env.GAS_URL, { method: 'POST', headers: { 'content-type': 'application/json' }, body: ileti, redirect: 'follow' });
+        const metin = await r.text();
+        try { return json(JSON.parse(metin), 200); }
+        catch (e) { return json({ belirsiz: true, hata: 'Veri kapısı beklenmeyen bir cevap verdi; işlem yazılmış olabilir. Paneli yenileyip kontrol edin.' + gasHatasi(metin) }, 502); }
+      } catch (e) { return json({ belirsiz: true, hata: 'Veri kapısına ulaşılamadı; işlem yazılmış olabilir. Paneli yenileyip kontrol edin.' }, 502); }
+    }
+
     if (url.pathname === '/api/yorum-onay' && request.method === 'POST') {
       // Trendyol yorum cevabı onayı: yalnızca panelin kendisinden gelen istek kabul edilir.
       // Veri kapısı yalnız tabloya "Onay" yazar; Trendyol'a gönderimi Trendyol projesi bir kez yapar.
