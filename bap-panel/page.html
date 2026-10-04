@@ -2033,7 +2033,7 @@ function musteriPuan(a,M){
     var not=s&&s.degisim!=null&&s.degisim!==0?(s.degisim>0?"▲ +":"▼ ")+puanYaz(s.degisim,2)+" düne göre":"düne göre değişmedi";
     if(t&&t.yarin!=null)not+=" · yarın ~"+puanYaz(t.yarin,2);
     return rakam(m,s?puanYaz(s.ty,2):"—",not,s&&s.degisim>0?"yukari":(s&&s.degisim<0?"asagi":null));})));
-  a.appendChild(blok("Trendyol puanı ve sipariş — son 30 gün","Her mağaza ayrı: üstte Trendyol'un gösterdiği puan (dört mağaza aynı ölçekte), altta o günün Trendyol sipariş adedi (iptal hariç). Son sütun bugündür, gün bitmediği için eksiktir. Noktanın veya sütunun üstüne gelince ayrıntı çıkar.",
+  a.appendChild(blok("Trendyol puanı ve sipariş — son 30 gün","Her mağaza ayrı: üstte Trendyol'un gösterdiği puan (dört mağaza aynı ölçekte), altta o günün Trendyol sipariş adedi (iptal hariç). Kırmızı halkalı nokta: o gün 1 yıldızlı değerlendirme geldi (yanındaki sayı adedi). Son sütun bugündür, gün bitmediği için eksiktir. Noktanın veya sütunun üstüne gelince ayrıntı çıkar.",
     el("div",null,mags.map(function(m){return puanSiparisGrafik(m,M.puan.filter(function(x){return x.magaza===m;}));}))));
   var fark={};mags.forEach(function(m){var s=son[m];fark[m]=s&&s.hesap!=null?s.ty-s.hesap:null;});
   a.appendChild(blok("Yarın puan tahmini","Trendyol puanı son 90 günün ortalaması sayılarak hesaplanır: yarın 90 günü dolan yorumlar düşer. 'Hesap farkı' bizim hesabımızla Trendyol'un gösterdiği puan arasındaki fark; 0,05'ten büyükse o mağazanın tahminine güvenme (Trendyol farklı sayıyor).",
@@ -2053,7 +2053,13 @@ function puanSiparisGrafik(m,l){l=l.slice().sort(function(x,y){return x.gun<y.gu
     var t=document.createElementNS(ns,"text");t.setAttribute("x",p-6);t.setAttribute("y",y+4);t.setAttribute("text-anchor","end");t.textContent=puanYaz(v,2);svg.appendChild(t);});
   var d="",nok=[];l.forEach(function(x,i){if(x.ty==null)return;d+=(d?"L":"M")+cx(i).toFixed(1)+" "+py(x.ty).toFixed(1);nok.push([i,x]);});
   if(d){var pa=document.createElementNS(ns,"path");pa.setAttribute("d",d);pa.setAttribute("fill","none");pa.setAttribute("stroke","var(--mavi-koyu)");pa.setAttribute("stroke-width","2");pa.setAttribute("stroke-linejoin","round");svg.appendChild(pa);}
-  nok.forEach(function(q){var i=q[0],x=q[1],c=document.createElementNS(ns,"circle");c.setAttribute("cx",cx(i));c.setAttribute("cy",py(x.ty));c.setAttribute("r",i===l.length-1?4.5:3);c.setAttribute("fill","var(--mavi-koyu)");c.setAttribute("stroke","var(--kagit)");c.setAttribute("stroke-width","2");
+  // 1 yıldızlı değerlendirme gelen günler: kırmızı halka + adet; puanı olmayan günde bandın altına konur
+  var dusuk={};((VERI.musteri.dusukYorum)||[]).forEach(function(y){if(magKisa(y.magaza)!==m)return;(dusuk[y.gun]=dusuk[y.gun]||[]).push(y);});
+  l.forEach(function(x,i){var D=dusuk[x.gun];if(!D)return;var y=x.ty!=null?py(x.ty):alt1-4,c=document.createElementNS(ns,"circle");
+    c.setAttribute("cx",cx(i));c.setAttribute("cy",y);c.setAttribute("r",7);c.setAttribute("fill","var(--kotu)");c.setAttribute("stroke","var(--kagit)");c.setAttribute("stroke-width","2");
+    var t=document.createElementNS(ns,"title");t.textContent=gunAd(x.gun)+": "+D.length+" adet 1★ değerlendirme"+D.map(function(z){return "\n• "+puanYaz(z.puan,1)+"★"+(z.yorum?" “"+z.yorum+"”":" (yorum yok)")+(z.urunler?" — "+z.urunler:"");}).join("");c.appendChild(t);svg.appendChild(c);
+    if(D.length>1){var n=document.createElementNS(ns,"text");n.setAttribute("x",cx(i));n.setAttribute("y",y-11);n.setAttribute("text-anchor","middle");n.setAttribute("class","deger-yazi");n.setAttribute("style","fill:var(--kotu)");n.textContent=String(D.length);svg.appendChild(n);}});
+  nok.forEach(function(q){var i=q[0],x=q[1];if(dusuk[x.gun])return;var c=document.createElementNS(ns,"circle");c.setAttribute("cx",cx(i));c.setAttribute("cy",py(x.ty));c.setAttribute("r",i===l.length-1?4.5:3);c.setAttribute("fill","var(--mavi-koyu)");c.setAttribute("stroke","var(--kagit)");c.setAttribute("stroke-width","2");
     var t=document.createElementNS(ns,"title");t.textContent=gunAd(x.gun)+": puan "+puanYaz(x.ty,2)+(x.degisim?" ("+(x.degisim>0?"+":"")+puanYaz(x.degisim,2)+")":"")+" · "+x.siparis+" sipariş";c.appendChild(t);svg.appendChild(c);});
   if(nok.length){var sn=nok[nok.length-1];var t=document.createElementNS(ns,"text");t.setAttribute("x",cx(sn[0])+8);t.setAttribute("y",py(sn[1].ty)+4);t.setAttribute("class","deger-yazi");t.textContent=puanYaz(sn[1].ty,2);svg.appendChild(t);}
   l.forEach(function(x,i){var hh=Math.round((alt2-ust2)*x.siparis/smax),son=i===l.length-1,yuksek=x.normal&&x.siparis>x.normal*1.2,dusuk=x.normal&&x.siparis<x.normal*0.8;
@@ -2072,12 +2078,11 @@ function musteriIade(a,M){var bugunAy=M.bugun.slice(0,7);
     rakam("Kurye kaynaklı",para(top(function(x){return x.sorumlu==="Kurye";})),"kuryeden düşülen "+para(dusulen)),
     rakam("Karar bekleyen",String(iadeBekleyen(M).length),iadeBekleyen(M).length?"4 saat içinde karar verilmeli":"yok",iadeBekleyen(M).length?"asagi":null)]));
   var B=iadeBekleyen(M);
-  if(B.length)a.appendChild(blok("Karar bekleyen iadeler","Trendyol 4 saat içinde karar istiyor. Kabul / ret Trendyol panelinden yapılır; kurye kaynaklıysa tablodaki 'Kuryeden Düş' kutusunu işaretle.",
-    el("div",{class:"liste"},B.map(function(x){var gecti=x.sonKarar&&x.sonKarar.replace("T"," ")<simdiTr();
-      return el("div",{class:"satir"},[el("h3",null,[magKisa(x.magaza)+" — "+x.sebep+" — "+para(x.tutar)+" ",el("span",{class:"etiket "+(gecti?"e-kotu":"e-dikkat"),text:gecti?"süre doldu":"son karar "+saatTr(x.sonKarar)})]),
-        x.not?el("div",{style:"margin-top:6px",text:"Müşteri: “"+x.not+"”"}):null,
-        el("div",{class:"meta"},[el("span",{text:"Sipariş "+x.no}),x.kurye?el("span",{text:"Kurye: "+x.kurye}):null,x.urunler?el("span",{text:x.urunler}):null,el("span",{text:"Sorumlu (öneri): "+x.sorumlu})]),
-        x.oneri?el("div",{class:"meta"},[el("span",{text:"Öneri: "+x.oneri})]):null]);}))));
+  if(B.length)a.appendChild(blok("Karar bekleyen iadeler","Trendyol 4 saat içinde karar istiyor. Kabul ya da reddi buradan seç: istek 10 dakika içinde Trendyol'a bir kez gönderilir. Kurye kaynaklıysa kabul ederken 'Kuryeden düş'ü işaretle.",
+    el("div",{class:"liste"},B.map(function(x){return iadeKarti(x,true);}))));
+  var D=M.iade.filter(function(x){return x.gun.slice(0,7)===bugunAy&&(x.durum==="Accepted"||x.durum==="WaitingForSellerRefund")&&!/^YAZILDI/.test(x.kesinti)&&!x.kuryedenDus;});
+  if(D.length)a.appendChild(blok("Sorumlu ve kuryeden düşme — bu ay","Kabul edilmiş, kuryeden henüz düşülmemiş iadeler. Sorumluyu düzelt; kurye kaynaklıysa tutarı yazıp 'Kuryeden düş'e bas. Kesinti 10 dakika içinde Kurye › Kesintiler'e yazılır ve bordroya yansır.",
+    el("div",{class:"liste"},D.map(function(x){return iadeKarti(x,false);}))));
   var sor={};buAy.forEach(function(x){sor[x.sorumlu]=(sor[x.sorumlu]||0)+x.tutar;});
   a.appendChild(blok("Bu ay kimden kaynaklandı","Kabul edilen iadelerin tutarı. Sorumlu iade sebebinden önerilir; tablodaki Sorumlu sütunundan değiştirilebilir.",cubuklar(Object.keys(sor).map(function(k){return {ad:k,deger:sor[k]};}).sort(function(x,y){return y.deger-x.deger;}))));
   a.appendChild(blok("Son 60 günün iadeleri",null,M.iade.length?tablo([["Tarih"],["Mağaza"],["Sebep"],["Sorumlu"],["Kurye"],["Tutar",1],["Durum"],["Kuryeden düşüş"]],M.iade.map(function(x){var d=IADE_DURUM[x.durum]||[x.durum,"e-notr"];
@@ -2105,14 +2110,59 @@ function yorumOnayKarti(x){var F=YORUM_FORM[x.id]=YORUM_FORM[x.id]||{metin:x.cev
     el("div",{style:"margin-top:8px"},[ta]),
     el("div",{class:"meta",style:"align-items:center"},[el("label",{style:"display:flex;gap:6px;align-items:center"},[tf,"Telafi sözü var (gönderilince Telafi_Listesi'ne yazılır)"]),el("span",{text:saatTr(x.zaman)})]),
     el("div",{style:"margin-top:8px;display:flex;gap:12px;align-items:center;flex-wrap:wrap"},[dug,dur])]);}
+// İade kartı: bekleyende kabul / ret + sorumlu + kuryeden düş; kabul edilmişte sorumlu + kuryeden düş.
+// İstekler /api/iade-islem ile Iadeler sekmesine yazılır; Trendyol'a ve Kesintiler'e Trendyol projesi 10 dk içinde bir kez işler.
+var IADE_FORM={};
+var RET_NEDEN=[[5006,"İletilen görseller / bilgiler yanlış veya yetersiz"],[5003,"Gönderdiğim ürünlerde eksik yok"],[5000,"Gönderdiğim ürün yanlış değil"],[5001,"Gönderdiğim ürün kusurlu değil"],[5004,"Satıcı kaynaklı gecikme yok"],[5005,"Ürünler müşteriye teslim edildi"],[5002,"Müşteriyle görüşüldü, sorun çözüldü / ürünü yeniden göndereceğim"],[5007,"Fiş gönderilmişti, yeni fiş kesemiyorum"],[5016,"Fiş müşteriye yeniden gönderildi"],[5017,"Ürün notu eklenmemişti / uygulanabilir değildi"]];
+function iadeKarti(x,bekliyor){var F=IADE_FORM[x.id]=IADE_FORM[x.id]||{sorumlu:x.sorumlu,dus:x.sorumlu==="Kurye",tl:String(x.tutar),kod:"",not:"",ret:false,gonderiliyor:false,durum:"",sinif:"",kirli:false};
+  if(!F.kod){var m=String(x.oneri||"").match(/\b(50\d\d)\b/);F.kod=m?m[1]:"5006";}
+  var gecti=x.sonKarar&&x.sonKarar.replace("T"," ")<simdiTr(),kilit=F.gonderiliyor||F.bitti;
+  function deg(){F.kirli=true;}
+  var sor=el("select",{"aria-label":"Sorumlu"},["Kurye","Mutfak","Müşteri/Platform","Belirsiz"].map(function(k){var o=el("option",{value:k,text:k});if(F.sorumlu===k)o.selected=true;return o;}));
+  sor.addEventListener("change",function(){F.sorumlu=sor.value;if(sor.value!=="Kurye")F.dus=false;deg();ciz();});
+  var dus=el("input",{type:"checkbox"});dus.checked=!!F.dus;dus.addEventListener("change",function(){F.dus=dus.checked;deg();ciz();});
+  var tl=el("input",{type:"text",inputmode:"decimal",style:"width:90px","aria-label":"Düşülecek TL"});tl.value=F.tl;tl.addEventListener("input",function(){F.tl=tl.value;deg();});
+  var dur=el("span",{class:"cevap-durum "+F.sinif,role:"status",text:F.durum});
+  function gonder(govde,mesaj){if(F.gonderiliyor)return;govde.id=x.id;F.gonderiliyor=true;F.durum="Kaydediliyor…";F.sinif="";ciz();
+    fetch("/api/iade-islem",{method:"POST",credentials:"same-origin",headers:{"content-type":"application/json","x-bap-panel":"1"},body:JSON.stringify(govde)})
+      .then(function(r){return r.json();}).then(function(d){F.gonderiliyor=false;
+        if(d&&d.tamam){F.bitti=true;F.kirli=false;F.durum="✓ "+(d.zatenIstendi?"İstek zaten vardı. ":"")+mesaj;F.sinif="iyi";ciz();return;}
+        F.durum=(d&&d.hata)||"Kaydedilemedi.";F.sinif="kotu";ciz();})
+      .catch(function(){F.gonderiliyor=false;F.durum="Bağlantı koptu; istek yazılmış olabilir. ‘Şimdi yenile’ ile kontrol et.";F.sinif="kotu";ciz();});}
+  function dusEk(g){g.sorumlu=F.sorumlu;if(F.dus&&F.sorumlu==="Kurye"){g.kuryeDus=true;g.tl=F.tl;}return g;}
+  var kontroller=[el("label",{style:"display:flex;gap:6px;align-items:center"},["Sorumlu",sor])];
+  if(F.sorumlu==="Kurye")kontroller.push(el("label",{style:"display:flex;gap:6px;align-items:center"},[dus,"Kuryeden düş"+(x.kurye?" ("+x.kurye+")":""),tl,"₺"]));
+  var dugmeler=[];
+  if(x.islem&&bekliyor){dugmeler.push(el("span",{class:"etiket "+(/^HATA|YAPILMADI/.test(x.islemDurumu)?"e-kotu":"e-notr"),text:x.islemDurumu?x.islemDurumu:"İstek alındı ("+x.islem.split("|")[0].trim()+"), 10 dk içinde Trendyol'a gidecek"}));}
+  else if(bekliyor){
+    var kabul=el("button",{type:"button",class:"dugme ana-dugme",text:"Kabul et"});kabul.addEventListener("click",function(){gonder(dusEk({islem:"kabul"}),"Kabul isteği alındı; 10 dakika içinde Trendyol'a gönderilir"+(F.dus&&F.sorumlu==="Kurye"?", kesinti de yazılır":"")+".");});
+    var ret=el("button",{type:"button",class:"dugme",text:F.ret?"Vazgeç":"Reddet…"});ret.addEventListener("click",function(){F.ret=!F.ret;ciz();});
+    dugmeler.push(kabul,ret);
+  } else {
+    var kaydet=el("button",{type:"button",class:"dugme ana-dugme",text:F.dus&&F.sorumlu==="Kurye"?"Kuryeden düş":"Sorumluyu kaydet"});
+    kaydet.addEventListener("click",function(){gonder(dusEk({}),F.dus&&F.sorumlu==="Kurye"?"Kaydedildi; kesinti 10 dakika içinde Kurye › Kesintiler'e yazılır.":"Sorumlu kaydedildi.");});dugmeler.push(kaydet);}
+  if(kilit)[sor,dus,tl].concat(dugmeler).forEach(function(e){if(e.tagName!=="SPAN")e.setAttribute("disabled","");});
+  var retAlan=null;
+  if(bekliyor&&F.ret&&!x.islem){var kod=el("select",{"aria-label":"Ret nedeni"},RET_NEDEN.map(function(r){var o=el("option",{value:String(r[0]),text:r[0]+" — "+r[1]});if(String(r[0])===F.kod)o.selected=true;return o;}));kod.addEventListener("change",function(){F.kod=kod.value;deg();});
+    var not=el("textarea",{class:"cevap-alan",rows:"2",maxlength:"400",placeholder:"Trendyol'a açıklama (ör. paket çıkışında kola kontrol edildi, fotoğraf yok)","aria-label":"Ret açıklaması"});not.value=F.not;not.addEventListener("input",function(){F.not=not.value;deg();});
+    var retGonder=el("button",{type:"button",class:"dugme ana-dugme",text:"Reddi gönder"});retGonder.addEventListener("click",function(){if(!F.not.trim()){F.durum="Ret için kısa bir açıklama yaz.";F.sinif="kotu";ciz();return;}gonder({islem:"ret",kod:F.kod,not:F.not,sorumlu:F.sorumlu},"Ret isteği alındı; 10 dakika içinde Trendyol'a gönderilir. Trendyol inceleyip karar verecek.");});
+    if(kilit)[kod,not,retGonder].forEach(function(e){e.setAttribute("disabled","");});
+    retAlan=el("div",{style:"margin-top:10px;display:grid;gap:8px"},[kod,not,el("div",null,[retGonder])]);}
+  return el("div",{class:"satir"},[el("h3",null,[magKisa(x.magaza)+" — "+x.sebep+" — "+para(x.tutar)+" ",bekliyor?el("span",{class:"etiket "+(gecti?"e-kotu":"e-dikkat"),text:gecti?"süre doldu":"son karar "+saatTr(x.sonKarar)}):el("span",{class:"etiket e-notr",text:saatTr(x.zaman)})]),
+    x.not?el("div",{style:"margin-top:6px",text:"Müşteri: “"+x.not+"”"}):null,
+    el("div",{class:"meta"},[el("span",{text:"Sipariş "+x.no}),x.kurye?el("span",{text:"Kurye: "+x.kurye}):null,x.urunler?el("span",{text:x.urunler}):null]),
+    bekliyor&&x.oneri?el("div",{class:"meta"},[el("span",{text:"Öneri: "+x.oneri})]):null,
+    el("div",{style:"margin-top:10px;display:flex;gap:14px;align-items:center;flex-wrap:wrap"},kontroller),
+    retAlan,
+    el("div",{style:"margin-top:10px;display:flex;gap:10px;align-items:center;flex-wrap:wrap"},dugmeler.concat([dur]))]);}
 function iadeBekleyen(M){return M.iade.filter(function(x){return x.durum==="WaitingInAction";});}
 function simdiTr(){var d=new Date(Date.now()+3*3600000);return d.toISOString().slice(0,16).replace("T"," ");}
 
 function musteriYorum(a,M){var link=(kaynaklar("musteri")[0]||{}).link;
   a.appendChild(el("div",{class:"bilgi"},["Taslakları yapay zekâ yazar. Metni istersen düzelt, sonra ‘Onayla ve gönder’e bas: cevap 15 dakika içinde Trendyol'a bir kez gönderilir. İstersen ",link?el("a",{href:link,target:"_blank",rel:"noopener",text:"tablodan"}):"tablodan"," de onaylayabilirsin."]));
   a.appendChild(blok("Onay bekleyen cevaplar",null,M.yorumBekleyen.length?el("div",{class:"liste"},M.yorumBekleyen.map(yorumOnayKarti)):bos("Onay bekleyen cevap yok.")));
-  a.appendChild(blok("Son gönderilenler","Trendyol cevabı önce inceler; reddederse nedeni burada görünür.",M.yorumSon.length?tablo([["Gönderim"],["Mağaza"],["Puan",1],["Cevap"],["Trendyol"]],M.yorumSon.map(function(x){
-    var td=x.trendyol==="APPROVED"?["yayında","e-iyi"]:x.trendyol==="REJECTED"?["reddedildi"+(x.ret?": "+x.ret:""),"e-kotu"]:/^HATA/.test(x.durum)?["gönderilemedi","e-kotu"]:["inceleniyor","e-notr"];
+  a.appendChild(blok("Son gönderilenler","Gönderilen her cevabı Trendyol'un moderasyon ekibi yayınlamadan önce kurallara uygun mu diye inceler. Sonucu saatte bir okuyoruz: ‘yayında’ ya da ‘reddedildi’ + nedeni burada görünür.",M.yorumSon.length?tablo([["Gönderim"],["Mağaza"],["Puan",1],["Cevap"],["Trendyol"]],M.yorumSon.map(function(x){
+    var td=x.trendyol==="APPROVED"?["yayında","e-iyi"]:x.trendyol==="REJECTED"?["reddedildi"+(x.ret?": "+x.ret:""),"e-kotu"]:/^HATA/.test(x.durum)?["gönderilemedi","e-kotu"]:["Trendyol onayında","e-notr"];
     return [saatTr(x.gonderim),magKisa(x.magaza),puanYaz(x.puan,1),el("span",{title:x.cevap,text:x.cevap.length>90?x.cevap.slice(0,90)+"…":x.cevap}),el("span",{class:"etiket "+td[1],title:x.durum,text:td[0]})];})):bos("Henüz gönderilen cevap yok.")));}
 
 var CIZ={genel:genelSayfa,merkez:merkez,ozet:ozet,fis:fisSayfa,satis:satis,maliyet:maliyetSayfa,kararlar:kararlar,panolar:panolarSayfa,ai:ai,
@@ -2152,7 +2202,7 @@ nav();yukle(false);setInterval(function(){if(document.hidden)return;
     if((AKTIF==="panolar"||AKTIF==="kararlar")&&(PANO.acik||PANO.gonderiliyor))return;
   if(AKTIF==="kurye"&&(KESINTI_FORM.miktar||KESINTI_FORM.aciklama||KESINTI_FORM.gonderiliyor||MESAI_DUZ.acik||MESAI_DUZ.gonderiliyor))return;
   if(AKTIF==="personel"&&VARD_DUZEN)return;
-  if(AKTIF==="musteri"&&Object.keys(YORUM_FORM).some(function(k){return YORUM_FORM[k].kirli||YORUM_FORM[k].gonderiliyor;}))return;
+  if(AKTIF==="musteri"&&[YORUM_FORM,IADE_FORM].some(function(S){return Object.keys(S).some(function(k){return S[k].kirli||S[k].gonderiliyor;});}))return;
   if(AKTIF==="fis"&&Object.keys(FIS.form).some(function(k){return FIS.form[k].kirli||FIS.form[k].gonderiliyor;}))return;yukle(true,true);},300000);
 })();
 </script>
