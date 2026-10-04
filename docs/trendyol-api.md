@@ -15,6 +15,7 @@ kimlikle gider.
 | Fiyat güncelleme | `product/...` (gönderim + batch kontrol) | `Trendyol Fiyat Güncelleme.gs` | Fiyat sekmesi + log | Elle |
 | Günlük puan raporu + yarın tahmini | (yorum + puan verisi, SATIS) | `Trendyol Gunluk Rapor.gs › gunlukPuanRaporu` | Puan_Siparis, Puan_Tahmin | Her gece ~23:50 |
 | İadeler (yalnız okur, bildirir) | `GET claim/meal/suppliers/{supplierId}/claims` | `Trendyol Gunluk Rapor.gs › iadeleriCek` | Iadeler | 10 dk'da bir |
+| İadeyi kuryeden düş | — (Kurye › Kesintiler'e yazar) | `Trendyol Gunluk Rapor.gs › iadeKesintileriIsle` | Iadeler (Kuryeden Düş / Düşülecek TL / Kesinti Durumu) | iadeleriCek ile 10 dk'da bir |
 | Sabah özeti (e-posta + Make) | — | `Trendyol Gunluk Rapor.gs › sabahOzeti` | — | Her sabah ~10:45 |
 
 ## Yol haritası (sahibin 03.10 istekleri)

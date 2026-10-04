@@ -28,6 +28,10 @@ const TYR = {
   IADE_GUN: 14,            // iade çekme penceresi
   IADE_SURE_SAAT: 4,       // Trendyol'un iade için tanıdığı karar süresi
   GEC_ESIK_DK: 45,         // "geç teslim" iadesinde bu süreyi aşmayan teslim gecikmesiz sayılır
+  KURYE_TABLO: '1LG7naAbMM9aL3K0QNzzrjXomC2LXjx4rdSCYNYWzDQo',   // Kurye Net Çalışma Süresi
+  KURYE_KESINTI: 'Kesintiler',     // bordronun okuduğu kesinti sekmesi (sahibi orası)
+  KESINTI_KURU: true,      // true: Kesintiler'e YAZMAZ, sadece "ne yazılacak" raporlar. Sahip onaylayınca false
+  KESINTI_BENZER_GUN: 3,   // aynı kurye + aynı tutar bu kadar gün içinde varsa yazmaz, sorar
   SATIS_BASLIK: {          // ana tabloda başlık adları (sütun numarasıyla okunmaz)
     TARIH: 'Sipariş Tarihi', CIKIS: 'Hazırlanma (Şube Çıkış)', TESLIM: 'Teslim Zamanı',
     KANAL: 'Sipariş Kanalı', MARKA: 'Marka', TEL: 'Müşteri Telefon', MAHALLE: 'Mahalle',
@@ -38,7 +42,7 @@ const TYR = {
 const TYR_IADE_BASLIK = ['Claim Item ID', 'Claim ID', 'Oluşma', 'Son Karar Saati', 'Mağaza',
   'Sipariş No', 'Durum', 'Sebep', 'Müşteri Notu', 'Tutar', 'İade Şekli', 'Tür', 'Fotoğraf',
   'Adisyo Sipariş ID', 'Ürünler', 'Kurye', 'Mahalle', 'Sipariş→Teslim (dk)', 'Ön Değerlendirme',
-  'Kapanış Nedeni', 'Kapanış Tarihi', 'Bildirildi'];
+  'Kapanış Nedeni', 'Kapanış Tarihi', 'Bildirildi', 'Kuryeden Düş', 'Düşülecek TL', 'Kesinti Durumu'];
 
 const TYR_SEBEP = {
   4000: 'SKT - Geçmiş Ürün', 4001: 'SKT - Yaklaşmış Ürün', 4002: 'Düşük Kaliteli Ürün',
@@ -280,6 +284,7 @@ function iadeleriCek() {
     sh.getRange('A:B').setNumberFormat('@');
     sh.getRange('F:F').setNumberFormat('@');
   }
+  tyrEksikBasliklariEkle_(sh, TYR_IADE_BASLIK);
   const b = tyrBasliklar_(sh);
   const iId = b('Claim Item ID'), iDurum = b('Durum'), iKN = b('Kapanış Nedeni'),
         iKT = b('Kapanış Tarihi');
@@ -343,7 +348,8 @@ function iadeleriCek() {
             magaza[c.storeId] || String(c.storeId || ''), String(c.orderNumber || ''),
             it.status || '', sebep, it.note || '', it.price || '', c.sellerRefundType || '',
             c.type || '', foto, s.id || '', s.urun || '', s.kurye || '', s.mahalle || '', s.dk,
-            tyrIadeOneri_(sebepId, s, foto), kapanis, kapTarih, bekliyor ? new Date() : ''
+            tyrIadeOneri_(sebepId, s, foto), kapanis, kapTarih, bekliyor ? new Date() : '',
+            false, '', ''
           ];
           mevcut[it.id] = { satir: 0, durum: it.status || '' };
           yeni.push(kayit);
@@ -361,9 +367,103 @@ function iadeleriCek() {
     sh.getRange(2, iKT + 1, sh.getLastRow() - 1, 1).setNumberFormat('dd.MM.yyyy HH:mm');
     sh.getRange(2, 1, sh.getLastRow() - 1, TYR_IADE_BASLIK.length).sort({ column: 3, ascending: false });
   }
+  if (sh.getLastRow() > 1) sh.getRange(2, b('Kuryeden Düş') + 1, sh.getLastRow() - 1, 1).insertCheckboxes();
   if (bildirilecek.length) tyrIadeBildir_(bildirilecek);
+  iadeKesintileriIsle();
   Logger.log('İade: ' + yeni.length + ' yeni kalem, ' + bildirilecek.length + ' bildirim');
   return yeni.length;
+}
+
+/* ============================================================
+ * 4b) İADEYİ KURYEDEN DÜŞ
+ * Iadeler sekmesinde "Kuryeden Düş" kutusu işaretli ve "Kesinti Durumu" boş olan satırlar
+ * Kurye tablosundaki Kesintiler sekmesine TL kesintisi olarak yazılır (bordro oradan okur).
+ *   Kurye      = satırdaki Kurye (yanlışsa önce düzelt)
+ *   Tutar      = "Düşülecek TL" doluysa o, boşsa iade tutarı
+ *   Tarih      = işaretlendiği gün (açık haftanın bordrosuna girsin diye); sipariş bilgisi açıklamada
+ * Aynı kurye + aynı tutar son birkaç günde zaten varsa (elle girilmiş olabilir) yazmaz, sorar.
+ * KESINTI_KURU = true iken hiçbir şey yazmaz, Kesinti Durumu'na "KURU: ..." yazar.
+ * iadeleriCek her çalıştığında (10 dk) bunu da çağırır; elle de çalıştırılabilir.
+ * ============================================================ */
+function iadeKesintileriIsle() {
+  const sh = SpreadsheetApp.getActive().getSheetByName(TYR.IADE);
+  if (!sh || sh.getLastRow() < 2) return 0;
+  tyrEksikBasliklariEkle_(sh, TYR_IADE_BASLIK);
+  const b = tyrBasliklar_(sh);
+  const v = sh.getRange(2, 1, sh.getLastRow() - 1, sh.getLastColumn()).getValues();
+  const iDus = b('Kuryeden Düş'), iDurumK = b('Kesinti Durumu');
+  const isler = v.map((r, k) => ({ r: r, satir: k + 2 }))
+    .filter(x => {
+      const d = String(x.r[iDurumK]).trim();      // boş, KURU, BEKLİYOR ya da ZORLA olanlar yeniden denenir
+      return x.r[iDus] === true && (!d || /^(KURU|BEKLİYOR)/.test(d) || d.toUpperCase() === 'ZORLA');
+    });
+  if (!isler.length) return 0;
+
+  const ks = SpreadsheetApp.openById(TYR.KURYE_TABLO).getSheetByName(TYR.KURYE_KESINTI);
+  if (!ks) throw new Error('Kurye tablosunda sekme yok: ' + TYR.KURYE_KESINTI);
+  const kb = tyrBasliklar_(ks);
+  const kT = kb('Tarih'), kK = kb('Kurye Adı'), kTip = kb('Kesinti Tipi (Saat / TL)'),
+        kDk = kb('Kesilen Süre (Dk)'), kTl = kb('Kesilen Tutar (TL)'), kAc = kb('Açıklama');
+  const mevcut = ks.getLastRow() > 1
+    ? ks.getRange(2, 1, ks.getLastRow() - 1, ks.getLastColumn()).getValues() : [];
+
+  const bugun = new Date();
+  const kisaAd = x => String(x || '').trim().toLocaleLowerCase('tr');
+  let yazilan = 0;
+  isler.forEach(x => {
+    const r = x.r;
+    const kurye = String(r[b('Kurye')] || '').trim();
+    const tl = Number(String(r[b('Düşülecek TL')]).replace(',', '.')) || Number(r[b('Tutar')]) || 0;
+    const etiket = '[TY iade ' + String(r[b('Claim Item ID')]).slice(0, 8) + ']';
+    let durum;
+    if (!kurye) durum = 'BEKLİYOR: Kurye boş — Kurye sütununa adını yaz';
+    else if (!(tl > 0)) durum = 'BEKLİYOR: tutar yok — Düşülecek TL yaz';
+    else if (mevcut.some(m => String(m[kAc]).indexOf(etiket) >= 0)) {
+      durum = 'ZATEN YAZILMIŞ ' + etiket;
+    } else {
+      const benzer = mevcut.find(m => {
+        const t = tyrTarih_(m[kT]);
+        return t && kisaAd(m[kK]) === kisaAd(kurye) && Number(m[kTl]) === tl &&
+               Math.abs(bugun - t) <= TYR.KESINTI_BENZER_GUN * 86400000;
+      });
+      const zorla = String(r[iDurumK]).trim().toUpperCase() === 'ZORLA';
+      if (benzer && !zorla) {
+        durum = 'SORU: ' + kurye + ' için ' + tl + ' TL zaten var (' +
+          Utilities.formatDate(tyrTarih_(benzer[kT]), 'Europe/Istanbul', 'dd.MM') + ', "' +
+          String(benzer[kAc]).slice(0, 40) + '"). Yine de düşülecekse bu hücreyi silip yalnızca ZORLA yaz.';
+      } else {
+        const aciklama = 'Trendyol iade — ' + r[b('Mağaza')] + ' — sipariş ' + r[b('Sipariş No')] +
+          ' (' + Utilities.formatDate(r[b('Oluşma')] instanceof Date ? r[b('Oluşma')] : bugun,
+                                      'Europe/Istanbul', 'dd.MM HH:mm') + ') — ' +
+          r[b('Sebep')] + (r[b('Müşteri Notu')] ? ': ' + r[b('Müşteri Notu')] : '') + ' ' + etiket;
+        if (TYR.KESINTI_KURU) {
+          durum = 'KURU: ' + kurye + "'dan " + tl + ' TL düşülecek (henüz yazılmadı)';
+        } else {
+          const satir = new Array(ks.getLastColumn()).fill('');
+          satir[kT] = bugun; satir[kK] = kurye; satir[kTip] = 'TL'; satir[kDk] = '';
+          satir[kTl] = tl; satir[kAc] = aciklama;
+          ks.appendRow(satir);
+          mevcut.push(satir);
+          durum = 'YAZILDI ' + Utilities.formatDate(bugun, 'Europe/Istanbul', 'dd.MM HH:mm') +
+                  ' — ' + kurye + ' ' + tl + ' TL';
+          yazilan++;
+        }
+      }
+    }
+    sh.getRange(x.satir, iDurumK + 1).setValue(durum);
+  });
+  Logger.log('Kuryeden düş: ' + isler.length + ' satır, ' + yazilan + ' yazıldı' +
+             (TYR.KESINTI_KURU ? ' (KURU)' : ''));
+  return yazilan;
+}
+
+/* sekmede olmayan başlıkları sona ekler (eski sekmeye yeni sütun) */
+function tyrEksikBasliklariEkle_(sh, liste) {
+  const var_ = sh.getRange(1, 1, 1, Math.max(1, sh.getLastColumn())).getValues()[0].map(x => String(x).trim());
+  const eksik = liste.filter(x => var_.indexOf(x) < 0);
+  if (!eksik.length) return;
+  sh.getRange(1, sh.getLastColumn() + 1, 1, eksik.length).setValues([eksik])
+    .setFontWeight('bold').setBackground('#f1f3f4');
 }
 
 /* kural tabanlı ön değerlendirme — yalnızca öneri, karar sahipte */
@@ -495,6 +595,8 @@ function tyrBasliklar_(sh) {
 function tyrTarih_(x) {
   if (x instanceof Date) return x.getFullYear() >= 2000 ? x : null;
   if (!x) return null;
+  const m = String(x).match(/^(\d{1,2})\.(\d{1,2})\.(\d{4})/);   // 19.08.2026
+  if (m) return new Date(+m[3], +m[2] - 1, +m[1]);
   const d = new Date(x);
   return isNaN(d) ? null : d;
 }
