@@ -128,6 +128,7 @@ Tablolarda yapılan her değişikliğin eski ve yeni değeri **STOK › Fiyat_Du
 | P9 | Edenred (Ticket) kurye çekimleri tabloya gelmiyordu. `mac-kopru/edenred.mjs`: gerçek Chrome ile giriş (telefon + VKN + SMS, reCAPTCHA), şube × terminal × sayfa; KURYE › Edenred; kart ajanında 'Edenred' kaynağı | ◐ 04.10 Mac'te denendi: otomatik giriş + 57 işlem (28.09–04.10). Bekleyen: yayın (kurye köprüsü `kodYaz`/`edenred`), iPhone Kestirmeler kuralı, `com.bap.edenred` zamanlayıcısı |
 | P10 | MacBook `pluxee.mjs`: kod istemeden önce eski kodu silmiyordu → 04.10 12:00 "kod reddedildi" | ◐ düzeltme komutu sahibe verildi (yedek: `pluxee.mjs.kodsil-oncesi`) |
 | P11 | Pluxee kod/kayıt işleri kurye projesinin içindeymiş (`Pluxee.gs`, `PluxeeKodSayfa.gs`, `Kopru.gs` pluxee türleri, doGet `?sayfa=pluxee`); sabahki canlı çekim dalı `kod-cekimi/20261004-1034` birleştirilmemişti | ☑ 04.10 #8 ile depoya alındı. **Olay:** #6/#7 yayını bu dosyaları sildi, Pluxee 16:34–17:16 arası çalışmadı. Kural: yayından önce açık `kod-cekimi/*` dalı var mı bakılır, varsa önce o birleştirilir |
+| P12 | MacBook `topla.mjs` (HemenYolda köprüsü) 04.10 18:19'dan sonra takıldı: süreç açık kaldı, launchd yenisini başlatmadı → "Kurye veri akışı durdu" (20:42) | ◐ `launchctl kickstart -k` ile yeniden başlatıldı. Kalıcı: `topla.mjs` depoya alınıp her isteğe zaman aşımı (AbortSignal.timeout) eklenecek |
 
 ## Y · Yapı
 
