@@ -1961,11 +1961,38 @@ function acikSirala(l){var t=function(a,b){return b.yas-a.yas||String(a.saat||""
   else if(ACIK_SIRA==="odeme")k.sort(function(a,b){return a.odeme.localeCompare(b.odeme,"tr")||t(a,b);});
   else if(ACIK_SIRA==="tutar")k.sort(function(a,b){return b.tutar-a.tutar||t(a,b);});else k.sort(t);return k;}
 
+function hesapDugmeleri(x,yenile){var st=HESAP_ISLEM[x.id];
+  if(!x.id)return el("span",{style:"color:var(--gri);font-size:13px",text:"sipariş no yok"});
+  if(st&&st.durum==="gidiyor")return el("span",{class:"cevap-durum",text:"Kaydediliyor…"});
+  if(st&&st.durum==="tamam")return el("span",{class:"etiket "+(st.islem==="kes"?"e-dikkat":"e-iyi"),text:"✓ "+st.mesaj});
+  return el("span",{style:"display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-start"},[
+    el("button",{type:"button",class:"dugme",style:"padding:4px 10px;font-size:13px",onclick:function(){hesapKapat(x,"tahsil",yenile);}},["Tahsil edildi"]),
+    el("button",{type:"button",class:"dugme",style:"padding:4px 10px;font-size:13px",title:"Tutarı Kesintiler sekmesine yazar, bordrodan düşülür",onclick:function(){hesapKapat(x,"kes",yenile);}},["Kuryeden kes"]),
+    st&&st.durum==="hata"?el("span",{class:"cevap-durum kotu",style:"flex-basis:100%",text:st.mesaj}):null]);}
+// Pluxee ajanı: emin olduklarını kendisi kapatır (kuru modda yalnız listeler), emin olmadıklarını burada sorar.
+function pluxeeAjanBlok(a,A){var S=A.pluxeeSoru||[],E=A.pluxeeEmin||[],R=A.pluxeeAjan;
+  if(!S.length&&!E.length&&!R)return;
+  var son=R?"Son çalışma "+R.zaman+(R.kuru?"":" · "+R.kapatilan+" hesap kapattı")+".":"Henüz çalışmadı (saatlik tetikleyiciyle çalışır).";
+  var kap=el("div");
+  function ciz(){kap.textContent="";
+    if(S.length)kap.appendChild(el("div",null,[el("h4",{style:"margin:0 0 6px",text:"Emin olamadıkları ("+S.length+") — sen karar ver"}),
+      tablo([["Tarih"],["Adisyon"],["Kurye"],["Tutar",1],["Pluxee çekimi"],["Neden emin değil"],["Karar"]],S.map(function(x){
+        return [gunAd(x.gun)+(x.teslim?" "+x.teslim:""),adisyonLink(x),x.kurye,para(x.tutar),x.pluxeeCekim?x.pluxeeCekim.zaman+" · "+para(x.pluxeeCekim.tutar):"—",
+          el("span",{style:"font-size:13px",text:x.pluxeeNeden}),hesapDugmeleri(x,ciz)];}))]));
+    if(E.length)kap.appendChild(el("div",{style:"margin-top:14px"},[el("h4",{style:"margin:0 0 6px",text:(A.pluxeeKuru?"Emin oldukları — açılınca kendisi kapatacak (":"Emin oldukları — bir sonraki çalışmada kapatacak (")+E.length+")"}),
+      tablo([["Tarih"],["Adisyon"],["Kurye"],["Tutar",1],["Pluxee çekimi"],["Dayanak"]],E.map(function(x){
+        return [gunAd(x.gun)+(x.teslim?" "+x.teslim:""),adisyonLink(x),x.kurye,para(x.tutar),x.pluxeeCekim.zaman,el("span",{style:"font-size:13px",text:x.pluxeeNeden})];}))]));
+    if(!S.length&&!E.length)kap.appendChild(bos("Şu an sorulacak ya da kapatılacak Pluxee hesabı yok."));}
+  ciz();
+  a.appendChild(blok("Pluxee ajanı",(A.pluxeeKuru?"DENEME MODUNDA: hiçbir şeyi kapatmıyor, yalnız ne yapacağını gösteriyor. ‘Emin oldukları’ listesi doğruysa söyle, açalım. ":
+    "Saatte bir çalışır. ")+"Emin olmak için: Pluxee'de tam olarak bir çekim aynı tutarda, teslimden en fazla 90 dk uzakta ve o çekime uyan başka sipariş yok. Biri tutmazsa kapatmaz, aşağıda sana sorar. "+son,kap));}
+
 function kuryeAcik(a,K){var A=K.acik;
   a.appendChild(el("div",{class:"rakamlar"},[rakam("Dünden eski açık",para(A.eski.toplam),A.eski.adet+" kayıt",A.eski.adet?"asagi":""),rakam("Bir aydan eski",String(A.eski.ayUstu),A.eski.ayUstu?"tahsil edilmedi ya da işaretlenmedi":null,A.eski.ayUstu?"asagi":""),
     rakam("Bugün açık",para(A.bugun.toplam),A.bugun.adet+" kayıt; gün kapanmadan normal"),rakam("Hariç tutulan",para(A.haric.toplam),A.haric.adet+" ‘Ödenmez’ sipariş (işletme/personel)"),
     A.adisyoOdendi?rakam("Adisyo'da ödenmiş",para(A.adisyoOdendi.toplam),A.adisyoOdendi.adet+" kayıt açık listeden çıkarıldı",A.adisyoOdendi.adet?"yukari":""):null]));
   if(A.kanitHata)a.appendChild(el("div",{class:"uyari"},[el("b",{text:"Adisyo / Pluxee kontrolü yapılamadı"}),el("div",{text:A.kanitHata})]));
+  pluxeeAjanBlok(a,A);
   var kap=el("div");
   function tabloCiz(){kap.textContent="";
     kap.appendChild(el("div",{class:"hafta-sec"},[el("span",{style:"font-size:13.5px;color:var(--gri)",text:"Sırala:"}),el("div",{class:"sekmeler",style:"margin:0"},ACIK_SIRALAR.map(function(s2){return el("button",{type:"button","aria-pressed":ACIK_SIRA===s2[0]?"true":"false",onclick:function(){ACIK_SIRA=s2[0];tabloCiz();}},[s2[1]]);}))]));
@@ -1974,15 +2001,10 @@ function kuryeAcik(a,K){var A=K.acik;
       kap.appendChild(el("div",{class:"sekmeler",style:"margin:0 0 10px"},Object.keys(gt).sort(function(p,q){return gt[q].tutar-gt[p].tutar;}).map(function(k){return el("span",{class:"etiket e-notr",style:"font-size:13px;padding:4px 10px"},[k+": "+gt[k].adet+" kayıt, "+para(gt[k].tutar)]);})));}
     kap.appendChild(liste.length?tablo([["Tarih"],["Saat"],["Adisyon"],["Kurye"],["Ödeme"],["Tutar",1],["Durum"],["Kanıt"],["Kapat"]],liste.map(function(x){
       var yas=x.yas<=0?el("span",{class:"etiket e-notr",text:"bugün"}):el("span",{class:"etiket "+(x.yas>30?"e-kotu":x.yas>3?"e-dikkat":"e-notr"),text:x.yas+" gün"});
-      var st=HESAP_ISLEM[x.id],islemHucre;
-      if(!x.id)islemHucre=el("span",{style:"color:var(--gri);font-size:13px",text:"sipariş no yok"});
-      else if(st&&st.durum==="gidiyor")islemHucre=el("span",{class:"cevap-durum",text:"Kaydediliyor…"});
-      else if(st&&st.durum==="tamam")islemHucre=el("span",{class:"etiket "+(st.islem==="kes"?"e-dikkat":"e-iyi"),text:"✓ "+st.mesaj});
-      else islemHucre=el("span",{style:"display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-start"},[
-        el("button",{type:"button",class:"dugme",style:"padding:4px 10px;font-size:13px",onclick:function(){hesapKapat(x,"tahsil",tabloCiz);}},["Tahsil edildi"]),
-        el("button",{type:"button",class:"dugme",style:"padding:4px 10px;font-size:13px",title:"Tutarı Kesintiler sekmesine yazar, bordrodan düşülür",onclick:function(){hesapKapat(x,"kes",tabloCiz);}},["Kuryeden kes"]),
-        st&&st.durum==="hata"?el("span",{class:"cevap-durum kotu",style:"flex-basis:100%",text:st.mesaj}):null]);
-      var kanit=x.pluxee?el("span",{class:"etiket e-iyi",title:"Pluxee sekmesinde aynı tutarda çekim var; fişle karşılaştırıp ‘Tahsil edildi’ de",text:"Pluxee çekimi "+x.pluxee}):
+      var islemHucre=hesapDugmeleri(x,tabloCiz);
+      var kanit=x.pluxeeKarar==="emin"?el("span",{class:"etiket e-iyi",title:"Pluxee ajanı emin: "+x.pluxeeNeden,text:"Pluxee çekimi "+x.pluxee+" · ajan emin"}):
+        x.pluxeeKarar==="soru"?el("span",{class:"etiket e-dikkat",title:x.pluxeeNeden,text:x.pluxee?"Pluxee "+x.pluxee+" · sor":"Pluxee çekimi yok"}):
+        x.pluxee?el("span",{class:"etiket e-iyi",title:"Pluxee sekmesinde aynı tutarda çekim var; fişle karşılaştırıp ‘Tahsil edildi’ de",text:"Pluxee çekimi "+x.pluxee}):
         (x.adisyo==="acik"?el("span",{class:"etiket e-notr",title:"Adisyo'da bu siparişin ‘Ödeme Alındı’ hücresi FALSE",text:"Adisyo'da açık"}):
         el("span",{style:"color:var(--gri);font-size:13px",title:x.adisyo==="eski"?"Adisyo verisi bu tarihe kadar gitmiyor":"Adisyo'da eşleşen sipariş bulunamadı",text:x.adisyo==="eski"?"Adisyo'da eski":"Adisyo'da yok"}));
       return [el("span",null,[gunAd(x.gun)+" ",yas]),x.saat||"—",adisyonLink(x),x.kurye,x.odeme,para(x.tutar),x.durum,kanit,islemHucre];})):bos("Açık hesap yok."));}

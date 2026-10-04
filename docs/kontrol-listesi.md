@@ -121,6 +121,7 @@ Tablolarda yapılan her değişikliğin eski ve yeni değeri **STOK › Fiyat_Du
 | P2 | Kayıt (POST) istekleri otomatik tekrar deneniyordu → çift kayıt | ☑ (H3) |
 | P3 | Yönetici şifresi istemci kodunda; personel şifresi URL'de gidiyor (düzeltme `bap-panel-backend`'de) | ☐ |
 | P4 | Sayım ekranında birim seçimi yok (Hazırlık ajanı gram/adet tahmin ediyor) | ☐ |
+| P5 | Pluxee açık hesapları elle kapatılıyordu. **Pluxee ajanı** (`pluxeeAjani`, veri kapısı, saatlik): emin olduğunu kapatır, emin olmadığını panelde (Kurye › Açık hesaplar › Pluxee ajanı) sorar | ◐ kuru modda (`PLUXEE_AJAN_KURU = true`); sahibi paneldeki ‘Emin oldukları’ listesini onaylayınca açılacak ⚠️ saatlik `puantajTaramasi` tetikleyicisinin kurulu olduğu doğrulanmalı |
 
 ## Y · Yapı
 
