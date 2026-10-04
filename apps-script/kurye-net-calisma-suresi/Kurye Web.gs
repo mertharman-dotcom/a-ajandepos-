@@ -49,12 +49,17 @@ var IZINLI_SEKMELER = [
 
 /* ==================== GIRIS ==================== */
 
-    function doGet(e) {
+        function doGet(e) {
   var p = (e && e.parameter) || {};
  if (p.adim) return _kopruGet(e);
+  if (p.sayfa === 'pluxee') {
+    if (p.kod) return ContentService.createTextOutput(
+      p.k === 'DU0HVwX0K-xgyCjnudnUYOeB' ? pluxeeKodYaz(String(p.kod)) : 'Yetkisiz');
+    return pluxeeKodSayfasi_();
+  }
   if (W_ANAHTAR && String(p.k || '') !== W_ANAHTAR) {
     if (p.veri || p.json) return _wJson({ hata: 'Erişim anahtarı geçersiz.' });
-    return HtmlService.createHtmlOutput(
+        return HtmlService.createHtmlOutput(
       '<p style="font:15px system-ui;padding:40px;text-align:center;color:#c0392f">' +
       'Erişim anahtarı gerekli.</p>');
   }

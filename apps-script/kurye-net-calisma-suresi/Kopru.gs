@@ -226,7 +226,28 @@ function doPost(e) {
       kuraliUygula(false);
       return _kopruYanit({ ok: true });
     }
-
+    // ---- Pluxee (pluxee.mjs) ----
+    if (g.tur === 'pluxee') return _kopruYanit(pluxeeYaz(g.satirlar || []));
+    if (g.tur === 'pluxeeKodIste' || g.tur === 'pluxeeKodOku' || g.tur === 'pluxeeKodSil') {
+      var kSh = SpreadsheetApp.openById(PLUXEE_SS_ID).getSheetByName(PLUXEE_KOD_SEKME);
+      if (!kSh) return _kopruYanit({ hata: '"' + PLUXEE_KOD_SEKME + '" sekmesi yok' });
+      var hucre = kSh.getRange('B2');
+      if (g.tur === 'pluxeeKodOku') {
+        var kod = String(hucre.getDisplayValue() || '').replace(/\D/g, '');
+        return _kopruYanit({ ok: true, kod: (kod.length >= 4 && kod.length <= 8) ? kod : '' });
+      }
+      if (g.tur === 'pluxeeKodSil') {
+        hucre.setNumberFormat('@').setValue('');
+        return _kopruYanit({ ok: true });
+      }
+      var cevap = { ok: true };   // pluxeeKodIste
+      try {
+        var b = _bildir('pluxee', 'Pluxee baglantisi',
+          'Kurye tablosunda Pluxee Kod sekmesine dogrulama kodunu yaz');
+        if (!b.mail && !b.wp) cevap.bildirimHata = 'bildirim gonderilemedi';
+      } catch (eB) { cevap.bildirimHata = String(eB && eB.message || eB); }
+      return _kopruYanit(cevap);
+    }
     return _kopruYanit({ hata: 'Bilinmeyen tür.' });
   } catch (err) {
     return _kopruYanit({ hata: String(err && err.message || err) });
