@@ -2183,16 +2183,19 @@ function kurye_() {
     mesaiDk: 0, mesaiPaket: 0, gun: 0, gecGiris: 0, gecGirisDk: 0, erkenDk: 0, kapanisDk: 0, maliyet: 0 }; }
 
   // Siparişler: süre aşamaları, gecikme sebebi, kurye başına paket
-  var s = sonSatirlar_(ss, 'Siparişler', 6000, ['Tarih', 'Sipariş ID', 'Adisyon No', 'Kurye', 'Platform', 'Sipariş Saati', 'Atama (dk)', 'Hazırlık (dk)', 'Yol (dk)', 'Toplam (dk)', 'Mesafe (km)', 'Durum', 'Adres']);
+  var s = sonSatirlar_(ss, 'Siparişler', 6000, ['Tarih', 'Sipariş ID', 'Adisyon No', 'Kurye', 'Platform', 'Sipariş Saati', 'Atama (dk)', 'Hazırlık (dk)', 'Yol (dk)', 'Toplam (dk)', 'Mesafe (km)', 'Durum', 'Adres', 'Teslim Saati', 'Ödeme Yöntemi', 'Tutar (TL)', 'Hesap']);
   var seri = {}; for (var i = 0; i < 14; i++) seri[gunEkle_(ilkSeri, i)] = { adet: 0, dk: 0, n: 0, gec: 0, maliyet: 0 };
-  var saat = {}, dagilim = [0, 0, 0, 0, 0], platform = {}, enKotu = [], sonSiparisMs = null, mahalleSay = {}, siparisGun = {}, siparisSaat = {};
+  var saat = {}, dagilim = [0, 0, 0, 0, 0], platform = {}, enKotu = [], sonSiparisMs = null, mahalleSay = {}, siparisGun = {}, siparisSaat = {}, sipHesap = {};
   KURYE_DONEMLER.forEach(function (d) { mahalleSay[d] = {}; });
   if (s) {
     var c = { tarih: kolon_(s.b, ['Tarih']), no: kolon_(s.b, ['Adisyon No']), kurye: kolon_(s.b, ['Kurye']), plat: kolon_(s.b, ['Platform']), sip: kolon_(s.b, ['Sipariş Saati']),
               at: kolon_(s.b, ['Atama (dk)']), hz: kolon_(s.b, ['Hazırlık (dk)']), yol: kolon_(s.b, ['Yol (dk)']), top: kolon_(s.b, ['Toplam (dk)']), km: kolon_(s.b, ['Mesafe (km)']),
-              durum: kolon_(s.b, ['Durum']), adres: kolon_(s.b, ['Adres']), id: kolon_(s.b, ['Sipariş ID']) };
+              durum: kolon_(s.b, ['Durum']), adres: kolon_(s.b, ['Adres']), id: kolon_(s.b, ['Sipariş ID']),
+              tes: kolon_(s.b, ['Teslim Saati']), od: kolon_(s.b, ['Ödeme Yöntemi']), tut: kolon_(s.b, ['Tutar (TL)']), hesap: kolon_(s.b, ['Hesap']) };
     s.v.forEach(function (r) {
-      if (c.id >= 0) { var sid = siparisNo_(r[c.id]); if (sid) siparisSaat[sid] = String(r[c.sip] || '').slice(0, 5); }
+      if (c.id >= 0) { var sid = siparisNo_(r[c.id]); if (sid) siparisSaat[sid] = String(r[c.sip] || '').slice(0, 5);
+        if (sid && c.hesap >= 0) sipHesap[sid] = { hesap: String(r[c.hesap] || '').trim(), tarih: r[c.tarih], no: r[c.no], plat: r[c.plat], kurye: r[c.kurye],
+          odeme: c.od >= 0 ? r[c.od] : '', tutar: c.tut >= 0 ? r[c.tut] : '', durum: r[c.durum], teslim: c.tes >= 0 ? r[c.tes] : '' }; }
       var gun = gunStr_(r[c.tarih]); if (!gun) return;
       if (c.durum >= 0 && iptalMi_(r[c.durum])) return;
       var ad = String(r[c.kurye] || '').trim() || 'Atanmamış', plat = String(r[c.plat] || '').trim() || 'Belirtilmemiş';
@@ -2340,18 +2343,28 @@ function kurye_() {
 
   // Açık hesaplar: 'Ödenmez' (işletme/personel siparişi) kuryeden alınacak para değil, ayrı sayılır.
   // Panelden kapatılanlar ('Tahsilatlar' sekmesi) listeden düşer.
-  var kapali = tahsilatlar_(ss), a = sonSatirlar_(ss, 'Açık Hesaplar', 2000), acikL = [], haric = { adet: 0, tutar: 0 };
+  // Kaynak: Siparişler sekmesinin 'Hesap' = AÇIK satırları (son 6000 satır, ~1 ay) + bu pencereden eski kayıtlar için
+  // 'Açık Hesaplar' sekmesi. O sekme yalnız köprü bitince tazelendiği için geride kalabiliyor (04.10); Siparişler esas alınır.
+  var kapali = tahsilatlar_(ss), a = sonSatirlar_(ss, 'Açık Hesaplar', 2000), acikL = [], haric = { adet: 0, tutar: 0 }, gorulen = {};
+  function acikEkle(id, tarih, no, plat, kurye, odeme, tutarH, durum, teslim) {
+    var gun = gunStr_(tarih); if (!gun) return;
+    odeme = String(odeme || '').trim(); var tutar = sayi_(tutarH);
+    if (id) { if (gorulen[id]) return; gorulen[id] = 1; }
+    if (id && kapali.idler[id]) return;
+    if (/ödenmez|odenmez/i.test(odeme)) { haric.adet++; haric.tutar += tutar; return; }
+    var yas = Math.round((Date.parse(bugun + 'T00:00:00Z') - Date.parse(gun + 'T00:00:00Z')) / 86400000);
+    acikL.push({ id: id, gun: gun, yas: yas, no: no, saat: siparisSaat[id] || '', platform: plat || '', kurye: String(kurye || '').trim() || 'Atanmamış', odeme: odeme, tutar: tutar,
+      durum: durum || '', teslim: String(teslim || '').trim() });
+  }
+  Object.keys(sipHesap).forEach(function (id) { var x = sipHesap[id]; if (x.hesap !== 'AÇIK') return;
+    acikEkle(id, x.tarih, x.no, x.plat, x.kurye, x.odeme, x.tutar, x.durum, x.teslim); });
   if (a) {
     var ca = { tarih: kolon_(a.b, ['Tarih']), no: kolon_(a.b, ['Adisyon No']), id: kolon_(a.b, ['Sipariş ID']), plat: kolon_(a.b, ['Platform']), kurye: kolon_(a.b, ['Kurye']),
                odeme: kolon_(a.b, ['Ödeme Yöntemi']), tutar: kolon_(a.b, ['Tutar (TL)', 'Tutar']), durum: kolon_(a.b, ['Durum']), teslim: kolon_(a.b, ['Teslim Saati']) };
     a.v.forEach(function (r) {
-      var gun = gunStr_(r[ca.tarih]); if (!gun) return;
-      var odeme = String(r[ca.odeme] || '').trim(), tutar = sayi_(r[ca.tutar]), id = siparisNo_(r[ca.id]);
-      if (id && kapali.idler[id]) return;
-      if (/ödenmez|odenmez/i.test(odeme)) { haric.adet++; haric.tutar += tutar; return; }
-      var yas = Math.round((Date.parse(bugun + 'T00:00:00Z') - Date.parse(gun + 'T00:00:00Z')) / 86400000);
-      acikL.push({ id: id, gun: gun, yas: yas, no: r[ca.no], saat: siparisSaat[id] || '', platform: r[ca.plat] || '', kurye: String(r[ca.kurye] || '').trim() || 'Atanmamış', odeme: odeme, tutar: tutar,
-        durum: r[ca.durum] || '', teslim: ca.teslim >= 0 ? String(r[ca.teslim] || '').trim() : '' });
+      var id = siparisNo_(r[ca.id]);
+      if (id && sipHesap[id]) return; // Siparişler'de güncel hali var (açıksa yukarıda eklendi, değilse artık açık değil)
+      acikEkle(id, r[ca.tarih], r[ca.no], r[ca.plat], r[ca.kurye], r[ca.odeme], r[ca.tutar], r[ca.durum], ca.teslim >= 0 ? r[ca.teslim] : '');
     });
   }
   // Kasada Adisyo'ya 'Ödeme Alındı' işlenmiş olanlar açık sayılmaz; Pluxee çekimi bulunanlar işaretlenir.
