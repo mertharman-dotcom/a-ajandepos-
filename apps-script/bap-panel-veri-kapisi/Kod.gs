@@ -133,7 +133,7 @@ function paketHazirla_() {
   var out = {
     surum: 1,
     olusturma: Utilities.formatDate(simdi, TZ, "yyyy-MM-dd'T'HH:mm:ss"),
-    kaynaklar: [], satis: null, nabiz: null, isKaydi: null, hub: null, finans: null, personel: null, kurye: null, genel: null, fisKayit: null, hatalar: []
+    kaynaklar: [], satis: null, nabiz: null, isKaydi: null, hub: null, finans: null, personel: null, kurye: null, genel: null, fisKayit: null, musteri: null, hatalar: []
   };
   Object.keys(KAYNAK).forEach(function (k) {
     var s = KAYNAK[k];
@@ -155,6 +155,7 @@ function paketHazirla_() {
   bolum_(out, 'kurye', kurye_);
   bolum_(out, 'genel', genel_);
   bolum_(out, 'fisKayit', fisKayit_);
+  bolum_(out, 'musteri', musteri_);
   return out;
 }
 
@@ -1233,6 +1234,84 @@ function satirlar_(ss, ad) {
 
 
 
+
+/* ---------------- Müşteri ilişkileri: Trendyol puanı, iadeler, yorum cevapları ----------------
+ * Kaynak: Trendyol Yorumlar tablosu (trendyol-veri-cekme projesinin ürettiği sekmeler). Yalnız okunur.
+ *   Puan_Siparis  gün × mağaza: Trendyol puanı, değişim, 90 günlük hesap, Trendyol sipariş adedi
+ *   Puan_Tahmin   yarın için tahmin (en son kayıt)
+ *   Iadeler       son 60 gün
+ *   Yorum_Cevap   onay bekleyen taslaklar + son gönderilenler
+ */
+function musteri_() {
+  var ss = SpreadsheetApp.openById(KAYNAK.yorum.id), bugun = isGunu_(simdi_());
+  var out = { bugun: bugun, puan: [], tahmin: [], iade: [], yorumBekleyen: [], yorumSon: [] };
+  var bos = function (v) { return v === '' || v === null || v === undefined; };
+  var num = function (v) { return bos(v) ? null : sayi_(v); };
+  var k = function (t, ad) { return kolon_(t.b, [ad]); };
+
+  var t = satirlar_(ss, 'Puan_Siparis'), bas = gunEkle_(bugun, -29);
+  if (t.r.length) {
+    var c = { g: k(t, 'Tarih'), m: k(t, 'Mağaza'), ty: k(t, 'TY Puanı'), d: k(t, 'Değişim'), h: k(t, 'Hesap 90g'),
+              s: k(t, 'TY Sipariş'), n: k(t, 'Normal (4 hafta aynı gün)') };
+    t.r.forEach(function (r) {
+      var g = gunStr_(r[c.g]); if (!g || g < bas) return;
+      out.puan.push({ gun: g, magaza: String(r[c.m]), ty: num(r[c.ty]), degisim: num(r[c.d]), hesap: num(r[c.h]),
+                      siparis: num(r[c.s]) || 0, normal: num(r[c.n]) });
+    });
+  }
+
+  t = satirlar_(ss, 'Puan_Tahmin');
+  if (t.r.length) {
+    c = { g: k(t, 'Hedef Tarih'), m: k(t, 'Mağaza'), y: k(t, 'Yarın Tahmini'), dA: k(t, 'Düşecek Yorum'), dO: k(t, 'Düşecek Ort.'),
+          hb: k(t, 'Sonraki Basamak'), gr: k(t, 'Gereken 5★') };
+    var son = {};
+    t.r.forEach(function (r) {
+      var g = gunStr_(r[c.g]), m = String(r[c.m]); if (!g || !m) return;
+      if (!son[m] || son[m].gun <= g) son[m] = { gun: g, magaza: m, yarin: num(r[c.y]), dusen: num(r[c.dA]) || 0, dusenOrt: num(r[c.dO]),
+                                                 hedef: num(r[c.hb]), gereken: num(r[c.gr]) };
+    });
+    out.tahmin = Object.keys(son).map(function (m) { return son[m]; });
+  }
+
+  t = satirlar_(ss, 'Iadeler'); bas = gunEkle_(bugun, -59);
+  if (t.r.length) {
+    c = { o: k(t, 'Oluşma'), sk: k(t, 'Son Karar Saati'), m: k(t, 'Mağaza'), no: k(t, 'Sipariş No'), d: k(t, 'Durum'), sb: k(t, 'Sebep'),
+          nt: k(t, 'Müşteri Notu'), tl: k(t, 'Tutar'), ku: k(t, 'Kurye'), ur: k(t, 'Ürünler'), on: k(t, 'Ön Değerlendirme'),
+          so: k(t, 'Sorumlu'), ks: k(t, 'Kesinti Durumu') };
+    t.r.forEach(function (r) {
+      var ms = zaman_(r[c.o]); if (ms === null) return;
+      var g = new Date(ms).toISOString().slice(0, 10); if (g < bas) return;
+      var sk = zaman_(r[c.sk]);
+      out.iade.push({ zaman: new Date(ms).toISOString().slice(0, 16), gun: g, sonKarar: sk === null ? '' : new Date(sk).toISOString().slice(0, 16),
+        magaza: String(r[c.m]), no: String(r[c.no]), durum: String(r[c.d]), sebep: String(r[c.sb]), not: String(r[c.nt] || '').slice(0, 160),
+        tutar: num(r[c.tl]) || 0, kurye: c.ku >= 0 ? String(r[c.ku] || '') : '', urunler: c.ur >= 0 ? String(r[c.ur] || '').slice(0, 120) : '',
+        oneri: c.on >= 0 ? String(r[c.on] || '').slice(0, 200) : '', sorumlu: c.so >= 0 ? String(r[c.so] || 'Belirsiz') : 'Belirsiz',
+        kesinti: c.ks >= 0 ? String(r[c.ks] || '') : '' });
+    });
+    out.iade.sort(function (a, b) { return a.zaman < b.zaman ? 1 : -1; });
+  }
+
+  t = satirlar_(ss, 'Yorum_Cevap');
+  if (t.r.length) {
+    c = { t: k(t, 'Tarih'), m: k(t, 'Mağaza'), p: k(t, 'Ortalama'), y: k(t, 'Yorum'), ce: k(t, 'Cevap'), tf: k(t, 'Telafi Sözü'),
+          on: k(t, 'Onay'), d: k(t, 'Durum'), g: k(t, 'Gönderim'), td: k(t, 'Trendyol Durumu'), rn: k(t, 'Ret Nedeni') };
+    var gonderilen = [];
+    t.r.forEach(function (r) {
+      var ms = zaman_(r[c.t]), d = String(r[c.d] || '');
+      var x = { zaman: ms === null ? '' : new Date(ms).toISOString().slice(0, 16), magaza: String(r[c.m]), puan: num(r[c.p]),
+                yorum: String(r[c.y] || '').slice(0, 400), cevap: String(r[c.ce] || '').slice(0, 600), telafi: r[c.tf] === true, durum: d };
+      if (/^TASLAK/.test(d) && r[c.on] !== true) out.yorumBekleyen.push(x);
+      else if (d === 'GÖNDERİLDİ' || /^HATA/.test(d)) {
+        var gm = zaman_(r[c.g]);
+        x.gonderim = gm === null ? '' : new Date(gm).toISOString().slice(0, 16);
+        x.trendyol = String(r[c.td] || ''); x.ret = String(r[c.rn] || '');
+        gonderilen.push(x);
+      }
+    });
+    out.yorumSon = gonderilen.sort(function (a, b) { return a.gonderim < b.gonderim ? 1 : -1; }).slice(0, 15);
+  }
+  return out;
+}
 
 /* ---------------- Genel bilgiler (BAP GENEL BİLGİLER: menü, şubeler, bölgeler, ödeme) ---------------- */
 var GENEL_PORTAL_URL = 'https://bap-genel-bilgiler.mertharman.workers.dev/';

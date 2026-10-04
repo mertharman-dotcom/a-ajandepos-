@@ -2010,6 +2010,92 @@ function kuryeAcik(a,K){var A=K.acik;
     blok("Son kapatılanlar","Tahsilatlar sekmesinden; yeni kapattıkların ‘Şimdi yenile’den sonra burada görünür ve yukarıdaki toplamlardan düşer. ‘Adisyo’ sütunu, Adisyo sipariş dosyasında ‘Ödeme Alındı’nın TRUE yapılıp yapılmadığını gösterir.",KP.length?tablo([["Kapatıldı"],["Sipariş"],["Adisyon"],["Kurye"],["Tutar",1],["İşlem"],["Adisyo"]],KP.map(function(x){return [x.zaman,(x.tarih?String(x.tarih).slice(0,5)+" ":"")+(x.saat||""),adisyonLink(x),x.kurye,para(x.tutar),el("span",{class:"etiket "+(/kes/i.test(x.islem)?"e-dikkat":"e-iyi"),text:x.islem}),
       x.adisyo?el("span",{class:"etiket "+(/TRUE/.test(x.adisyo)?"e-iyi":"e-kotu"),title:x.adisyo,text:/TRUE/.test(x.adisyo)?"ödendi işlendi":"bulunamadı"}):el("span",{class:"etiket e-notr",text:"bekliyor"})];})):bos("Henüz panelden kapatılan yok."))]));}
 
+/* ---------------- Müşteri ilişkileri: Trendyol puanı, iadeler, yorum cevapları ---------------- */
+var MUS_SEKME="puan";
+var IADE_DURUM={WaitingInAction:["Karar bekliyor","e-kotu"],Accepted:["Kabul edildi","e-notr"],Rejected:["Reddedildi","e-iyi"],Unresolved:["Trendyol inceliyor","e-dikkat"],WaitingForSellerRefund:["Telafi bekliyor","e-dikkat"]};
+function magKisa(m){return String(m||"").replace(/^BAP\s+/,"").replace("Salad & Pasta","Salad");}
+function puanYaz(n,h){return n==null?"—":Number(n).toFixed(h==null?2:h).replace(".",",");}
+function saatTr(z){return z?gunAd(z.slice(0,10))+" "+z.slice(11,16):"—";}
+function musteriSayfa(a){var M=VERI.musteri;
+  a.appendChild(ust("Müşteri ilişkileri","Kaynak: Trendyol Yorumlar tablosu. Puan her gece, iadeler 10 dakikada, yorumlar 15 dakikada bir Trendyol'dan çekilir."));
+  a.appendChild(nabizSeridi("musteri"));var h=hatalarKutusu(["musteri"]);if(h)a.appendChild(h);if(!M)return;
+  var bek=M.iade.filter(function(x){return x.durum==="WaitingInAction";});
+  var SK=[["puan","Puan & sipariş"],["iade","İadeler"+(bek.length?" ("+bek.length+" bekliyor)":"")],["yorum","Yorum cevapları"+(M.yorumBekleyen.length?" ("+M.yorumBekleyen.length+" onay bekliyor)":"")]];
+  a.appendChild(el("div",{class:"sekmeler",style:"border-bottom:1px solid var(--cizgi);padding-bottom:12px;margin-bottom:16px"},SK.map(function(k){return el("button",{type:"button","aria-pressed":MUS_SEKME===k[0]?"true":"false",onclick:function(){MUS_SEKME=k[0];ciz();}},[k[1]]);})));
+  if(MUS_SEKME==="iade")return musteriIade(a,M);if(MUS_SEKME==="yorum")return musteriYorum(a,M);musteriPuan(a,M);}
+
+function musteriPuan(a,M){
+  var mags=[];M.puan.forEach(function(x){if(mags.indexOf(x.magaza)<0)mags.push(x.magaza);});mags.sort();
+  if(!mags.length){a.appendChild(bos("Henüz puan kaydı yok; ilk kayıt gece 23:50'de oluşur."));return;}
+  var son={};M.puan.forEach(function(x){if(x.ty!=null&&(!son[x.magaza]||son[x.magaza].gun<x.gun))son[x.magaza]=x;});
+  var tah={};M.tahmin.forEach(function(x){tah[magKisa(x.magaza)]=x;});
+  a.appendChild(el("div",{class:"rakamlar dortlu"},mags.map(function(m){var s=son[m],t=tah[m];
+    var not=s&&s.degisim!=null&&s.degisim!==0?(s.degisim>0?"▲ +":"▼ ")+puanYaz(s.degisim,2)+" düne göre":"düne göre değişmedi";
+    if(t&&t.yarin!=null)not+=" · yarın ~"+puanYaz(t.yarin,2);
+    return rakam(m,s?puanYaz(s.ty,2):"—",not,s&&s.degisim>0?"yukari":(s&&s.degisim<0?"asagi":null));})));
+  a.appendChild(blok("Trendyol puanı ve sipariş — son 30 gün","Her mağaza ayrı: üstte Trendyol'un gösterdiği puan (dört mağaza aynı ölçekte), altta o günün Trendyol sipariş adedi (iptal hariç). Son sütun bugündür, gün bitmediği için eksiktir. Noktanın veya sütunun üstüne gelince ayrıntı çıkar.",
+    el("div",null,mags.map(function(m){return puanSiparisGrafik(m,M.puan.filter(function(x){return x.magaza===m;}));}))));
+  var fark={};mags.forEach(function(m){var s=son[m];fark[m]=s&&s.hesap!=null?s.ty-s.hesap:null;});
+  a.appendChild(blok("Yarın puan tahmini","Trendyol puanı son 90 günün ortalaması sayılarak hesaplanır: yarın 90 günü dolan yorumlar düşer. 'Hesap farkı' bizim hesabımızla Trendyol'un gösterdiği puan arasındaki fark; 0,05'ten büyükse o mağazanın tahminine güvenme (Trendyol farklı sayıyor).",
+    tablo([["Mağaza"],["Bugün",1],["Yarın tahmini",1],["Düşecek yorum",1],["Hedef",1],["Gereken 5★",1],["Hesap farkı",1]],mags.map(function(m){var t=tah[m]||{},s=son[m],f=fark[m];
+      return [m,s?puanYaz(s.ty,2):"—",t.yarin!=null?puanYaz(t.yarin,3):"—",t.dusen?t.dusen+" (ort. "+puanYaz(t.dusenOrt,1)+")":"yok",t.hedef!=null?puanYaz(t.hedef,1):"—",t.gereken!=null?String(t.gereken):"—",
+        f==null?"—":el("span",{class:Math.abs(f)>0.05?"etiket e-dikkat":null,text:(f>0?"+":"")+puanYaz(f,2)})];}))));}
+
+// Bir mağaza: üst bant puan çizgisi (ortak ölçek), alt bant sipariş sütunları. İki ayrı ölçek iki ayrı bantta; çift eksen yok.
+function puanSiparisGrafik(m,l){l=l.slice().sort(function(x,y){return x.gun<y.gun?-1:1;});
+  var hepsi=VERI.musteri.puan.filter(function(x){return x.ty!=null;}).map(function(x){return x.ty;});
+  var pmin=Math.floor((Math.min.apply(null,hepsi)-0.05)*20)/20,pmax=Math.ceil((Math.max.apply(null,hepsi)+0.05)*20)/20;if(!(pmax>pmin)){pmin=4;pmax=5;}
+  var smax=Math.max.apply(null,l.map(function(x){return x.siparis;}).concat([1]));
+  var W=760,H=200,p=40,sag=46,ust1=18,alt1=88,ust2=104,alt2=176,bw=(W-p-sag)/Math.max(l.length,1),ns="http://www.w3.org/2000/svg";
+  var svg=svgYap(W,H,m+" — son 30 gün Trendyol puanı ve sipariş adedi");
+  var py=function(v){return alt1-(alt1-ust1)*(v-pmin)/(pmax-pmin);},cx=function(i){return p+i*bw+bw/2;};
+  [pmin,pmax].forEach(function(v){var y=py(v),ln=document.createElementNS(ns,"line");ln.setAttribute("x1",p);ln.setAttribute("x2",W-sag);ln.setAttribute("y1",y);ln.setAttribute("y2",y);ln.setAttribute("stroke","var(--cizgi)");ln.setAttribute("stroke-width","1");svg.appendChild(ln);
+    var t=document.createElementNS(ns,"text");t.setAttribute("x",p-6);t.setAttribute("y",y+4);t.setAttribute("text-anchor","end");t.textContent=puanYaz(v,2);svg.appendChild(t);});
+  var d="",nok=[];l.forEach(function(x,i){if(x.ty==null)return;d+=(d?"L":"M")+cx(i).toFixed(1)+" "+py(x.ty).toFixed(1);nok.push([i,x]);});
+  if(d){var pa=document.createElementNS(ns,"path");pa.setAttribute("d",d);pa.setAttribute("fill","none");pa.setAttribute("stroke","var(--mavi-koyu)");pa.setAttribute("stroke-width","2");pa.setAttribute("stroke-linejoin","round");svg.appendChild(pa);}
+  nok.forEach(function(q){var i=q[0],x=q[1],c=document.createElementNS(ns,"circle");c.setAttribute("cx",cx(i));c.setAttribute("cy",py(x.ty));c.setAttribute("r",i===l.length-1?4.5:3);c.setAttribute("fill","var(--mavi-koyu)");c.setAttribute("stroke","var(--kagit)");c.setAttribute("stroke-width","2");
+    var t=document.createElementNS(ns,"title");t.textContent=gunAd(x.gun)+": puan "+puanYaz(x.ty,2)+(x.degisim?" ("+(x.degisim>0?"+":"")+puanYaz(x.degisim,2)+")":"")+" · "+x.siparis+" sipariş";c.appendChild(t);svg.appendChild(c);});
+  if(nok.length){var sn=nok[nok.length-1];var t=document.createElementNS(ns,"text");t.setAttribute("x",cx(sn[0])+8);t.setAttribute("y",py(sn[1].ty)+4);t.setAttribute("class","deger-yazi");t.textContent=puanYaz(sn[1].ty,2);svg.appendChild(t);}
+  l.forEach(function(x,i){var hh=Math.round((alt2-ust2)*x.siparis/smax),son=i===l.length-1,yuksek=x.normal&&x.siparis>x.normal*1.2,dusuk=x.normal&&x.siparis<x.normal*0.8;
+    svg.sutun(p+i*bw+1,alt2-hh,bw-2,hh,son?"var(--cizgi)":"var(--mavi)",gunAd(x.gun)+": "+x.siparis+" Trendyol siparişi"+(x.normal?" (4 haftanın aynı günü ort. "+Math.round(x.normal)+(yuksek?", yüksek":dusuk?", düşük":"")+")":"")+(son?" — gün bitmedi":""));});
+  var tm=document.createElementNS(ns,"text");tm.setAttribute("x",p-6);tm.setAttribute("y",ust2+8);tm.setAttribute("text-anchor","end");tm.textContent=String(smax);svg.appendChild(tm);
+  if(l.length){var dg=function(g){var dd=new Date(g+"T00:00:00Z");return dd.getUTCDate()+" "+AYLAR[dd.getUTCMonth()];};
+    svg.yaz(cx(0),H-6,dg(l[0].gun));svg.yaz(cx(l.length-1),H-6,dg(l[l.length-1].gun));}
+  return el("div",{style:"margin-bottom:14px"},[el("div",{style:"font-weight:600;margin:0 0 6px",text:m}),el("div",{class:"grafik"},[svg])]);}
+
+function musteriIade(a,M){var bugunAy=M.bugun.slice(0,7);
+  var buAy=M.iade.filter(function(x){return x.gun.slice(0,7)===bugunAy&&(x.durum==="Accepted"||x.durum==="WaitingForSellerRefund");});
+  var top=function(f){return buAy.filter(f).reduce(function(t,x){return t+x.tutar;},0);};
+  var dusulen=buAy.filter(function(x){return /^YAZILDI/.test(x.kesinti);}).reduce(function(t,x){return t+x.tutar;},0);
+  a.appendChild(el("div",{class:"rakamlar dortlu"},[rakam("Bu ay iade",para(top(function(){return true;})),buAy.length+" kabul edilen"),
+    rakam("Mutfak kaynaklı",para(top(function(x){return x.sorumlu==="Mutfak";}))),
+    rakam("Kurye kaynaklı",para(top(function(x){return x.sorumlu==="Kurye";})),"kuryeden düşülen "+para(dusulen)),
+    rakam("Karar bekleyen",String(iadeBekleyen(M).length),iadeBekleyen(M).length?"4 saat içinde karar verilmeli":"yok",iadeBekleyen(M).length?"asagi":null)]));
+  var B=iadeBekleyen(M);
+  if(B.length)a.appendChild(blok("Karar bekleyen iadeler","Trendyol 4 saat içinde karar istiyor. Kabul / ret Trendyol panelinden yapılır; kurye kaynaklıysa tablodaki 'Kuryeden Düş' kutusunu işaretle.",
+    el("div",{class:"liste"},B.map(function(x){var gecti=x.sonKarar&&x.sonKarar.replace("T"," ")<simdiTr();
+      return el("div",{class:"satir"},[el("h3",null,[magKisa(x.magaza)+" — "+x.sebep+" — "+para(x.tutar)+" ",el("span",{class:"etiket "+(gecti?"e-kotu":"e-dikkat"),text:gecti?"süre doldu":"son karar "+saatTr(x.sonKarar)})]),
+        x.not?el("div",{style:"margin-top:6px",text:"Müşteri: “"+x.not+"”"}):null,
+        el("div",{class:"meta"},[el("span",{text:"Sipariş "+x.no}),x.kurye?el("span",{text:"Kurye: "+x.kurye}):null,x.urunler?el("span",{text:x.urunler}):null,el("span",{text:"Sorumlu (öneri): "+x.sorumlu})]),
+        x.oneri?el("div",{class:"meta"},[el("span",{text:"Öneri: "+x.oneri})]):null]);}))));
+  var sor={};buAy.forEach(function(x){sor[x.sorumlu]=(sor[x.sorumlu]||0)+x.tutar;});
+  a.appendChild(blok("Bu ay kimden kaynaklandı","Kabul edilen iadelerin tutarı. Sorumlu iade sebebinden önerilir; tablodaki Sorumlu sütunundan değiştirilebilir.",cubuklar(Object.keys(sor).map(function(k){return {ad:k,deger:sor[k]};}).sort(function(x,y){return y.deger-x.deger;}))));
+  a.appendChild(blok("Son 60 günün iadeleri",null,M.iade.length?tablo([["Tarih"],["Mağaza"],["Sebep"],["Sorumlu"],["Kurye"],["Tutar",1],["Durum"],["Kuryeden düşüş"]],M.iade.map(function(x){var d=IADE_DURUM[x.durum]||[x.durum,"e-notr"];
+    return [saatTr(x.zaman),magKisa(x.magaza),el("span",{title:x.not,text:x.sebep}),x.sorumlu,x.kurye||"—",para(x.tutar),el("span",{class:"etiket "+d[1],text:d[0]}),x.kesinti?el("span",{title:x.kesinti,text:x.kesinti.split(" ")[0]}):"—"];})):bos("Son 60 günde iade yok.")));}
+function iadeBekleyen(M){return M.iade.filter(function(x){return x.durum==="WaitingInAction";});}
+function simdiTr(){var d=new Date(Date.now()+3*3600000);return d.toISOString().slice(0,16).replace("T"," ");}
+
+function musteriYorum(a,M){var link=(kaynaklar("musteri")[0]||{}).link;
+  a.appendChild(el("div",{class:"bilgi"},["Taslakları yapay zekâ yazar; onaylamak ya da düzeltmek için ",link?el("a",{href:link,target:"_blank",rel:"noopener",text:"Trendyol Yorumlar tablosunu"}):"Trendyol Yorumlar tablosunu"," açıp Yorum_Cevap sekmesinde Onay kutusunu işaretle. Onaylanan cevap 15 dakika içinde Trendyol'a bir kez gönderilir."]));
+  a.appendChild(blok("Onay bekleyen cevaplar",null,M.yorumBekleyen.length?el("div",{class:"liste"},M.yorumBekleyen.map(function(x){
+    return el("div",{class:"satir"},[el("h3",null,[magKisa(x.magaza)+" · "+puanYaz(x.puan,1)+"★ ",x.telafi?el("span",{class:"etiket e-dikkat",text:"telafi sözü var"}):null,/HATA/.test(x.durum)?el("span",{class:"etiket e-kotu",text:"taslak yazılamadı"}):null]),
+      el("div",{style:"margin-top:6px",text:"Müşteri: “"+x.yorum+"”"}),
+      el("div",{style:"margin-top:6px;color:var(--mavi-koyu)",text:x.cevap?"Taslak: "+x.cevap:"Taslak yok — tabloda kendin yazabilirsin."}),
+      el("div",{class:"meta"},[el("span",{text:saatTr(x.zaman)})])]);})):bos("Onay bekleyen cevap yok.")));
+  a.appendChild(blok("Son gönderilenler","Trendyol cevabı önce inceler; reddederse nedeni burada görünür.",M.yorumSon.length?tablo([["Gönderim"],["Mağaza"],["Puan",1],["Cevap"],["Trendyol"]],M.yorumSon.map(function(x){
+    var td=x.trendyol==="APPROVED"?["yayında","e-iyi"]:x.trendyol==="REJECTED"?["reddedildi"+(x.ret?": "+x.ret:""),"e-kotu"]:/^HATA/.test(x.durum)?["gönderilemedi","e-kotu"]:["inceleniyor","e-notr"];
+    return [saatTr(x.gonderim),magKisa(x.magaza),puanYaz(x.puan,1),el("span",{title:x.cevap,text:x.cevap.length>90?x.cevap.slice(0,90)+"…":x.cevap}),el("span",{class:"etiket "+td[1],title:x.durum,text:td[0]})];})):bos("Henüz gönderilen cevap yok.")));}
+
 var CIZ={genel:genelSayfa,merkez:merkez,ozet:ozet,fis:fisSayfa,satis:satis,maliyet:maliyetSayfa,kararlar:kararlar,panolar:panolarSayfa,ai:ai,
   finans:finansSayfa,
   odeme:toptanciOdemeSayfa,
@@ -2017,7 +2103,7 @@ var CIZ={genel:genelSayfa,merkez:merkez,ozet:ozet,fis:fisSayfa,satis:satis,maliy
   stok:kaynakBolumu("stok","Ürün, stok ve hazırlık","Stok seviyeleri, reçetesiz satışlar ve menü buraya gelecek."),
   kurye:kuryeSayfa,
   personel:personelSayfa,
-  musteri:kaynakBolumu("musteri","Müşteri ilişkileri","Puanlar, yorumlar ve şikâyetler buraya gelecek.")};
+  musteri:musteriSayfa};
 
 function ciz(){nav();var a=document.getElementById("ana");a.textContent="";
   if(!VERI){a.appendChild(el("div",{class:"yukleniyor",text:YUKLENIYOR?"Panel verisi okunuyor…":"Veri yok."}));return;}
