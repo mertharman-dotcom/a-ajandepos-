@@ -1294,11 +1294,12 @@ function musteri_() {
   t = satirlar_(ss, 'Yorum_Cevap');
   if (t.r.length) {
     c = { t: k(t, 'Tarih'), m: k(t, 'Mağaza'), p: k(t, 'Ortalama'), y: k(t, 'Yorum'), ce: k(t, 'Cevap'), tf: k(t, 'Telafi Sözü'),
-          on: k(t, 'Onay'), d: k(t, 'Durum'), g: k(t, 'Gönderim'), td: k(t, 'Trendyol Durumu'), rn: k(t, 'Ret Nedeni') };
+          on: k(t, 'Onay'), d: k(t, 'Durum'), g: k(t, 'Gönderim'), td: k(t, 'Trendyol Durumu'), rn: k(t, 'Ret Nedeni'),
+          id: k(t, 'Review ID') };
     var gonderilen = [];
     t.r.forEach(function (r) {
       var ms = zaman_(r[c.t]), d = String(r[c.d] || '');
-      var x = { zaman: ms === null ? '' : new Date(ms).toISOString().slice(0, 16), magaza: String(r[c.m]), puan: num(r[c.p]),
+      var x = { id: String(r[c.id] || ''), zaman: ms === null ? '' : new Date(ms).toISOString().slice(0, 16), magaza: String(r[c.m]), puan: num(r[c.p]),
                 yorum: String(r[c.y] || '').slice(0, 400), cevap: String(r[c.ce] || '').slice(0, 600), telafi: r[c.tf] === true, durum: d };
       if (/^TASLAK/.test(d) && r[c.on] !== true) out.yorumBekleyen.push(x);
       else if (d === 'GÖNDERİLDİ' || /^HATA/.test(d)) {
@@ -1311,6 +1312,33 @@ function musteri_() {
     out.yorumSon = gonderilen.sort(function (a, b) { return a.gonderim < b.gonderim ? 1 : -1; }).slice(0, 15);
   }
   return out;
+}
+
+/* Panelden yorum cevabı onayı: Yorum_Cevap'ta o satırın Cevap metnini (düzeltildiyse) ve Telafi Sözü'nü yazar,
+   Onay'ı işaretler. Trendyol'a gönderimi trendyol-veri-cekme projesi (yorumCevapCalistir, 15 dk) BİR KEZ yapar;
+   burası Trendyol'a hiçbir şey göndermez. Aynı onay iki kez gelirse zararsızdır. */
+function yorumOnay_(d) {
+  var id = String(d.id || '').trim(), metin = String(d.cevap || '').replace(/[\t\r\n]+/g, ' ').replace(/\s+/g, ' ').trim();
+  if (!id) return { hata: 'Yorum bulunamadı.' };
+  if (!metin) return { hata: 'Cevap boş olamaz.' };
+  if (metin.length > 1000) return { hata: 'Cevap çok uzun (en fazla 1000 karakter).' };
+  var sh = SpreadsheetApp.openById(KAYNAK.yorum.id).getSheetByName('Yorum_Cevap');
+  if (!sh || sh.getLastRow() < 2) return { hata: 'Yorum_Cevap sekmesi bulunamadı.' };
+  var lc = sh.getLastColumn(), b = sh.getRange(1, 1, 1, lc).getDisplayValues()[0];
+  var c = { id: kolon_(b, ['Review ID']), ce: kolon_(b, ['Cevap']), tf: kolon_(b, ['Telafi Sözü']), on: kolon_(b, ['Onay']), du: kolon_(b, ['Durum']) };
+  if (c.id < 0 || c.ce < 0 || c.on < 0 || c.du < 0) return { hata: "Yorum_Cevap'ta beklenen başlıklar yok (Review ID, Cevap, Onay, Durum)." };
+  var v = sh.getRange(2, 1, sh.getLastRow() - 1, lc).getValues();
+  for (var i = 0; i < v.length; i++) {
+    if (String(v[i][c.id]) !== id) continue;
+    var satir = i + 2, durum = String(v[i][c.du] || '').trim();
+    if (v[i][c.on] === true) return { tamam: true, zatenOnayli: true, durum: durum };
+    if (!(durum === '' || durum.indexOf('TASLAK') === 0)) return { hata: 'Bu cevap artık onaylanamaz (durum: ' + durum + ').' };
+    if (String(v[i][c.ce]) !== metin) sh.getRange(satir, c.ce + 1).setValue(metin);
+    if (c.tf >= 0) sh.getRange(satir, c.tf + 1).setValue(d.telafi === true || d.telafi === '1');
+    sh.getRange(satir, c.on + 1).setValue(true);
+    return { tamam: true };
+  }
+  return { hata: 'Yorum tabloda bulunamadı; panel verisini yenileyin.' };
 }
 
 /* ---------------- Genel bilgiler (BAP GENEL BİLGİLER: menü, şubeler, bölgeler, ödeme) ---------------- */
@@ -3148,6 +3176,11 @@ function doPost(e) {
     var kpn = LockService.getScriptLock(); kpn.waitLock(20000);
     try { return json_(panoNot_(d)); } catch (err) { return json_({ hata: String(err.message || err) }); }
     finally { kpn.releaseLock(); CacheService.getScriptCache().remove('panel_v1_n'); }
+  }
+  if (d.tur === 'yorumOnay') {
+    var kyo = LockService.getScriptLock(); kyo.waitLock(20000);
+    try { return json_(yorumOnay_(d)); } catch (err) { return json_({ hata: String(err.message || err) }); }
+    finally { kyo.releaseLock(); }
   }
   if (d.tur === 'musteri') {
     try { return json_(musteriDetay_(d)); } catch (err) { return json_({ hata: String(err.message || err) }); }

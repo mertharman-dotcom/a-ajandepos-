@@ -215,6 +215,24 @@ export default {
       } catch (e) { return json({ hata: 'Veri kapısına ulaşılamadı.' }, 502); }
     }
 
+    if (url.pathname === '/api/yorum-onay' && request.method === 'POST') {
+      // Trendyol yorum cevabı onayı: yalnızca panelin kendisinden gelen istek kabul edilir.
+      // Veri kapısı yalnız tabloya "Onay" yazar; Trendyol'a gönderimi Trendyol projesi bir kez yapar.
+      if (request.headers.get('x-bap-panel') !== '1' || (request.headers.get('origin') || url.origin) !== url.origin) {
+        return json({ hata: 'İzin verilmeyen istek.' }, 403);
+      }
+      let govde;
+      try { govde = await request.json(); } catch (e) { return json({ hata: 'Geçersiz istek.' }, 400); }
+      const ileti = JSON.stringify({ key: env.GAS_KEY, tur: 'yorumOnay', id: String(govde.id || '').slice(0, 80),
+        cevap: String(govde.cevap || '').slice(0, 1200), telafi: govde.telafi === true });
+      try {
+        const r = await fetch(env.GAS_URL, { method: 'POST', headers: { 'content-type': 'application/json' }, body: ileti, redirect: 'follow' });
+        const metin = await r.text();
+        try { return json(JSON.parse(metin), 200); }
+        catch (e) { return json({ belirsiz: true, hata: 'Veri kapısı beklenmeyen bir cevap verdi; onay yazılmış olabilir. Paneli yenileyip kontrol edin.' + gasHatasi(metin) }, 502); }
+      } catch (e) { return json({ belirsiz: true, hata: 'Veri kapısına ulaşılamadı; onay yazılmış olabilir. Paneli yenileyip kontrol edin.' }, 502); }
+    }
+
     if (url.pathname === '/api/kesinti' && request.method === 'POST') {
       // Kurye kesintisi: yalnızca panelin kendisinden gelen istek kabul edilir.
       if (request.headers.get('x-bap-panel') !== '1' || (request.headers.get('origin') || url.origin) !== url.origin) {
