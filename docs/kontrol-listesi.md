@@ -89,7 +89,7 @@ Tablolarda yapılan her değişikliğin eski ve yeni değeri **STOK › Fiyat_Du
 | D11 | Ambalaj Teşhis | "Benzerlikle bulundu"yu başarı sayıyor | Geçici, sonra silinir | ☐ |
 | D12 | Mutfak (reçete) sayfası | Her açılışta tüm Drive fotoğraflarını base64 gönderiyor (çok yavaş); kategori yanlış sütundan | Önbellek + küçük resim linki | ☐ |
 | D13 | CSV dışa aktarma | Okuyan yoksa gereksiz; tarihleri bozuk yazıyor | Kullanılıyor mu? | ☐ |
-| D15 | Kurye projesi: `Kural.gs` ile `Mesai Kurallar.gs` birebir aynı dosya (20 fonksiyon iki kez) | Biri silinir | ☐ |
+| D15 | Kurye projesi: `Kural.gs` ile `Mesai Kurallar.gs` birebir aynı dosya (20 fonksiyon iki kez) | Biri silinir | ☑ 05.10 `Mesai Kurallar.gs` silindi (`Kural.gs` 2.2 kalır). Aynı yayında kullanılmayan "Kesinti İstisnaları" okuması ve `istisnaEkle` kaldırıldı; sekme artık kendiliğinden açılmaz, sahibi elle silebilir |
 | D16 | Kolaybi projesi: `test.gs`, `VeriKontrol.gs`'nin eski kopyası (7 fonksiyon iki kez) | `test.gs` silinir | ☐ |
 | D17 | Maliyet kodu iki projede. Canlıda çalışan Stok Takip içindeki kopya (Tbl_Maliyetler tarih biçimi + 135 ürün) | Stok Takip'te kalır; ayrı projenin iyi yanları (aktif filtresi, boş tablo koruması, yalnız kendi tetikleyicisini silme) taşınır, ayrı proje susturulur | ☐ |
 | D14 | Tek seferlikler: alisAra, adetKontrol, kaynakBasliklar, denetim2, sayimVeTop20, isimBirlestirmeAnalizi, yapiDokumu, satisSiparisIdleriniDoldur, alisTarihDuzelt, degisimSutunuEkle, ymStokTakipBirimineGec, notebookDusumleriniGeriAl | — | Silinir | ☐ |
@@ -129,7 +129,6 @@ Tablolarda yapılan her değişikliğin eski ve yeni değeri **STOK › Fiyat_Du
 | P10 | MacBook `pluxee.mjs`: kod istemeden önce eski kodu silmiyordu → 04.10 12:00 "kod reddedildi" | ◐ düzeltme komutu sahibe verildi (yedek: `pluxee.mjs.kodsil-oncesi`) |
 | P11 | Pluxee kod/kayıt işleri kurye projesinin içindeymiş (`Pluxee.gs`, `PluxeeKodSayfa.gs`, `Kopru.gs` pluxee türleri, doGet `?sayfa=pluxee`); sabahki canlı çekim dalı `kod-cekimi/20261004-1034` birleştirilmemişti | ☑ 04.10 #8 ile depoya alındı. **Olay:** #6/#7 yayını bu dosyaları sildi, Pluxee 16:34–17:16 arası çalışmadı. Kural: yayından önce açık `kod-cekimi/*` dalı var mı bakılır, varsa önce o birleştirilir |
 | P12 | Kurye veri akışı duruşları (22.09, 25–27.09, 04.10): **sebep Mac uykusu** — 04.10 `pmset -g log`: 18:52'de 'Maintenance Sleep', 23:14'e kadar yalnız DarkWake; `sleep 0` ayarı yetmiyor. Uykudan önce yarım kalan topla.mjs süreci toparlanamadı | ◐ çözüm verildi: `com.bap.uyanik` (caffeinate -s -i, KeepAlive) + `pmset -c sleep 0 disksleep 0 standby 0 autopoweroff 0 powernap 0`; Mac fişte ve kapak açık kalmalı. Ek: topla.mjs depoya alınıp uykudan dönüşte temiz başlama + nöbetçi e-postasında 'Mac uyuyor olabilir' ayrımı |
-| P13 | Kurye projesinde `Kural.gs` ile `Mesai Kurallar.gs` birebir aynı (aynı fonksiyonlar iki kez tanımlı). 'Kesinti İstisnaları' sekmesi bunlarca okunur (silinmemeli; sahibe 05.10 bildirildi) | ☐ biri kaldırılacak (önce canlıda hangisinin son yüklendiği kontrol edilir) |
 
 ## Y · Yapı
 

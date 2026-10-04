@@ -1,12 +1,18 @@
 /**
  * ============================================================
- *  BAP - KESINTI KURALI KATMANI  (2. katman)   sürüm 2.1
+ *  BAP - KESINTI KURALI KATMANI  (2. katman)   sürüm 2.2
  * ------------------------------------------------------------
  *  Okur : "Mesai (Ham)"     (ham veri)
  *         "Siparişler"      (gecikme analizi icin)
  *         "Mesai Düzeltme"  (2.1: isletme sahibinin elle duzeltmeleri)
  *  Yazar: "Günlük Mesai"          -> bordro script'inin KAYNAK sekmesi
  *         "Teslimat Gecikmeleri"  -> gerekcesiyle yavas teslimat dokumu
+ *
+ *  ------------------------------------------------------------
+ *  2.2 (05.10.2026): "Kesinti İstisnaları" sekmesi ve okuması kaldırıldı. Ona yazan
+ *  tek düğme eski kurye takip sayfasındaydı ve çalışmıyordu; sekmede elle yazılmış
+ *  tek bir not vardı. Bir günün kesintisini değiştirmek için "Mesai Düzeltme"
+ *  (panel) kullanılır.
  *
  *  ------------------------------------------------------------
  *  2.1 DEĞİŞİKLİKLERİ
@@ -17,7 +23,6 @@
  *     süredir (kapanış kuralıyla aynı mantık). Yöntem "Olduğu gibi"
  *     ise hesap değişmez, gün onaylandı diye işaretlenir. Gerekçede
  *     kimin, neye göre düzelttiği ve otomatik hesabın ne olduğu yazar.
- *     Düzeltme varsa Kesinti İstisnaları o gün için uygulanmaz.
  *
  *  2) KAPANIŞ — son paketin "Restorandan Çıktı" saati boşsa (ya da km
  *     yoksa) makul çıkış hesaplanamıyor, kurye panelden çıkana kadar
@@ -29,9 +34,6 @@
  *     kesiliyordu (2.0'da kapanışta düzeltilen hatanın aynısı). Artık
  *     baz girişten önce fiilen çevrimiçi geçen süre kesilir.
  *
- *  4) Kesinti İstisnaları sekmesinde açıklama sütunu başlığından bulunur
- *     (sekmede araya "Saat / TL" ve "Giriş" sütunları eklenmişti; eski
- *     kod 3. sütunu açıklama sanıyordu).
  *
  *  ------------------------------------------------------------
  *  2.0 DEĞİŞİKLİĞİ — KAPANIŞ KESİNTİSİ DÜZELTİLDİ
@@ -63,7 +65,6 @@ var K_HAM      = 'Mesai (Ham)';
 var K_SIPARIS  = 'Siparişler';
 var K_HEDEF    = 'Günlük Mesai';
 var K_GECIKME  = 'Teslimat Gecikmeleri';
-var K_ISTISNA  = 'Kesinti İstisnaları';
 var K_DUZELTME = 'Mesai Düzeltme';
 var K_DENETIM  = 'Kapanış Denetimi';
 var K_TZ       = 'Europe/Istanbul';
@@ -113,7 +114,6 @@ function kuraliUygula(gecikmeDe) {
 
   var v = ham.getDataRange().getDisplayValues();
   var ix = _ixHam(v[0]);
-  var istisna = _istisnaOku(ss);
   var duzeltme = _duzeltmeOku(ss);
 
   var satirlar = [];
@@ -121,7 +121,6 @@ function kuraliUygula(gecikmeDe) {
     var k = String(v[r][ix.tarih] || '').trim() + '|' + String(v[r][ix.kurye] || '').trim();
     var s = _kuralUygulaSatir(v[r], ix, duzeltme[k]);
     if (!s) continue;
-    if (!duzeltme[k] && istisna[k] !== undefined) s = _istisnaUygula(s, istisna[k]);
     satirlar.push(s);
   }
 
@@ -263,48 +262,6 @@ function kapanisDenetimi() {
   Logger.log('Denetim: ' + satirlar.length + ' gün, toplam ' +
              Math.round(toplam) + ' TL eksik ödeme.');
   return satirlar.length;
-}
-
-/* ==================== İSTİSNALAR ==================== */
-function _istisnaOku(ss) {
-  var sh = ss.getSheetByName(K_ISTISNA);
-  if (!sh) {
-    sh = ss.insertSheet(K_ISTISNA);
-    sh.getRange(1, 1, 1, 3).setValues([['Tarih', 'Kurye', 'Açıklama']])
-      .setBackground('#0c343d').setFontColor('#ffffff').setFontWeight('bold');
-    sh.getRange(1, 1, sh.getMaxRows(), 1).setNumberFormat('@');
-    sh.setFrozenRows(1);
-    sh.getRange(2, 1, 1, 3).setValues([['', '', 'Örnek: 28.08.2026 | Emin | panelden çıkış unutulmuş']]);
-    sh.autoResizeColumns(1, 3);
-    return {};
-  }
-  var m = {};
-  if (sh.getLastRow() < 2) return m;
-  // 2.1: açıklama sütunu başlığından bulunur (sekmede araya sütun eklenmiş olabilir).
-  var gen = Math.max(3, sh.getLastColumn());
-  var bas = sh.getRange(1, 1, 1, gen).getDisplayValues()[0].map(_kn);
-  var iAc = bas.indexOf(_kn('Açıklama'));
-  if (iAc < 0) iAc = 2;
-  sh.getRange(2, 1, sh.getLastRow() - 1, gen).getDisplayValues().forEach(function (r) {
-    var t = String(r[0] || '').trim(), k = String(r[1] || '').trim();
-    if (t && k) m[t + '|' + k] = String(r[iAc] || '').trim();
-  });
-  return m;
-}
-
-function _istisnaUygula(s, aciklama) {
-  var eski = [];
-  if (s[6]) eski.push('erken ' + s[6] + ' dk');
-  if (s[11]) eski.push('kapanış ' + s[11] + ' dk');
-  s[6] = '';
-  s[11] = '';
-  s[13] = s[12];
-  s[16] = 'Yok sayıldı';
-  s[17] = 'İŞLETME SAHİBİ TARAFINDAN YOK SAYILDI'
-        + (aciklama ? ' — ' + aciklama : '')
-        + (eski.length ? '  ||  Hesaplanan kesinti (uygulanmadı): ' + eski.join(', ')
-                         + '. ' + (s[17] || '') : '');
-  return s;
 }
 
 /* ==================== MESAİ DÜZELTME (2.1) ==================== */
