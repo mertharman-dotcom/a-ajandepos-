@@ -2130,6 +2130,10 @@ function hesapKapat_(d) {
   var r = a.v.filter(function (x) { return siparisNo_(x[ca.id]) === id; })[0];
   if (!r) return { hata: 'Bu sipariş Açık Hesaplar listesinde bulunamadı; tablo güncellenmiş olabilir. Paneli yenileyin.' };
   var kurye = String(r[ca.kurye] || '').trim(), tutar = sayi_(r[ca.tutar]), not = String(d.not || '').replace(/\s+/g, ' ').trim().slice(0, 200);
+  // Kurye farklı yöntemle tahsil ettiyse (ör. sistemde kart, gerçekte nakit) gerçek yöntem yazılır, eskisi notta kalır.
+  var eskiOdeme = String(r[ca.odeme] || '').trim(), odeme = String(d.odeme || '').replace(/\s+/g, ' ').trim().slice(0, 60) || eskiOdeme;
+  var odemeDegisti = odeme !== eskiOdeme;
+  if (odemeDegisti) not = ('Ödeme yöntemi değişti: ' + (eskiOdeme || '—') + ' → ' + odeme + (not ? ' | ' + not : '')).slice(0, 300);
   var bahsis = islem === 'tahsil' ? Math.max(0, sayi_(d.bahsis)) : 0;
   if (bahsis > 5000) return { hata: 'Bahşiş tutarı çok yüksek görünüyor; kontrol edin.' };
   if (islem === 'kes' && !(tutar > 0)) return { hata: 'Tutar okunamadı; kesinti yazılmadı.' };
@@ -2137,7 +2141,7 @@ function hesapKapat_(d) {
 
   var sh = ss.getSheetByName('Tahsilatlar');
   if (!sh) { sh = ss.insertSheet('Tahsilatlar'); sh.appendRow(TAHSILAT_BASLIK); sh.setFrozenRows(1); sh.getRange(1, 1, 1, TAHSILAT_BASLIK.length).setFontWeight('bold'); }
-  sh.appendRow([r[ca.tarih], r[ca.no], "'" + id, kurye, r[ca.odeme], tutar, islem === 'kes' ? 'Kuryeden kesildi' : 'Tahsil edildi', not, damga, 'Panel']);
+  sh.appendRow([r[ca.tarih], r[ca.no], "'" + id, kurye, odeme, tutar, islem === 'kes' ? 'Kuryeden kesildi' : 'Tahsil edildi', not, damga, 'Panel']);
   if (bahsis > 0) { // Bahşiş hesap tutarından ayrı, kendi sütununa yazılır (yoksa sütun eklenir).
     var lc = sh.getLastColumn(), hb = sh.getRange(1, 1, 1, lc).getDisplayValues()[0], cb = kolon_(hb, ['Bahşiş (TL)', 'Bahşiş']);
     if (cb < 0) { cb = lc; sh.getRange(1, cb + 1).setValue('Bahşiş (TL)').setFontWeight('bold'); }
@@ -2147,12 +2151,12 @@ function hesapKapat_(d) {
     var ks = ss.getSheetByName('Kesintiler');
     if (!ks) { ks = ss.insertSheet('Kesintiler'); ks.appendRow(['Tarih', 'Kurye Adı', 'Kesinti Tipi (Saat / TL)', 'Kesilen Süre (Dk)', 'Kesilen Tutar (TL)', 'Açıklama']); ks.setFrozenRows(1); }
     ks.appendRow([Utilities.formatDate(new Date(), TZ, 'dd.MM.yyyy'), kurye, 'TL', '', tutar,
-      'Açık hesap: adisyon ' + r[ca.no] + ', ' + r[ca.tarih] + ' (' + r[ca.odeme] + ')' + (not ? ' — ' + not : '')]);
+      'Açık hesap: adisyon ' + r[ca.no] + ', ' + r[ca.tarih] + ' (' + odeme + ')' + (not ? ' — ' + not : '')]);
   }
-  var ozet = kurye + ' — adisyon ' + r[ca.no] + ', ' + tutar + ' TL: ' + (islem === 'kes' ? 'kuryeden kesildi' : 'tahsil edildi') + (bahsis ? ' + ' + bahsis + ' TL bahşiş' : '');
+  var ozet = kurye + ' — adisyon ' + r[ca.no] + ', ' + tutar + ' TL: ' + (islem === 'kes' ? 'kuryeden kesildi' : 'tahsil edildi') + (bahsis ? ' + ' + bahsis + ' TL bahşiş' : '') + (odemeDegisti ? ' (ödeme: ' + eskiOdeme + ' → ' + odeme + ')' : '');
   try { cevapKaydet_('Operasyon', 'Kurye Net Çalışma Süresi › Tahsilatlar', sh.getLastRow(), 'Açık hesap kapatıldı', ozet, damga.slice(0, 16)); } catch (err) { }
   var adisyo = null; try { adisyo = tahsilatlariAdisyoyaIsle_(); } catch (err) { adisyo = { hata: String(err.message || err) }; }
-  return { tamam: true, islem: islem, kurye: kurye, tutar: tutar, bahsis: bahsis, adisyo: adisyo };
+  return { tamam: true, islem: islem, kurye: kurye, tutar: tutar, bahsis: bahsis, adisyo: adisyo, odeme: odeme, odemeDegisti: odemeDegisti };
 }
 
 // Panelden elle kesinti: { istekNo, kurye, tarih: 'yyyy-MM-dd', tip: 'Saat' | 'TL', miktar, aciklama, onay }.
