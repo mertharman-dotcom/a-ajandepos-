@@ -112,10 +112,11 @@ Tablolarda yapılan her değişikliğin eski ve yeni değeri **STOK › Fiyat_Du
 | R3 | Degerlendirmeler sekmesinde "Eşleşti = HAYIR" satırları çok (örnek: Ocak 2026). Adisyo eşleşmesi yalnızca son 20.000 satıra bakıyor (`GERI_SATIR`); eski kayıtlar için normal olabilir ⚠️ bakılacak | ☐ |
 | R4 | Trendyol yol haritası TY-1 … TY-7 (puan, tahmin, menü, cevap, iade, teslimat süresi) — `docs/trendyol-api.md` | ◐ 1. aşama 03.10 yayınlandı; sahip `raporTetikleyiciKur()` çalıştıracak |
 | R5 | Yeni iadede bildirim — Trendyol 4 saat içinde karar istiyor; şu an iade takibi yoktu | ◐ 03.10 yayınlandı; tetikleyici kurulunca 10 dk'da bir |
-| R6 | İade onaylanınca kuryeden düşüş elle yapılıyordu → Iadeler'e "Kuryeden Düş" kutusu; Kurye › Kesintiler'e yazar. Şu an KURU (sadece rapor); sahip onaylayınca `KESINTI_KURU = false` | ◐ |
+| R6 | İade onaylanınca kuryeden düşüş elle yapılıyordu → Iadeler'e "Kuryeden Düş" kutusu; Kurye › Kesintiler'e yazar. 05.10 sahip gerçek moda aldı (`KESINTI_KURU = false`) | ☑ |
 | R7 | İade sorumluluğu: Iadeler'e "Sorumlu" (Kurye / Mutfak / Müşteri-Platform / Belirsiz, sebepten önerilir); `Iade_Ozet`'te aylık mutfak zararı ve kurye bazında iade | ◐ |
 | R8 | Yorum cevapları: Yorum_Cevap sekmesi, Claude taslağı, sahip onayı, Trendyol'a tek gönderim; telafi sözü Telafi_Listesi'ne (telefonsuz, adres Not'ta) | ◐ |
 | R9 | Telafi_Listesi otomatik eşleşmesi telefonla çalışıyor; Trendyol müşterisi (maskeli telefon) adresle tanınmalı — Adisyo toplayıcıda `telafiKontrol_`'e adres anahtarı eklenecek | ☐ |
+| R10 | Panel › Müşteri İlişkileri: Trendyol puanı + sipariş (30 gün, mağaza başına), yarın tahmini, iadeler (bekleyen, bu ayın mutfak/kurye zararı), yorum cevapları (onay bekleyen, son gönderilen). Veri kapısı `musteri_()` Trendyol Yorumlar tablosunu okur | ◐ 05.10 yayına alındı |
 
 ## P · Paneller
 

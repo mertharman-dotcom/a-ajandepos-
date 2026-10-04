@@ -32,7 +32,7 @@ const TYR = {
   GEC_ESIK_DK: 45,         // "geç teslim" iadesinde bu süreyi aşmayan teslim gecikmesiz sayılır
   KURYE_TABLO: '1LG7naAbMM9aL3K0QNzzrjXomC2LXjx4rdSCYNYWzDQo',   // Kurye Net Çalışma Süresi
   KURYE_KESINTI: 'Kesintiler',     // bordronun okuduğu kesinti sekmesi (sahibi orası)
-  KESINTI_KURU: true,      // true: Kesintiler'e YAZMAZ, sadece "ne yazılacak" raporlar. Sahip onaylayınca false
+  KESINTI_KURU: false,     // true: Kesintiler'e YAZMAZ, sadece rapor. Sahip 05.10'da gerçek moda aldı
   KESINTI_BENZER_GUN: 3,   // aynı kurye + aynı tutar bu kadar gün içinde varsa yazmaz, sorar
   SATIS_BASLIK: {          // ana tabloda başlık adları (sütun numarasıyla okunmaz)
     TARIH: 'Sipariş Tarihi', CIKIS: 'Hazırlanma (Şube Çıkış)', TESLIM: 'Teslim Zamanı',
