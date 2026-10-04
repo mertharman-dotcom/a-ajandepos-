@@ -2515,7 +2515,8 @@ function acikListe_(ss, kapali, bugun, siparisSaat) {
 var TR_AY = { oca: 0, sub: 1, şub: 1, mar: 2, nis: 3, may: 4, haz: 5, tem: 6, agu: 7, ağu: 7, eyl: 8, eki: 9, kas: 10, ara: 11 };
 var KART_KAYNAKLARI = [
   { ad: 'Pluxee', odeme: /pluxee|sodexo/i, oku: function (ks) { return pluxeeCekimleri_(ks); } },
-  { ad: 'Paye',   odeme: /paye/i,          oku: function (ks) { return payeCekimleri_(ks); } }
+  { ad: 'Paye',   odeme: /paye/i,          oku: function (ks) { return payeCekimleri_(ks); } },
+  { ad: 'Edenred', odeme: /edenred|^\s*ticket/i, oku: function (ks) { return edenredCekimleri_(ks); } }
 ];
 function acikKanit_(ks, liste) {
   var ozet = {}; if (!liste.length) return ozet;
@@ -2632,6 +2633,20 @@ function payeCekimleri_(ks) {
   // İptal / iade edilen çekim, aynı gün aynı tutardaki bir satışı düşürür
   iptal.forEach(function (y) { for (var i = 0; i < satis.length; i++) if (Math.abs(satis[i].tutar - y.tutar) < 0.5 && isGunu_(satis[i].ms) === isGunu_(y.ms)) { satis.splice(i, 1); return; } });
   return { cekim: satis, son: son, gunler: gunler };
+}
+
+// Edenred çekimleri: kurye dosyası › 'Edenred' sekmesi (MacBook edenred.mjs → kurye köprüsü tur:'edenred').
+// İşlem listesi terminal gün sonundan sonra dolduğu için "çekim yok" yalnız son çekim anından en az 3 saat önceki siparişler için söylenir.
+function edenredCekimleri_(ks) {
+  var e = sonSatirlar_(ks, 'Edenred', 6000); if (!e) return null;
+  var cz = kolon_(e.b, ['İşlem Zamanı']), ct = kolon_(e.b, ['Tutar (TL)', 'Tutar']), cekim = [], son = null;
+  if (cz < 0 || ct < 0) return { hata: "Edenred sekmesinde 'İşlem Zamanı' ya da 'Tutar' sütunu yok" };
+  e.v.forEach(function (r) {
+    var ms = zaman_(r[cz]), t = sayi_(r[ct]); if (ms === null || !(t > 0)) return;
+    var tam = kartTam_(ms); cekim.push({ ms: ms, tutar: t, zaman: tam.slice(6), tam: tam });
+    if (son === null || ms > son) son = ms;
+  });
+  return { cekim: cekim, son: son };
 }
 
 function kartTam_(ms) { return new Date(ms).toISOString().replace(/^\d{4}-(\d{2})-(\d{2})T(\d{2}:\d{2}).*/, '$2.$1 $3'); }

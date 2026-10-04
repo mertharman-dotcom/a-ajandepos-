@@ -1,8 +1,10 @@
 #!/usr/bin/env node
-// edenred.mjs v0.2 — Edenred (Ticket Restaurant) terminal bazlı işlem listesi.
+// edenred.mjs v0.3 — Edenred (Ticket Restaurant) terminal bazlı işlem listesi.
 // Giriş telefon + VKN + SMS; sitede reCAPTCHA olduğu için Mac'teki gerçek Chrome açılır (playwright-core).
-//   node edenred.mjs --terminal                          son geriGun günü, kodu terminalden sor
-//   node edenred.mjs --terminal 28.09.2026 04.10.2026    tarih aralığı
+//   node edenred.mjs                                     son geriGun günü; kod iPhone Kestirmeler'den (kurye köprüsü kodYaz)
+//   node edenred.mjs --terminal                          kodu terminalden sor
+//   node edenred.mjs 28.09.2026 04.10.2026               tarih aralığı
+//   --tabloya-yazma                                      yalnız CSV (kurye tablosuna göndermez)
 // Ayar: ayar.json › edenred { telefon, vkn, geriGun }. Çıktı: edenred_islemler.csv (+ log: edenred.log)
 // Depodaki kopya: mac-kopru/edenred.mjs — değişiklik önce depoda yapılır.
 
@@ -22,6 +24,9 @@ const CHROME = '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
 const KOK    = 'https://isortaklari.edenred.com.tr';
 const LISTE  = KOK + '/is-ortaklari/gunsonu/terminal-bazli-islem-listesi';
 const GERI_GUN = Number(ED.geriGun || 7);
+const TERMINAL = process.argv.includes('--terminal');
+const YAZMA    = !process.argv.includes('--tabloya-yazma');
+const BEKLEME  = 4 * 60 * 1000;   // Edenred kodu ~3 dk geçerli
 
 function log(m) {
   const s = `[${new Date().toLocaleString('tr-TR')}] ${m}`;
@@ -30,6 +35,26 @@ function log(m) {
 }
 const bekle = ms => new Promise(c => setTimeout(c, ms));
 const tarih = (d, ayrac) => { const p = n => String(n).padStart(2, '0'); return `${p(d.getDate())}${ayrac}${p(d.getMonth() + 1)}${ayrac}${d.getFullYear()}`; };
+
+/* ---------- kurye köprüsü (kurye-net-calisma-suresi › Kopru.gs doPost) ---------- */
+async function kopru(govde) {
+  const res = await fetch(AYAR.webapp, { method: 'POST', headers: { 'content-type': 'text/plain;charset=utf-8' },
+    body: JSON.stringify({ anahtar: AYAR.anahtar, ...govde }), redirect: 'follow' });
+  const t = await res.text();
+  try { return JSON.parse(t); } catch (_) { return { hata: t.slice(0, 200) }; }
+}
+
+async function kodBekle() {
+  const bitis = Date.now() + BEKLEME; let son = 0;
+  while (Date.now() < bitis) {
+    const c = await kopru({ tur: 'kodOku', kaynak: 'edenred' });
+    if (c.kod) { log('kod alındı'); return c.kod; }
+    if (c.hata) log('köprü: ' + c.hata);
+    if (Date.now() - son > 60000) { son = Date.now(); log('  ...kod bekleniyor'); }
+    await bekle(4000);
+  }
+  throw new Error('kod gelmedi (4 dakika doldu)');
+}
 
 /* ---------- kod ---------- */
 function terminaldenSor() {
@@ -55,12 +80,13 @@ async function girisYap(page) {
   await page.evaluate(t => { document.querySelectorAll('input[type="hidden"][name="phoneNumber"]').forEach(i => { i.value = t; }); }, ED.telefon);
   await page.locator('#remindMe').check().catch(() => {});
   const dugme = page.locator('button[type="submit"][class*="login-sub"], button[type="submit"]:has-text("GİRİŞ")').first();
+  if (!TERMINAL) { const r = await kopru({ tur: 'kodIste', kaynak: 'edenred' }); if (r.hata) throw new Error('kod kutusu: ' + r.hata); }
   if (await dugme.count()) await dugme.click().catch(() => {});
   else log('giriş düğmesi bulunamadı — açılan Chrome penceresinde elle bas');
   await page.waitForURL(/\/login\/confirm/, { timeout: 120000 });   // elle basılırsa da yakalar
   log('Edenred SMS gönderildi');
 
-  const kod = await terminaldenSor();
+  const kod = TERMINAL ? await terminaldenSor() : await kodBekle();
   if (!/^\d{4,8}$/.test(kod)) throw new Error('geçersiz kod: ' + kod);
   const q = Object.fromEntries(new URL(page.url()).searchParams);
   await page.evaluate(({ kod, q }) => {
@@ -71,6 +97,7 @@ async function girisYap(page) {
     document.body.appendChild(f); f.submit();
   }, { kod, q });
   await page.waitForURL(u => !/\/login/.test(String(u)), { timeout: 30000 }).catch(() => {});
+  if (!TERMINAL) await kopru({ tur: 'kodSil', kaynak: 'edenred' }).catch(() => {});
   if (/\/login/.test(page.url())) throw new Error('kod kabul edilmedi');
   log('oturum açıldı');
 }
@@ -148,6 +175,13 @@ async function islemler(page, sube, terminal, bas, bit) {
     const k = v => `"${String(v ?? '').replace(/"/g, '""')}"`;
     fs.writeFileSync(CIKTI, b.map(k).join(',') + '\n' + satirlar.map(x => b.map(h => k(x[h])).join(',')).join('\n') + '\n', 'utf8');
     log(`${bas}–${bit}: toplam ${satirlar.length} işlem → ${CIKTI}`);
+    if (YAZMA && satirlar.length) {
+      const z = v => { const m = String(v || '').match(/(\d{4})-(\d{2})-(\d{2})[ T](\d{2}:\d{2}:\d{2})/); return m ? `${m[3]}.${m[2]}.${m[1]} ${m[4]}` : String(v || ''); };
+      const tl = v => { let x = String(v || '').replace(/[^\d.,]/g, ''); if (x.includes(',')) x = x.replace(/\./g, '').replace(',', '.'); return Number(x) || 0; };
+      const gonder = satirlar.map(x => ({ zaman: z(x['İşlem Tarihi']), tutar: tl(x['İşlem Tutarı (TL)']), terminal: x.terminal, sube: x.sube,
+        gunsonu: z(x['Terminal Günsonu Tarihi']), kart: x['Kart No'] || '' }));
+      log('tablo: ' + JSON.stringify(await kopru({ tur: 'edenred', satirlar: gonder })));
+    }
   } catch (e) {
     log('HATA: ' + e.message);
     process.exitCode = 1;
