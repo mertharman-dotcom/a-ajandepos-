@@ -378,9 +378,16 @@ function _kopruGunYaz(gun, paket) {
   props.setProperty('KOPRU_SON', new Date().toISOString());
   _kopruZorlaSil(tr);   // 1.2: yeniden cekim istenmisse islendi
 
+  // Siparis eklendi/degistiyse acik hesaplari hemen tazele: 'bitir' adimina gelmeden duran
+  // ya da hic 'bitir' demeyen calismalarda Acik Hesaplar sekmesi geride kaliyordu (04.10).
+  var acikHata = '';
+  if (yeniSip.length || guncelSip) {
+    try { acikHesaplar(); } catch (errA) { acikHata = String(errA && errA.message || errA); }
+  }
+
   return { ok: true, gun: tr, atlanan: atlanan,
            mesaiYeni: yeniM.length, mesaiGuncel: guncelM,
-           sipYeni: yeniSip.length, sipGuncel: guncelSip };
+           sipYeni: yeniSip.length, sipGuncel: guncelSip, acikHata: acikHata };
 }
 
 /** _siparisOzeti ile ayni mantik, ama tablodan degil elimizdeki satirlardan. */
