@@ -15,6 +15,7 @@ kimlikle gider.
 | Fiyat güncelleme | `product/...` (gönderim + batch kontrol) | `Trendyol Fiyat Güncelleme.gs` | Fiyat sekmesi + log | Elle |
 | Günlük puan raporu + yarın tahmini | (yorum + puan verisi, SATIS) | `Trendyol Gunluk Rapor.gs › gunlukPuanRaporu` | Puan_Siparis, Puan_Tahmin | Her gece ~23:50 |
 | İadeler (yalnız okur, bildirir) | `GET claim/meal/suppliers/{supplierId}/claims` | `Trendyol Gunluk Rapor.gs › iadeleriCek` | Iadeler | 10 dk'da bir |
+| İade özeti (ay × sorumlu, mutfak zararı, kurye bazında) | — | `Trendyol Gunluk Rapor.gs › iadeOzetiYenile` | Iade_Ozet | gunlukPuanRaporu ile her gece |
 | İadeyi kuryeden düş | — (Kurye › Kesintiler'e yazar) | `Trendyol Gunluk Rapor.gs › iadeKesintileriIsle` | Iadeler (Kuryeden Düş / Düşülecek TL / Kesinti Durumu) | iadeleriCek ile 10 dk'da bir |
 | Sabah özeti (e-posta + Make) | — | `Trendyol Gunluk Rapor.gs › sabahOzeti` | — | Her sabah ~10:45 |
 
@@ -32,6 +33,21 @@ kimlikle gider.
 
 **Kurulum (TY-1, TY-2, TY-3, TY-6'nın okuma kısmı):** yayından sonra Apps Script'te bir kez
 `raporTetikleyiciKur()` çalıştırılır. Trendyol'a hiçbir şey yazılmaz.
+
+## TY-5 Yorum cevapları — tasarım (sahiple konuşuldu, 05.10)
+
+1. **Toplama:** `yorumlariCek` zaten çekiyor. Yorum metni olan ve restoran cevabı olmayan
+   (`hasComment=true`, `hasRestaurantAnswer=false`) yorumlar `Yorum_Cevap` sekmesine düşer.
+2. **Taslak:** yapay zekâ (Claude API) her yoruma taslak yazar. Girdi: yorum, puanlar (lezzet/servis/teslimat),
+   ürünler, Adisyo'dan kurye ve teslim süresi, müşterinin önceki puanları. Kurallar: Türkçe, kısa, ürün adını
+   anar; düşük puanda özür + ne yapıldığı; Trendyol ret nedenlerinden kaçınır (müşteriyi suçlama, tartışma,
+   başka platform/indirim/telefon yazma, kişisel bilgi). Para/telafi sözü yalnızca sahip isterse.
+3. **Onay:** sahip sekmede (telefondan Google E-Tablolar) taslağı okur, gerekirse düzeltir, "Onay" kutusunu
+   işaretler. Sabah özetinde "X yorum cevap bekliyor" yazar.
+4. **Gönderim:** 10 dk'da bir onaylılar `POST .../reviews/{reviewId}/answer` ile **bir kez** gönderilir
+   (otomatik tekrar yok, kural 6); Durum = GÖNDERİLDİ. Sonra Trendyol'un onay/ret sonucu (`restaurantAnswer.status`,
+   `rejectedReason`) okunup yazılır; reddedilen taslaklar kurallara eklenir.
+5. **Sonra (güven oluşunca):** 5★ ve kısa övgü yorumları için otomatik onay seçeneği.
 
 ## Servis notları (sahibin yapıştırdığı belgelerden, 03.10)
 
