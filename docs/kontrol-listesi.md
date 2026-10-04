@@ -134,5 +134,5 @@ Tablolarda yapılan her değişikliğin eski ve yeni değeri **STOK › Fiyat_Du
 | C2 | Aynı arka uca yazan 4 mutfak paneli kopyası (bap-sistem, bappizza, damp-limit-5aba, black-credit-7dca) | ☑ 02.10 kopyalar silindi, tek adres bap-sistem.pages.dev |
 | C3 | 2 boş Worker (billowing-credit-87e3, empty-firefly-7396) | ☑ 02.10 silindi |
 | Y5 | Mutfak panelinin arka ucu `bap-panel-backend` (BAP PANEL Backend); `bap-satis-veri-ambari` yalnızca sipariş satırı bölme | ☑ tespit |
-| Y7 | Apps Script yayını elle başlatılınca yalnız son commit'teki projeleri yayınlıyordu (`github.event.before` elle başlatmada boş) → araya giren birleştirmeler atlanıyordu (03.10: veri kapısı M7 düzeltmesi listeye girmedi) | ◐ taban artık son başarılı yayın; `main`'e birleştirilmeyi bekliyor |
+| Y7 | Apps Script yayını **elle** başlatılınca (`workflow_dispatch`) yalnız son commit'teki projeleri yayınlıyor (`github.event.before` boş gelir); iki yayın arasındaki önceki birleştirmeler atlanabilir. Otomatik yayında (push) sorun yok — M7 düzeltmesi 03.10 01:26 otomatik yayınla canlıya geçti | ◐ elle başlatmada taban = son başarılı yayın; `main`'e birleştirilmeyi bekliyor |
 | Y4 | Ortak katman: `Ayarlar.gs` + `Ortak.gs` | ☐ |
