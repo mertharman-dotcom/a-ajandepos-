@@ -108,10 +108,14 @@ Tablolarda yapılan her değişikliğin eski ve yeni değeri **STOK › Fiyat_Du
 | | Sorun / iş | Durum |
 |---|---|---|
 | R1 | Trendyol API kimlik bilgileri (token) üç `.gs` dosyasında açık yazılı ve depoda. Script Properties'e taşınmalı; depo herkese açıksa Trendyol panelinden yenilenmeli | ☐ |
-| R2 | Uber Eats geçişinde yorum/puan servisleri 403 döner; kod sessizce devam ediyor. 403 gelince Make bildirimi gönderilmeli | ◐ kod yazıldı (`tyErisimHatasi_`), yayın bekliyor |
+| R2 | Uber Eats geçişinde yorum/puan servisleri 403 döner; kod sessizce devam ediyor. 403 gelince Make bildirimi gönderilmeli | ☑ 03.10 yayınlandı |
 | R3 | Degerlendirmeler sekmesinde "Eşleşti = HAYIR" satırları çok (örnek: Ocak 2026). Adisyo eşleşmesi yalnızca son 20.000 satıra bakıyor (`GERI_SATIR`); eski kayıtlar için normal olabilir ⚠️ bakılacak | ☐ |
-| R4 | Trendyol yol haritası TY-1 … TY-7 (puan, tahmin, menü, cevap, iade, teslimat süresi) — `docs/trendyol-api.md` | ◐ 1. aşama kodu yazıldı (yayın + `raporTetikleyiciKur()` bekliyor) |
-| R5 | Yeni iadede bildirim — Trendyol 4 saat içinde karar istiyor; şu an iade takibi yoktu | ◐ `iadeleriCek` 10 dk'da bir, yayın bekliyor |
+| R4 | Trendyol yol haritası TY-1 … TY-7 (puan, tahmin, menü, cevap, iade, teslimat süresi) — `docs/trendyol-api.md` | ◐ 1. aşama 03.10 yayınlandı; sahip `raporTetikleyiciKur()` çalıştıracak |
+| R5 | Yeni iadede bildirim — Trendyol 4 saat içinde karar istiyor; şu an iade takibi yoktu | ◐ 03.10 yayınlandı; tetikleyici kurulunca 10 dk'da bir |
+| R6 | İade onaylanınca kuryeden düşüş elle yapılıyordu → Iadeler'e "Kuryeden Düş" kutusu; Kurye › Kesintiler'e yazar. Şu an KURU (sadece rapor); sahip onaylayınca `KESINTI_KURU = false` | ◐ |
+| R7 | İade sorumluluğu: Iadeler'e "Sorumlu" (Kurye / Mutfak / Müşteri-Platform / Belirsiz, sebepten önerilir); `Iade_Ozet`'te aylık mutfak zararı ve kurye bazında iade | ◐ |
+| R8 | Yorum cevapları: Yorum_Cevap sekmesi, Claude taslağı, sahip onayı, Trendyol'a tek gönderim; telafi sözü Telafi_Listesi'ne (telefonsuz, adres Not'ta) | ◐ |
+| R9 | Telafi_Listesi otomatik eşleşmesi telefonla çalışıyor; Trendyol müşterisi (maskeli telefon) adresle tanınmalı — Adisyo toplayıcıda `telafiKontrol_`'e adres anahtarı eklenecek | ☐ |
 
 ## P · Paneller
 
