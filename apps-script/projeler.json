@@ -78,6 +78,12 @@
       "ad": "BAP Genel Bilgiler (Menü dosyasının scripti)",
       "scriptId": "1c9_oyU55IFnyKNDjm1IMGRt0914UD71bsVEzcFHxXyNXAhwT_Lx7pcCT",
       "deploymentId": ""
+    },
+    {
+      "klasor": "bap-yemek-karti",
+      "ad": "BAP Yemek Kartı (BAP Yemek Kartı Tahsilatları tablosuna bağlı) — Pluxee, Edenred, Paye, SetCard; MacBook programları ve iPhone kestirmeleri bu web dağıtımına bağlanır",
+      "scriptId": "1HAktsS8WeUbwy2hYDVhohIjP2UwR1elRl2d3-x210lkyouOIrsLQqVaq",
+      "deploymentId": ""
     }
   ]
 }
