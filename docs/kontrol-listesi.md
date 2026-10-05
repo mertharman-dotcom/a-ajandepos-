@@ -139,6 +139,7 @@ Tablolarda yapılan her değişikliğin eski ve yeni değeri **STOK › Fiyat_Du
 | P2 | Kayıt (POST) istekleri otomatik tekrar deneniyordu → çift kayıt | ☑ (H3) |
 | P3 | Yönetici şifresi istemci kodunda; personel şifresi URL'de gidiyor (düzeltme `bap-panel-backend`'de) | ☐ |
 | P4 | Sayım ekranında birim seçimi yok (Hazırlık ajanı gram/adet tahmin ediyor) | ☐ |
+| P5 | Yönetim paneli "Apps Script adresi bulunamadı": Cloudflare'deki GAS_URL eski dağıtımı gösteriyordu; canlı Veri Kapısı dağıtımı `AKfycbz9eMemg…`. GAS_URL artık yayında `projeler.json`'dan yazılıyor | ☑ 05.10 |
 
 ## Y · Yapı
 
