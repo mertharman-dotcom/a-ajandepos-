@@ -4,7 +4,7 @@
  * Pluxee / Edenred / Paye çekimleri kurye tablosundan ayrıldı; tek sahibi "BAP Yemek Kartı Tahsilatları".
  *   Pluxee  : MacBook pluxee.mjs  → Kopru (tur 'pluxee')  → pluxeeYaz          (Pluxee.gs)
  *   Edenred : MacBook edenred.mjs → Kopru (tur 'edenred') → _kopruEdenredYaz   (Kopru.gs)
- *   Paye    : payekart.com.tr "Gün Sonu Raporu" maili (Excel eki) → payeMailCek (bu dosya)
+ *   Paye    : payekart.com.tr "Gün Sonu Raporu" maili (Excel eki, 2 sayfa) → payeMailCek (bu dosya) → 'Paye' + 'Paye İşlemler'
  *
  * Bir kez çalıştırılacaklar:
  *   yemekKartiTasiKuru()   – eski Pluxee/Edenred sekmelerinden kaç satır taşınacağını yazar, hiçbir şey değiştirmez
@@ -13,7 +13,8 @@
  */
 
 var YK_SS_ID = '19RVXZQwKZRCW6xnZxSwhRHXte4VWhaVqruaTZRwVJbM';   // BAP Yemek Kartı Tahsilatları
-var PAYE_SEKME = 'Paye';
+var PAYE_SEKME = 'Paye';               // gün sonu (cihaz başına toplam)
+var PAYE_ISLEM_SEKME = 'Paye İşlemler'; // işlem işlem tutarlar — kart ajanı bunu okur
 var PAYE_SORGU = 'payekart "Gün Sonu Raporu" has:attachment newer_than:60d';
 var PAYE_SABIT = ['Rapor Günü', 'Mail ID', 'Dosya', 'Satır'];
 
@@ -62,48 +63,66 @@ function payeTetikleyiciKur() {
   payeMailCek();
 }
 
-/** Gün sonu raporu maillerinin Excel ekini Paye sekmesine yazar. Her mail bir kez işlenir (Mail ID). */
+/**
+ * Gün sonu raporu maillerinin Excel ekini okur. Excel'de iki sayfa var:
+ *   "İşlemler" (işlem işlem tutarlar) → 'Paye İşlemler'   — yemek kartı ajanı bunu okur
+ *   gün sonu (cihaz başına toplam)    → 'Paye'
+ * Her sekme kendi Mail ID listesini tutar: bir mail o sekmeye bir kez yazılır, eski mailler yeni sekmeye de gelir.
+ */
 function payeMailCek() {
-  var ss = ykTablo_(), sh = ss.getSheetByName(PAYE_SEKME);
-  if (!sh) { sh = ss.insertSheet(PAYE_SEKME); sh.getRange(1, 1, 1, PAYE_SABIT.length).setValues([PAYE_SABIT]).setFontWeight('bold'); sh.setFrozenRows(1); }
-  var bas = sh.getRange(1, 1, 1, sh.getLastColumn()).getValues()[0].map(function (x) { return String(x).trim(); });
-  var islenen = {};
-  if (sh.getLastRow() > 1) sh.getRange(2, 2, sh.getLastRow() - 1, 1).getValues().forEach(function (r) { islenen[r[0]] = 1; });
+  var ss = ykTablo_(), hedef = {};
+  function sekme(ad) {
+    if (hedef[ad]) return hedef[ad];
+    var sh = ss.getSheetByName(ad);
+    if (!sh) { sh = ss.insertSheet(ad); sh.getRange(1, 1, 1, PAYE_SABIT.length).setValues([PAYE_SABIT]).setFontWeight('bold'); sh.setFrozenRows(1); }
+    var h = { sh: sh, bas: sh.getRange(1, 1, 1, sh.getLastColumn()).getValues()[0].map(function (x) { return String(x).trim(); }), islenen: {}, yazildi: 0 };
+    if (sh.getLastRow() > 1) sh.getRange(2, 2, sh.getLastRow() - 1, 1).getValues().forEach(function (r) { h.islenen[r[0]] = 1; });
+    return (hedef[ad] = h);
+  }
+  var gs = sekme(PAYE_SEKME), is = sekme(PAYE_ISLEM_SEKME);
 
   var eklenen = 0, mail = 0, hata = [];
   GmailApp.search(PAYE_SORGU, 0, 60).forEach(function (th) {
     th.getMessages().forEach(function (m) {
-      var id = m.getId(); if (islenen[id]) return;
+      var id = m.getId(); if (gs.islenen[id] && is.islenen[id]) return;
       var gun = (m.getSubject().match(/\((\d{2})\.(\d{2})\.(\d{4})\)/) || []);
       var rgun = gun.length ? new Date(+gun[3], +gun[2] - 1, +gun[1]) : '';
       m.getAttachments().forEach(function (a) {
         if (!/\.xlsx$/i.test(a.getName())) return;
         try {
-          var tablo = xlsxOku_(a.copyBlob());
-          if (!tablo.length) return;
-          var hb = baslikSatiri_(tablo), b = tablo[hb].map(function (x) { return String(x == null ? '' : x).trim(); });
-          // yeni başlıkları sona ekle (sütunlar adla eşlenir)
-          var yeniB = b.filter(function (x) { return x && bas.indexOf(x) < 0; });
-          if (yeniB.length) { sh.getRange(1, bas.length + 1, 1, yeniB.length).setValues([yeniB]).setFontWeight('bold'); bas = bas.concat(yeniB); }
-          var satirlar = [];
-          for (var i = hb + 1; i < tablo.length; i++) {
-            var r = tablo[i]; if (!r.some(function (x) { return x !== '' && x != null; })) continue;
-            var s = new Array(bas.length).fill('');
-            s[0] = rgun; s[1] = id; s[2] = a.getName(); s[3] = i + 1;
-            b.forEach(function (h, k) { if (h) s[bas.indexOf(h)] = excelDeger_(h, r[k]); });
-            satirlar.push(s);
-          }
-          if (satirlar.length) { sh.getRange(sh.getLastRow() + 1, 1, satirlar.length, bas.length).setValues(satirlar); eklenen += satirlar.length; }
-          else sh.appendRow([rgun, id, a.getName(), 'boş rapor']);
+          xlsxSayfalar_(a.copyBlob()).forEach(function (sy, k) {
+            var h = /şlem|islem/i.test(sy.ad) ? is : (k === 0 ? gs : null);
+            if (!h || h.islenen[id] || !sy.tablo.length) return;
+            eklenen += payeSatirYaz_(h, sy.tablo, rgun, id, a.getName());
+          });
           mail++;
         } catch (e) { hata.push(a.getName() + ': ' + e); }
       });
-      islenen[id] = 1;
+      gs.islenen[id] = is.islenen[id] = 1;
     });
   });
-  if (mail) sh.getRange(2, 1, sh.getLastRow() - 1, 1).setNumberFormat('dd.MM.yyyy');
+  Object.keys(hedef).forEach(function (ad) { var h = hedef[ad]; if (h.yazildi && h.sh.getLastRow() > 1) h.sh.getRange(2, 1, h.sh.getLastRow() - 1, 1).setNumberFormat('dd.MM.yyyy'); });
   Logger.log('Paye: ' + mail + ' rapor, ' + eklenen + ' satır' + (hata.length ? ' | HATA: ' + hata.join('; ') : ''));
   return { mail: mail, satir: eklenen, hata: hata };
+}
+
+/* bir Excel sayfasını hedef sekmeye ekler (sütunlar başlık adıyla eşlenir; yeni başlık sona eklenir) */
+function payeSatirYaz_(h, tablo, rgun, id, dosya) {
+  var hb = baslikSatiri_(tablo), b = tablo[hb].map(function (x) { return String(x == null ? '' : x).trim(); });
+  var yeniB = b.filter(function (x, i) { return x && h.bas.indexOf(x) < 0 && b.indexOf(x) === i; });
+  if (yeniB.length) { h.sh.getRange(1, h.bas.length + 1, 1, yeniB.length).setValues([yeniB]).setFontWeight('bold'); h.bas = h.bas.concat(yeniB); }
+  var satirlar = [];
+  for (var i = hb + 1; i < tablo.length; i++) {
+    var r = tablo[i]; if (!r.some(function (x) { return x !== '' && x != null; })) continue;
+    var s = new Array(h.bas.length).fill('');
+    s[0] = rgun; s[1] = id; s[2] = dosya; s[3] = i + 1;
+    b.forEach(function (x, k) { if (x) s[h.bas.indexOf(x)] = excelDeger_(x, r[k]); });
+    satirlar.push(s);
+  }
+  if (satirlar.length) h.sh.getRange(h.sh.getLastRow() + 1, 1, satirlar.length, h.bas.length).setValues(satirlar);
+  else h.sh.appendRow([rgun, id, dosya, 'boş rapor']);
+  h.yazildi++;
+  return satirlar.length;
 }
 
 /* başlık satırı: ilk 15 satırda, en az 3 dolu ve hepsi metin olan ilk satır (yoksa 0) */
@@ -125,15 +144,27 @@ function excelDeger_(baslik, v) {
 }
 
 /* ======================= 3) KÜÇÜK XLSX OKUYUCU ======================= */
-// Gelişmiş Drive servisi gerektirmeden .xlsx'in ilk sayfasını okur: [[hücre, …], …]
+// Gelişmiş Drive servisi gerektirmeden .xlsx'in sayfalarını okur: [{ad, tablo: [[hücre, …], …]}, …] (Excel'deki sırayla)
 
-function xlsxOku_(blob) {
+function xlsxSayfalar_(blob) {
   var dosyalar = {};
   Utilities.unzip(blob.setContentType('application/zip')).forEach(function (f) { dosyalar[f.getName()] = f.getDataAsString('UTF-8'); });
-  var sayfa = dosyalar['xl/worksheets/sheet1.xml'];
-  if (!sayfa) { var ad = Object.keys(dosyalar).filter(function (k) { return /^xl\/worksheets\/sheet\d+\.xml$/.test(k); }).sort()[0]; sayfa = ad ? dosyalar[ad] : ''; }
-  if (!sayfa) throw new Error('Excel içinde sayfa bulunamadı');
-  return xlsxSayfa_(sayfa, xlsxOrtakMetin_(dosyalar['xl/sharedStrings.xml'] || ''));
+  var ortak = xlsxOrtakMetin_(dosyalar['xl/sharedStrings.xml'] || ''), hedef = {}, m, out = [];
+  var rels = dosyalar['xl/_rels/workbook.xml.rels'] || '', rr = /<Relationship\b([^>]*)\/?>/g;
+  while ((m = rr.exec(rels))) {
+    var rid = (m[1].match(/\bId="([^"]+)"/) || [])[1], tg = (m[1].match(/\bTarget="([^"]+)"/) || [])[1];
+    if (rid && tg) hedef[rid] = tg.charAt(0) === '/' ? tg.slice(1) : 'xl/' + tg;
+  }
+  var wb = dosyalar['xl/workbook.xml'] || '', rs = /<sheet\b([^>]*)\/?>/g;
+  while ((m = rs.exec(wb))) {
+    var ad = xmlCoz_((m[1].match(/\bname="([^"]*)"/) || [])[1] || ''), id = (m[1].match(/\br:id="([^"]+)"/) || [])[1];
+    if (id && dosyalar[hedef[id]]) out.push({ ad: ad, tablo: xlsxSayfa_(dosyalar[hedef[id]], ortak) });
+  }
+  if (!out.length) Object.keys(dosyalar).filter(function (k) { return /^xl\/worksheets\/sheet\d+\.xml$/.test(k); })
+    .sort(function (x, y) { return +x.match(/\d+/)[0] - +y.match(/\d+/)[0]; })
+    .forEach(function (k) { out.push({ ad: k.replace(/^.*\//, '').replace('.xml', ''), tablo: xlsxSayfa_(dosyalar[k], ortak) }); });
+  if (!out.length) throw new Error('Excel içinde sayfa bulunamadı');
+  return out;
 }
 
 function xmlCoz_(s) {
