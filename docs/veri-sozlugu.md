@@ -48,12 +48,9 @@ Bütün e-tabloların listesi ve önerilen Drive düzeni: `docs/tablo-haritasi.m
 | Trendyol puanı × sipariş adedi (gün × mağaza), yarın tahmini | TRENDYOL › Puan_Siparis, Puan_Tahmin | `gunlukPuanRaporu` (23:50) | Sahip, panel | Puan_Siparis her gece baştan üretilir; sipariş adedi SATIS'tan okunur, kopya değil |
 | Trendyol yorum cevapları (taslak, onay, gönderim, Trendyol sonucu) | TRENDYOL › Yorum_Cevap | `yorumCevapCalistir` + sahip (onay) | Sahip | — |
 | Trendyol iadeleri | TRENDYOL › Iadeler | `iadeleriCek` (10 dk) | Sahip | — |
-| Yemek kartı terminal çekimleri (Pluxee, Edenred, Paye gün sonu) | YEMEKKARTI › Pluxee, Edenred, Paye | MacBook pluxee.mjs / edenred.mjs (Kopru), `payeMailCek` (Gmail, Paye Excel'i) | Panel açık hesap kontrolü, yemek kartı mutabakatı (planlı) | Kurye tablosundaki eski 'Pluxee' / 'Edenred' sekmeleri taşıma sonrası '(eski)' arşivi; yazılmaz |
+| Yemek kartı terminal çekimleri (Pluxee, Edenred, Paye gün sonu + Paye işlemleri) | YEMEKKARTI › Pluxee, Edenred, Paye (gün sonu), Paye İşlemler (işlem işlem) | MacBook pluxee.mjs / edenred.mjs (Kopru), `payeMailCek` (Gmail, Paye Excel'inin iki sayfası) | Yemek kartı ajanı (veri kapısı `pluxeeCekimleri_` / `edenredCekimleri_` / `payeCekimleri_` ← Paye İşlemler) | Kurye tablosundaki eski 'Pluxee' / 'Edenred' sekmeleri taşıma sonrası '(eski)' arşivi; kurye 'Paye' sekmesi (rapor ajanı kopyası) silinecek |
 | Kurye kesintileri (TL / dakika) | KURYE › Kesintiler (`1LG7naAbMM9aL3K0QNzzrjXomC2LXjx4rdSCYNYWzDQo`) | Elle + `iadeKesintileriIsle` (Iadeler'de "Kuryeden Düş" işaretli satırlar) | Kurye bordrosu (`kesintiOku`) | Iadeler'deki "Kesinti Durumu" yalnızca durum notu, kopya değil |
 | Reçete durumu | GENEL › Menü I sütunu | Maliyet Modülü | — | Stok motoru da yazıyor (S8) |
-| Pluxee kart çekimleri (işlem zamanı, tutar) | KURYE › Pluxee | MacBook'taki Pluxee çekimi | Yemek kartı ajanı (veri kapısı `pluxeeCekimleri_`) | — |
-| Paye kart çekimleri (Sofra gün sonu raporunun satırları + Rapor Günü + Mesaj ID) | KURYE › Paye | Rapor ajanı `payeGunSonuAktar` (Gmail'deki "Gün Sonu Raporu" eki; yalnız ekler) | Yemek kartı ajanı (veri kapısı `payeCekimleri_`) | — |
-| Edenred kart çekimleri (işlem zamanı, tutar, terminal, şube, gün sonu, kart son 4) | KURYE › Edenred | MacBook `edenred.mjs` → kurye köprüsü `tur:'edenred'` (yalnız ekler) | Yemek kartı ajanı (veri kapısı `edenredCekimleri_`) | — |
 | Kapatılan açık hesaplar | KURYE › Tahsilatlar | Panel (elle) + yemek kartı ajanı (kaynak 'Pluxee Ajanı' / 'Paye Ajanı') | Panel, bordro | — |
 | Pluxee haftalık fatura (onay, kesim sonucu, tutarlar) | KURYE › Pluxee Fatura | Panel (onay) + MacBook Pluxee programı (kesim sonucu) | Panel › Finans | — |
 
