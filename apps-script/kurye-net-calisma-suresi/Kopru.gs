@@ -872,7 +872,7 @@ function _kopruKod(g) {
 var EDENRED_BASLIK = ['İşlem Zamanı', 'Tutar (TL)', 'Terminal No', 'Şube', 'Günsonu Zamanı', 'Kart No', 'Kayıt Zamanı'];
 // satirlar: [{ zaman: 'dd.MM.yyyy HH:mm:ss', tutar: sayı, terminal, sube, gunsonu, kart }]
 function _kopruEdenredYaz(satirlar) {
-  var ss = SpreadsheetApp.openById(SS_ID), sh = ss.getSheetByName('Edenred');
+  var ss = ykTablo_(), sh = ss.getSheetByName('Edenred');   // 05.10.2026: yemek kartı tablosu (Yemek Karti.gs)
   if (!sh) { sh = ss.insertSheet('Edenred'); sh.appendRow(EDENRED_BASLIK); sh.setFrozenRows(1); sh.getRange(1, 1, 1, EDENRED_BASLIK.length).setFontWeight('bold'); }
   var anahtar = function (z, t, ter, k) { return [String(z).slice(0, 19), Number(t).toFixed(2), String(ter), String(k)].join('|'); };
   var var_ = {};

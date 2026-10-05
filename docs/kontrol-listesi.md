@@ -108,10 +108,28 @@ Tablolarda yapılan her değişikliğin eski ve yeni değeri **STOK › Fiyat_Du
 | | Sorun / iş | Durum |
 |---|---|---|
 | R1 | Trendyol API kimlik bilgileri (token) üç `.gs` dosyasında açık yazılı ve depoda. Script Properties'e taşınmalı; depo herkese açıksa Trendyol panelinden yenilenmeli | ☐ |
-| R2 | Uber Eats geçişinde yorum/puan servisleri 403 döner; kod sessizce devam ediyor. 403 gelince Make bildirimi gönderilmeli | ◐ kod yazıldı (`tyErisimHatasi_`), yayın bekliyor |
+| R2 | Uber Eats geçişinde yorum/puan servisleri 403 döner; kod sessizce devam ediyor. 403 gelince Make bildirimi gönderilmeli | ☑ 03.10 yayınlandı |
 | R3 | Degerlendirmeler sekmesinde "Eşleşti = HAYIR" satırları çok (örnek: Ocak 2026). Adisyo eşleşmesi yalnızca son 20.000 satıra bakıyor (`GERI_SATIR`); eski kayıtlar için normal olabilir ⚠️ bakılacak | ☐ |
-| R4 | Trendyol yol haritası TY-1 … TY-7 (puan, tahmin, menü, cevap, iade, teslimat süresi) — `docs/trendyol-api.md` | ◐ 1. aşama kodu yazıldı (yayın + `raporTetikleyiciKur()` bekliyor) |
-| R5 | Yeni iadede bildirim — Trendyol 4 saat içinde karar istiyor; şu an iade takibi yoktu | ◐ `iadeleriCek` 10 dk'da bir, yayın bekliyor |
+| R4 | Trendyol yol haritası TY-1 … TY-7 (puan, tahmin, menü, cevap, iade, teslimat süresi) — `docs/trendyol-api.md` | ◐ 1. aşama 03.10 yayınlandı; sahip `raporTetikleyiciKur()` çalıştıracak |
+| R5 | Yeni iadede bildirim — Trendyol 4 saat içinde karar istiyor; şu an iade takibi yoktu | ◐ 03.10 yayınlandı; tetikleyici kurulunca 10 dk'da bir |
+| R6 | İade onaylanınca kuryeden düşüş elle yapılıyordu → Iadeler'e "Kuryeden Düş" kutusu; Kurye › Kesintiler'e yazar. 05.10 sahip gerçek moda aldı (`KESINTI_KURU = false`) | ☑ |
+| R7 | İade sorumluluğu: Iadeler'e "Sorumlu" (Kurye / Mutfak / Müşteri-Platform / Belirsiz, sebepten önerilir); `Iade_Ozet`'te aylık mutfak zararı ve kurye bazında iade | ◐ |
+| R8 | Yorum cevapları: Yorum_Cevap sekmesi, Claude taslağı, sahip onayı, Trendyol'a tek gönderim; telafi sözü Telafi_Listesi'ne (telefonsuz, adres Not'ta) | ◐ |
+| R9 | Telafi_Listesi otomatik eşleşmesi telefonla çalışıyor; Trendyol müşterisi (maskeli telefon) adresle tanınmalı — Adisyo toplayıcıda `telafiKontrol_`'e adres anahtarı eklenecek | ☐ |
+| R10 | Panel › Müşteri İlişkileri: Trendyol puanı + sipariş (30 gün, mağaza başına), yarın tahmini, iadeler (bekleyen, bu ayın mutfak/kurye zararı), yorum cevapları (onay bekleyen, son gönderilen). Veri kapısı `musteri_()` Trendyol Yorumlar tablosunu okur | ◐ 05.10 yayına alındı |
+| R11 | Panelden yorum cevabı onayı: Müşteri İlişkileri › Yorum cevapları'nda metni düzelt + telafi kutusu + 'Onayla ve gönder' → `/api/yorum-onay` → veri kapısı `yorumOnay_` yalnız Yorum_Cevap'a Onay yazar; Trendyol'a gönderimi Trendyol projesi bir kez yapar | ◐ 05.10 yayına alındı |
+| R12 | Panelden iade aksiyonu: bekleyende Kabul / Reddet (neden + açıklama) + sorumlu + kuryeden düş; kabul edilmişte sorumlu + kuryeden düş. Veri kapısı `iadeIslem_` Iadeler'e istek yazar (İşlem / Sorumlu / Kuryeden Düş); Trendyol projesi `iadeIslemleriYap_` 10 dk'da bir PUT accept/unresolve'u bir kez gönderir | ◐ 05.10 yayına alındı |
+| R13 | Puan grafiğinde 1★ değerlendirme gelen günler kırmızı nokta (Degerlendirmeler, ortalama < 2) | ☑ 05.10 |
+
+## YK · Yemek kartı tahsilatları
+
+| | İş | Durum |
+|---|---|---|
+| YK1 | Pluxee / Edenred çekimleri kurye tablosundan ayrı tabloya ("BAP Yemek Kartı Tahsilatları"); Kopru yeni tabloya yazar | ☑ 05.10 — 319 Pluxee satırı taşındı; eski sekme 'Pluxee (eski)'. Edenred'in eski kaydı yoktu |
+| YK2 | Paye gün sonu raporu (payekart maili, Excel eki) otomatik okunur → Paye sekmesi | ☑ 05.10 — 10 rapor / 21 satır; her gün 02:30 + 09:30 |
+| YK3 | Panel › Finans › Yemek kartı mutabakatı: Adisyo'daki POS yemek kartı satışı ↔ terminal gün sonu, iş günü × kart (14 gün) | ◐ 05.10 yayına alındı; şube kırılımı yok (Pluxee 2 terminal, Paye cihaz = kurye telefonu olabilir) |
+| YK4 | Taşınan Pluxee zamanları tarih olarak saklanıyor; sütun 'dd.MM.yyyy HH:mm' biçimine alındı, açık hesap kontrolü tarih değerini de okur | ◐ sahip `pluxeeSekmeKur` çalıştıracak |
+| YK5 | Paye 'Cihaz Sicil Numarası' telefon numarasına benziyor → kurye eşlemesi yapılırsa Paye farkı kurye bazında görülebilir | ☐ |
 
 ## P · Paneller
 
@@ -129,6 +147,7 @@ Tablolarda yapılan her değişikliğin eski ve yeni değeri **STOK › Fiyat_Du
 | P10 | MacBook `pluxee.mjs`: kod istemeden önce eski kodu silmiyordu → 04.10 12:00 "kod reddedildi" | ◐ düzeltme komutu sahibe verildi (yedek: `pluxee.mjs.kodsil-oncesi`) |
 | P11 | Pluxee kod/kayıt işleri kurye projesinin içindeymiş (`Pluxee.gs`, `PluxeeKodSayfa.gs`, `Kopru.gs` pluxee türleri, doGet `?sayfa=pluxee`); sabahki canlı çekim dalı `kod-cekimi/20261004-1034` birleştirilmemişti | ☑ 04.10 #8 ile depoya alındı. **Olay:** #6/#7 yayını bu dosyaları sildi, Pluxee 16:34–17:16 arası çalışmadı. Kural: yayından önce açık `kod-cekimi/*` dalı var mı bakılır, varsa önce o birleştirilir |
 | P12 | Kurye veri akışı duruşları (22.09, 25–27.09, 04.10): **sebep Mac uykusu** — 04.10 `pmset -g log`: 18:52'de 'Maintenance Sleep', 23:14'e kadar yalnız DarkWake; `sleep 0` ayarı yetmiyor. Uykudan önce yarım kalan topla.mjs süreci toparlanamadı | ◐ çözüm verildi: `com.bap.uyanik` (caffeinate -s -i, KeepAlive) + `pmset -c sleep 0 disksleep 0 standby 0 autopoweroff 0 powernap 0`; Mac fişte ve kapak açık kalmalı. Ek: topla.mjs depoya alınıp uykudan dönüşte temiz başlama + nöbetçi e-postasında 'Mac uyuyor olabilir' ayrımı |
+| P13 | Yönetim paneli "Apps Script adresi bulunamadı": Cloudflare'deki GAS_URL eski dağıtımı gösteriyordu; canlı Veri Kapısı dağıtımı `AKfycbz9eMemg…`. GAS_URL artık yayında `projeler.json`'dan yazılıyor | ☑ 05.10 |
 
 ## Y · Yapı
 

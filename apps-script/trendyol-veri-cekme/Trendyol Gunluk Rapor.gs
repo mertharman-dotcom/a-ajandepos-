@@ -23,22 +23,39 @@ const TYR = {
   PUAN_SIPARIS: 'Puan_Siparis',
   TAHMIN: 'Puan_Tahmin',
   IADE: 'Iadeler',
+  IADE_OZET: 'Iade_Ozet',
+  IADE_OZET_AY: 6,         // Iade_Ozet kaç ayı gösterir
   RAPOR_GUN: 120,          // Puan_Siparis kaç günü gösterir
   SATIS_SATIR: 40000,      // ana tablonun son kaç satırı okunur
   IADE_GUN: 14,            // iade çekme penceresi
   IADE_SURE_SAAT: 4,       // Trendyol'un iade için tanıdığı karar süresi
   GEC_ESIK_DK: 45,         // "geç teslim" iadesinde bu süreyi aşmayan teslim gecikmesiz sayılır
+  KURYE_TABLO: '1LG7naAbMM9aL3K0QNzzrjXomC2LXjx4rdSCYNYWzDQo',   // Kurye Net Çalışma Süresi
+  KURYE_KESINTI: 'Kesintiler',     // bordronun okuduğu kesinti sekmesi (sahibi orası)
+  KESINTI_KURU: false,     // true: Kesintiler'e YAZMAZ, sadece rapor. Sahip 05.10'da gerçek moda aldı
+  KESINTI_BENZER_GUN: 3,   // aynı kurye + aynı tutar bu kadar gün içinde varsa yazmaz, sorar
   SATIS_BASLIK: {          // ana tabloda başlık adları (sütun numarasıyla okunmaz)
     TARIH: 'Sipariş Tarihi', CIKIS: 'Hazırlanma (Şube Çıkış)', TESLIM: 'Teslim Zamanı',
     KANAL: 'Sipariş Kanalı', MARKA: 'Marka', TEL: 'Müşteri Telefon', MAHALLE: 'Mahalle',
-    TUTAR: 'Toplam Tutar', KURYE: 'Kurye', DURUM: 'Durum', ID: 'Sipariş ID', URUN: 'Ürünler'
+    TUTAR: 'Toplam Tutar', KURYE: 'Kurye', DURUM: 'Durum', ID: 'Sipariş ID', URUN: 'Ürünler',
+    MUSTERI: 'Müşteri Adı', ADRES: 'Müşteri Adres'
   }
 };
 
 const TYR_IADE_BASLIK = ['Claim Item ID', 'Claim ID', 'Oluşma', 'Son Karar Saati', 'Mağaza',
   'Sipariş No', 'Durum', 'Sebep', 'Müşteri Notu', 'Tutar', 'İade Şekli', 'Tür', 'Fotoğraf',
   'Adisyo Sipariş ID', 'Ürünler', 'Kurye', 'Mahalle', 'Sipariş→Teslim (dk)', 'Ön Değerlendirme',
-  'Kapanış Nedeni', 'Kapanış Tarihi', 'Bildirildi'];
+  'Kapanış Nedeni', 'Kapanış Tarihi', 'Bildirildi', 'Kuryeden Düş', 'Düşülecek TL', 'Kesinti Durumu',
+  'Sorumlu', 'İşlem', 'İşlem Durumu'];
+
+/* iade sebebine göre varsayılan sorumlu; Iadeler'de Sorumlu sütunundan elle değiştirilebilir */
+const TYR_SORUMLULAR = ['Kurye', 'Mutfak', 'Müşteri/Platform', 'Belirsiz'];
+const TYR_SORUMLU = {
+  4005: 'Kurye', 4004: 'Kurye', 4013: 'Kurye', 4006: 'Kurye', 4016: 'Kurye', 4003: 'Kurye', 4020: 'Kurye',
+  4002: 'Mutfak', 4007: 'Mutfak', 4008: 'Mutfak', 4014: 'Mutfak', 4021: 'Mutfak', 4022: 'Mutfak',
+  4000: 'Mutfak', 4001: 'Mutfak',
+  4009: 'Müşteri/Platform', 4011: 'Müşteri/Platform', 4012: 'Müşteri/Platform', 4015: 'Müşteri/Platform'
+};
 
 const TYR_SEBEP = {
   4000: 'SKT - Geçmiş Ürün', 4001: 'SKT - Yaklaşmış Ürün', 4002: 'Düşük Kaliteli Ürün',
@@ -123,6 +140,7 @@ function gunlukPuanRaporu() {
   sh.setFrozenRows(1);
 
   tyrTahminKaydet_(kova, bugun);
+  try { iadeOzetiYenile(); } catch (e) { Logger.log('İade özeti hatası: ' + e); }
   Logger.log(TYR.PUAN_SIPARIS + ': ' + satirlar.length + ' satır');
 }
 
@@ -258,7 +276,7 @@ function tyrSatisOku_() {
       const teslim = tyrTarih_(r[i.TESLIM]);
       siparis[tel.slice(k + 1).trim()] = {
         id: r[i.ID], marka: r[i.MARKA], kurye: r[i.KURYE], mahalle: r[i.MAHALLE],
-        tutar: r[i.TUTAR], urun: r[i.URUN],
+        tutar: r[i.TUTAR], urun: r[i.URUN], musteri: r[i.MUSTERI], adres: r[i.ADRES],
         dk: (t && teslim && teslim > t) ? Math.round((teslim - t) / 60000) : ''
       };
     }
@@ -280,6 +298,7 @@ function iadeleriCek() {
     sh.getRange('A:B').setNumberFormat('@');
     sh.getRange('F:F').setNumberFormat('@');
   }
+  tyrEksikBasliklariEkle_(sh, TYR_IADE_BASLIK);
   const b = tyrBasliklar_(sh);
   const iId = b('Claim Item ID'), iDurum = b('Durum'), iKN = b('Kapanış Nedeni'),
         iKT = b('Kapanış Tarihi');
@@ -294,6 +313,8 @@ function iadeleriCek() {
   TY.MAGAZALAR.forEach(m => magaza[m.store] = m.marka);
   const saticilar = {};
   TY.MAGAZALAR.forEach(m => saticilar[m.supplier] = m.token);
+
+  try { iadeIslemleriYap_(sh); } catch (e) { Logger.log('İade işlemi hatası: ' + e); }
 
   const bitis = Date.now(), baslangic = bitis - TYR.IADE_GUN * 86400000;
   let satis = null;
@@ -343,7 +364,8 @@ function iadeleriCek() {
             magaza[c.storeId] || String(c.storeId || ''), String(c.orderNumber || ''),
             it.status || '', sebep, it.note || '', it.price || '', c.sellerRefundType || '',
             c.type || '', foto, s.id || '', s.urun || '', s.kurye || '', s.mahalle || '', s.dk,
-            tyrIadeOneri_(sebepId, s, foto), kapanis, kapTarih, bekliyor ? new Date() : ''
+            tyrIadeOneri_(sebepId, s, foto), kapanis, kapTarih, bekliyor ? new Date() : '',
+            false, '', '', tyrSorumluBul_(sebepId, sebep), '', ''
           ];
           mevcut[it.id] = { satir: 0, durum: it.status || '' };
           yeni.push(kayit);
@@ -361,9 +383,278 @@ function iadeleriCek() {
     sh.getRange(2, iKT + 1, sh.getLastRow() - 1, 1).setNumberFormat('dd.MM.yyyy HH:mm');
     sh.getRange(2, 1, sh.getLastRow() - 1, TYR_IADE_BASLIK.length).sort({ column: 3, ascending: false });
   }
+  if (sh.getLastRow() > 1) {
+    const n = sh.getLastRow() - 1;
+    sh.getRange(2, b('Kuryeden Düş') + 1, n, 1).insertCheckboxes();
+    // eski satırlarda boş Sorumlu'yu sebepten doldur; açılır liste koy
+    const iS = b('Sorumlu'), iSeb = b('Sebep');
+    const rs = sh.getRange(2, 1, n, sh.getLastColumn()).getValues();
+    const sor = rs.map(r => [String(r[iS]).trim() || tyrSorumluBul_('', r[iSeb])]);
+    sh.getRange(2, iS + 1, n, 1).setValues(sor).setDataValidation(
+      SpreadsheetApp.newDataValidation().requireValueInList(TYR_SORUMLULAR, true).build());
+  }
   if (bildirilecek.length) tyrIadeBildir_(bildirilecek);
+  iadeKesintileriIsle();
   Logger.log('İade: ' + yeni.length + ' yeni kalem, ' + bildirilecek.length + ' bildirim');
   return yeni.length;
+}
+
+/* ============================================================
+ * 4b) İADEYİ KURYEDEN DÜŞ
+ * Iadeler sekmesinde "Kuryeden Düş" kutusu işaretli ve "Kesinti Durumu" boş olan satırlar
+ * Kurye tablosundaki Kesintiler sekmesine TL kesintisi olarak yazılır (bordro oradan okur).
+ *   Kurye      = satırdaki Kurye (yanlışsa önce düzelt)
+ *   Tutar      = "Düşülecek TL" doluysa o, boşsa iade tutarı
+ *   Tarih      = işaretlendiği gün (açık haftanın bordrosuna girsin diye); sipariş bilgisi açıklamada
+ * Aynı kurye + aynı tutar son birkaç günde zaten varsa (elle girilmiş olabilir) yazmaz, sorar.
+ * KESINTI_KURU = true iken hiçbir şey yazmaz, Kesinti Durumu'na "KURU: ..." yazar.
+ * iadeleriCek her çalıştığında (10 dk) bunu da çağırır; elle de çalıştırılabilir.
+ * ============================================================ */
+function iadeKesintileriIsle() {
+  const sh = SpreadsheetApp.getActive().getSheetByName(TYR.IADE);
+  if (!sh || sh.getLastRow() < 2) return 0;
+  tyrEksikBasliklariEkle_(sh, TYR_IADE_BASLIK);
+  const b = tyrBasliklar_(sh);
+  const v = sh.getRange(2, 1, sh.getLastRow() - 1, sh.getLastColumn()).getValues();
+  const iDus = b('Kuryeden Düş'), iDurumK = b('Kesinti Durumu');
+  const isler = v.map((r, k) => ({ r: r, satir: k + 2 }))
+    .filter(x => {
+      const d = String(x.r[iDurumK]).trim();      // boş, KURU, BEKLİYOR ya da ZORLA olanlar yeniden denenir
+      return x.r[iDus] === true && (!d || /^(KURU|BEKLİYOR)/.test(d) || d.toUpperCase() === 'ZORLA');
+    });
+  if (!isler.length) return 0;
+
+  const ks = SpreadsheetApp.openById(TYR.KURYE_TABLO).getSheetByName(TYR.KURYE_KESINTI);
+  if (!ks) throw new Error('Kurye tablosunda sekme yok: ' + TYR.KURYE_KESINTI);
+  const kb = tyrBasliklar_(ks);
+  const kT = kb('Tarih'), kK = kb('Kurye Adı'), kTip = kb('Kesinti Tipi (Saat / TL)'),
+        kDk = kb('Kesilen Süre (Dk)'), kTl = kb('Kesilen Tutar (TL)'), kAc = kb('Açıklama');
+  const mevcut = ks.getLastRow() > 1
+    ? ks.getRange(2, 1, ks.getLastRow() - 1, ks.getLastColumn()).getValues() : [];
+
+  const bugun = new Date();
+  const kisaAd = x => String(x || '').trim().toLocaleLowerCase('tr');
+  let yazilan = 0;
+  isler.forEach(x => {
+    const r = x.r;
+    const kurye = String(r[b('Kurye')] || '').trim();
+    const tl = Number(String(r[b('Düşülecek TL')]).replace(',', '.')) || Number(r[b('Tutar')]) || 0;
+    const etiket = '[TY iade ' + String(r[b('Claim Item ID')]).slice(0, 8) + ']';
+    let durum;
+    if (!kurye) durum = 'BEKLİYOR: Kurye boş — Kurye sütununa adını yaz';
+    else if (!(tl > 0)) durum = 'BEKLİYOR: tutar yok — Düşülecek TL yaz';
+    else if (mevcut.some(m => String(m[kAc]).indexOf(etiket) >= 0)) {
+      durum = 'ZATEN YAZILMIŞ ' + etiket;
+    } else {
+      const benzer = mevcut.find(m => {
+        const t = tyrTarih_(m[kT]);
+        return t && kisaAd(m[kK]) === kisaAd(kurye) && Number(m[kTl]) === tl &&
+               Math.abs(bugun - t) <= TYR.KESINTI_BENZER_GUN * 86400000;
+      });
+      const zorla = String(r[iDurumK]).trim().toUpperCase() === 'ZORLA';
+      if (benzer && !zorla) {
+        durum = 'SORU: ' + kurye + ' için ' + tl + ' TL zaten var (' +
+          Utilities.formatDate(tyrTarih_(benzer[kT]), 'Europe/Istanbul', 'dd.MM') + ', "' +
+          String(benzer[kAc]).slice(0, 40) + '"). Yine de düşülecekse bu hücreyi silip yalnızca ZORLA yaz.';
+      } else {
+        const aciklama = 'Trendyol iade — ' + r[b('Mağaza')] + ' — sipariş ' + r[b('Sipariş No')] +
+          ' (' + Utilities.formatDate(r[b('Oluşma')] instanceof Date ? r[b('Oluşma')] : bugun,
+                                      'Europe/Istanbul', 'dd.MM HH:mm') + ') — ' +
+          r[b('Sebep')] + (r[b('Müşteri Notu')] ? ': ' + r[b('Müşteri Notu')] : '') + ' ' + etiket;
+        if (TYR.KESINTI_KURU) {
+          durum = 'KURU: ' + kurye + "'dan " + tl + ' TL düşülecek (henüz yazılmadı)';
+        } else {
+          const satir = new Array(ks.getLastColumn()).fill('');
+          satir[kT] = bugun; satir[kK] = kurye; satir[kTip] = 'TL'; satir[kDk] = '';
+          satir[kTl] = tl; satir[kAc] = aciklama;
+          ks.appendRow(satir);
+          mevcut.push(satir);
+          durum = 'YAZILDI ' + Utilities.formatDate(bugun, 'Europe/Istanbul', 'dd.MM HH:mm') +
+                  ' — ' + kurye + ' ' + tl + ' TL';
+          yazilan++;
+        }
+      }
+    }
+    sh.getRange(x.satir, iDurumK + 1).setValue(durum);
+  });
+  Logger.log('Kuryeden düş: ' + isler.length + ' satır, ' + yazilan + ' yazıldı' +
+             (TYR.KESINTI_KURU ? ' (KURU)' : ''));
+  return yazilan;
+}
+
+/* sekmede olmayan başlıkları sona ekler (eski sekmeye yeni sütun) */
+function tyrEksikBasliklariEkle_(sh, liste) {
+  const var_ = sh.getRange(1, 1, 1, Math.max(1, sh.getLastColumn())).getValues()[0].map(x => String(x).trim());
+  const eksik = liste.filter(x => var_.indexOf(x) < 0);
+  if (!eksik.length) return;
+  sh.getRange(1, sh.getLastColumn() + 1, 1, eksik.length).setValues([eksik])
+    .setFontWeight('bold').setBackground('#f1f3f4');
+}
+
+/* ============================================================
+ * 4d) PANELDEN İSTENEN KABUL / RET
+ * Panel (veri kapısı) Iadeler'de "İşlem" sütununa "KABUL" ya da "RET 5006 | not" yazar.
+ * Burada, Durum'u WaitingInAction ve İşlem Durumu boş olan satırlar Trendyol'a BİR KEZ gönderilir
+ * (önce "GÖNDERİLİYOR" yazılır; otomatik tekrar yok — CLAUDE.md kural 6).
+ * ============================================================ */
+function iadeIslemleriYap_(sh) {
+  if (sh.getLastRow() < 2) return;
+  const b = tyrBasliklar_(sh);
+  const iIs = b('İşlem'), iID = b('İşlem Durumu');
+  const v = sh.getRange(2, 1, sh.getLastRow() - 1, sh.getLastColumn()).getValues();
+  const magaza = {};
+  TY.MAGAZALAR.forEach(m => magaza[m.marka] = m);
+  v.forEach((r, k) => {
+    const istek = String(r[iIs] || '').trim();
+    if (!istek || String(r[iID] || '').trim()) return;
+    const satir = k + 2;
+    if (String(r[b('Durum')]) !== 'WaitingInAction') {
+      sh.getRange(satir, iID + 1).setValue('YAPILMADI: iade artık karar beklemiyor (' + r[b('Durum')] + ')');
+      return;
+    }
+    const m = magaza[r[b('Mağaza')]];
+    if (!m) { sh.getRange(satir, iID + 1).setValue('YAPILMADI: mağaza bilinmiyor'); return; }
+    let yol, govde;
+    if (/^KABUL/i.test(istek)) {
+      yol = 'accept'; govde = { claimItemIds: [String(r[b('Claim Item ID')])] };
+    } else {
+      const x = istek.match(/^RET\s+(\d{4})\s*\|?\s*(.*)$/i);
+      if (!x) { sh.getRange(satir, iID + 1).setValue('YAPILMADI: istek anlaşılamadı'); return; }
+      yol = 'unresolve';
+      govde = { claimItemIds: [String(r[b('Claim Item ID')])], reasonId: Number(x[1]), note: x[2].slice(0, 500) };
+    }
+    sh.getRange(satir, iID + 1).setValue('GÖNDERİLİYOR');
+    SpreadsheetApp.flush();
+    let sonuc;
+    try {
+      const res = UrlFetchApp.fetch('https://api.tgoapis.com/integrator/claim/meal/suppliers/' + m.supplier +
+        '/claims/' + r[b('Claim ID')] + '/' + yol, {
+        method: 'put', contentType: 'application/json',
+        headers: { 'Authorization': 'Basic ' + m.token,
+                   'User-Agent': m.supplier + ' - SelfIntegration', 'Accept': 'application/json' },
+        payload: JSON.stringify(govde), muteHttpExceptions: true
+      });
+      const kod = res.getResponseCode();
+      sonuc = (kod >= 200 && kod < 300)
+        ? (yol === 'accept' ? 'KABUL EDİLDİ ' : 'REDDEDİLDİ (' + govde.reasonId + ') ') +
+          Utilities.formatDate(new Date(), 'Europe/Istanbul', 'dd.MM HH:mm')
+        : 'HATA ' + kod + ': ' + res.getContentText().slice(0, 150);
+      if (!(kod >= 200 && kod < 300)) tyErisimHatasi_('İade işlemi', kod, res.getContentText());
+    } catch (e) {
+      sonuc = 'HATA (bağlantı) — yapıldı mı belli değil, Trendyol panelinden bak: ' + e;
+    }
+    sh.getRange(satir, iID + 1).setValue(sonuc);
+    Logger.log('İade işlemi ' + r[b('Sipariş No')] + ': ' + sonuc);
+  });
+}
+
+/* sebep kodu (yoksa sebep adı) → varsayılan sorumlu */
+function tyrSorumluBul_(sebepId, sebepAdi) {
+  if (TYR_SORUMLU[Number(sebepId)]) return TYR_SORUMLU[Number(sebepId)];
+  const ad = String(sebepAdi || '').trim();
+  const id = Object.keys(TYR_SEBEP).find(k => TYR_SEBEP[k].toLocaleLowerCase('tr') === ad.toLocaleLowerCase('tr'));
+  return (id && TYR_SORUMLU[Number(id)]) || 'Belirsiz';
+}
+
+/* ============================================================
+ * 4c) İADE ÖZETİ — ay × sorumlu × mağaza; mutfak zararı; kurye bazında
+ * Kaynak yalnızca Iadeler sekmesi (kopya tutulmaz, her seferinde baştan üretilir).
+ * Zarar = kabul edilen iade tutarı (Trendyol'un bizden kestiği). Reddedilen / bekleyen sayılmaz,
+ * bekleyenler ayrıca gösterilir.
+ * ============================================================ */
+function iadeOzetiYenile() {
+  const ss = SpreadsheetApp.getActive();
+  const sh = ss.getSheetByName(TYR.IADE);
+  if (!sh || sh.getLastRow() < 2) return;
+  tyrEksikBasliklariEkle_(sh, TYR_IADE_BASLIK);
+  const b = tyrBasliklar_(sh);
+  const v = sh.getRange(2, 1, sh.getLastRow() - 1, sh.getLastColumn()).getValues();
+  const simdi = new Date();
+  const ayAnahtar = d => d.getFullYear() + '-' + ('0' + (d.getMonth() + 1)).slice(-2);
+  const aylar = [];
+  for (let k = TYR.IADE_OZET_AY - 1; k >= 0; k--) aylar.push(ayAnahtar(new Date(simdi.getFullYear(), simdi.getMonth() - k, 1)));
+  const kabul = d => d === 'Accepted' || d === 'WaitingForSellerRefund';
+  const bekliyor = d => d === 'WaitingInAction' || d === 'Unresolved';
+
+  const ay = {}, mutfakUrun = {}, kurye = {};
+  v.forEach(r => {
+    const t = r[b('Oluşma')];
+    if (!(t instanceof Date)) return;
+    const a = ayAnahtar(t);
+    if (aylar.indexOf(a) < 0) return;
+    const durum = String(r[b('Durum')]);
+    const sor = String(r[b('Sorumlu')] || 'Belirsiz');
+    const tl = Number(r[b('Tutar')]) || 0;
+    const k = a + '|' + sor;
+    const o = ay[k] || (ay[k] = { adet: 0, tl: 0, bekAdet: 0, bekTl: 0 });
+    if (kabul(durum)) { o.adet++; o.tl += tl; }
+    else if (bekliyor(durum)) { o.bekAdet++; o.bekTl += tl; }
+    if (!kabul(durum)) return;
+    if (sor === 'Mutfak' && a === aylar[aylar.length - 1]) {
+      const anahtar = r[b('Mağaza')] + '|' + r[b('Sebep')];
+      const m = mutfakUrun[anahtar] || (mutfakUrun[anahtar] = { adet: 0, tl: 0, ornek: [] });
+      m.adet++; m.tl += tl;
+      if (m.ornek.length < 3) m.ornek.push(String(r[b('Ürünler')] || '').slice(0, 60));
+    }
+    if (sor === 'Kurye' && a === aylar[aylar.length - 1]) {
+      const ad = String(r[b('Kurye')] || '—');
+      const q = kurye[ad] || (kurye[ad] = { adet: 0, tl: 0, dusulen: 0 });
+      q.adet++; q.tl += tl;
+      if (/^YAZILDI/.test(String(r[b('Kesinti Durumu')]))) {
+        q.dusulen += Number(String(r[b('Düşülecek TL')]).replace(',', '.')) || tl;
+      }
+    }
+  });
+
+  let oz = ss.getSheetByName(TYR.IADE_OZET);
+  if (!oz) oz = ss.insertSheet(TYR.IADE_OZET);
+  oz.clear();
+  let satir = 1;
+  const blok = (baslik, kolonlar, veri, not) => {
+    oz.getRange(satir, 1).setValue(baslik).setFontWeight('bold').setFontSize(12);
+    if (not) oz.getRange(satir + 1, 1).setValue(not).setFontColor('#666666');
+    satir += not ? 2 : 1;
+    oz.getRange(satir, 1, 1, kolonlar.length).setValues([kolonlar]).setFontWeight('bold').setBackground('#f1f3f4');
+    if (veri.length) oz.getRange(satir + 1, 1, veri.length, kolonlar.length).setValues(veri);
+    else oz.getRange(satir + 1, 1).setValue('Kayıt yok');
+    const bas = satir + 1;
+    satir += Math.max(veri.length, 1) + 2;
+    return bas;
+  };
+
+  const ayVeri = aylar.slice().reverse().map(a => {
+    const g = s => ay[a + '|' + s] || { adet: 0, tl: 0, bekAdet: 0, bekTl: 0 };
+    const satirlar = [a];
+    TYR_SORUMLULAR.forEach(s => satirlar.push(g(s).tl));
+    const top = TYR_SORUMLULAR.reduce((x, s) => x + g(s).tl, 0);
+    const adet = TYR_SORUMLULAR.reduce((x, s) => x + g(s).adet, 0);
+    const bek = TYR_SORUMLULAR.reduce((x, s) => x + g(s).bekTl, 0);
+    return satirlar.concat([top, adet, bek]);
+  });
+  const b1 = blok('Aylık iade zararı (TL) — sorumluya göre',
+    ['Ay'].concat(TYR_SORUMLULAR, ['Toplam TL', 'Kabul Adedi', 'Bekleyen TL']), ayVeri,
+    'Kabul edilen iadeler. Sorumlu, Iadeler sekmesindeki Sorumlu sütunundan (sebepten önerilir, elle düzeltilebilir).');
+  oz.getRange(b1, 2, ayVeri.length, TYR_SORUMLULAR.length + 1).setNumberFormat('#,##0 "TL"');
+  oz.getRange(b1, TYR_SORUMLULAR.length + 4, ayVeri.length, 1).setNumberFormat('#,##0 "TL"');
+
+  const mVeri = Object.keys(mutfakUrun).map(k => {
+    const p = k.split('|'), m = mutfakUrun[k];
+    return [p[0], p[1], m.adet, m.tl, m.ornek.join(' / ')];
+  }).sort((x, y) => y[3] - x[3]);
+  const b2 = blok('Bu ay mutfak kaynaklı iadeler — mağaza × sebep',
+    ['Mağaza', 'Sebep', 'Adet', 'TL', 'Örnek siparişler'], mVeri);
+  if (mVeri.length) oz.getRange(b2, 4, mVeri.length, 1).setNumberFormat('#,##0 "TL"');
+
+  const kVeri = Object.keys(kurye).map(ad => [ad, kurye[ad].adet, kurye[ad].tl, kurye[ad].dusulen,
+    kurye[ad].tl - kurye[ad].dusulen]).sort((x, y) => y[2] - x[2]);
+  const b3 = blok('Bu ay kurye kaynaklı iadeler',
+    ['Kurye', 'Adet', 'İade TL', 'Kuryeden Düşülen', 'Düşülmemiş'], kVeri,
+    'Düşülen = Iadeler\'de "Kesinti Durumu" YAZILDI olanlar. Elle düşülenler burada görünmez.');
+  if (kVeri.length) oz.getRange(b3, 3, kVeri.length, 3).setNumberFormat('#,##0 "TL"');
+
+  oz.getRange(satir, 1).setValue('Güncelleme: ' +
+    Utilities.formatDate(simdi, 'Europe/Istanbul', 'dd.MM.yyyy HH:mm')).setFontColor('#666666');
+  oz.setColumnWidth(1, 200); oz.setColumnWidth(2, 200); oz.setColumnWidth(5, 360);
 }
 
 /* kural tabanlı ön değerlendirme — yalnızca öneri, karar sahipte */
@@ -400,6 +691,7 @@ function tyrIadeBildir_(liste) {
     '\n   Son karar: ' + saat(r[3]) + ' | Sipariş ' + r[5] +
     (r[8] ? '\n   Müşteri: "' + r[8] + '"' : '') +
     (r[14] ? '\n   Ürünler: ' + r[14] : '') +
+    '\n   Sorumlu (öneri): ' + r[25] + (r[25] === 'Kurye' ? ' — onaylarsan "Kuryeden Düş" kutusunu işaretle' : '') +
     '\n   Öneri: ' + r[18]
   ).join('\n\n');
   tyBildir_('↩️ Trendyol iade: ' + liste.length + ' kalem bekliyor (4 saat içinde karar)', govde);
@@ -450,8 +742,11 @@ function sabahOzeti() {
     if (bek.length) iade = '\n\n↩️ Bekleyen iade: ' + bek.length + ' kalem — Iadeler sekmesine bak.';
   }
 
+  let yorum = '';
+  try { yorum = yorumBekleyenOzeti_(); } catch (e) { Logger.log('Yorum özeti: ' + e); }
+
   tyBildir_('📊 Trendyol sabah özeti — ' + Utilities.formatDate(new Date(), 'Europe/Istanbul', 'dd.MM.yyyy'),
-            satir.join('\n\n') + iade);
+            satir.join('\n\n') + iade + yorum);
 }
 
 /* ============================================================
@@ -495,6 +790,8 @@ function tyrBasliklar_(sh) {
 function tyrTarih_(x) {
   if (x instanceof Date) return x.getFullYear() >= 2000 ? x : null;
   if (!x) return null;
+  const m = String(x).match(/^(\d{1,2})\.(\d{1,2})\.(\d{4})/);   // 19.08.2026
+  if (m) return new Date(+m[3], +m[2] - 1, +m[1]);
   const d = new Date(x);
   return isNaN(d) ? null : d;
 }
@@ -503,12 +800,13 @@ function tyrTarih_(x) {
  * 7) TETİKLEYİCİ
  * ============================================================ */
 function raporTetikleyiciKur() {
-  const adlar = ['gunlukPuanRaporu', 'iadeleriCek', 'sabahOzeti'];
+  const adlar = ['gunlukPuanRaporu', 'iadeleriCek', 'sabahOzeti', 'yorumCevapCalistir'];
   ScriptApp.getProjectTriggers()
     .filter(t => adlar.indexOf(t.getHandlerFunction()) >= 0)
     .forEach(t => ScriptApp.deleteTrigger(t));
   ScriptApp.newTrigger('gunlukPuanRaporu').timeBased().atHour(23).nearMinute(50).everyDays(1).create();
   ScriptApp.newTrigger('iadeleriCek').timeBased().everyMinutes(10).create();
+  ScriptApp.newTrigger('yorumCevapCalistir').timeBased().everyMinutes(15).create();
   ScriptApp.newTrigger('sabahOzeti').timeBased().atHour(10).nearMinute(45).everyDays(1).create();
-  Logger.log('Kuruldu: gunlukPuanRaporu 23:50, iadeleriCek 10 dk, sabahOzeti 10:45');
+  Logger.log('Kuruldu: gunlukPuanRaporu 23:50, iadeleriCek 10 dk, yorumCevapCalistir 15 dk, sabahOzeti 10:45');
 }
