@@ -7,7 +7,7 @@ Kurye projesinde yalnız kurye işleri kalır.
 
 | | Nerede |
 |---|---|
-| Kod | Yeni Apps Script projesi **BAP Yemek Kartı** (`apps-script/bap-yemek-karti/`) |
+| Kod | **BAP Yemek Kartı** Apps Script projesi, "BAP Yemek Kartı Tahsilatları" tablosuna bağlı (Uzantılar › Apps Script) — `apps-script/bap-yemek-karti/` |
 | Veri | **BAP Yemek Kartı Tahsilatları** tablosu (zaten var): Pluxee, Edenred, Paye, Paye İşlemler, SetCard, Pluxee Fatura |
 | Doğrulama kodları (SMS) | Tek ortak sistem: `?sayfa=kod&kaynak=pluxee|edenred&kod=…` (ayrı 'Pluxee Kod' sekmesi ve ayrı Pluxee kod sayfası kalkar) |
 | Mac programları | `pluxee.mjs`, `edenred.mjs` yeni projenin adresine gönderir |
@@ -20,12 +20,13 @@ pluxee / edenred / kod türleri, `Kurye Web.gs` içindeki `?sayfa=pluxee` ve `?s
 
 ## Adımlar
 
-1. **Sahibi:** script.google.com › Yeni proje › adı "BAP Yemek Kartı" › Proje Ayarları › Komut dosyası kimliği → depoya.
+1. ☑ 06.10 **Sahibi:** tablo › Uzantılar › Apps Script › adı "BAP Yemek Kartı" › Komut dosyası kimliği → depoya.
 2. **Depo:** kod yeni klasöre taşınır, `projeler.json`'a eklenir, yayınlanır. Kurye'deki kopyalar **henüz silinmez**
    (Mac ve kestirmeler eski adrese bağlı, çalışmaya devam eder).
-3. **Sahibi:** yeni projede Dağıt › Yeni dağıtım › Web uygulaması (Ben olarak, Herkes) → adresi gönderir;
-   Komut dosyası özellikleri: köprü anahtarı, kestirme anahtarı, SETCARD_VKN / SETCARD_GSM / SETCARD_SIFRE.
-   `kurulum()` bir kez çalıştırılır: Paye (02:30, 09:30) ve SetCard (saatlik) tetikleyicileri.
+   İlk yayın web dağıtımını kendisi oluşturur ve adresini iş akışı günlüğüne yazar (`apps-script-yayinla.yml`);
+   dağıtım kimliği sonra `projeler.json`'a eklenir. Köprü ve kestirme anahtarları kurye projesindekiyle aynı (Mac'te yalnız adres değişir).
+3. **Sahibi:** Komut dosyası özellikleri: SETCARD_VKN / SETCARD_GSM / SETCARD_SIFRE. `kurulum()` bir kez çalıştırılır
+   (izinler + Paye 02:30/09:30 ve SetCard saatlik tetikleyicileri). Kurye projesindeki 2 `payeMailCek` tetikleyicisi silinir.
 4. **Akşam, Mac başında birlikte:** Mac `ayar.json` adresi değişir; Pluxee ve Edenred kestirmeleri yeni adresle baştan kurulur;
    ikisi de denenir.
 5. **İkisi de 1 gün sorunsuz çalışınca:** Kurye projesinden yemek kartı kodu silinir; Kurye'deki eski Paye tetikleyicisi silinir;
