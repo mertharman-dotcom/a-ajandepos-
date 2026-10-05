@@ -34,7 +34,8 @@ var KAYNAK = {
   menu:     { id: '1rcOUvokeb0VG3mm72-IKV1-bk0WugEcNSvDaHz41pP8', ad: 'Menü ve genel bilgiler',  bolum: 'genel',    beklenenDk: 43200 },
   kurye:    { id: '1LG7naAbMM9aL3K0QNzzrjXomC2LXjx4rdSCYNYWzDQo', ad: 'Kurye çalışma süresi',    bolum: 'kurye',    beklenenDk: 1440 },
   personel: { id: '1WBniOC2h9SvD20bHZl3G4o0f4kUmjbXtIrNvYVyV8Hg', ad: 'Personel',                bolum: 'personel', beklenenDk: 1440 },
-  yorum:    { id: '1KLWCEBwFMHCTrTnCYLhv2ctg5PvGtS9DNzoMXF-Z1JE', ad: 'Trendyol yorumları',      bolum: 'musteri',  beklenenDk: 1440 }
+  yorum:    { id: '1KLWCEBwFMHCTrTnCYLhv2ctg5PvGtS9DNzoMXF-Z1JE', ad: 'Trendyol yorumları',      bolum: 'musteri',  beklenenDk: 1440 },
+  yemekKarti: { id: '19RVXZQwKZRCW6xnZxSwhRHXte4VWhaVqruaTZRwVJbM', ad: 'Yemek kartı tahsilatları', bolum: 'finans', beklenenDk: 2880 }
 };
 
 var DEPARTMANLAR = ['Müşteri İlişkileri', 'Operasyon', 'Finans', 'Satış & Gelir', 'Teknoloji & Sistemler',
@@ -2610,7 +2611,10 @@ function acikKanit_(ks, liste) {
     });
   }
   // Pluxee çekimleri
-  var px = sonSatirlar_(ks, 'Pluxee', 3000), cekim = [], sonCekim = null;
+  // 05.10.2026: çekimler 'BAP Yemek Kartı Tahsilatları'nda; taşıma yapılmadıysa kurye tablosundaki eski sekmeye düş
+  var px = null; try { px = sonSatirlar_(SpreadsheetApp.openById(KAYNAK.yemekKarti.id), 'Pluxee', 3000); } catch (err) { }
+  if (!px || px.v.length < 50) px = sonSatirlar_(ks, 'Pluxee', 3000) || sonSatirlar_(ks, 'Pluxee (eski)', 3000) || px;
+  var cekim = [], sonCekim = null;
   if (px) {
     var cz = kolon_(px.b, ['İşlem Zamanı']), ct = kolon_(px.b, ['Tutar (TL)', 'Tutar']);
     px.v.forEach(function (r) { var m = String(r[cz] || '').trim().match(/^(\d{1,2})\s+(\S+)\s+(\d{4})\s+(\d{1,2}):(\d{2})/); if (!m) return;

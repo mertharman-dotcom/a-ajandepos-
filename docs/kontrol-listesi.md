@@ -121,6 +121,14 @@ Tablolarda yapılan her değişikliğin eski ve yeni değeri **STOK › Fiyat_Du
 | R12 | Panelden iade aksiyonu: bekleyende Kabul / Reddet (neden + açıklama) + sorumlu + kuryeden düş; kabul edilmişte sorumlu + kuryeden düş. Veri kapısı `iadeIslem_` Iadeler'e istek yazar (İşlem / Sorumlu / Kuryeden Düş); Trendyol projesi `iadeIslemleriYap_` 10 dk'da bir PUT accept/unresolve'u bir kez gönderir | ◐ 05.10 yayına alındı |
 | R13 | Puan grafiğinde 1★ değerlendirme gelen günler kırmızı nokta (Degerlendirmeler, ortalama < 2) | ☑ 05.10 |
 
+## YK · Yemek kartı tahsilatları
+
+| | İş | Durum |
+|---|---|---|
+| YK1 | Pluxee / Edenred çekimleri kurye tablosundan ayrı tabloya ("BAP Yemek Kartı Tahsilatları"); Kopru yeni tabloya yazar | ◐ 05.10 yayına alındı; sahip `yemekKartiTasiKuru` → `yemekKartiTasi` çalıştıracak |
+| YK2 | Paye gün sonu raporu (payekart maili, Excel eki) otomatik okunur → Paye sekmesi | ◐ sahip `payeTetikleyiciKur` çalıştıracak (Gmail izni) |
+| YK3 | Panel › Finans › Yemek kartı mutabakatı: Adisyo'daki yemek kartı satışı ↔ terminal çekimi, gün × şube × kart | ☐ Paye Excel'inin sütunları görülünce |
+
 ## P · Paneller
 
 | | Sorun | Durum |
