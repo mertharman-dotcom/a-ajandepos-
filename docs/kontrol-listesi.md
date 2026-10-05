@@ -125,9 +125,11 @@ Tablolarda yapılan her değişikliğin eski ve yeni değeri **STOK › Fiyat_Du
 
 | | İş | Durum |
 |---|---|---|
-| YK1 | Pluxee / Edenred çekimleri kurye tablosundan ayrı tabloya ("BAP Yemek Kartı Tahsilatları"); Kopru yeni tabloya yazar | ◐ 05.10 yayına alındı; sahip `yemekKartiTasiKuru` → `yemekKartiTasi` çalıştıracak |
-| YK2 | Paye gün sonu raporu (payekart maili, Excel eki) otomatik okunur → Paye sekmesi | ◐ sahip `payeTetikleyiciKur` çalıştıracak (Gmail izni) |
-| YK3 | Panel › Finans › Yemek kartı mutabakatı: Adisyo'daki yemek kartı satışı ↔ terminal çekimi, gün × şube × kart | ☐ Paye Excel'inin sütunları görülünce |
+| YK1 | Pluxee / Edenred çekimleri kurye tablosundan ayrı tabloya ("BAP Yemek Kartı Tahsilatları"); Kopru yeni tabloya yazar | ☑ 05.10 — 319 Pluxee satırı taşındı; eski sekme 'Pluxee (eski)'. Edenred'in eski kaydı yoktu |
+| YK2 | Paye gün sonu raporu (payekart maili, Excel eki) otomatik okunur → Paye sekmesi | ☑ 05.10 — 10 rapor / 21 satır; her gün 02:30 + 09:30 |
+| YK3 | Panel › Finans › Yemek kartı mutabakatı: Adisyo'daki POS yemek kartı satışı ↔ terminal gün sonu, iş günü × kart (14 gün) | ◐ 05.10 yayına alındı; şube kırılımı yok (Pluxee 2 terminal, Paye cihaz = kurye telefonu olabilir) |
+| YK4 | Taşınan Pluxee zamanları tarih olarak saklanıyor; sütun 'dd.MM.yyyy HH:mm' biçimine alındı, açık hesap kontrolü tarih değerini de okur | ◐ sahip `pluxeeSekmeKur` çalıştıracak |
+| YK5 | Paye 'Cihaz Sicil Numarası' telefon numarasına benziyor → kurye eşlemesi yapılırsa Paye farkı kurye bazında görülebilir | ☐ |
 
 ## P · Paneller
 

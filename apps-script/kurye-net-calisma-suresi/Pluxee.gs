@@ -32,6 +32,8 @@ function _pluxeeSekme() {
       .setFontWeight('bold').setBackground('#1f3864').setFontColor('#ffffff');
   }
   sh.getRange(2, 7, Math.max(1, sh.getMaxRows() - 1), 1).setNumberFormat('@');
+  // 05.10.2026: yeni tabloda zaman tarih olarak saklanıyor; saat görünsün (panel açık hesap kontrolü saatle eşler)
+  sh.getRange(2, 1, Math.max(1, sh.getMaxRows() - 1), 1).setNumberFormat('dd.MM.yyyy HH:mm');
   return sh;
 }
 

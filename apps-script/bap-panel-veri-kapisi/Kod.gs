@@ -134,7 +134,7 @@ function paketHazirla_() {
   var out = {
     surum: 1,
     olusturma: Utilities.formatDate(simdi, TZ, "yyyy-MM-dd'T'HH:mm:ss"),
-    kaynaklar: [], satis: null, nabiz: null, isKaydi: null, hub: null, finans: null, personel: null, kurye: null, genel: null, fisKayit: null, musteri: null, hatalar: []
+    kaynaklar: [], satis: null, nabiz: null, isKaydi: null, hub: null, finans: null, personel: null, kurye: null, genel: null, fisKayit: null, musteri: null, yemekKarti: null, hatalar: []
   };
   Object.keys(KAYNAK).forEach(function (k) {
     var s = KAYNAK[k];
@@ -157,6 +157,7 @@ function paketHazirla_() {
   bolum_(out, 'genel', genel_);
   bolum_(out, 'fisKayit', fisKayit_);
   bolum_(out, 'musteri', musteri_);
+  bolum_(out, 'yemekKarti', yemekKarti_);
   return out;
 }
 
@@ -228,6 +229,7 @@ function satis_() {
   var yediBasi = gunEkle_(bugun, -6), otuzBasi = gunEkle_(bugun, -29);
   var markaDetay = {}, mah = { bugun: {}, hafta: {}, otuz: {} }, mahBos = { bugun: 0, hafta: 0, otuz: 0 };
   var cikan = { bugunDolu: 0, bugunToplam: 0, yediDolu: 0, yediToplam: 0, baskaSubedenBugun: 0, sonEksik: [] };
+  var ykSatis = {}; // gün -> kart -> {t, a}: POS'tan geçen yemek kartı (online platform yemek kartı hariç), mutabakat için
 
   rows.forEach(function (r) {
     var ms = zaman_(r[c.tarih]); if (ms === null) return;
@@ -240,6 +242,10 @@ function satis_() {
 
     if (seri[gun]) { seri[gun].ciro += tutar; seri[gun].adet++; }
     if (fis[gun]) fisEkle_(fis[gun], c.kanal >= 0 ? r[c.kanal] : '', c.tip >= 0 ? r[c.tip] : '', c.odeme >= 0 ? r[c.odeme] : '', c.tahsil >= 0 ? r[c.tahsil] : '', tutar);
+    if (gun >= otuzBasi && c.odeme >= 0 && fisOdeme_(r[c.odeme], c.tahsil >= 0 ? r[c.tahsil] : '') === 'yemek') {
+      var kart = yemekKartAdi_(r[c.odeme]), yg = ykSatis[gun] = ykSatis[gun] || {}, yk = yg[kart] = yg[kart] || { t: 0, a: 0 };
+      yk.t += tutar; yk.a++;
+    }
     var gelen = subeAnahtar_(c.sube >= 0 ? r[c.sube] : ''), mutfak = c.cikan >= 0 ? subeAnahtar_(r[c.cikan]) : '';
     if (gun >= yediBasi && gun <= bugun) {
       cikan.yediToplam++;
@@ -284,6 +290,7 @@ function satis_() {
     gun: g, acik: acik, iptalBugun: iptalBugun,
     kanalBugun: sirala_(kanalBugun), subeBugun: sirala_(subeBugun), markaBugun: sirala_(markaBugun), kanalHafta: sirala_(kanalHafta),
     seri: Object.keys(seri).sort().map(function (k) { return { gun: k, ciro: Math.round(seri[k].ciro), adet: seri[k].adet }; }),
+    yemekKartSatis: ykSatis,
     fis: { sutunVar: c.odeme >= 0 || c.tahsil >= 0, gunler: Object.keys(fis).sort().reverse().map(function (k) { return fisGunu_(k, fis[k]); }) },
     gunluk: { urunler: sozluk.urun, mahalleler: sozluk.mah, urunSutunu: c.urunler >= 0,
               gunler: Object.keys(gunluk).sort().map(function (k) { return gunlukYaz_(k, gunluk[k]); }) }
@@ -361,6 +368,53 @@ function fisOdeme_(odeme, tahsil) {
   if (/yemek/.test(t)) return 'yemek';
   if (/nakit/.test(t)) return 'nakit';
   return 'diger';
+}
+
+// Adisyo ödeme yönteminden kart markası (mutabakat sütunu)
+function yemekKartAdi_(odeme) {
+  var o = norm_(odeme);
+  if (/pluxee|sodexo/.test(o)) return 'Pluxee';
+  if (/edenred|ticket/.test(o)) return 'Edenred';
+  if (/paye/.test(o)) return 'Paye';
+  if (/multinet/.test(o)) return 'Multinet';
+  if (/setcard/.test(o)) return 'Setcard';
+  if (/metropol/.test(o)) return 'Metropol';
+  if (/tokenflex/.test(o)) return 'Tokenflex';
+  return 'Diğer';
+}
+
+/* ---------------- Yemek kartı terminal çekimleri (BAP Yemek Kartı Tahsilatları) ----------------
+ * Gün = iş günü (10:00 – ertesi 03:00). Pluxee / Edenred işlem zamanından, Paye raporun günü (mail konusu) üzerinden.
+ * Çıktı: { gunler: { 'yyyy-mm-dd': { Pluxee: {t, a}, Edenred: {...}, Paye: {...} } }, son: { Pluxee: 'yyyy-mm-dd', ... } }
+ */
+function yemekKarti_() {
+  var ss = SpreadsheetApp.openById(KAYNAK.yemekKarti.id), bas = gunEkle_(isGunu_(simdi_()), -29);
+  var out = { gunler: {}, son: {} };
+  function ekle(kart, gun, tutar) {
+    if (!gun || gun < bas || !(tutar > 0)) return;
+    var g = out.gunler[gun] = out.gunler[gun] || {}, x = g[kart] = g[kart] || { t: 0, a: 0 };
+    x.t += tutar; x.a++;
+    if (!out.son[kart] || gun > out.son[kart]) out.son[kart] = gun;
+  }
+  function zaman(v) {   // Date, 'dd.MM.yyyy HH:mm' ya da '1 Eyl 2026 13:17'
+    var ms = zaman_(v);
+    // saati kaybolmuş tarih (tam 00:00:00) iş günü kaymasın: öğlene al
+    if (ms !== null) return (v instanceof Date && !v.getHours() && !v.getMinutes() && !v.getSeconds()) ? ms + 12 * 3600000 : ms;
+    var m = String(v || '').trim().match(/^(\d{1,2})\s+(\S+)\s+(\d{4})(?:\s+(\d{1,2}):(\d{2}))?/); if (!m) return null;
+    var ay = TR_AY[m[2].toLocaleLowerCase('tr-TR').slice(0, 3)]; if (ay === undefined) ay = TR_AY[norm_(m[2]).slice(0, 3)]; if (ay === undefined) return null;
+    return Date.UTC(+m[3], ay, +m[1], +(m[4] || 12), +(m[5] || 0));
+  }
+  [['Pluxee', 'İşlem Zamanı', 'Tutar (TL)'], ['Edenred', 'İşlem Zamanı', 'Tutar (TL)']].forEach(function (k) {
+    var t = satirlar_(ss, k[0]); if (!t.r.length) return;
+    var cz = kolon_(t.b, [k[1]]), ct = kolon_(t.b, [k[2], 'Tutar']);
+    t.r.forEach(function (r) { var ms = zaman(r[cz]); if (ms !== null) ekle(k[0], isGunu_(ms), sayi_(r[ct])); });
+  });
+  var p = satirlar_(ss, 'Paye');
+  if (p.r.length) {
+    var cg = kolon_(p.b, ['Rapor Günü']), ct = kolon_(p.b, ['Toplam Gün Sonu Tutarı', 'Tutar']);
+    if (ct >= 0) p.r.forEach(function (r) { ekle('Paye', gunStr_(r[cg]), sayi_(r[ct])); });
+  }
+  return out;
 }
 
 function fisBos_() { return { online: z_(), masa: z_(), paket: z_(), platformKk: z_(), platformYk: z_(), onlineKart: z_(), bilinmeyen: {} }; }
@@ -2617,7 +2671,8 @@ function acikKanit_(ks, liste) {
   var cekim = [], sonCekim = null;
   if (px) {
     var cz = kolon_(px.b, ['İşlem Zamanı']), ct = kolon_(px.b, ['Tutar (TL)', 'Tutar']);
-    px.v.forEach(function (r) { var m = String(r[cz] || '').trim().match(/^(\d{1,2})\s+(\S+)\s+(\d{4})\s+(\d{1,2}):(\d{2})/); if (!m) return;
+    px.v.forEach(function (r) { var m = String(r[cz] || '').trim().match(/^(\d{1,2})\s+(\S+)\s+(\d{4})\s+(\d{1,2}):(\d{2})/);
+      if (!m) { var zz = zaman_(r[cz]); if (zz !== null && /\d:\d\d/.test(String(r[cz]))) { cekim.push({ ms: zz, tutar: sayi_(r[ct]), zaman: new Date(zz).toISOString().slice(11, 16), kullanildi: false }); if (sonCekim === null || zz > sonCekim) sonCekim = zz; } return; }
       var ay = TR_AY[m[2].toLocaleLowerCase('tr-TR').slice(0, 3)]; if (ay === undefined) ay = TR_AY[norm_(m[2]).slice(0, 3)]; if (ay === undefined) return;
       var ms = Date.UTC(+m[3], ay, +m[1], +m[4], +m[5]); cekim.push({ ms: ms, tutar: sayi_(r[ct]), zaman: m[4] + ':' + m[5], kullanildi: false });
       if (sonCekim === null || ms > sonCekim) sonCekim = ms; });

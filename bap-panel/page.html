@@ -2165,8 +2165,29 @@ function musteriYorum(a,M){var link=(kaynaklar("musteri")[0]||{}).link;
     var td=x.trendyol==="APPROVED"?["yayında","e-iyi"]:x.trendyol==="REJECTED"?["reddedildi"+(x.ret?": "+x.ret:""),"e-kotu"]:/^HATA/.test(x.durum)?["gönderilemedi","e-kotu"]:["Trendyol onayında","e-notr"];
     return [saatTr(x.gonderim),magKisa(x.magaza),puanYaz(x.puan,1),el("span",{title:x.cevap,text:x.cevap.length>90?x.cevap.slice(0,90)+"…":x.cevap}),el("span",{class:"etiket "+td[1],title:x.durum,text:td[0]})];})):bos("Henüz gönderilen cevap yok.")));}
 
+/* ---------------- Yemek kartı mutabakatı (Finans) ----------------
+ Adisyo'da POS'tan geçen yemek kartı satışı (online platform yemek kartı hariç) ile terminal gün sonu çekimi, iş günü bazında.
+ Terminal verisi: BAP Yemek Kartı Tahsilatları (Pluxee, Edenred: işlem zamanı; Paye: gün sonu raporu). */
+var YK_KARTLAR=["Pluxee","Edenred","Paye","Multinet","Setcard","Metropol","Tokenflex","Diğer"],YK_TERMINAL={Pluxee:1,Edenred:1,Paye:1};
+function ykMutabakat(a){var S=VERI.satis,Y=VERI.yemekKarti;if(!S||!S.yemekKartSatis)return;var A=S.yemekKartSatis,T=(Y&&Y.gunler)||{},son=(Y&&Y.son)||{};
+  var gunler=[];for(var i=1;i<=14;i++)gunler.push(gunEkleTr(S.bugun,-i));
+  var kartlar=YK_KARTLAR.filter(function(k){return gunler.some(function(g){return (A[g]&&A[g][k])||(T[g]&&T[g][k]);});});
+  if(!kartlar.length){a.appendChild(blok("Yemek kartı mutabakatı","Son 14 günde yemek kartı satışı ya da terminal çekimi yok.",null));return;}
+  var top={};kartlar.forEach(function(k){top[k]={a:0,t:0};});
+  var satir=gunler.map(function(g){var r=[gunAd(g)];kartlar.forEach(function(k){var ad=(A[g]&&A[g][k])?A[g][k].t:0,te=(T[g]&&T[g][k])?T[g][k].t:0,var_=YK_TERMINAL[k];
+    var bekliyor=var_&&(!son[k]||g>son[k]);if(!bekliyor){top[k].a+=ad;top[k].t+=te;}
+    var fark=te-ad,hucre;
+    if(!var_)hucre=ad?el("span",{title:"Bu kartın terminal verisi sisteme gelmiyor",text:para(ad)+" · terminal yok"}):"—";
+    else if(bekliyor)hucre=ad?el("span",{style:"color:var(--gri)",text:para(ad)+" · rapor bekleniyor"}):"—";
+    else if(!ad&&!te)hucre="—";
+    else hucre=el("span",{title:"Adisyo "+para(ad)+(A[g]&&A[g][k]?" ("+A[g][k].a+" sipariş)":"")+" · terminal "+para(te)+(T[g]&&T[g][k]?" ("+T[g][k].a+" işlem/cihaz)":"")},[para(te)+" / "+para(ad)+" ",Math.abs(fark)<1?el("span",{class:"etiket e-iyi",text:"tamam"}):el("span",{class:"etiket "+(fark<0?"e-kotu":"e-dikkat"),text:(fark>0?"+":"")+para(fark)})]);
+    r.push(hucre);});return r;});
+  var topSatir=["Toplam (raporu gelen günler)"].concat(kartlar.map(function(k){if(!YK_TERMINAL[k])return para(top[k].a)+" (Adisyo)";var f=top[k].t-top[k].a;return el("b",{text:para(top[k].t)+" / "+para(top[k].a)+"  "+(Math.abs(f)<1?"✓":(f>0?"+":"")+para(f))});}));
+  a.appendChild(blok("Yemek kartı mutabakatı — son 14 gün","Her hücre: terminale düşen (gün sonu) / Adisyo'da o kartla kapanan satış. Kırmızı fark: Adisyo'da satış var, terminalde eksik — kuryenin çekmediği ya da yanlış ödeme yöntemi girilmiş sipariş olabilir. Sarı: terminalde fazla (yanlış yöntem girilmiş olabilir). Gün = iş günü (10:00–03:00). Platformda online ödenen yemek kartları sayılmaz. Paye raporu ertesi gece, Pluxee/Edenred gün sonu MacBook'tan gelir; gelmeyen günler 'rapor bekleniyor'.",
+    tablo([["Gün"]].concat(kartlar.map(function(k){return [k+(YK_TERMINAL[k]?" (terminal / Adisyo)":""),1];})),satir.concat([topSatir]))));}
+function gunEkleTr(g,k){return new Date(Date.parse(g+"T00:00:00Z")+k*86400000).toISOString().slice(0,10);}
 var CIZ={genel:genelSayfa,merkez:merkez,ozet:ozet,fis:fisSayfa,satis:satis,maliyet:maliyetSayfa,kararlar:kararlar,panolar:panolarSayfa,ai:ai,
-  finans:finansSayfa,
+  finans:function(a){finansSayfa(a);ykMutabakat(a);},
   odeme:toptanciOdemeSayfa,
   alim:alimSayfa,
   stok:kaynakBolumu("stok","Ürün, stok ve hazırlık","Stok seviyeleri, reçetesiz satışlar ve menü buraya gelecek."),
