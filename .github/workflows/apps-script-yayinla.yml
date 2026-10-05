@@ -58,7 +58,14 @@ jobs:
               # deploymentId yazılı değilse projedeki tek sürümlü dağıtım kullanılır; birden fazlaysa durur.
               if [ -z "$dep" ] && jq -e '.webapp' appsscript.json >/dev/null 2>&1; then
                 dep=$(clasp deployments | grep -E '^- ' | grep -v '@HEAD' | awk '{print $2}')
-                [ "$(printf '%s\n' "$dep" | grep -c .)" = "1" ] || { echo "::error::$klasor: web dağıtımı bulunamadı ya da birden fazla; projeler.json'a deploymentId yazın"; exit 1; }
+                if [ -z "$dep" ]; then
+                  # Yeni proje: ilk web dağıtımını oluştur; adresi günlüğe yaz (projeler.json'a deploymentId olarak eklenir).
+                  yeni=$(clasp deploy -d "ilk dağıtım git ${GITHUB_SHA::7}" | grep -oE 'AKfyc[A-Za-z0-9_-]+' | head -1)
+                  echo "::notice::$klasor: yeni web dağıtımı $yeni → https://script.google.com/macros/s/$yeni/exec"
+                  dep=""
+                else
+                  [ "$(printf '%s\n' "$dep" | grep -c .)" = "1" ] || { echo "::error::$klasor: birden fazla web dağıtımı; projeler.json'a deploymentId yazın"; exit 1; }
+                fi
               fi
               if [ -n "$dep" ]; then clasp deploy -i "$dep" -d "git ${GITHUB_SHA::7}"; echo "$klasor: $dep yeni sürüme alındı"; fi )
             echo "::endgroup::"

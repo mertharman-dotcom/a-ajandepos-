@@ -11,22 +11,13 @@
  * Kurulum (sahibi, bir kez):
  *   1) Proje Ayarları › Komut dosyası özellikleri: SETCARD_VKN, SETCARD_GSM (başında 0 olmadan, 5xx…), SETCARD_SIFRE
  *      (şifre depoya yazılmaz, yalnız burada durur)
- *   2) setcardKurulum() çalıştır → giriş denenir, son 3 gün çekilir, saatlik tetikleyici kurulur.
+ *   2) kurulum() çalıştır (Kurulum.gs) → giriş denenir, son 3 gün çekilir, saatlik tetikleyici kurulur.
  */
 
 var SETCARD_API = 'https://api.setcard.com.tr/MerchantServices/';
 var SETCARD_SEKME = 'SetCard';
 var SETCARD_BASLIK = ['İşlem Zamanı', 'Tutar (TL)', 'İşlem Türü', 'Durum', 'Terminal', 'Ödeme Şekli', 'Kart No', 'Cihaz / Kullanıcı',
   'SUT Kod', 'STI ID', 'İşyeri', 'Gün Sonu', 'Kayıt Zamanı'];
-
-function setcardKurulum() {
-  ScriptApp.getProjectTriggers().filter(function (t) { return t.getHandlerFunction() === 'setcardCek'; })
-    .forEach(function (t) { ScriptApp.deleteTrigger(t); });
-  ScriptApp.newTrigger('setcardCek').timeBased().everyHours(1).create();
-  Logger.log('setcardCek: saatte bir');
-  Logger.log(JSON.stringify(setcardCek()));
-  Logger.log(JSON.stringify(setcardFaturaKuru()));
-}
 
 /* ---------------- API ---------------- */
 
