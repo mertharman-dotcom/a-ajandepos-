@@ -1613,18 +1613,21 @@ function saatlikGrafik(l,hedef){if(!l||!l.length)return bos("Son 7 günde sipari
     svg.yaz(cx,H-alt-h-16,virgul(x.gunluk),"deger-yazi");if(x.ortDk!=null)svg.yaz(cx,H-alt-h-4,x.ortDk+" dk","adet-yazi",yavas?"var(--kotu)":null);svg.yaz(cx,H-alt+16,("0"+x.saat).slice(-2));});
   return el("div",{class:"grafik"},[svg]);}
 
-// Saat saat teslim süresinin aşamaları: alttan üste kurye ataması, atamadan çıkışa, yol. Üstte toplam;
-// restorandan çıkış (ilk iki parça) hedefi aşıyorsa toplam kırmızı.
-var ASAMA=[["ortAt","Kurye bekleniyor","sipariş → kurye atandı","var(--kotu)","var(--kagit)"],["ortHz","Mutfak + kuryenin gelişi","kurye atandı → paket çıktı","var(--dikkat)","var(--kagit)"],["ortYol","Yol","çıkış → kapı","var(--mavi)","var(--murekkep)"]];
-function saatAsamaGrafik(l,HD){var v=(l||[]).filter(function(x){return x.ortYol!=null;});if(!v.length)return bos("Son 7 günde süre kaydı yok.");
-  var W=760,H=250,ust=30,alt=34,p=16,bw=(W-p*2)/l.length;
-  var max=Math.max.apply(null,v.map(function(x){return (x.ortAt||0)+(x.ortHz||0)+(x.ortYol||0);}))||1;
-  var svg=svgYap(W,H,"Saat başına teslim süresinin aşamaları");
-  l.forEach(function(x,i){var cx=p+i*bw+bw/2;svg.yaz(cx,H-alt+16,("0"+x.saat).slice(-2));if(x.ortYol==null)return;
-    var y=H-alt,cik=(x.ortAt||0)+(x.ortHz||0),top=cik+(x.ortYol||0),bas=("0"+x.saat).slice(-2)+":00 — kurye ataması "+x.ortAt+" dk, atamadan çıkışa "+x.ortHz+" dk, yol "+x.ortYol+" dk";
-    ASAMA.forEach(function(a){var d=x[a[0]]||0,h=(H-ust-alt)*d/max;if(h<=0)return;y-=h;svg.sutun(p+i*bw+4,y,bw-8,h,a[3],bas);if(h>=14)svg.yaz(cx,y+h/2+4,String(d),"adet-yazi",a[4]);});
-    svg.yaz(cx,y-6,top+" dk","deger-yazi",cik>HD.cikis?"var(--kotu)":null);});
-  var lej=el("div",{class:"fis-lejant",style:"margin:4px 18px 0"},ASAMA.map(function(a){return el("span",null,[el("i",{style:"background:"+a[3]}),a[1]+" ("+a[2]+")"]);}));
+// Saat saat yol süresi (dükkândan çıkış → kapı): sütun = ortalama yol, içte mesafeye göre beklenen yol çizgisi.
+// Kırmızı: ortalama yol beklenenden pay kadar uzun. Altta ortalama km ve yolda geciken paket oranı.
+function saatYolGrafik(l,HD){var v=(l||[]).filter(function(x){return x.yolDk!=null;});if(!v.length)return bos("Son 7 günde mesafesi bilinen teslimat yok.");
+  var W=760,H=260,ust=30,alt=50,p=16,bw=(W-p*2)/l.length;
+  var max=Math.max.apply(null,v.map(function(x){return Math.max(x.yolDk,x.bekYol||0);}))||1;
+  var svg=svgYap(W,H,"Saat başına ortalama yol süresi");
+  l.forEach(function(x,i){var cx=p+i*bw+bw/2;svg.yaz(cx,H-alt+16,("0"+x.saat).slice(-2));if(x.yolDk==null)return;
+    var h=(H-ust-alt)*x.yolDk/max,uzun=x.yolDk>x.bekYol+HD.yolPay,oran=x.yolN?Math.round(x.yolGec/x.yolN*100):0;
+    svg.sutun(p+i*bw+4,H-alt-h,bw-8,h,uzun?"var(--kotu)":"var(--mavi)",("0"+x.saat).slice(-2)+":00 — ortalama yol "+x.yolDk+" dk, ortalama "+virgul(x.yolKm)+" km, mesafeye göre beklenen "+x.bekYol+" dk; "+x.yolN+" paketin "+x.yolGec+"'i yolda gecikti");
+    var hb=(H-ust-alt)*x.bekYol/max,c=document.createElementNS("http://www.w3.org/2000/svg","line");c.setAttribute("x1",p+i*bw+2);c.setAttribute("x2",p+(i+1)*bw-2);c.setAttribute("y1",H-alt-hb);c.setAttribute("y2",H-alt-hb);
+    c.setAttribute("style","stroke:var(--murekkep);stroke-width:2;stroke-dasharray:4 3;opacity:.7");svg.appendChild(c);
+    svg.yaz(cx,H-alt-Math.max(h,hb)-6,x.yolDk+" dk","deger-yazi",uzun?"var(--kotu)":null);
+    svg.yaz(cx,H-alt+30,virgul(x.yolKm)+" km","adet-yazi");if(oran)svg.yaz(cx,H-alt+44,"%"+oran,"adet-yazi",oran>=20?"var(--kotu)":null);});
+  var lej=el("div",{class:"fis-lejant",style:"margin:4px 18px 0"},[el("span",null,[el("i",{style:"background:var(--mavi)"}),"Ortalama yol süresi"]),el("span",null,[el("i",{style:"background:var(--kotu)"}),"Beklenenden "+HD.yolPay+" dk'dan fazla uzun"]),
+    el("span",null,[el("i",{style:"background:none;border-top:2px dashed var(--murekkep);height:0;border-radius:0"}),"Mesafeye göre beklenen (5 dk + km başına 2,5 dk)"]),el("span",null,["Altta: ortalama mesafe ve yolda geciken paketlerin yüzdesi"])]);
   return el("div",null,[lej,el("div",{class:"grafik"},[svg])]);}
 
 // 14 gün: sütun = paket adedi (koyu kısmı geciken), üstünde ortalama teslim süresi.
@@ -1713,7 +1716,7 @@ function kuryeTeslimat(a,K){var HD=K.hedef,D=KURYE_DONEM,G=K.genel[D];
     blok("Teslim süresi dağılımı","Son 7 günde paketlerin sipariş-teslim süresi.",cubuklar(K.dagilim,function(n){return n+" paket";}))]));
 
   a.appendChild(blok("Hangi saatte sıkışıyoruz","Son 7 günün saat başına günlük ortalama sipariş adedi; sütunun üstünde o saatteki ortalama teslim süresi. Kırmızı sütunlar ortalaması "+HD.toplam+" dakikayı aşan saatlerdir: o saatlere kurye ya da mutfak desteği gerekir.",saatlikGrafik(K.saatlik,HD.toplam)));
-  a.appendChild(blok("Bekleme nerede: saat saat teslim süresi","Aynı saatlerde ortalama teslim süresinin üç parçası. Kırmızı: sipariş geldi, kurye henüz atanmadı (kurye bekleniyor). Sarı: kurye atandı ama paket çıkmadı (mutfak hazırlıyor ya da kurye dükkâna geliyor). Mavi: dükkândan çıkıştan kapıya yol. Üstteki toplam kırmızıysa restorandan çıkış "+HD.cikis+" dakikayı aşmış demektir.",saatAsamaGrafik(K.saatlik,HD)));
+  a.appendChild(blok("Kuryenin yolda geçirdiği süre","Aynı saatlerde paketin dükkândan çıkışından kapıya kadar geçen ortalama süre (son 7 gün, mesafesi bilinen paketler). Kesikli çizgi mesafeye göre beklenen süre; sütun kırmızıysa o saatte yol beklenenden "+HD.yolPay+" dakikadan fazla uzun. Altta ortalama mesafe ve yolda geciken paketlerin oranı.",saatYolGrafik(K.saatlik,HD)));
   a.appendChild(blok("Platformlar","Son 7 gün.",K.platform.length?tablo([["Platform"],["Paket",1],["Ort. teslim",1],["Geciken",1]],K.platform.map(function(p){return [p.ad,String(p.adet),dkEtiket(p.ortDk,30,HD.toplam),p.gec+" (%"+(p.adet?Math.round(p.gec/p.adet*100):0)+")"];})):bos("Kayıt yok.")));
 
   // En uzun süren teslimatlar
