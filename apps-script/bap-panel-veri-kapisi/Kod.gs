@@ -2778,7 +2778,8 @@ var TR_AY = { oca: 0, sub: 1, şub: 1, mar: 2, nis: 3, may: 4, haz: 5, tem: 6, a
 var KART_KAYNAKLARI = [
   { ad: 'Pluxee', odeme: /pluxee|sodexo/i, oku: function (ks) { return pluxeeCekimleri_(ks); } },
   { ad: 'Paye',   odeme: /paye/i,          oku: function (ks) { return payeCekimleri_(ks); } },
-  { ad: 'Edenred', odeme: /edenred|^\s*ticket/i, oku: function (ks) { return edenredCekimleri_(ks); } }
+  { ad: 'Edenred', odeme: /edenred|^\s*ticket/i, oku: function (ks) { return edenredCekimleri_(ks); } },
+  { ad: 'SetCard', odeme: /set\s*card/i,  oku: function (ks) { return setcardCekimleri_(ks); } }
 ];
 function acikKanit_(ks, liste) {
   var ozet = {}; if (!liste.length) return ozet;
@@ -2915,6 +2916,20 @@ function edenredCekimleri_(ks) {
   var cz = kolon_(e.b, ['İşlem Zamanı']), ct = kolon_(e.b, ['Tutar (TL)', 'Tutar']), cekim = [], son = null;
   if (cz < 0 || ct < 0) return { hata: "Edenred sekmesinde 'İşlem Zamanı' ya da 'Tutar' sütunu yok" };
   e.v.forEach(function (r) {
+    var ms = zaman_(r[cz]), t = sayi_(r[ct]); if (ms === null || !(t > 0)) return;
+    var tam = kartTam_(ms); cekim.push({ ms: ms, tutar: t, zaman: tam.slice(6), tam: tam });
+    if (son === null || ms > son) son = ms;
+  });
+  return { cekim: cekim, son: son };
+}
+
+// SetCard (kurye projesi SetCard.gs → YEMEKKARTI › SetCard). Yalnız harcamalar; iptal / iade satırları sayılmaz.
+function setcardCekimleri_(ks) {
+  var e = kartSekmesi_(ks, 'SetCard', 6000); if (!e) return null;
+  var cz = kolon_(e.b, ['İşlem Zamanı']), ct = kolon_(e.b, ['Tutar (TL)']), cy = kolon_(e.b, ['İşlem Türü']), cekim = [], son = null;
+  if (cz < 0 || ct < 0) return { hata: "SetCard sekmesinde 'İşlem Zamanı' ya da 'Tutar (TL)' sütunu yok" };
+  e.v.forEach(function (r) {
+    if (cy >= 0 && /iptal|iade/.test(norm_(r[cy]))) return;
     var ms = zaman_(r[cz]), t = sayi_(r[ct]); if (ms === null || !(t > 0)) return;
     var tam = kartTam_(ms); cekim.push({ ms: ms, tutar: t, zaman: tam.slice(6), tam: tam });
     if (son === null || ms > son) son = ms;
