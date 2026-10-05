@@ -2780,7 +2780,7 @@ function kurye_() {
       });
       if (gun >= yediBasi && gun <= bugun) {
         var h = parseInt(String(r[c.sip] || '').split(':')[0], 10);
-        if (!isNaN(h)) { var sx = saat[h] = saat[h] || { adet: 0, dk: 0, n: 0 }; sx.adet++; if (sureVar) { sx.dk += top; sx.n++; } }
+        if (!isNaN(h)) { var sx = saat[h] = saat[h] || { adet: 0, dk: 0, n: 0, at: 0, hz: 0, yol: 0 }; sx.adet++; if (sureVar) { sx.dk += top; sx.n++; sx.at += at; sx.hz += hz; sx.yol += yol; } }
         if (sureVar) dagilim[top <= 20 ? 0 : top <= 30 ? 1 : top <= 40 ? 2 : top <= 60 ? 3 : 4]++;
         var p = platform[plat] = platform[plat] || { ad: plat, adet: 0, dk: 0, n: 0, gec: 0 };
         p.adet++; if (sureVar) { p.dk += top; p.n++; } if (gec) p.gec++;
@@ -2791,7 +2791,9 @@ function kurye_() {
   }
   out.sonSiparis = sonSiparisMs === null ? null : new Date(sonSiparisMs).toISOString().slice(0, 16).replace('T', ' ');
   // İş günü 10:00'da başlar: saatleri 11, …, 23, 0, 1, 2 sırasıyla ver
-  out.saatlik = []; for (var hh = 10; hh < 27; hh++) { var h2 = hh % 24, sv = saat[h2]; if (sv || (hh >= 11 && hh <= 23)) out.saatlik.push({ saat: h2, gunluk: sv ? Math.round(sv.adet / 7 * 10) / 10 : 0, ortDk: sv && sv.n ? Math.round(sv.dk / sv.n) : null }); }
+  out.saatlik = []; for (var hh = 10; hh < 27; hh++) { var h2 = hh % 24, sv = saat[h2]; if (sv || (hh >= 11 && hh <= 23)) out.saatlik.push({ saat: h2, gunluk: sv ? Math.round(sv.adet / 7 * 10) / 10 : 0, ortDk: sv && sv.n ? Math.round(sv.dk / sv.n) : null,
+    // Teslim süresinin aşamaları: sipariş → kurye atandı (kurye bekleniyor), atandı → çıkış (mutfak + kuryenin gelişi), çıkış → kapı (yol)
+    ortAt: sv && sv.n ? Math.round(sv.at / sv.n) : null, ortHz: sv && sv.n ? Math.round(sv.hz / sv.n) : null, ortYol: sv && sv.n ? Math.round(sv.yol / sv.n) : null }); }
   out.dagilim = ['20 dk ve altı', '21–30 dk', '31–40 dk', '41–60 dk', '60 dk üstü'].map(function (ad, j) { return { ad: ad, deger: dagilim[j] }; });
   out.platform = Object.keys(platform).map(function (k) { var p = platform[k]; return { ad: p.ad, adet: p.adet, gec: p.gec, ortDk: p.n ? Math.round(p.dk / p.n) : null }; }).sort(function (a, b) { return b.adet - a.adet; });
   out.enKotu = enKotu.sort(function (a, b) { return b.toplam - a.toplam; }).slice(0, 30);
