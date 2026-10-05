@@ -39,7 +39,7 @@ jobs:
           else
             once="${{ github.event.before }}"
             if [ -z "$once" ] || ! git cat-file -e "$once" 2>/dev/null; then once=HEAD~1; fi
-            liste=$(git diff --name-only "$once" HEAD -- apps-script | grep -vE '/\.clasp(-cekim|\.json)$' | awk -F/ 'NF>2{print $2}' | sort -u | tr '\n' ' ')
+            liste=$(git diff --no-renames --name-only "$once" HEAD -- apps-script | grep -vE '/\.clasp(-cekim|\.json)$' | awk -F/ 'NF>2{print $2}' | sort -u | tr '\n' ' ')
           fi
           echo "liste=$liste" >> "$GITHUB_OUTPUT"; echo "Projeler: $liste"
       - name: Yayınla
