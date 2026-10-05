@@ -14,6 +14,7 @@ tutamaz; gerekiyorsa sahipten okur. ⏳ = karar/geçiş bekliyor (bkz. `kontrol-
 | FATURA | Kolaybi Fatura Ham Veri | `1JJ6UZzh8rSX1FE9Cr-UPzEAaE-2aKtM10bEvjAv2P5w` |
 | YEMEKKARTI | BAP Yemek Kartı Tahsilatları (Pluxee, Edenred, Paye çekimleri) | `19RVXZQwKZRCW6xnZxSwhRHXte4VWhaVqruaTZRwVJbM` |
 | TRENDYOL | Trendyol Yorumlar (Trendyol API çeker; ayrıntı `docs/trendyol-api.md`) | `1KLWCEBwFMHCTrTnCYLhv2ctg5PvGtS9DNzoMXF-Z1JE` |
+| KURYE | Kurye Net Çalışma Süresi (HemenYolda köprüsü, Pluxee çekimi, açık hesaplar) | `1LG7naAbMM9aL3K0QNzzrjXomC2LXjx4rdSCYNYWzDQo` |
 
 Bütün e-tabloların listesi ve önerilen Drive düzeni: `docs/tablo-haritasi.md`.
 
@@ -47,9 +48,11 @@ Bütün e-tabloların listesi ve önerilen Drive düzeni: `docs/tablo-haritasi.m
 | Trendyol puanı × sipariş adedi (gün × mağaza), yarın tahmini | TRENDYOL › Puan_Siparis, Puan_Tahmin | `gunlukPuanRaporu` (23:50) | Sahip, panel | Puan_Siparis her gece baştan üretilir; sipariş adedi SATIS'tan okunur, kopya değil |
 | Trendyol yorum cevapları (taslak, onay, gönderim, Trendyol sonucu) | TRENDYOL › Yorum_Cevap | `yorumCevapCalistir` + sahip (onay) | Sahip | — |
 | Trendyol iadeleri | TRENDYOL › Iadeler | `iadeleriCek` (10 dk) | Sahip | — |
-| Yemek kartı terminal çekimleri (Pluxee, Edenred, Paye gün sonu) | YEMEKKARTI › Pluxee, Edenred, Paye | MacBook pluxee.mjs / edenred.mjs (Kopru), `payeMailCek` (Gmail, Paye Excel'i) | Panel açık hesap kontrolü, yemek kartı mutabakatı (planlı) | Kurye tablosundaki eski 'Pluxee' / 'Edenred' sekmeleri taşıma sonrası '(eski)' arşivi; yazılmaz |
+| Yemek kartı terminal çekimleri (Pluxee, Edenred, Paye gün sonu + Paye işlemleri) | YEMEKKARTI › Pluxee, Edenred, Paye (gün sonu), Paye İşlemler (işlem işlem) | MacBook pluxee.mjs / edenred.mjs (Kopru), `payeMailCek` (Gmail, Paye Excel'inin iki sayfası) | Yemek kartı ajanı (veri kapısı `pluxeeCekimleri_` / `edenredCekimleri_` / `payeCekimleri_` ← Paye İşlemler) | Kurye tablosundaki eski 'Pluxee' / 'Edenred' sekmeleri taşıma sonrası '(eski)' arşivi; kurye 'Paye' sekmesi (rapor ajanı kopyası) silinecek |
 | Kurye kesintileri (TL / dakika) | KURYE › Kesintiler (`1LG7naAbMM9aL3K0QNzzrjXomC2LXjx4rdSCYNYWzDQo`) | Elle + `iadeKesintileriIsle` (Iadeler'de "Kuryeden Düş" işaretli satırlar) | Kurye bordrosu (`kesintiOku`) | Iadeler'deki "Kesinti Durumu" yalnızca durum notu, kopya değil |
 | Reçete durumu | GENEL › Menü I sütunu | Maliyet Modülü | — | Stok motoru da yazıyor (S8) |
+| Kapatılan açık hesaplar | KURYE › Tahsilatlar | Panel (elle) + yemek kartı ajanı (kaynak 'Pluxee Ajanı' / 'Paye Ajanı') | Panel, bordro | — |
+| Pluxee haftalık fatura (onay, kesim sonucu, tutarlar) | KURYE › Pluxee Fatura | Panel (onay) + MacBook Pluxee programı (kesim sonucu) | Panel › Finans | — |
 
 ## Birimler
 
