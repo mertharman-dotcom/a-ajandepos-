@@ -134,7 +134,7 @@ function paketHazirla_() {
   var out = {
     surum: 1,
     olusturma: Utilities.formatDate(simdi, TZ, "yyyy-MM-dd'T'HH:mm:ss"),
-    kaynaklar: [], satis: null, nabiz: null, isKaydi: null, hub: null, finans: null, personel: null, kurye: null, genel: null, fisKayit: null, musteri: null, yemekKarti: null, pluxeeFatura: null, ykKontrol: null, setcardFatura: null, hatalar: []
+    kaynaklar: [], satis: null, nabiz: null, isKaydi: null, hub: null, finans: null, personel: null, kurye: null, genel: null, fisKayit: null, musteri: null, yemekKarti: null, pluxeeFatura: null, ykKontrol: null, setcardFatura: null, metropolFatura: null, hatalar: []
   };
   Object.keys(KAYNAK).forEach(function (k) {
     var s = KAYNAK[k];
@@ -161,6 +161,7 @@ function paketHazirla_() {
   bolum_(out, 'pluxeeFatura', pluxeeFatura_);
   bolum_(out, 'ykKontrol', ykKontrol_);
   bolum_(out, 'setcardFatura', setcardFatura_);
+  bolum_(out, 'metropolFatura', metropolFatura_);
   return out;
 }
 
@@ -1726,6 +1727,32 @@ function setcardFatura_() {
   return { liste: l.slice(0, 12), kontrol: l.length ? l[0].kontrol : '', kolaybiOkundu: kb.length > 0,
            kural: { bugun: bugun, faturaGunu: setcardFaturaGunuMu_(bugun), sonGun: bugun === sonGun, buAy: buAy, hak: SETCARD_FATURA.AYLIK_HAK, ilkGun: SETCARD_FATURA.ILK_GUN, takvim: takvim } };
 }
+/* ---------------- Metropol faturası (panel › Yemek Kartları) ----------------
+ * Sahibin kuralı (06.10.2026): ayda 2 fatura — ayın 15'i ve ayın son günü (site ayın 1–6'sında kestirmez).
+ * Kesimi şimdilik sahibi yapar (sonra MacBook metropol.mjs --fatura-kes). Kesildi mi: KolayBi'de o gün METROPAL'e kesilen satış faturası. Biriken: son METROPAL faturasından beri Metropol çekimleri.
+ */
+var METROPOL_FATURA_GUNLERI = [15];   // + ayın son günü
+function metropolFaturaGunuMu_(gun) {
+  var d = new Date(gun + 'T00:00:00Z'), g = d.getUTCDate(), son = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth() + 1, 0)).getUTCDate();
+  return g === son || METROPOL_FATURA_GUNLERI.indexOf(g) >= 0;
+}
+function metropolFatura_() {
+  var bugun = takvimGunu_(), ay = bugun.slice(0, 7), GUN = 86400000;
+  var kb = []; try { kb = kolaybiSatis_(/metropal|metropol/); } catch (err) { }
+  kb.sort(function (p, q) { return q.ms - p.ms; });
+  var gunu = function (ms) { return new Date(ms).toISOString().slice(0, 10); };
+  var buAy = kb.filter(function (f) { return gunu(f.ms).slice(0, 7) === ay; }).length;
+  var bugunKesildi = kb.some(function (f) { return gunu(f.ms) === bugun; });
+  // Biriken: son METROPAL faturasından bu yana Metropol çekimleri (Metropol sekmesi gelmeye başladıysa)
+  var biriken = null, son = kb[0] ? kb[0].ms : null;
+  try { var v = metropolCekimleri_(SpreadsheetApp.openById(KAYNAK.kurye.id));
+    if (v && v.cekim && v.cekim.length) biriken = Math.round(v.cekim.filter(function (y) { return son === null || y.ms > son + GUN / 2; }).reduce(function (t, y) { return t + y.tutar; }, 0)); } catch (err) { }
+  var takvim = [], g = bugun; for (var i = 0; i < 70 && takvim.length < 3; i++) { if (metropolFaturaGunuMu_(g)) takvim.push(g); g = gunEkle_(g, 1); }
+  return { bugun: bugun, faturaGunu: metropolFaturaGunuMu_(bugun), sonGun: bugun === new Date(Date.UTC(+bugun.slice(0, 4), +bugun.slice(5, 7), 0)).toISOString().slice(0, 10),
+    bugunKesildi: bugunKesildi, buAy: buAy, hak: 2, takvim: takvim, biriken: biriken, kolaybiOkundu: kb.length > 0,
+    liste: kb.slice(0, 8).map(function (f) { return { no: f.no, tarih: kartTam_(f.ms).slice(0, 5) + '.' + new Date(f.ms).getUTCFullYear(), tutar: f.tutar, odendi: f.odendi }; }) };
+}
+
 function setcardFaturaIslem_(d) {
   var no = String(d.takipNo || '').replace(/\D/g, ''); if (!no) return { hata: 'Takip numarası yok.' };
   if (d.islem !== 'kes') return { hata: 'Geçersiz işlem.' };

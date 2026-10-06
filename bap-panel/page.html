@@ -2222,6 +2222,8 @@ function ykUyarilar(){var u=[],F=VERI&&VERI.setcardFatura,K=VERI&&VERI.ykKontrol
     else if(!/kesilmedi/i.test(x.durum)&&!x.kolaybi&&F.kolaybiOkundu&&/^fatura kesildi/i.test(x.durum))u.push({s:"e-kotu",m:"SetCard: "+para(x.tutar)+" fatura kesildi ("+x.tarih+") ama KolayBi'de karşılığı yok. KolayBi'den SETCARD'a mali faturayı kes."});
     if(/ödeme|odeme/i.test(x.durum)&&x.kolaybi&&!x.kolaybi.odendi){tah.n++;tah.t+=x.tutar;}});
     if(tah.n)u.push({s:"e-notr",m:"SetCard "+tah.n+" faturayı ödedi ("+para(tah.t)+") ama KolayBi'de ‘tahsil edilmedi’ görünüyor; tahsilatı KolayBi'ye işle."});}
+  var M=VERI&&VERI.metropolFatura;
+  if(M&&M.faturaGunu&&!M.bugunKesildi)u.push({s:M.sonGun?"e-kotu":"e-dikkat",m:"Bugün Metropol fatura günü ("+(M.sonGun?"ayın son günü":"ayın 15'i")+")"+(M.biriken!=null?": biriken "+para(M.biriken):"")+". Metropol › Manuel Fatura Kesimi'nden kes, sonra KolayBi'den METROPAL'e mali faturayı kes (KolayBi'de görününce uyarı kalkar)."});
   if(K&&K.kartlar)K.kartlar.forEach(function(k){var n=k.cekimsiz.length+k.siparissiz.length+k.parcali.length;if(n)u.push({s:"e-notr",m:k.ad+": "+n+" açıkta kalan ödeme ("+k.cekimsiz.length+" çekimsiz sipariş, "+k.siparissiz.length+" siparişsiz çekim, "+k.parcali.length+" farklı tutar)."});});
   return u;}
 function ykUyariKutusu(link){var u=ykUyarilar();if(!u.length)return null;
@@ -2229,9 +2231,10 @@ function ykUyariKutusu(link){var u=ykUyarilar();if(!u.length)return null;
     link?el("div",{style:"margin-top:6px"},[el("a",{href:"#yemekkart",text:"Yemek Kartları sayfasını aç"})]):null]);}
 
 function ykSayfa(a){a.appendChild(ust("Yemek kartları","Pluxee, Edenred, Paye, SetCard: faturalar, siparişlerle karşılaştırma ve kurye açık hesapları. Kaynak: BAP Yemek Kartı Tahsilatları tablosu."));
-  a.appendChild(nabizSeridi("yemekkart"));var h=hatalarKutusu(["ykKontrol","setcardFatura","pluxeeFatura","yemekKarti"]);if(h)a.appendChild(h);
+  a.appendChild(nabizSeridi("yemekkart"));var h=hatalarKutusu(["ykKontrol","setcardFatura","metropolFatura","pluxeeFatura","yemekKarti"]);if(h)a.appendChild(h);
   var u=ykUyariKutusu(false);if(u)a.appendChild(u);
   setcardFaturaBlok(a);
+  metropolFaturaBlok(a);
   ykKontrolBlok(a);
   if(VERI.kurye&&VERI.kurye.acik)kartAjanBlok(a,VERI.kurye.acik);
   pluxeeFaturaBlok(a);
@@ -2256,6 +2259,14 @@ function setcardFaturaBlok(a){var F=VERI.setcardFatura;if(!F)return;var kap=el("
     rakam("Bu ay kesilen",R.buAy+" / "+R.hak,"ayda en çok "+R.hak+" fatura",R.buAy>=R.hak?"asagi":""),
     rakam("Sonraki fatura günleri",R.takvim.filter(function(g){return g!==R.bugun;}).slice(0,3).map(function(g){return gunAd(g);}).join(", ")||"—","her Cuma (ayın "+R.ilkGun+"'inden itibaren) + ayın son günü")]));
   a.appendChild(blok("SetCard faturası","Kural: her Cuma (ayın "+(R?R.ilkGun:11)+"'inden önce kesilemez), ayda en çok "+(R?R.hak:4)+" fatura, ayın son günü mutlaka. Fatura günü Yönetim Merkezi'nde uyarı çıkar; şimdilik sen kesiyorsun, sonra program kesecek. SetCard › Fatura Takibi saatte bir buraya gelir"+(F.kontrol?" (son kontrol "+F.kontrol+")":"")+". ‘Fatura Kes’ sitedeki düğmeyle aynı işi yapar. Mali fatura KolayBi satış faturalarından kendiliğinden bulunur (SETCARD, aynı tutar, birkaç gün içinde); bulunamazsa ‘yok — kesilmeli’ yazar. ‘KolayBi tahsilat’: SetCard ödediği halde KolayBi'de tahsil işlenmemişse ‘işlenmemiş’.",kap));}
+
+function metropolFaturaBlok(a){var M=VERI.metropolFatura;if(!M)return;
+  a.appendChild(el("div",{class:"rakamlar"},[rakam("Bugün",M.faturaGunu?(M.bugunKesildi?"Fatura günü — kesildi ✓":"Fatura günü — kesilmedi"):"Fatura günü değil",M.faturaGunu?(M.sonGun?"ayın son günü":"ayın 15'i"):null,M.faturaGunu?(M.bugunKesildi?"yukari":"asagi"):""),
+    rakam("Bu ay kesilen",M.buAy+" / "+M.hak,"KolayBi'deki METROPAL faturalarından"),
+    rakam("Sonraki fatura günleri",M.takvim.filter(function(g){return g!==M.bugun;}).slice(0,2).map(function(g){return gunAd(g);}).join(", ")||"—","ayın 15'i + ayın son günü"),
+    M.biriken!=null?rakam("Biriken (son faturadan beri)",para(M.biriken),"Metropol çekimleri"):null]));
+  a.appendChild(blok("Metropol faturası","Kural: ayda 2 fatura — ayın 15'i ve ayın son günü (site ayın 1–6'sında kestirmez). Şimdilik sen kesiyorsun (Metropol › Manuel Fatura Kesimi), sonra MacBook programı kesecek. Kesildiğini KolayBi'deki METROPAL faturasından anlarım; fatura günü kesilmemişse Yönetim Merkezi'nde uyarı çıkar.",
+    M.liste.length?tablo([["KolayBi faturası"],["Tarih"],["Tutar",1],["KolayBi tahsilat"]],M.liste.map(function(x){return [x.no.slice(-6),x.tarih,para(x.tutar),el("span",{class:"etiket "+(x.odendi?"e-iyi":"e-notr"),text:x.odendi?"tahsil edildi":"bekliyor"})];})):bos(M.kolaybiOkundu?"KolayBi'de METROPAL faturası yok.":"KolayBi satış faturaları okunamadı.")));}
 
 function ykKontrolBlok(a){var K=VERI.ykKontrol;if(!K)return;
   var kartlar=K.kartlar||[];if(!kartlar.length)return;
