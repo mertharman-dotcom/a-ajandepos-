@@ -105,14 +105,23 @@ async function girisYap(page) {
   if (!TERMINAL) { const r = await yk({ tur: 'kodIste', kaynak: 'multinet' }); if (r.hata) throw new Error('kod kutusu: ' + r.hata); }
   await page.locator('button[type="submit"]').first().click();
   log('Multinet SMS istendi (robot doğrulaması çıkarsa Chrome penceresinde işaretle)');
-  // Kod kutusu: tek kutu ya da 6 ayrı kutu olabilir
-  await page.waitForSelector('input[autocomplete="one-time-code"], input[inputmode="numeric"], input[maxlength="6"], input[maxlength="1"]', { timeout: 180000 });
+  // Kod kutusu: tek kutu ya da 6 ayrı kutu olabilir; sitedeki kutuların özniteliği belli olmadığından
+  // VKN / telefon dışındaki görünür yazı kutuları alınır.
+  const kutular = page.locator('input:visible:not(#taxNumber):not(#phone):not([type="hidden"]):not([type="checkbox"]):not([type="radio"])');
+  await kutular.first().waitFor({ timeout: 180000 });
   const kod = TERMINAL ? await terminaldenSor() : await kodBekle();
   if (!/^\d{4,8}$/.test(kod)) throw new Error('geçersiz kod: ' + kod);
-  const tekler = page.locator('input[maxlength="1"]');
-  if (await tekler.count() >= kod.length) { for (let i = 0; i < kod.length; i++) await tekler.nth(i).fill(kod[i]); }
-  else await page.locator('input[autocomplete="one-time-code"], input[inputmode="numeric"], input[maxlength="6"]').first().fill(kod);
-  await page.locator('button[type="submit"]').first().click().catch(() => {});
+  const n = await kutular.count();
+  log(`kod ekranında ${n} kutu`);
+  if (n >= kod.length) {
+    for (let i = 0; i < kod.length; i++) { const k = kutular.nth(i); await k.click(); await k.pressSequentially(kod[i], { delay: 80 }); }
+  } else if (n >= 1) {
+    await kutular.first().click(); await kutular.first().pressSequentially(kod, { delay: 80 });
+  } else {
+    const oz = await page.$$eval('input', l => l.map(i => `${i.id}|${i.name}|${i.type}|${i.maxLength}|${i.offsetParent ? 'görünür' : 'gizli'}`));
+    throw new Error('kod kutusu bulunamadı; sayfadaki kutular: ' + oz.join(', '));
+  }
+  await page.locator('button[type="submit"]:visible').first().click({ timeout: 5000 }).catch(() => {});
   await page.waitForURL(u => !/\/auth\/login/.test(String(u)), { timeout: 30000 }).catch(() => {});
   if (!TERMINAL) await yk({ tur: 'kodSil', kaynak: 'multinet' }).catch(() => {});
   if (/\/auth\/login/.test(page.url())) throw new Error('kod kabul edilmedi');
