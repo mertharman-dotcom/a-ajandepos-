@@ -1481,29 +1481,34 @@ function yorumOnay_(d) {
 /* ---------------- Genel bilgiler (BAP GENEL BİLGİLER: menü, şubeler, bölgeler, ödeme) ---------------- */
 var GENEL_PORTAL_URL = 'https://bap-genel-bilgiler.mertharman.workers.dev/';
 
-/* ---------------- Mobilden kesilen yemek kartı faturaları: Pluxee, Edenred ----------------
- * Bu iki kartın faturası yalnız mobil uygulamadan kesilir (sahibin bilgisi 06.10) → program kesemez; panel fatura günü hatırlatır ve
+/* ---------------- Mobilden kesilen yemek kartı faturaları: Pluxee, Edenred, Tokenflex ----------------
+ * Bu kartların faturası yalnız mobil uygulamadan kesilir (sahibin bilgisi 06.10) → program kesemez; panel fatura günü hatırlatır ve
  * kesildiğini KolayBi'deki satış faturasından (müşteri adı) anlar. Kurallar sahibin:
- *   Pluxee : her Cuma (ayın 1–6'sı kesilemez → 7'sinden itibaren) + ayın son günü
- *   Edenred: her Cuma (ayın ilk 7 günü kesilemez → 8'inden itibaren) + ayın son günü
+ *   Pluxee   : her Cuma (ayın 1–6'sı kesilemez → 7'sinden itibaren) + ayın son günü
+ *   Edenred  : her Cuma (ayın ilk 7 günü kesilemez → 8'inden itibaren) + ayın son günü
+ *   Tokenflex: ayın 15'i + ayın son günü (faturalanacak tutar: Tokenflex Fatura › 'Açık' dönem)
  */
+function ayinSonGunuMu_(gun) { var d = new Date(gun + 'T00:00:00Z'); return d.getUTCDate() === new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth() + 1, 0)).getUTCDate(); }
+function cumaFaturaGunuMu_(gun, ilkGun) { var d = new Date(gun + 'T00:00:00Z'); return ayinSonGunuMu_(gun) || (d.getUTCDay() === 5 && d.getUTCDate() >= ilkGun); }
 var MOBIL_FATURA = [
-  { ad: 'Pluxee', musteri: /pluxee|sodexo/, ilkGun: 7 },
-  { ad: 'Edenred', musteri: /edenred|ticket/, ilkGun: 8 }
+  { ad: 'Pluxee', musteri: /pluxee|sodexo/, kuralMetni: "her Cuma (ayın 7'sinden itibaren) + ayın son günü", gunMu: function (g) { return cumaFaturaGunuMu_(g, 7); } },
+  { ad: 'Edenred', musteri: /edenred|ticket/, kuralMetni: "her Cuma (ayın 8'inden itibaren) + ayın son günü", gunMu: function (g) { return cumaFaturaGunuMu_(g, 8); } },
+  { ad: 'Tokenflex', musteri: /tokenflex/, kuralMetni: "ayın 15'i + ayın son günü", gunMu: function (g) { return +g.slice(8, 10) === 15 || ayinSonGunuMu_(g); }, birikenSekme: 'Tokenflex Fatura' }
 ];
 function takvimGunu_() { return Utilities.formatDate(new Date(), TZ, 'yyyy-MM-dd'); }
-function cumaFaturaGunuMu_(gun, ilkGun) {
-  var d = new Date(gun + 'T00:00:00Z'), g = d.getUTCDate(), son = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth() + 1, 0)).getUTCDate();
-  return g === son || (d.getUTCDay() === 5 && g >= ilkGun);
-}
 function mobilFatura_() {
-  var bugun = takvimGunu_(), sonGun = new Date(Date.UTC(+bugun.slice(0, 4), +bugun.slice(5, 7), 0)).toISOString().slice(0, 10);
-  var gunu = function (ms) { return new Date(ms).toISOString().slice(0, 10); };
+  var bugun = takvimGunu_(), gunu = function (ms) { return new Date(ms).toISOString().slice(0, 10); };
   return MOBIL_FATURA.map(function (k) {
     var kb = []; try { kb = kolaybiSatis_(k.musteri); } catch (err) { }
     kb.sort(function (p, q) { return q.ms - p.ms; });
-    var takvim = [], g = bugun; for (var i = 0; i < 45 && takvim.length < 3; i++) { if (cumaFaturaGunuMu_(g, k.ilkGun)) takvim.push(g); g = gunEkle_(g, 1); }
-    return { ad: k.ad, ilkGun: k.ilkGun, bugun: bugun, faturaGunu: cumaFaturaGunuMu_(bugun, k.ilkGun), sonGun: bugun === sonGun,
+    var takvim = [], g = bugun; for (var i = 0; i < 45 && takvim.length < 3; i++) { if (k.gunMu(g)) takvim.push(g); g = gunEkle_(g, 1); }
+    // Kart firmasının 'Açık' (henüz faturalanmamış) dönemi varsa faturalanacak tutar odur
+    var biriken = null;
+    if (k.birikenSekme) try { var sh = SpreadsheetApp.openById(KAYNAK.yemekKarti.id).getSheetByName(k.birikenSekme);
+      if (sh && sh.getLastRow() > 1) { var b = sh.getRange(1, 1, 1, sh.getLastColumn()).getDisplayValues()[0], cd = kolon_(b, ['Durum']), ct = kolon_(b, ['Tutar (TL)']);
+        biriken = Math.round(sh.getRange(2, 1, sh.getLastRow() - 1, sh.getLastColumn()).getDisplayValues().filter(function (r) { return /^acik$/.test(norm_(r[cd])); })
+          .reduce(function (t, r) { return t + sayi_(r[ct]); }, 0)); } } catch (err) { }
+    return { ad: k.ad, kural: k.kuralMetni, bugun: bugun, faturaGunu: k.gunMu(bugun), sonGun: ayinSonGunuMu_(bugun), biriken: biriken,
       bugunKesildi: kb.some(function (f) { return gunu(f.ms) === bugun; }), kolaybiOkundu: kb.length > 0, takvim: takvim,
       liste: kb.slice(0, 8).map(function (f) { return { no: f.no, tarih: kartTam_(f.ms).slice(0, 5) + '.' + new Date(f.ms).getUTCFullYear(), tutar: f.tutar, odendi: f.odendi }; }) };
   });
