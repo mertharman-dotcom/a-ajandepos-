@@ -6,7 +6,9 @@
 //   node multinet.mjs 01.09.2026 06.10.2026  tarih aralığı
 //   --terminal                               kodu terminalden sor
 //   --tabloya-yazma                          yalnız CSV
-// Ayar: ayar.json › multinet { vkn, telefon, geriGun }, ayar.json › ykWebapp. Çıktı: multinet_islemler.csv (+ multinet.log)
+//   --fatura-kuru                            fatura dönemlerini (vade seçenekleri) gösterir, kesmez
+//   --fatura-kes                             faturayı keser (createMerchantInvoiceSummary; vade ayar.json › multinet.vade, varsayılan 3)
+// Ayar: ayar.json › multinet { vkn, telefon, geriGun, vade }, ayar.json › ykWebapp. Çıktı: multinet_islemler.csv (+ multinet.log)
 // Depodaki kopya: mac-kopru/multinet.mjs — değişiklik önce depoda.
 //
 // Site (06.10.2026, JSON API, oturum çerezi + x-csrf-token):
@@ -17,7 +19,9 @@
 //        'Trendyol Satis' / 'Yemek Sepeti Satis' / 'Getir Food Payment' (online) | 'harcama iptali' (ExternalServerRefNo = iptal edilen)
 //   POST /api/invoices/getMerchantDebitInvoiceSummaries {customerBranchId, invoiceDateRange, validityDateRange:null, …}
 //        InvoiceSeriNumber = KolayBi fatura no (EFA…), InvoiceDebitPaymentTypeText 'Ödeme Tamamlandı', ödeme tarihi açıklamada
-//   POST /api/invoices/createMerchantInvoiceSummary {dueDay, merchantId} — fatura kesme (henüz kullanılmıyor; gün sonu ister)
+//   POST /api/invoices/getPaymentPeriodList {merchantId} → vade seçenekleri (DueDay 3 / 30 …, Commission, IsInvoiceable)
+//   POST /api/invoices/createMerchantInvoiceSummary {dueDay, merchantId} — fatura kesme. Gün sonu alınmamışsa site:
+//        'ES-ERROR[50181]: LUTFEN GUNSONU ALARAK TEKRAR DENEYINIZ.' (06.10)
 
 import fs from 'fs';
 import path from 'path';
@@ -131,6 +135,17 @@ async function girisYap(page) {
 
     const sube = (await api(page, 'transactions/getBranches', { customerId: OT.customerId }))[0];
     if (!sube) throw new Error('şube bulunamadı');
+    if (process.argv.includes('--fatura-kuru') || process.argv.includes('--fatura-kes')) {
+      const donem = await api(page, 'invoices/getPaymentPeriodList', { merchantId: sube.Id }) || [];
+      log('vade seçenekleri: ' + donem.map(d => `${d.ProductDescription} ${d.DueDay} gün %${(d.Commission || 0) / 100}${d.IsInvoiceable ? '' : ' (kesilemez)'}`).join(' | '));
+      if (process.argv.includes('--fatura-kes')) {
+        const vade = Number(MN.vade || 3);
+        // POST tekrar denenmez; hata gelirse (ör. gün sonu alınmamış) fatura kesilmemiştir.
+        try { const r = await api(page, 'invoices/createMerchantInvoiceSummary', { dueDay: vade, merchantId: sube.Id }); log('FATURA KESİLDİ (' + vade + ' gün vade): ' + JSON.stringify(r).slice(0, 300)); }
+        catch (e) { log('fatura KESİLMEDİ: ' + e.message); }
+      }
+      return;
+    }
     const ham = await api(page, 'transactions/getMerchantTransactionDetailSummaries',
       { customerId: OT.customerId, merchantId: sube.Id, terminalIds: [], transactionDateRange: `${ymd(bas)}-${ymd(bit)}` }) || [];
     const iptal = new Set(ham.filter(x => kurus(x.Amount) < 0).map(x => String(x.ExternalServerRefNo || '')));

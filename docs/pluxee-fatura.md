@@ -1,3 +1,5 @@
+> **06.10.2026 güncelleme:** Pluxee faturası yalnız **mobil uygulamadan** kesilebiliyor (sahibin bilgisi). Aşağıdaki "MacBook programı keser" adımı yapılamaz; panel yalnız takvimi ve KolayBi tarafını izler, faturayı sahibi keser.
+
 # Pluxee haftalık fatura — çalışma düzeni
 
 Sahibin kuralı (04.10.2026):
