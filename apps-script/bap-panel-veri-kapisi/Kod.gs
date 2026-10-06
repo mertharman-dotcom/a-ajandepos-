@@ -2951,6 +2951,7 @@ var KART_KAYNAKLARI = [
   { ad: 'Pluxee', odeme: /pluxee|sodexo/i, oku: function (ks) { return pluxeeCekimleri_(ks); } },
   { ad: 'Paye',   odeme: /paye/i,          oku: function (ks) { return payeCekimleri_(ks); } },
   { ad: 'Edenred', odeme: /edenred|^\s*ticket/i, oku: function (ks) { return edenredCekimleri_(ks); } },
+  { ad: 'Metropol', odeme: /metropol/i,   oku: function (ks) { return metropolCekimleri_(ks); } },
   { ad: 'SetCard', odeme: /set\s*card/i,  oku: function (ks) { var v = setcardCekimleri_(ks); if (v && v.cekim && !v.hata) v.cekim = v.cekim.filter(function (y) { return !y.online; }); return v; }, tumu: function (ks) { return setcardCekimleri_(ks); } }
 ];
 function acikKanit_(ks, liste) {
@@ -3090,6 +3091,20 @@ function edenredCekimleri_(ks) {
   e.v.forEach(function (r) {
     var ms = zaman_(r[cz]), t = sayi_(r[ct]); if (ms === null || !(t > 0)) return;
     var tam = kartTam_(ms); cekim.push({ ms: ms, tutar: t, zaman: tam.slice(6), tam: tam });
+    if (son === null || ms > son) son = ms;
+  });
+  return { cekim: cekim, son: son };
+}
+
+// Metropol (BAP Yemek Kartı › Metropol.gs ← MacBook metropol.mjs). Terminal başına kullanıcı = kurye / dükkan.
+function metropolCekimleri_(ks) {
+  var e = kartSekmesi_(ks, 'Metropol', 6000); if (!e) return null;
+  var cz = kolon_(e.b, ['İşlem Zamanı']), ct = kolon_(e.b, ['Tutar (TL)']), cy = kolon_(e.b, ['İşlem Türü']), cter = kolon_(e.b, ['Terminal No']), cku = kolon_(e.b, ['Cihaz / Kullanıcı']), cekim = [], son = null;
+  if (cz < 0 || ct < 0) return { hata: "Metropol sekmesinde 'İşlem Zamanı' ya da 'Tutar (TL)' sütunu yok" };
+  e.v.forEach(function (r) {
+    if (cy >= 0 && /iptal|iade/.test(norm_(r[cy]))) return;
+    var ms = zaman_(r[cz]), t = sayi_(r[ct]); if (ms === null || !(t > 0)) return;
+    var tam = kartTam_(ms); cekim.push({ ms: ms, tutar: t, zaman: tam.slice(6), tam: tam, terminal: cter >= 0 ? String(r[cter] || '').trim() : '', kurye: cku >= 0 ? String(r[cku] || '').trim() : '' });
     if (son === null || ms > son) son = ms;
   });
   return { cekim: cekim, son: son };
