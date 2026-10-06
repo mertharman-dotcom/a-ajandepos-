@@ -1746,6 +1746,11 @@ function kartOdenenFaturalar_() {
     if (mf && mf.getLastRow() > 1) { var b = mf.getRange(1, 1, 1, mf.getLastColumn()).getDisplayValues()[0], c = { no: kolon_(b, ['Fatura No']), d: kolon_(b, ['Durum']), o: kolon_(b, ['Ödeme Tarihi']) };
       mf.getRange(2, 1, mf.getLastRow() - 1, mf.getLastColumn()).getDisplayValues().forEach(function (r) {
         var no = String(r[c.no] || '').replace(/^'/, '').trim(); if (no && /tamamland/i.test(norm_(r[c.d]))) out[no] = { kaynak: 'Multinet', odeme: c.o >= 0 ? String(r[c.o] || '').replace(/^'/, '') : '' }; }); } } catch (err) { }
+  // Tokenflex faturasında da KolayBi fatura no yazıyor; 'Ödendi' olanlar ödenmiştir.
+  try { var tf = SpreadsheetApp.openById(KAYNAK.yemekKarti.id).getSheetByName('Tokenflex Fatura');
+    if (tf && tf.getLastRow() > 1) { var tb = tf.getRange(1, 1, 1, tf.getLastColumn()).getDisplayValues()[0], tc = { no: kolon_(tb, ['Fatura No']), d: kolon_(tb, ['Durum']), o: kolon_(tb, ['Ödeme Tarihi']) };
+      tf.getRange(2, 1, tf.getLastRow() - 1, tf.getLastColumn()).getDisplayValues().forEach(function (r) {
+        var no = String(r[tc.no] || '').replace(/^'/, '').trim(); if (no && /^odendi$/.test(norm_(r[tc.d]))) out[no] = { kaynak: 'Tokenflex', odeme: String(r[tc.o] || '').replace(/^'/, '') }; }); } } catch (err) { }
   return out;
 }
 function setcardFatura_() {
@@ -3056,6 +3061,7 @@ var KART_KAYNAKLARI = [
   { ad: 'Paye',   odeme: /paye/i,          oku: function (ks) { return payeCekimleri_(ks); } },
   { ad: 'Edenred', odeme: /edenred|^\s*ticket/i, oku: function (ks) { return edenredCekimleri_(ks); } },
   { ad: 'Multinet', odeme: /multinet/i,   oku: function (ks) { var v = multinetCekimleri_(ks); if (v && v.cekim && !v.hata) v.cekim = v.cekim.filter(function (y) { return !y.online; }); return v; }, tumu: function (ks) { return multinetCekimleri_(ks); } },
+  { ad: 'Tokenflex', odeme: /tokenflex/i, oku: function (ks) { return tokenflexCekimleri_(ks); } },
   { ad: 'Metropol', odeme: /metropol/i,   oku: function (ks) { return metropolCekimleri_(ks); } },
   { ad: 'SetCard', odeme: /set\s*card/i,  oku: function (ks) { var v = setcardCekimleri_(ks); if (v && v.cekim && !v.hata) v.cekim = v.cekim.filter(function (y) { return !y.online; }); return v; }, tumu: function (ks) { return setcardCekimleri_(ks); } }
 ];
@@ -3211,6 +3217,20 @@ function multinetCekimleri_(ks) {
     var ms = zaman_(r[cz]), t = sayi_(r[ct]); if (ms === null || !(t > 0)) return;
     var ac = ca >= 0 ? String(r[ca] || '').trim() : '';
     var tam = kartTam_(ms); cekim.push({ ms: ms, tutar: t, zaman: tam.slice(6), tam: tam, online: !/multipos/i.test(ac), terminal: ac, kurye: cter >= 0 ? String(r[cter] || '').trim() : '' });
+    if (son === null || ms > son) son = ms;
+  });
+  return { cekim: cekim, son: son };
+}
+
+// Tokenflex (BAP Yemek Kartı › Tokenflex.gs, saatlik). Hepsi kapıda (SoftPOS = kurye telefonu). Başarısız işlemler sayılmaz.
+function tokenflexCekimleri_(ks) {
+  var e = kartSekmesi_(ks, 'Tokenflex', 6000); if (!e) return null;
+  var cz = kolon_(e.b, ['İşlem Zamanı']), ct = kolon_(e.b, ['Tutar (TL)']), cd = kolon_(e.b, ['Durum']), cter = kolon_(e.b, ['Terminal No']), cku = kolon_(e.b, ['Cihaz / Kullanıcı']), cekim = [], son = null;
+  if (cz < 0 || ct < 0) return { hata: "Tokenflex sekmesinde 'İşlem Zamanı' ya da 'Tutar (TL)' sütunu yok" };
+  e.v.forEach(function (r) {
+    if (cd >= 0 && String(r[cd]).trim() && !/basarili/.test(norm_(r[cd]))) return;
+    var ms = zaman_(r[cz]), t = sayi_(r[ct]); if (ms === null || !(t > 0)) return;
+    var tam = kartTam_(ms); cekim.push({ ms: ms, tutar: t, zaman: tam.slice(6), tam: tam, terminal: cter >= 0 ? String(r[cter] || '').trim() : '', kurye: cku >= 0 ? String(r[cku] || '').trim() : '' });
     if (son === null || ms > son) son = ms;
   });
   return { cekim: cekim, son: son };
