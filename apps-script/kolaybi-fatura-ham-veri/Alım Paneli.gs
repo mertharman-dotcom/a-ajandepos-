@@ -163,11 +163,12 @@ function ap_veri_() {
   var odemeler = [], eslesmeyenOdeme = [];
   var tedKeys = Object.keys(tedKanon);
   if (os.getLastRow() > 1) {
-    os.getRange(2, 1, os.getLastRow() - 1, 6).getValues().forEach(function (r) {
-      if (!r[0]) return;
+    os.getRange(2, 1, os.getLastRow() - 1, 6).getValues().forEach(function (r, i) {
+      // Elle ya da eski panelden girilen satırların Odeme_ID'si boş olabilir; tedarikçi + tutar varsa yine sayılır.
+      if (!r[0] && !(r[2] && ap_sayi_(r[3]))) return;
       var yazilan = String(r[2] || '').replace(/\s+/g, ' ').trim();
       var eslesen = ap_tedarikciBul_(yazilan, tedKanon, tedKeys);
-      var o = { id: String(r[0]), tarih: ap_iso_(ap_tarih_(r[1])), ted: eslesen || yazilan, yazilanTed: yazilan,
+      var o = { id: r[0] ? String(r[0]) : 'satir-' + (i + 2), tarih: ap_iso_(ap_tarih_(r[1])), ted: eslesen || yazilan, yazilanTed: yazilan,
                 tutar: ap_sayi_(r[3]), yontem: String(r[4] || ''), not: String(r[5] || ''), eslesti: !!eslesen };
       if (!eslesen) eslesmeyenOdeme.push(o);
       odemeler.push(o);
