@@ -1662,8 +1662,10 @@ function ykKontrol_() {
 
 /* ---------------- SetCard faturası (panel › Yemek Kartları) ----------------
  * 'SetCard Fatura' sekmesini BAP Yemek Kartı projesi saatte bir SetCard › Fatura Takibi'nden tazeler.
- * Panelden: islem 'kes' → BAP Yemek Kartı web uygulaması keser (sitedeki "Fatura Kes" ile aynı);
- *           islem 'mali' → sahibi KolayBi'de resmi faturayı kestiğini işaretler (fatura no isteğe bağlı).
+ * Mali fatura ayrıca işaretlenmez: KolayBi satış faturalarında (Kolaybi Fatura Ham Veri › Satis_Faturalari) aranır —
+ * müşteri SETCARD, aynı tutar, SetCard fatura tarihinden en çok 3 gün önce / 20 gün sonra. Her KolayBi faturası bir kez kullanılır.
+ * Buradan çıkanlar: kesilip KolayBi'de mali faturası olmayan (kesilmeli), SetCard'ın ödediği ama KolayBi'de tahsil işlenmemiş.
+ * Panelden: islem 'kes' → BAP Yemek Kartı web uygulaması keser (sitedeki "Fatura Kes" ile aynı).
  */
 var YK_WEB = 'https://script.google.com/macros/s/AKfycbx9fcm_VBi6Ug-d1Uf9z-6Yao0AzIePIhasKN_Vv9A6yuBnqR4ZDPvSX_ho9JF-jC1OKA/exec';  // projeler.json › bap-yemek-karti
 var YK_ANAHTAR = '9da1e5281cabba3ab4e9ea49';   // BAP Yemek Kartı › Ortak.gs KOPRU_ANAHTAR
@@ -1674,37 +1676,55 @@ function setcardFaturaSatirlari_(sh) {
     var al = function (h) { var j = kolon_(b, [h]); return j >= 0 ? String(r[j] || '').trim() : ''; };
     var no = al('Takip No').replace(/^'/, ''); if (!no) return;
     l.push({ satir: i + 2, takipNo: no, tarih: al('Fatura Tarihi'), tutar: sayi_(al('Tutar (TL)')), durum: al('Durum'), odeme: al('Ödeme Tarihi'),
-      kontrol: al('Son Kontrol'), kesim: al('Kesim Zamanı'), mali: al('Mali Fatura'), maliZaman: al('Mali Fatura Zamanı') });
+      kontrol: al('Son Kontrol'), kesim: al('Kesim Zamanı') });
   });
   return { b: b, l: l };
+}
+// KolayBi satış faturaları, müşteri adına göre: [{ no, ms, tutar, odendi, kalan }]
+function kolaybiSatis_(musteriRe) {
+  var sf = satirlar_(SpreadsheetApp.openById(KAYNAK.fatura.id), 'Satis_Faturalari'), out = [], gor = {};
+  var c = { id: kolon_(sf.b, ['Fatura_ID']), no: kolon_(sf.b, ['Fatura_No']), t: kolon_(sf.b, ['Tarih']), m: kolon_(sf.b, ['Musteri']), tu: kolon_(sf.b, ['Tutar']),
+            k: kolon_(sf.b, ['Kalan']), d: kolon_(sf.b, ['Odeme_Durumu']) };
+  if (c.m < 0 || c.tu < 0 || c.t < 0) return out;
+  sf.r.forEach(function (r) {
+    var id = String(c.id >= 0 ? r[c.id] : '') ; if (id) { if (gor[id]) return; gor[id] = 1; }
+    if (!musteriRe.test(norm_(r[c.m]))) return;
+    var ms = zaman_(r[c.t]); if (ms === null) return;
+    var kalan = c.k >= 0 ? sayi_(r[c.k]) : null;
+    out.push({ no: String(c.no >= 0 ? r[c.no] : '').trim(), ms: ms, tutar: sayi_(r[c.tu]), kalan: kalan, odendi: /^paid$/i.test(String(c.d >= 0 ? r[c.d] : '')) || (kalan !== null && kalan < 0.5) });
+  });
+  return out;
 }
 function setcardFatura_() {
   var sh = SpreadsheetApp.openById(KAYNAK.yemekKarti.id).getSheetByName('SetCard Fatura'); if (!sh) return null;
   var l = setcardFaturaSatirlari_(sh).l.sort(function (p, q) { return String(q.tarih).localeCompare(String(p.tarih)) || (+q.takipNo) - (+p.takipNo); });
-  return { liste: l.slice(0, 12), kontrol: l.length ? l[0].kontrol : '' };
+  var kb = []; try { kb = kolaybiSatis_(/setcard/); } catch (err) { }
+  var kul = {}, GUN = 86400000;
+  // eskiden yeniye eşleştir: aynı tutarda iki fatura varsa sırayla
+  l.slice().reverse().forEach(function (x) {
+    if (/kesilmedi/i.test(x.durum)) return;
+    var ms = zaman_(x.tarih); if (ms === null) return;
+    var b = null; kb.forEach(function (f, i) { if (kul[i] || Math.abs(f.tutar - x.tutar) > 1 || f.ms < ms - 3 * GUN || f.ms > ms + 20 * GUN) return;
+      if (!b || Math.abs(f.ms - ms) < Math.abs(b.f.ms - ms)) b = { f: f, i: i }; });
+    if (!b) return; kul[b.i] = 1;
+    x.kolaybi = { no: b.f.no, tarih: kartTam_(b.f.ms).slice(0, 5) + '.' + new Date(b.f.ms).getUTCFullYear(), odendi: b.f.odendi, kalan: b.f.kalan };
+  });
+  return { liste: l.slice(0, 12), kontrol: l.length ? l[0].kontrol : '', kolaybiOkundu: kb.length > 0 };
 }
 function setcardFaturaIslem_(d) {
   var no = String(d.takipNo || '').replace(/\D/g, ''); if (!no) return { hata: 'Takip numarası yok.' };
+  if (d.islem !== 'kes') return { hata: 'Geçersiz işlem.' };
   var ss = SpreadsheetApp.openById(KAYNAK.yemekKarti.id), sh = ss.getSheetByName('SetCard Fatura'); if (!sh) return { hata: "'SetCard Fatura' sekmesi yok." };
-  var t = setcardFaturaSatirlari_(sh), x = t.l.filter(function (y) { return y.takipNo === no; })[0];
+  var x = setcardFaturaSatirlari_(sh).l.filter(function (y) { return y.takipNo === no; })[0];
   if (!x) return { hata: no + ' numaralı fatura listede yok; panel yenilensin.' };
-  if (d.islem === 'kes') {
-    if (!/kesilmedi/i.test(x.durum)) return { hata: 'Fatura "' + x.durum + '" durumunda; kesilemez.' };
-    // POST tekrar denenmez (çift kesim riski); cevap gelmezse panel "yenileyip kontrol et" der.
-    var r = UrlFetchApp.fetch(YK_WEB, { method: 'post', contentType: 'application/json', muteHttpExceptions: true, followRedirects: true,
-      payload: JSON.stringify({ anahtar: YK_ANAHTAR, tur: 'setcardFaturaKes', takipNo: no }) });
-    var j = null; try { j = JSON.parse(r.getContentText()); } catch (err) { }
-    if (!j) return { belirsiz: true, hata: 'BAP Yemek Kartı beklenmeyen cevap verdi; fatura kesilmiş olabilir. Paneli yenileyip kontrol et.' };
-    if (j.tamam) try { cevapKaydet_('Finans', 'BAP Yemek Kartı Tahsilatları › SetCard Fatura', x.satir, 'SetCard fatura ' + no + ' (' + x.tutar + ' TL)', 'Kesildi (panel)', Utilities.formatDate(new Date(), TZ, 'dd.MM.yyyy HH:mm')); } catch (err) { }
-    return j;
-  }
-  if (d.islem === 'mali') {
-    var j1 = kolon_(t.b, ['Mali Fatura']), j2 = kolon_(t.b, ['Mali Fatura Zamanı']); if (j1 < 0 || j2 < 0) return { hata: "'Mali Fatura' sütunu yok." };
-    var not = String(d.not || '').trim().slice(0, 60) || 'Kesildi';
-    sh.getRange(x.satir, j1 + 1).setValue(not); sh.getRange(x.satir, j2 + 1).setValue(Utilities.formatDate(new Date(), TZ, 'dd.MM.yyyy HH:mm'));
-    return { tamam: true, takipNo: no, mali: not };
-  }
-  return { hata: 'Geçersiz işlem.' };
+  if (!/kesilmedi/i.test(x.durum)) return { hata: 'Fatura "' + x.durum + '" durumunda; kesilemez.' };
+  // POST tekrar denenmez (çift kesim riski); cevap gelmezse panel "yenileyip kontrol et" der.
+  var r = UrlFetchApp.fetch(YK_WEB, { method: 'post', contentType: 'application/json', muteHttpExceptions: true, followRedirects: true,
+    payload: JSON.stringify({ anahtar: YK_ANAHTAR, tur: 'setcardFaturaKes', takipNo: no }) });
+  var j = null; try { j = JSON.parse(r.getContentText()); } catch (err) { }
+  if (!j) return { belirsiz: true, hata: 'BAP Yemek Kartı beklenmeyen cevap verdi; fatura kesilmiş olabilir. Paneli yenileyip kontrol et.' };
+  if (j.tamam) try { cevapKaydet_('Finans', 'BAP Yemek Kartı Tahsilatları › SetCard Fatura', x.satir, 'SetCard fatura ' + no + ' (' + x.tutar + ' TL)', 'Kesildi (panel)', Utilities.formatDate(new Date(), TZ, 'dd.MM.yyyy HH:mm')); } catch (err) { }
+  return j;
 }
 
 function genel_() {
