@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>Label</key><string>com.bap.metropol-canli</string>
+  <key>ProgramArguments</key>
+  <array>
+    <string>/usr/local/bin/node</string>
+    <string>/Users/Handan/bap-kopru/metropol.mjs</string>
+    <string>--canli-tut</string>
+  </array>
+  <key>WorkingDirectory</key><string>/Users/Handan/bap-kopru</string>
+  <key>StandardOutPath</key><string>/Users/Handan/bap-kopru/metropol_cron.log</string>
+  <key>StandardErrorPath</key><string>/Users/Handan/bap-kopru/metropol_cron.log</string>
+  <!-- Metropol ~25 dk boşta oturumu kapatıyor: 10 dakikada bir görünmeden ana sayfayı açar -->
+  <key>StartInterval</key><integer>600</integer>
+</dict>
+</plist>

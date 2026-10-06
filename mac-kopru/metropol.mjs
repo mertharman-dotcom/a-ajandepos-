@@ -6,6 +6,7 @@
 //   --tabloya-yazma                           yalnız CSV
 //   --fatura-kuru                             manuel fatura formunu doldurur, BASMAZ (ekran görüntüsü)
 //   --fatura-kes                              manuel faturayı keser (sahibinin onayıyla)
+//   --canli-tut                               oturumu açık tutar (10 dk'da bir zamanlayıcıdan; giriş denemez, düşerse bildirir)
 // Ayar: ayar.json › metropol { telefon, sifre, isyeri, geriGun, urunTip }, ayar.json › ykWebapp (BAP Yemek Kartı web uygulaması).
 // Çıktı: metropol_islemler.csv (+ log: metropol.log). Depodaki kopya: mac-kopru/metropol.mjs — değişiklik önce depoda.
 //
@@ -136,7 +137,31 @@ async function faturaKes(page, kuru) {
   return { tarih: z, uyari, liste };
 }
 
+// Oturum durumu BAP Yemek Kartı › 'Mac Oturumları'na yazılır (yalnız değişince); panel düşmüşse Yönetim Merkezi'nde uyarır.
+const DURUM_DOSYA = path.join(DIZIN, 'metropol_oturum.txt');
+async function oturumBildir(acik) {
+  let once = ''; try { once = fs.readFileSync(DURUM_DOSYA, 'utf8').trim(); } catch (_) {}
+  const simdi = acik ? 'acik' : 'kapali'; if (once === simdi) return;
+  try { fs.writeFileSync(DURUM_DOSYA, simdi); } catch (_) {}
+  log('oturum durumu: ' + simdi + ' → ' + JSON.stringify(await yk({ tur: 'oturumDurumu', kart: 'Metropol', acik }).catch(e => ({ hata: e.message }))));
+}
+
+// --canli-tut (10 dakikada bir, com.bap.metropol-canli): görünmeden ana sayfayı açar → site oturumu kapatmaz.
+// Oturum düşmüşse giriş denemez (robot kutusu sahibini ister), yalnız bildirir.
+async function canliTut() {
+  let ctx;
+  try {
+    ctx = await chromium.launchPersistentContext(PROFIL, { executablePath: CHROME, headless: true });
+    const page = ctx.pages()[0] || await ctx.newPage();
+    const acik = await oturumAcik(page);
+    await oturumBildir(acik);
+    if (!acik) log('canlı tut: oturum kapalı — "node metropol.mjs" ile bir kez giriş yapılmalı');
+  } catch (e) { log('canlı tut atlandı: ' + e.message); }   // ör. ana çekim aynı anda çalışıyor (profil kilitli)
+  finally { if (ctx) await ctx.close().catch(() => {}); }
+}
+
 async function main() {
+  if (process.argv.includes('--canli-tut')) return canliTut();
   const a = process.argv.slice(2).filter(x => /^\d{2}\.\d{2}\.\d{4}$/.test(x));
   const tr = s => { const [g, m, y] = s.split('.'); return new Date(+y, +m - 1, +g); };
   const bitis = a[1] ? tr(a[1]) : new Date(Date.now() + 86400000), bas = a[0] ? tr(a[0]) : new Date(Date.now() - GERI_GUN * 86400000);
@@ -145,7 +170,8 @@ async function main() {
   const ctx = await chromium.launchPersistentContext(PROFIL, { executablePath: CHROME, headless: false, viewport: { width: 1280, height: 860 } });
   const page = ctx.pages()[0] || await ctx.newPage();
   try {
-    if (!(await oturumAcik(page))) await girisYap(page);
+    if (!(await oturumAcik(page))) { try { await girisYap(page); } catch (e) { await oturumBildir(false); throw e; } }
+    await oturumBildir(true);
     if (process.argv.includes('--fatura-kes') || process.argv.includes('--fatura-kuru')) {
       const r = await faturaKes(page, !process.argv.includes('--fatura-kes'));
       if (YAZMA) log('tabloya: ' + JSON.stringify(await yk({ tur: 'faturaKesim', kart: 'Metropol', sonuc: { kuru: !!r.kuru, kesildi: !r.kuru && !/kesilememektedir|hata|error/i.test(r.uyari || ''), tarih: r.tarih, mesaj: (r.uyari || '') + (r.liste && r.liste.length ? ' · ' + JSON.stringify(r.liste).slice(0, 200) : '') } })));
@@ -178,6 +204,10 @@ async function main() {
       log(`  ${no} (${ad || tel || '?'}): ${say} işlem`);
     }
     if (!satirlar.length) fs.writeFileSync(path.join(DIZIN, 'metropol_son.html'), ilkHtml);
+    // Aynı işlem birden çok terminalde görünüyorsa (site filtresi) kurye ataması şüphelidir: günlüğe yaz
+    const gor = {}; satirlar.forEach(x => { (gor[x.islemNo] = gor[x.islemNo] || new Set()).add(x.terminal); });
+    const cift = Object.keys(gor).filter(k => gor[k].size > 1);
+    if (cift.length) log(`uyarı: ${cift.length} işlem birden çok terminalde görünüyor: ` + cift.slice(0, 5).map(k => k + ' → ' + [...gor[k]].join('/')).join(', '));
     const bas_ = ['İşlem Zamanı', 'Tutar', 'İşlem No', 'İşlem Tipi', 'Giriş Modu', 'Terminal No', 'Kullanıcı', 'Telefon', 'Kart', 'Gün Sonu', 'Fatura Id'];
     fs.writeFileSync(CIKTI, [bas_.join(';')].concat(satirlar.map(x => [x.zaman, x.tutar, x.islemNo, x.tip, x.mod, x.terminal, x.kisi, x.telefon, x.kart, x.gunsonu, x.fatura].join(';'))).join('\n'));
     log(`${satirlar.length} işlem → ${CIKTI}`);

@@ -134,7 +134,7 @@ function paketHazirla_() {
   var out = {
     surum: 1,
     olusturma: Utilities.formatDate(simdi, TZ, "yyyy-MM-dd'T'HH:mm:ss"),
-    kaynaklar: [], satis: null, nabiz: null, isKaydi: null, hub: null, finans: null, personel: null, kurye: null, genel: null, fisKayit: null, musteri: null, yemekKarti: null, mobilFatura: null, ykKontrol: null, setcardFatura: null, metropolFatura: null, multinetFatura: null, hatalar: []
+    kaynaklar: [], satis: null, nabiz: null, isKaydi: null, hub: null, finans: null, personel: null, kurye: null, genel: null, fisKayit: null, musteri: null, yemekKarti: null, mobilFatura: null, macOturum: null, ykKontrol: null, setcardFatura: null, metropolFatura: null, multinetFatura: null, hatalar: []
   };
   Object.keys(KAYNAK).forEach(function (k) {
     var s = KAYNAK[k];
@@ -159,6 +159,7 @@ function paketHazirla_() {
   bolum_(out, 'musteri', musteri_);
   bolum_(out, 'yemekKarti', yemekKarti_);
   bolum_(out, 'mobilFatura', mobilFatura_);
+  bolum_(out, 'macOturum', macOturum_);
   bolum_(out, 'ykKontrol', ykKontrol_);
   bolum_(out, 'setcardFatura', setcardFatura_);
   bolum_(out, 'metropolFatura', metropolFatura_);
@@ -1496,6 +1497,11 @@ var MOBIL_FATURA = [
   { ad: 'Tokenflex', musteri: /tokenflex/, kuralMetni: "ayın 15'i + ayın son günü", gunMu: function (g) { return +g.slice(8, 10) === 15 || ayinSonGunuMu_(g); }, birikenSekme: 'Tokenflex Fatura' }
 ];
 function takvimGunu_() { return Utilities.formatDate(new Date(), TZ, 'yyyy-MM-dd'); }
+// BAP Yemek Kartı › 'Mac Oturumları': robot doğrulamalı sitelerde (Metropol) oturum düşmüşse sahibinin bir kez giriş yapması gerekir.
+function macOturum_() {
+  var sh = SpreadsheetApp.openById(KAYNAK.yemekKarti.id).getSheetByName('Mac Oturumları'); if (!sh || sh.getLastRow() < 2) return [];
+  return sh.getRange(2, 1, sh.getLastRow() - 1, 3).getDisplayValues().map(function (r) { return { kart: r[0], durum: r[1], zaman: r[2] }; });
+}
 function mobilFatura_() {
   var bugun = takvimGunu_(), gunu = function (ms) { return new Date(ms).toISOString().slice(0, 10); };
   return MOBIL_FATURA.map(function (k) {
