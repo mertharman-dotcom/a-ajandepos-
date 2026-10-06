@@ -1490,7 +1490,8 @@ var GENEL_PORTAL_URL = 'https://bap-genel-bilgiler.mertharman.workers.dev/';
  *      (Durum 'Kesildi' / 'Kesilemedi', tutarlar, ödeme tarihi). Ayrıntı: docs/pluxee-fatura.md
  *   3) Fatura günü 21:00'den sonra hâlâ onay yoksa bir kez WhatsApp hatırlatması gider.
  */
-// KESEN_HAZIR: MacBook'taki kesim adımı yazılınca true yapılır; o zamana kadar WhatsApp hatırlatması gitmez ("kesilecek" demek yanlış olur).
+// Pluxee faturası yalnız mobil uygulamadan kesilebiliyor (sahibin bilgisi 06.10) → program kesemez; KESEN_HAZIR false kalır,
+// WhatsApp "kesilecek" hatırlatması gitmez.
 var PLUXEE_FATURA = { PLAN: '3 günde al', SAAT: '23:55', ONAY_GEREKIR: true, HATIRLAT_SAAT: 21, KESEN_HAZIR: false };
 var PLUXEE_FATURA_BASLIK = ['Fatura Günü', 'Durum', 'Plan', 'Onay Zamanı', 'Onaylayan', 'Genel Toplam (TL)', 'KDV Hariç (TL)', 'KDV (TL)',
                             'Ödeme Tarihi', 'Kesim Zamanı', 'KolayBi Faturası', 'Not'];
