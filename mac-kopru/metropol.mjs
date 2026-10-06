@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// metropol.mjs v0.2 — Metropol Card üye işyeri: POS işlem detayı, terminal terminal (hangi kurye olduğu belli olsun diye).
+// metropol.mjs v0.3 — Metropol Card üye işyeri: POS işlem detayı, terminal terminal (hangi kurye olduğu belli olsun diye).
 // Girişte reCAPTCHA var → Mac'teki gerçek Chrome açılır (playwright-core); oturum çerezi metropol-profil'de kalır.
 //   node metropol.mjs                         son geriGun günü (varsayılan 7)
 //   node metropol.mjs 06.09.2026 06.10.2026   tarih aralığı (en çok 1 ay)
@@ -152,23 +152,32 @@ async function main() {
       return;
     }
     const kisi = await kullanicilar(page).catch(e => { log('kullanıcı listesi okunamadı: ' + e.message); return { terminal: {}, telefon: {} }; });
-    const q = (t) => `/Home/PosIslemDetay?terminal=${t}&merchantCode=${ISYERI}&start=${gaa(bas)}&end=${gaa(bitis)}`;
-    const ilk = await sayfa(page, q(0));
-    if (/\/Auth\/Login/i.test(ilk.url)) throw new Error('oturum düştü');
-    const terminaller = tablo(ilk.html, 'example24');
-    log('terminal: ' + terminaller.length + ', toplam işlem (tümü): ' + tablo(ilk.html, 'example23').length);
+    // Site en çok 1 aylık aralık kabul ediyor ve ileri tarih istemiyor → bugüne kadar, 30 günlük parçalar.
+    // Sayfa sitenin kendi gezinmesiyle (page.goto) açılır; terminal listesi seçim kutusundan alınır (tablo yalnız sonuç varken dolu).
+    const bugun = new Date(), son = bitis > bugun ? bugun : bitis, parcalar = [];
+    for (let b = new Date(bas); b <= son; b = new Date(b.getTime() + 30 * 86400000)) parcalar.push([b, new Date(Math.min(b.getTime() + 29 * 86400000, son.getTime()))]);
+    const q = (t, b, e) => `/Home/PosIslemDetay?terminal=${t}&merchantCode=${ISYERI}&start=${gaa(b)}&end=${gaa(e)}`;
+    const ac = async yol => { await page.goto(KOK + yol, { waitUntil: 'domcontentloaded' }); if (/\/Auth\/Login/i.test(page.url())) throw new Error('oturum düştü'); return page.content(); };
+    const ilkHtml = await ac(q(0, parcalar[0][0], parcalar[0][1]));
+    const secenek = await page.$$eval('#terminal option', o => o.map(x => x.value).filter(v => v && v !== '0')).catch(() => []);
+    const posBilgi = {}; tablo(ilkHtml, 'example24').forEach(t => { if (t['Terminal No']) posBilgi[t['Terminal No']] = t; });
+    const terminaller = [...new Set(secenek.concat(Object.keys(posBilgi)))];
+    log(`terminal: ${terminaller.length}, tarih parçası: ${parcalar.length} (${parcalar.map(p => gaa(p[0]) + '–' + gaa(p[1])).join(', ')})`);
+    if (!terminaller.length) { fs.writeFileSync(path.join(DIZIN, 'metropol_son.html'), ilkHtml); throw new Error('terminal listesi boş; sayfa metropol_son.html dosyasına kaydedildi'); }
     const satirlar = [];
-    for (const t of terminaller) {
-      const no = t['Terminal No']; if (!no) continue;
-      const tel = String(t['Pos Seri No'] || '').replace(/\D/g, '').slice(0, 10), ad = kisi.terminal[no] || kisi.telefon[tel] || '';
-      const { html } = await sayfa(page, q(no));
-      const islem = tablo(html, 'example23');
-      for (const x of islem) satirlar.push({ zaman: x['Tarih'], tutar: tl(x['Tutar']), islemNo: x['İşlem No'],
-        tip: x['İşlem Tipi'], mod: x['Giriş Modu'], urun: x['Ürün Tipi'], terminal: no, telefon: tel, kisi: ad,
-        kart: x['Kart Numarası'], gunsonu: x['Gün Sonu Tarihi'], fatura: x['Fatura Id'] });
-      log(`  ${no} (${ad || tel || '?'}): ${islem.length} işlem`);
-      await bekle(800);
+    for (const no of terminaller) {
+      const tel = String((posBilgi[no] || {})['Pos Seri No'] || '').replace(/\D/g, '').slice(0, 10), ad = kisi.terminal[no] || kisi.telefon[tel] || '';
+      let say = 0;
+      for (const [b, e] of parcalar) {
+        const islem = tablo(await ac(q(no, b, e)), 'example23');
+        for (const x of islem) satirlar.push({ zaman: x['Tarih'], tutar: tl(x['Tutar']), islemNo: x['İşlem No'],
+          tip: x['İşlem Tipi'], mod: x['Giriş Modu'], urun: x['Ürün Tipi'], terminal: no, telefon: tel, kisi: ad,
+          kart: x['Kart Numarası'], gunsonu: x['Gün Sonu Tarihi'], fatura: x['Fatura Id'] });
+        say += islem.length; await bekle(600);
+      }
+      log(`  ${no} (${ad || tel || '?'}): ${say} işlem`);
     }
+    if (!satirlar.length) fs.writeFileSync(path.join(DIZIN, 'metropol_son.html'), ilkHtml);
     const bas_ = ['İşlem Zamanı', 'Tutar', 'İşlem No', 'İşlem Tipi', 'Giriş Modu', 'Terminal No', 'Kullanıcı', 'Telefon', 'Kart', 'Gün Sonu', 'Fatura Id'];
     fs.writeFileSync(CIKTI, [bas_.join(';')].concat(satirlar.map(x => [x.zaman, x.tutar, x.islemNo, x.tip, x.mod, x.terminal, x.kisi, x.telefon, x.kart, x.gunsonu, x.fatura].join(';'))).join('\n'));
     log(`${satirlar.length} işlem → ${CIKTI}`);
