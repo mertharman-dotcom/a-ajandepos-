@@ -1632,6 +1632,13 @@ function ykKontrol_() {
     if (!veri) { k.hata = 'Çekim sekmesi yok ya da boş'; return; }
     if (veri.hata) { k.hata = veri.hata; return; }
     k.son = veri.son === null ? null : kartTam_(veri.son);
+    // Panel üst özeti ve 'Günlük işlemler' için: son 31 iş gününün çekimleri (online dahil), gün toplamı ve işlem listesi
+    var bas31 = gunEkle_(bugun, -30); k.gunluk = {}; var isl = [];
+    veri.cekim.forEach(function (y) { var g = isGunu_(y.ms); if (g < bas31 || g > bugun) return;
+      var d = k.gunluk[g] = k.gunluk[g] || [0, 0]; d[0]++; d[1] = Math.round((d[1] + y.tutar) * 100) / 100;
+      isl.push({ ms: y.ms, gun: g, saat: y.saatYok ? '' : kartTam_(y.ms).slice(-5), tutar: y.tutar, online: !!y.online, kurye: y.kurye || '', terminal: y.terminal || '' }); });
+    isl.sort(function (p, q) { return q.ms - p.ms; });
+    k.islemler = isl.slice(0, 500).map(function (x) { delete x.ms; return x; });
     var onlineVar = veri.cekim.some(function (y) { return y.online; });
     var C = veri.cekim.filter(function (y) { return isGunu_(y.ms) >= bas; }).map(function (y) { return { y: y, kul: false }; });
     k.cekim = C.length;
