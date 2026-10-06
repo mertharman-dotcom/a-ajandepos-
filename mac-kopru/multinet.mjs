@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// multinet.mjs v0.1 — Multinet (multiavantaj.com.tr) işlemleri ve faturaları.
+// multinet.mjs v0.2 — Multinet (multiavantaj.com.tr) işlemleri ve faturaları.
 // Giriş: VKN/TCKN + telefon + SMS kodu (sitede reCAPTCHA olduğu için Mac'teki gerçek Chrome). Kod iPhone Kestirmeler'den
 // BAP Yemek Kartı kod kutusuna gelir (kaynak 'multinet'), program oradan okur.
 //   node multinet.mjs                        son geriGun günü işlemler + son 90 gün faturalar
@@ -73,28 +73,44 @@ function terminaldenSor() {
   return new Promise(c => r.question('Multinet SMS kodunu yaz ve Enter: ', x => { r.close(); c(x.trim()); }));
 }
 
-/* ---------- oturum: sitenin kendi isteklerinden csrf ve müşteri no yakalanır ---------- */
-const OT = { csrf: '', customerId: null };
+/* ---------- oturum: sitenin kendi isteklerinden csrf, başlıklar ve müşteri no yakalanır ----------
+   Sitenin güvenlik duvarı (F5) yalnız sitenin kendi isteklerine benzeyenleri geçirir (07.10: düz fetch "Request Rejected" aldı).
+   Bu yüzden istek sayfanın içinden XMLHttpRequest ile (sitenin kullandığı yol) ve sitenin kendi isteğindeki başlıklarla atılır.
+   Sitenin kendi aldığı yanıtlar da saklanır: güvenlik duvarı yine reddederse aynı istek için onlar kullanılır. */
+const OT = { csrf: '', customerId: null, basliklar: {}, yanit: {} };
+const ATLA = /^(host|cookie|content-length|content-type|origin|referer|user-agent|accept-encoding|connection|sec-|:)/i;
 function dinle(page) {
   page.on('request', r => {
     if (!r.url().startsWith(KOK + '/api/')) return;
-    const t = r.headers()['x-csrf-token']; if (t) OT.csrf = t;
+    const h = r.headers(); if (h['x-csrf-token']) OT.csrf = h['x-csrf-token'];
+    for (const [k, v] of Object.entries(h)) if (!ATLA.test(k)) OT.basliklar[k] = v;
     try { const b = JSON.parse(r.postData() || '{}'); if (b.customerId) OT.customerId = b.customerId; } catch (_) {}
   });
   page.on('response', async r => {
-    if (!/\/api\/auth\/confirmOtp/.test(r.url())) return;
-    try { const j = await r.json(); if (j.Result && j.Result.CustomerId) OT.customerId = j.Result.CustomerId; } catch (_) {}
+    if (!r.url().startsWith(KOK + '/api/')) return;
+    try {
+      const j = await r.json(), yol = r.url().slice((KOK + '/api/').length).split('?')[0];
+      OT.yanit[yol] = j;
+      if (/auth\/confirmOtp/.test(yol) && j.Result && j.Result.CustomerId) OT.customerId = j.Result.CustomerId;
+    } catch (_) {}
   });
 }
-async function api(page, yol, govde) {
-  const r = await page.evaluate(async ({ yol, govde, csrf }) => {
-    const x = await fetch(yol, { method: 'POST', credentials: 'same-origin', headers: { 'content-type': 'application/json', accept: 'application/json', 'x-csrf-token': csrf }, body: JSON.stringify(govde) });
-    return { kod: x.status, metin: await x.text() };
-  }, { yol: '/api/' + yol, govde, csrf: OT.csrf });
-  let j = null; try { j = JSON.parse(r.metin); } catch (_) {}
-  if (r.kod !== 200 || !j) throw new Error(`${yol}: HTTP ${r.kod} ${r.metin.slice(0, 150)}`);
+function sonuc_(yol, j) {
   const d = j.data || j; if (d.ResultCode && d.ResultCode !== 0) throw new Error(`${yol}: ${d.ResultMessage}`);
   return d.Result;
+}
+async function api(page, yol, govde, { yedekKullan = false } = {}) {
+  const r = await page.evaluate(({ yol, govde, basliklar }) => new Promise(c => {
+    const x = new XMLHttpRequest(); x.open('POST', yol, true); x.withCredentials = true;
+    x.setRequestHeader('content-type', 'application/json');
+    for (const [k, v] of Object.entries(basliklar)) { try { x.setRequestHeader(k, v); } catch (_) {} }
+    x.onload = () => c({ kod: x.status, metin: x.responseText }); x.onerror = () => c({ kod: 0, metin: 'ağ hatası' });
+    x.send(JSON.stringify(govde));
+  }), { yol: '/api/' + yol, govde, basliklar: { accept: 'application/json, text/plain, */*', ...OT.basliklar, 'x-csrf-token': OT.csrf } });
+  let j = null; try { j = JSON.parse(r.metin); } catch (_) {}
+  if (r.kod === 200 && j) return sonuc_(yol, j);
+  if (yedekKullan && OT.yanit[yol]) { log(`${yol}: doğrudan istek reddedildi, sitenin kendi yanıtı kullanıldı`); return sonuc_(yol, OT.yanit[yol]); }
+  throw new Error(`${yol}: HTTP ${r.kod} ${r.metin.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').slice(0, 150)}`);
 }
 
 async function girisYap(page) {
@@ -142,8 +158,9 @@ async function girisYap(page) {
     else log('oturum zaten açık');
     for (let i = 0; i < 20 && (!OT.csrf || !OT.customerId); i++) await bekle(500);   // sayfa kendi isteklerini atınca dolar
     if (!OT.csrf || !OT.customerId) throw new Error('oturum bilgisi (csrf / müşteri no) yakalanamadı');
+    log('sitenin istek başlıkları: ' + Object.keys(OT.basliklar).join(', ') + ' · sitenin kendi çağrıları: ' + Object.keys(OT.yanit).join(', '));
 
-    const sube = (await api(page, 'transactions/getBranches', { customerId: OT.customerId }))[0];
+    const sube = (await api(page, 'transactions/getBranches', { customerId: OT.customerId }, { yedekKullan: true }))[0];
     if (!sube) throw new Error('şube bulunamadı');
     // Fatura (sahibin kuralı 06.10: Salı 23:30, 3 gün vade). --fatura-zamanli: zamanlayıcıdan; ayar.json › multinet.otoFatura true ise keser,
     // değilse yalnız dener (kuru) ve kaydeder. --fatura-kes: elle, her zaman keser. --fatura-kuru: yalnız gösterir.
