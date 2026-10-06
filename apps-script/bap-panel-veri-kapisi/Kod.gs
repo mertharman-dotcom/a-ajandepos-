@@ -1740,7 +1740,7 @@ function setcardEslesme_() {
 // Kart sistemine göre ödenmiş ama KolayBi'de tahsil işlenmemiş satış faturaları: { 'EFA…': { kaynak, odeme } }
 function kartOdenenFaturalar_() {
   var out = {}, e = null; try { e = setcardEslesme_(); } catch (err) { }
-  if (e) e.l.forEach(function (x) { if (x.kolaybi && !x.kolaybi.odendi && /ödeme|odeme/i.test(x.durum)) out[x.kolaybi.no] = { kaynak: 'SetCard', odeme: x.odeme }; });
+  if (e) e.l.forEach(function (x) { if (x.kolaybi && !x.kolaybi.odendi && /gonderildi/.test(norm_(x.durum))) out[x.kolaybi.no] = { kaynak: 'SetCard', odeme: x.odeme }; });
   // Multinet faturasında KolayBi fatura no doğrudan yazıyor; 'Ödeme Tamamlandı' olanlar ödenmiştir.
   try { var mf = SpreadsheetApp.openById(KAYNAK.yemekKarti.id).getSheetByName('Multinet Fatura');
     if (mf && mf.getLastRow() > 1) { var b = mf.getRange(1, 1, 1, mf.getLastColumn()).getDisplayValues()[0], c = { no: kolon_(b, ['Fatura No']), d: kolon_(b, ['Durum']), o: kolon_(b, ['Ödeme Tarihi']) };

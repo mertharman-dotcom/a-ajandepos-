@@ -2240,8 +2240,8 @@ function ykUyarilar(){var u=[],F=VERI&&VERI.setcardFatura,K=VERI&&VERI.ykKontrol
     if(/kesilmedi/i.test(x.durum)&&x.tutar>0){var R=F.kural||{};
       if(R.faturaGunu&&R.buAy<R.hak)u.push({s:R.sonGun?"e-kotu":"e-dikkat",m:"Bugün SetCard fatura günü"+(R.sonGun?" — AYIN SON GÜNÜ, mutlaka kes":" (Cuma)")+": biriken "+para(x.tutar)+". Bu ay "+R.buAy+"/"+R.hak+" fatura kesildi. Yemek Kartları › SetCard faturası › Fatura Kes."});
       else if(R.faturaGunu&&R.sonGun)u.push({s:"e-kotu",m:"Bugün ayın son günü ama bu ayki "+R.hak+" SetCard fatura hakkı dolmuş görünüyor; biriken "+para(x.tutar)+". SetCard'a sor."});}
-    else if(!/kesilmedi/i.test(x.durum)&&!x.kolaybi&&F.kolaybiOkundu&&/^fatura kesildi/i.test(x.durum))u.push({s:"e-kotu",m:"SetCard: "+para(x.tutar)+" fatura kesildi ("+x.tarih+") ama KolayBi'de karşılığı yok. KolayBi'den SETCARD'a mali faturayı kes."});
-    if(/ödeme|odeme/i.test(x.durum)&&x.kolaybi&&!x.kolaybi.odendi){tah.n++;tah.t+=x.tutar;}});
+    else if(!/kesilmedi/i.test(x.durum)&&!x.kolaybi&&F.kolaybiOkundu&&!/gönderildi/i.test(x.durum))u.push({s:"e-kotu",m:"SetCard: "+para(x.tutar)+" fatura kesildi ("+x.tarih+") ama KolayBi'de karşılığı yok. KolayBi'den SETCARD'a mali faturayı kes."});
+    if(/gönderildi/i.test(x.durum)&&x.kolaybi&&!x.kolaybi.odendi){tah.n++;tah.t+=x.tutar;}});
     if(tah.n)u.push({s:"e-notr",m:"SetCard "+tah.n+" faturayı ödedi ("+para(tah.t)+") ama KolayBi'de ‘tahsil edilmedi’ görünüyor; tahsilatı KolayBi'ye işle."});}
   var N=VERI&&VERI.multinetFatura;
   if(N&&N.faturaGunu){var k=N.kesim;
@@ -2310,14 +2310,14 @@ function ykFaturaBlok(a){var S=[["SetCard",setcardFaturaBlok],["Metropol",metrop
   ciz();a.appendChild(bas);a.appendChild(sek);a.appendChild(govde);}
 
 function setcardFaturaBlok(a){var F=VERI.setcardFatura;if(!F)return;var kap=el("div");
-  var RENK=function(d){return /kesilmedi/i.test(d)?"e-dikkat":/^fatura kesildi/i.test(d)?"e-notr":/ödeme|odeme/i.test(d)?"e-iyi":"e-notr";};
+  var RENK=function(d){return /kesilmedi/i.test(d)?"e-dikkat":/gönderildi/i.test(d)?"e-iyi":"e-notr";};
   function kes(x,dug,durum){dug.setAttribute("disabled","");durum.textContent="SetCard'da kesiliyor…";durum.className="cevap-durum";
     fetch("/api/setcard-fatura",{method:"POST",credentials:"same-origin",headers:{"content-type":"application/json","x-bap-panel":"1"},body:JSON.stringify({takipNo:x.takipNo,islem:"kes"})})
       .then(function(r){return r.json();}).then(function(r){if(r&&r.tamam){x.durum="Fatura Kesildi";x.kesim="şimdi";ciz();}
         else{durum.textContent=(r&&r.hata)||"Yapılamadı.";durum.className="cevap-durum kotu";if(!(r&&r.belirsiz))dug.removeAttribute("disabled");}})
       .catch(function(){durum.textContent="Bağlantı koptu; fatura kesilmiş olabilir. Paneli yenile.";durum.className="cevap-durum kotu";});}
   function ciz(){kap.textContent="";
-    kap.appendChild(F.liste.length?tablo([["Takip no"],["Fatura tarihi"],["Tutar",1],["SetCard durumu"],["SetCard ödemesi"],["KolayBi faturası"],["KolayBi tahsilat"],["İşlem"]],F.liste.map(function(x){var durum=el("span",{class:"cevap-durum"}),is=null,kesilmedi=/kesilmedi/i.test(x.durum),odendi=/ödeme|odeme/i.test(x.durum),k=x.kolaybi;
+    kap.appendChild(F.liste.length?tablo([["Takip no"],["Fatura tarihi"],["Tutar",1],["SetCard durumu"],["SetCard ödemesi"],["KolayBi faturası"],["KolayBi tahsilat"],["İşlem"]],F.liste.map(function(x){var durum=el("span",{class:"cevap-durum"}),is=null,kesilmedi=/kesilmedi/i.test(x.durum),odendi=/gönderildi/i.test(x.durum),k=x.kolaybi;
       if(kesilmedi&&x.tutar>0)is=el("span",{style:"display:flex;gap:6px;flex-wrap:wrap"},[el("button",{type:"button",class:"dugme",style:"padding:4px 10px;font-size:13px",onclick:function(ev){
         if(!confirm("SetCard'da "+para(x.tutar)+" tutarındaki fatura kesilsin mi? (takip "+x.takipNo+")\nSonra KolayBi'den SETCARD'a mali faturayı kesmen gerekir; kestiğinde burada kendiliğinden görünür."))return;kes(x,ev.target,durum);}},["Fatura Kes"]),durum]);
       var kbHucre=kesilmedi?"—":k?el("span",{title:k.no,text:k.no.slice(-6)+" · "+k.tarih}):el("span",{class:"etiket "+(F.kolaybiOkundu?"e-kotu":"e-notr"),text:F.kolaybiOkundu?"yok — kesilmeli":"okunamadı"});

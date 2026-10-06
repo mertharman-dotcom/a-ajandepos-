@@ -14,6 +14,7 @@ function kurulum() {
   Logger.log('Tetikleyiciler: payeMailCek 02:30 + 09:30, setcardCek ve tokenflexCek saatte bir');
   try { Logger.log('Paye: ' + JSON.stringify(payeMailCek())); } catch (e) { Logger.log('Paye HATA: ' + e.message); }
   try { Logger.log('SetCard: ' + JSON.stringify(setcardCek())); } catch (e) { Logger.log('SetCard HATA: ' + e.message); }
-  try { Logger.log('SetCard fatura: ' + JSON.stringify(setcardFaturaKuru())); } catch (e) { Logger.log('SetCard fatura HATA: ' + e.message); }
+  try { var sf = setcardFaturaKuru(), kes = sf.fatura.filter(function (f) { return f.kesilebilir; });
+    Logger.log('SetCard fatura: ' + sf.fatura.length + ' kayıt; kesilebilir: ' + (kes.map(function (f) { return f.takipNo + ' (' + f.tutar + ' TL)'; }).join(', ') || 'yok')); } catch (e) { Logger.log('SetCard fatura HATA: ' + e.message); }
   try { Logger.log('Tokenflex: ' + JSON.stringify(tokenflexCek(31))); } catch (e) { Logger.log('Tokenflex HATA: ' + e.message); }
 }
