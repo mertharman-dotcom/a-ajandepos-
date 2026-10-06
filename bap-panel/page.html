@@ -2227,7 +2227,7 @@ function ykUyarilar(){var u=[],F=VERI&&VERI.setcardFatura,K=VERI&&VERI.ykKontrol
     if(!k)u.push({s:"e-notr",m:"Bugün Multinet fatura günü (Salı): "+N.saat+"'da "+N.vade+" vadeyle kesilecek"+(N.bekleyen?" — faturalanacak "+para(N.bekleyen.tutar):"")+"."});
     else if(/^kesildi/i.test(k.sonuc)&&!N.kolaybiBugun)u.push({s:"e-kotu",m:"Multinet faturası kesildi ("+k.zaman+"). KolayBi'den MULTINET'e mali faturayı kes."});
     else if(!/^kesildi/i.test(k.sonuc))u.push({s:"e-kotu",m:"Multinet faturası kesilemedi ("+k.zaman+"): "+(k.mesaj||k.sonuc)+". Gün sonu alınmamışsa al, sonra Multinet'ten kes."});}
-  ((VERI&&VERI.mobilFatura)||[]).forEach(function(m){if(m.faturaGunu&&!m.bugunKesildi)u.push({s:m.sonGun?"e-kotu":"e-dikkat",m:"Bugün "+m.ad+" fatura günü ("+(m.sonGun?"ayın son günü":"Cuma")+"). Mobil uygulamadan kes, sonra KolayBi'den "+m.ad.toUpperCase()+"'e mali faturayı kes (KolayBi'de görününce uyarı kalkar)."});});
+  ((VERI&&VERI.mobilFatura)||[]).forEach(function(m){if(m.faturaGunu&&!m.bugunKesildi)u.push({s:m.sonGun?"e-kotu":"e-dikkat",m:"Bugün "+m.ad+" fatura günü"+(m.sonGun?" (ayın son günü)":"")+(m.biriken?": faturalanacak "+para(m.biriken):"")+". Mobil uygulamadan kes, sonra KolayBi'den "+m.ad.toUpperCase()+"'e mali faturayı kes (KolayBi'de görününce uyarı kalkar)."});});
   var M=VERI&&VERI.metropolFatura;
   if(M&&M.faturaGunu&&!M.bugunKesildi)u.push({s:M.sonGun?"e-kotu":"e-dikkat",m:"Bugün Metropol fatura günü ("+(M.sonGun?"ayın son günü":"ayın 15'i")+")"+(M.biriken!=null?": biriken "+para(M.biriken):"")+". Metropol › Manuel Fatura Kesimi'nden kes, sonra KolayBi'den METROPAL'e mali faturayı kes (KolayBi'de görününce uyarı kalkar)."});
   if(K&&K.kartlar)K.kartlar.forEach(function(k){var n=k.cekimsiz.length+k.siparissiz.length+k.parcali.length;if(n)u.push({s:"e-notr",m:k.ad+": "+n+" açıkta kalan ödeme ("+k.cekimsiz.length+" çekimsiz sipariş, "+k.siparissiz.length+" siparişsiz çekim, "+k.parcali.length+" farklı tutar)."});});
@@ -2283,7 +2283,7 @@ function ykIslemBlok(a){var K=VERI.ykKontrol,kartlar=((K&&K.kartlar)||[]).filter
   a.appendChild(blok("Günlük işlemler","Kart çekimleri iş gününe göre (10:00 – ertesi gün 03:00). Üstteki dönem seçimine bağlıdır; bir güne tıklayınca o günün işlemleri açılır.",kap));}
 
 // Fatura durumu: kart sekmeleriyle SetCard, Metropol, Multinet, Pluxee, Edenred faturaları
-function ykFaturaBlok(a){var S=[["SetCard",setcardFaturaBlok],["Metropol",metropolFaturaBlok],["Multinet",multinetFaturaBlok],["Pluxee",function(d){mobilFaturaBlok(d,"Pluxee");}],["Edenred",function(d){mobilFaturaBlok(d,"Edenred");}]].map(function(x){var d=el("div");x[1](d);return {ad:x[0],d:d};}).filter(function(x){return x.d.childNodes.length;});
+function ykFaturaBlok(a){var S=[["SetCard",setcardFaturaBlok],["Metropol",metropolFaturaBlok],["Multinet",multinetFaturaBlok],["Pluxee",function(d){mobilFaturaBlok(d,"Pluxee");}],["Edenred",function(d){mobilFaturaBlok(d,"Edenred");}],["Tokenflex",function(d){mobilFaturaBlok(d,"Tokenflex");}]].map(function(x){var d=el("div");x[1](d);return {ad:x[0],d:d};}).filter(function(x){return x.d.childNodes.length;});
   if(!S.length)return;if(!YK_FATURA||!S.some(function(x){return x.ad===YK_FATURA;}))YK_FATURA=S[0].ad;
   var bas=el("h2",{text:"Fatura durumu",style:"margin:22px 0 4px"}),sek=el("div",{class:"sekmeler",style:"margin:0 0 10px"}),govde=el("div");
   function ciz(){sek.textContent="";govde.textContent="";S.forEach(function(x){sek.appendChild(el("button",{type:"button","aria-pressed":x.ad===YK_FATURA?"true":"false",onclick:function(){YK_FATURA=x.ad;ciz();}},[x.ad]));if(x.ad===YK_FATURA)govde.appendChild(x.d);});}
@@ -2326,9 +2326,10 @@ function multinetFaturaBlok(a){var N=VERI.multinetFatura;if(!N)return;var k=N.ke
 
 // Pluxee / Edenred: faturayı sahibi mobil uygulamadan keser; panel takvimi ve KolayBi'deki karşılığını gösterir.
 function mobilFaturaBlok(a,ad){var M=((VERI.mobilFatura)||[]).filter(function(x){return x.ad===ad;})[0];if(!M)return;
-  a.appendChild(el("div",{class:"rakamlar"},[rakam("Bugün",M.faturaGunu?(M.bugunKesildi?"Fatura günü — kesildi ✓":"Fatura günü — kesilmedi"):"Fatura günü değil",M.faturaGunu?(M.sonGun?"ayın son günü":"Cuma"):null,M.faturaGunu?(M.bugunKesildi?"yukari":"asagi"):""),
-    rakam("Sonraki fatura günleri",M.takvim.filter(function(g){return g!==M.bugun;}).slice(0,2).map(function(g){return gunAd(g);}).join(", ")||"—","her Cuma (ayın "+M.ilkGun+"'inden itibaren) + ayın son günü")]));
-  a.appendChild(blok(ad+" faturası","Kural: her Cuma (ayın "+M.ilkGun+"'inden önce kesilemez) ve ayın son günü. "+ad+" faturası yalnız mobil uygulamadan kesildiği için sen kesiyorsun; kesildiğini KolayBi'deki "+ad.toUpperCase()+" faturasından anlarım, fatura günü kesilmemişse Yönetim Merkezi'nde uyarı çıkar.",
+  a.appendChild(el("div",{class:"rakamlar"},[rakam("Bugün",M.faturaGunu?(M.bugunKesildi?"Fatura günü — kesildi ✓":"Fatura günü — kesilmedi"):"Fatura günü değil",M.faturaGunu&&M.sonGun?"ayın son günü":null,M.faturaGunu?(M.bugunKesildi?"yukari":"asagi"):""),
+    M.biriken!=null?rakam("Faturalanacak",para(M.biriken),ad+"'te açık dönem"):null,
+    rakam("Sonraki fatura günleri",M.takvim.filter(function(g){return g!==M.bugun;}).slice(0,2).map(function(g){return gunAd(g);}).join(", ")||"—",M.kural)]));
+  a.appendChild(blok(ad+" faturası","Kural: "+M.kural+". "+ad+" faturası yalnız mobil uygulamadan kesildiği için sen kesiyorsun; kesildiğini KolayBi'deki "+ad.toUpperCase()+" faturasından anlarım, fatura günü kesilmemişse Yönetim Merkezi'nde uyarı çıkar.",
     M.liste.length?tablo([["KolayBi faturası"],["Tarih"],["Tutar",1],["KolayBi tahsilat"]],M.liste.map(function(x){return [x.no.slice(-6),x.tarih,para(x.tutar),el("span",{class:"etiket "+(x.odendi?"e-iyi":"e-notr"),text:x.odendi?"tahsil edildi":"bekliyor"})];})):bos(M.kolaybiOkundu?"KolayBi'de "+ad+" faturası yok.":"KolayBi satış faturaları okunamadı.")));}
 
 function ykKontrolBlok(a){var K=VERI.ykKontrol;if(!K)return;
