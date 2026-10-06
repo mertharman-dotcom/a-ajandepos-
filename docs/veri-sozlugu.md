@@ -52,7 +52,6 @@ Bütün e-tabloların listesi ve önerilen Drive düzeni: `docs/tablo-haritasi.m
 | Kurye kesintileri (TL / dakika) | KURYE › Kesintiler (`1LG7naAbMM9aL3K0QNzzrjXomC2LXjx4rdSCYNYWzDQo`) | Elle + `iadeKesintileriIsle` (Iadeler'de "Kuryeden Düş" işaretli satırlar) | Kurye bordrosu (`kesintiOku`) | Iadeler'deki "Kesinti Durumu" yalnızca durum notu, kopya değil |
 | Reçete durumu | GENEL › Menü I sütunu | Maliyet Modülü | — | Stok motoru da yazıyor (S8) |
 | Kapatılan açık hesaplar | KURYE › Tahsilatlar | Panel (elle) + yemek kartı ajanı (kaynak 'Pluxee Ajanı' / 'Paye Ajanı') | Panel, bordro | — |
-| Pluxee haftalık fatura (onay, kesim sonucu, tutarlar) | KURYE › Pluxee Fatura | Panel (onay) + MacBook Pluxee programı (kesim sonucu) | Panel › Finans | — |
 
 ## Birimler
 
