@@ -1613,6 +1613,23 @@ function saatlikGrafik(l,hedef){if(!l||!l.length)return bos("Son 7 günde sipari
     svg.yaz(cx,H-alt-h-16,virgul(x.gunluk),"deger-yazi");if(x.ortDk!=null)svg.yaz(cx,H-alt-h-4,x.ortDk+" dk","adet-yazi",yavas?"var(--kotu)":null);svg.yaz(cx,H-alt+16,("0"+x.saat).slice(-2));});
   return el("div",{class:"grafik"},[svg]);}
 
+// Saat saat yol süresi (dükkândan çıkış → kapı): sütun = ortalama yol, içte mesafeye göre beklenen yol çizgisi.
+// Kırmızı: ortalama yol beklenenden pay kadar uzun. Altta ortalama km ve yolda geciken paket oranı.
+function saatYolGrafik(l,HD){var v=(l||[]).filter(function(x){return x.yolDk!=null;});if(!v.length)return bos("Son 7 günde mesafesi bilinen teslimat yok.");
+  var W=760,H=260,ust=30,alt=50,p=16,bw=(W-p*2)/l.length;
+  var max=Math.max.apply(null,v.map(function(x){return Math.max(x.yolDk,x.bekYol||0);}))||1;
+  var svg=svgYap(W,H,"Saat başına ortalama yol süresi");
+  l.forEach(function(x,i){var cx=p+i*bw+bw/2;svg.yaz(cx,H-alt+16,("0"+x.saat).slice(-2));if(x.yolDk==null)return;
+    var h=(H-ust-alt)*x.yolDk/max,uzun=x.yolDk>x.bekYol+HD.yolPay,oran=x.yolN?Math.round(x.yolGec/x.yolN*100):0;
+    svg.sutun(p+i*bw+4,H-alt-h,bw-8,h,uzun?"var(--kotu)":"var(--mavi)",("0"+x.saat).slice(-2)+":00 — ortalama yol "+x.yolDk+" dk, ortalama "+virgul(x.yolKm)+" km, mesafeye göre beklenen "+x.bekYol+" dk; "+x.yolN+" paketin "+x.yolGec+"'i yolda gecikti");
+    var hb=(H-ust-alt)*x.bekYol/max,c=document.createElementNS("http://www.w3.org/2000/svg","line");c.setAttribute("x1",p+i*bw+2);c.setAttribute("x2",p+(i+1)*bw-2);c.setAttribute("y1",H-alt-hb);c.setAttribute("y2",H-alt-hb);
+    c.setAttribute("style","stroke:var(--murekkep);stroke-width:2;stroke-dasharray:4 3;opacity:.7");svg.appendChild(c);
+    svg.yaz(cx,H-alt-Math.max(h,hb)-6,x.yolDk+" dk","deger-yazi",uzun?"var(--kotu)":null);
+    svg.yaz(cx,H-alt+30,virgul(x.yolKm)+" km","adet-yazi");if(oran)svg.yaz(cx,H-alt+44,"%"+oran,"adet-yazi",oran>=20?"var(--kotu)":null);});
+  var lej=el("div",{class:"fis-lejant",style:"margin:4px 18px 0"},[el("span",null,[el("i",{style:"background:var(--mavi)"}),"Ortalama yol süresi"]),el("span",null,[el("i",{style:"background:var(--kotu)"}),"Beklenenden "+HD.yolPay+" dk'dan fazla uzun"]),
+    el("span",null,[el("i",{style:"background:none;border-top:2px dashed var(--murekkep);height:0;border-radius:0"}),"Mesafeye göre beklenen (5 dk + km başına 2,5 dk)"]),el("span",null,["Altta: ortalama mesafe ve yolda geciken paketlerin yüzdesi"])]);
+  return el("div",null,[lej,el("div",{class:"grafik"},[svg])]);}
+
 // 14 gün: sütun = paket adedi (koyu kısmı geciken), üstünde ortalama teslim süresi.
 function kuryeSeri(seri,hedef){if(!seri||!seri.length)return bos("Grafik için veri yok.");var W=760,H=240,ust=30,alt=40,p=20,bw=(W-p*2)/seri.length;var max=Math.max.apply(null,seri.map(function(x){return x.adet;}))||1;
   var svg=svgYap(W,H,"Son 14 günün paket adedi ve teslim süresi");
@@ -1699,6 +1716,7 @@ function kuryeTeslimat(a,K){var HD=K.hedef,D=KURYE_DONEM,G=K.genel[D];
     blok("Teslim süresi dağılımı","Son 7 günde paketlerin sipariş-teslim süresi.",cubuklar(K.dagilim,function(n){return n+" paket";}))]));
 
   a.appendChild(blok("Hangi saatte sıkışıyoruz","Son 7 günün saat başına günlük ortalama sipariş adedi; sütunun üstünde o saatteki ortalama teslim süresi. Kırmızı sütunlar ortalaması "+HD.toplam+" dakikayı aşan saatlerdir: o saatlere kurye ya da mutfak desteği gerekir.",saatlikGrafik(K.saatlik,HD.toplam)));
+  a.appendChild(blok("Kuryenin yolda geçirdiği süre","Aynı saatlerde paketin dükkândan çıkışından kapıya kadar geçen ortalama süre (son 7 gün, mesafesi bilinen paketler). Kesikli çizgi mesafeye göre beklenen süre; sütun kırmızıysa o saatte yol beklenenden "+HD.yolPay+" dakikadan fazla uzun. Altta ortalama mesafe ve yolda geciken paketlerin oranı.",saatYolGrafik(K.saatlik,HD)));
   a.appendChild(blok("Platformlar","Son 7 gün.",K.platform.length?tablo([["Platform"],["Paket",1],["Ort. teslim",1],["Geciken",1]],K.platform.map(function(p){return [p.ad,String(p.adet),dkEtiket(p.ortDk,30,HD.toplam),p.gec+" (%"+(p.adet?Math.round(p.gec/p.adet*100):0)+")"];})):bos("Kayıt yok.")));
 
   // En uzun süren teslimatlar
@@ -2233,15 +2251,58 @@ function ykUyariKutusu(link){var u=ykUyarilar();if(!u.length)return null;
   return el("div",{class:"uyari"},[el("b",{text:"Yemek kartları"}),el("ul",{style:"margin:6px 0 0;padding-left:18px"},u.map(function(x){return el("li",null,[el("span",{class:"etiket "+x.s,style:"margin-right:6px",text:x.s==="e-kotu"?"yap":x.s==="e-dikkat"?"karar":"bak"}),x.m]);})),
     link?el("div",{style:"margin-top:6px"},[el("a",{href:"#yemekkart",text:"Yemek Kartları sayfasını aç"})]):null]);}
 
-function ykSayfa(a){a.appendChild(ust("Yemek kartları","Pluxee, Edenred, Paye, SetCard: faturalar, siparişlerle karşılaştırma ve kurye açık hesapları. Kaynak: BAP Yemek Kartı Tahsilatları tablosu."));
+// Yemek Kartları sayfası (sahibin istediği sıra, 06.10.2026): dönem filtresiyle kart kart çekim özeti → günlük işlemler →
+// fatura durumu → iki taraflı kontrol → mutabakat (14 gün) → kurye açık hesap ajanı.
+var YK_DONEM="bugun",YK_ISLEM_KART=null,YK_ISLEM_GUN=null,YK_FATURA=null;
+var YK_DONEMLER=[["bugun","Bugün"],["hafta","Bu hafta"],["ay","Bu ay"],["otuz","Son 30 gün"]];
+function ykBugun(){var K=VERI.ykKontrol;return K&&K.bas?gunEkleTr(K.bas,(K.gun||7)-1):(VERI.satis&&VERI.satis.bugun)||new Date().toISOString().slice(0,10);}
+function ykDonemBas(d){var b=ykBugun(),t=new Date(b+"T00:00:00Z");
+  if(d==="bugun")return b;if(d==="hafta")return gunEkleTr(b,-((t.getUTCDay()+6)%7));if(d==="ay")return b.slice(0,8)+"01";return gunEkleTr(b,-29);}
+function ykSayfa(a){a.appendChild(ust("Yemek kartları","Pluxee, Paye, Edenred, Multinet, Metropol, SetCard: çekimler, faturalar, siparişlerle karşılaştırma ve kurye açık hesapları. Kaynak: BAP Yemek Kartı Tahsilatları tablosu."));
   a.appendChild(nabizSeridi("yemekkart"));var h=hatalarKutusu(["ykKontrol","setcardFatura","metropolFatura","pluxeeFatura","yemekKarti"]);if(h)a.appendChild(h);
   var u=ykUyariKutusu(false);if(u)a.appendChild(u);
-  setcardFaturaBlok(a);
-  metropolFaturaBlok(a);
+  ykOzetBlok(a);
+  ykIslemBlok(a);
+  ykFaturaBlok(a);
   ykKontrolBlok(a);
-  if(VERI.kurye&&VERI.kurye.acik)kartAjanBlok(a,VERI.kurye.acik);
-  pluxeeFaturaBlok(a);
-  ykMutabakat(a);}
+  ykMutabakat(a);
+  if(VERI.kurye&&VERI.kurye.acik)kartAjanBlok(a,VERI.kurye.acik);}
+
+// En üst: dönem seçimi + kart kart çekim sayısı ve tutarı
+function ykOzetBlok(a){var K=VERI.ykKontrol,kartlar=(K&&K.kartlar)||[];if(!kartlar.length)return;var kap=el("div");
+  function ciz(){kap.textContent="";var bas=ykDonemBas(YK_DONEM),bit=ykBugun(),TA=0,TT=0;
+    kap.appendChild(el("div",{class:"sekmeler",style:"margin:0 0 10px"},YK_DONEMLER.map(function(d){return el("button",{type:"button","aria-pressed":d[0]===YK_DONEM?"true":"false",onclick:function(){YK_DONEM=d[0];YK_ISLEM_GUN=null;ciz();ykIslemCiz&&ykIslemCiz();}},[d[1]]);})));
+    var tiles=kartlar.map(function(k){if(k.hata||!k.gunluk)return rakam(k.ad,"veri yok",k.hata||"çekim verisi gelmiyor");var n=0,t=0;
+      Object.keys(k.gunluk).forEach(function(g){if(g>=bas&&g<=bit){n+=k.gunluk[g][0];t+=k.gunluk[g][1];}});TA+=n;TT+=t;
+      return rakam(k.ad,para(t),n+" çekim");});
+    kap.appendChild(el("div",{class:"rakamlar"},[rakam("Toplam",para(TT),TA+" çekim · "+(bas===bit?gunAd(bas):gunAd(bas)+" – "+gunAd(bit)))].concat(tiles)));}
+  ciz();a.appendChild(kap);}
+
+// Günlük işlemler: kart seç → gün gün çekim toplamı → seçilen günün işlemleri (dönem filtresine bağlı)
+var ykIslemCiz=null;
+function ykIslemBlok(a){var K=VERI.ykKontrol,kartlar=((K&&K.kartlar)||[]).filter(function(k){return !k.hata&&k.gunluk;});if(!kartlar.length)return;
+  if(!YK_ISLEM_KART||!kartlar.some(function(k){return k.ad===YK_ISLEM_KART;}))YK_ISLEM_KART=(kartlar.filter(function(k){return Object.keys(k.gunluk).length;})[0]||kartlar[0]).ad;
+  var kap=el("div");
+  ykIslemCiz=function(){kap.textContent="";var k=kartlar.filter(function(x){return x.ad===YK_ISLEM_KART;})[0],bas=ykDonemBas(YK_DONEM),bit=ykBugun();
+    kap.appendChild(el("div",{class:"sekmeler",style:"margin:0 0 10px"},kartlar.map(function(x){var n=0;Object.keys(x.gunluk).forEach(function(g){if(g>=bas&&g<=bit)n+=x.gunluk[g][0];});
+      return el("button",{type:"button","aria-pressed":x.ad===YK_ISLEM_KART?"true":"false",onclick:function(){YK_ISLEM_KART=x.ad;YK_ISLEM_GUN=null;ykIslemCiz();}},[x.ad+(n?" ("+n+")":"")]);})));
+    var gunler=Object.keys(k.gunluk).filter(function(g){return g>=bas&&g<=bit;}).sort().reverse();
+    if(!gunler.length){kap.appendChild(bos(k.ad+": bu dönemde çekim yok."+(k.son?" Son çekim: "+k.son+".":"")));return;}
+    if(!YK_ISLEM_GUN||gunler.indexOf(YK_ISLEM_GUN)<0)YK_ISLEM_GUN=gunler[0];
+    kap.appendChild(tablo([["Gün"],["Çekim",1],["Tutar",1],[""]],gunler.map(function(g){var d=k.gunluk[g],sec=g===YK_ISLEM_GUN;
+      return [sec?el("b",{text:gunAd(g)}):gunAd(g),String(d[0]),para(d[1]),sec?el("span",{class:"etiket e-notr",text:"aşağıda"}):el("button",{type:"button",class:"dugme",style:"padding:3px 10px;font-size:13px",onclick:function(){YK_ISLEM_GUN=g;ykIslemCiz();}},["İşlemleri gör"])];})));
+    var l=(k.islemler||[]).filter(function(x){return x.gun===YK_ISLEM_GUN;});
+    kap.appendChild(el("h4",{style:"margin:14px 0 6px",text:k.ad+" · "+gunAd(YK_ISLEM_GUN)+" işlemleri ("+l.length+")"}));
+    kap.appendChild(l.length?tablo([["Saat"],["Tutar",1],["Ödeme"],["Terminal / kurye"]],l.map(function(x){return [x.saat||"—",para(x.tutar),x.online?"online":"kapıda",[x.terminal,x.kurye].filter(String).join(" · ")||"—"];})):bos("İşlem listesi yok (yalnız gün sonu toplamı geliyor)."));};
+  ykIslemCiz();
+  a.appendChild(blok("Günlük işlemler","Kart çekimleri iş gününe göre (10:00 – ertesi gün 03:00). Üstteki dönem seçimine bağlıdır; bir güne tıklayınca o günün işlemleri açılır.",kap));}
+
+// Fatura durumu: kart sekmeleriyle SetCard, Metropol, Pluxee faturaları
+function ykFaturaBlok(a){var S=[["SetCard",setcardFaturaBlok],["Metropol",metropolFaturaBlok],["Pluxee",pluxeeFaturaBlok]].map(function(x){var d=el("div");x[1](d);return {ad:x[0],d:d};}).filter(function(x){return x.d.childNodes.length;});
+  if(!S.length)return;if(!YK_FATURA||!S.some(function(x){return x.ad===YK_FATURA;}))YK_FATURA=S[0].ad;
+  var bas=el("h2",{text:"Fatura durumu",style:"margin:22px 0 4px"}),sek=el("div",{class:"sekmeler",style:"margin:0 0 10px"}),govde=el("div");
+  function ciz(){sek.textContent="";govde.textContent="";S.forEach(function(x){sek.appendChild(el("button",{type:"button","aria-pressed":x.ad===YK_FATURA?"true":"false",onclick:function(){YK_FATURA=x.ad;ciz();}},[x.ad]));if(x.ad===YK_FATURA)govde.appendChild(x.d);});}
+  ciz();a.appendChild(bas);a.appendChild(sek);a.appendChild(govde);}
 
 function setcardFaturaBlok(a){var F=VERI.setcardFatura;if(!F)return;var kap=el("div");
   var RENK=function(d){return /kesilmedi/i.test(d)?"e-dikkat":/^fatura kesildi/i.test(d)?"e-notr":/ödeme|odeme/i.test(d)?"e-iyi":"e-notr";};

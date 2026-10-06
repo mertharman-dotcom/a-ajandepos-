@@ -1632,6 +1632,13 @@ function ykKontrol_() {
     if (!veri) { k.hata = 'Çekim sekmesi yok ya da boş'; return; }
     if (veri.hata) { k.hata = veri.hata; return; }
     k.son = veri.son === null ? null : kartTam_(veri.son);
+    // Panel üst özeti ve 'Günlük işlemler' için: son 31 iş gününün çekimleri (online dahil), gün toplamı ve işlem listesi
+    var bas31 = gunEkle_(bugun, -30); k.gunluk = {}; var isl = [];
+    veri.cekim.forEach(function (y) { var g = isGunu_(y.ms); if (g < bas31 || g > bugun) return;
+      var d = k.gunluk[g] = k.gunluk[g] || [0, 0]; d[0]++; d[1] = Math.round((d[1] + y.tutar) * 100) / 100;
+      isl.push({ ms: y.ms, gun: g, saat: y.saatYok ? '' : kartTam_(y.ms).slice(-5), tutar: y.tutar, online: !!y.online, kurye: y.kurye || '', terminal: y.terminal || '' }); });
+    isl.sort(function (p, q) { return q.ms - p.ms; });
+    k.islemler = isl.slice(0, 500).map(function (x) { delete x.ms; return x; });
     var onlineVar = veri.cekim.some(function (y) { return y.online; });
     var C = veri.cekim.filter(function (y) { return isGunu_(y.ms) >= bas; }).map(function (y) { return { y: y, kul: false }; });
     k.cekim = C.length;
@@ -2473,8 +2480,12 @@ function puantajTabloDegisti(e) {
 
 // Son 62 günde C/D'si elle değiştirilip toplamı eski kalan satırları bulur ve yeniden hesaplar.
 function puantajTaramasi() {
-  var kilit = LockService.getScriptLock(); if (!kilit.tryLock(30000)) return;
-  try {
+  // Kilitsiz ön tarama: çoğu saat düzeltilecek satır yoktur; o zaman kilit hiç alınmaz.
+  var on = puBaglam_(), onSinir = gunEkle_(on.bugun, -62), var_ = false;
+  for (var j = 1; j < on.v.length && !var_; j++) if (on.v[j][on.c.ad] && puGun_(on, j) >= onSinir && puTutarsiz_(on, j)) var_ = true;
+  var kilit = null;
+  if (var_) { kilit = LockService.getScriptLock(); if (!kilit.tryLock(30000)) kilit = null; }
+  if (kilit) try {
     var ctx = puBaglam_(), sinir = gunEkle_(ctx.bugun, -62), islenen = [];
     for (var i = 1; i < ctx.v.length; i++) {
       if (!ctx.v[i][ctx.c.ad] || puGun_(ctx, i) < sinir || !puTutarsiz_(ctx, i)) continue;
@@ -2484,6 +2495,7 @@ function puantajTaramasi() {
     if (islenen.length) CacheService.getScriptCache().remove('panel_v1_n');
     Logger.log(islenen.length ? islenen.length + ' satır yeniden hesaplandı:\n' + islenen.join('\n') : 'Toplamı eski kalan satır yok.');
   } finally { kilit.releaseLock(); }
+  else Logger.log(var_ ? 'Kilit alınamadı; tarama bir sonraki saate kaldı.' : 'Toplamı eski kalan satır yok.');
   // Aynı saatlik tetikleyici yemek kartı ajanını da çalıştırır (ayrı tetikleyici kurmaya gerek yok).
   try { kartAjani(); } catch (err) { Logger.log('Kart ajanı: ' + err); }
   try { pluxeeFaturaTara_(); } catch (err) { Logger.log('Pluxee fatura: ' + err); }
@@ -2780,7 +2792,8 @@ function kurye_() {
       });
       if (gun >= yediBasi && gun <= bugun) {
         var h = parseInt(String(r[c.sip] || '').split(':')[0], 10);
-        if (!isNaN(h)) { var sx = saat[h] = saat[h] || { adet: 0, dk: 0, n: 0 }; sx.adet++; if (sureVar) { sx.dk += top; sx.n++; } }
+        if (!isNaN(h)) { var sx = saat[h] = saat[h] || { adet: 0, dk: 0, n: 0, at: 0, hz: 0, yol: 0, yn: 0, yolKm: 0, km: 0, bek: 0, yGec: 0 }; sx.adet++; if (sureVar) { sx.dk += top; sx.n++; sx.at += at; sx.hz += hz; sx.yol += yol; }
+          if (sureVar && km > 0) { sx.yn++; sx.yolKm += yol; sx.km += km; sx.bek += bekYol; if (kuryeden) sx.yGec++; } }
         if (sureVar) dagilim[top <= 20 ? 0 : top <= 30 ? 1 : top <= 40 ? 2 : top <= 60 ? 3 : 4]++;
         var p = platform[plat] = platform[plat] || { ad: plat, adet: 0, dk: 0, n: 0, gec: 0 };
         p.adet++; if (sureVar) { p.dk += top; p.n++; } if (gec) p.gec++;
@@ -2791,7 +2804,12 @@ function kurye_() {
   }
   out.sonSiparis = sonSiparisMs === null ? null : new Date(sonSiparisMs).toISOString().slice(0, 16).replace('T', ' ');
   // İş günü 10:00'da başlar: saatleri 11, …, 23, 0, 1, 2 sırasıyla ver
-  out.saatlik = []; for (var hh = 10; hh < 27; hh++) { var h2 = hh % 24, sv = saat[h2]; if (sv || (hh >= 11 && hh <= 23)) out.saatlik.push({ saat: h2, gunluk: sv ? Math.round(sv.adet / 7 * 10) / 10 : 0, ortDk: sv && sv.n ? Math.round(sv.dk / sv.n) : null }); }
+  out.saatlik = []; for (var hh = 10; hh < 27; hh++) { var h2 = hh % 24, sv = saat[h2]; if (sv || (hh >= 11 && hh <= 23)) out.saatlik.push({ saat: h2, gunluk: sv ? Math.round(sv.adet / 7 * 10) / 10 : 0, ortDk: sv && sv.n ? Math.round(sv.dk / sv.n) : null,
+    // Teslim süresinin aşamaları: sipariş → kurye atandı (kurye bekleniyor), atandı → çıkış (mutfak + kuryenin gelişi), çıkış → kapı (yol)
+    ortAt: sv && sv.n ? Math.round(sv.at / sv.n) : null, ortHz: sv && sv.n ? Math.round(sv.hz / sv.n) : null, ortYol: sv && sv.n ? Math.round(sv.yol / sv.n) : null,
+    // Yalnız km'si bilinen paketler: yol, mesafe, mesafeye göre beklenen yol, yolda geciken (beklenen + pay aşıldı)
+    yolN: sv ? sv.yn : 0, yolDk: sv && sv.yn ? Math.round(sv.yolKm / sv.yn) : null, yolKm: sv && sv.yn ? Math.round(sv.km / sv.yn * 10) / 10 : null,
+    bekYol: sv && sv.yn ? Math.round(sv.bek / sv.yn) : null, yolGec: sv ? sv.yGec : 0 }); }
   out.dagilim = ['20 dk ve altı', '21–30 dk', '31–40 dk', '41–60 dk', '60 dk üstü'].map(function (ad, j) { return { ad: ad, deger: dagilim[j] }; });
   out.platform = Object.keys(platform).map(function (k) { var p = platform[k]; return { ad: p.ad, adet: p.adet, gec: p.gec, ortDk: p.n ? Math.round(p.dk / p.n) : null }; }).sort(function (a, b) { return b.adet - a.adet; });
   out.enKotu = enKotu.sort(function (a, b) { return b.toplam - a.toplam; }).slice(0, 30);
@@ -3213,6 +3231,8 @@ function kartRef_(gun, teslim, siparisMs) {
 var KART_AJAN_KURU = true;
 
 function kartAjani() {
+  // Kuru çalışma yalnız okur ve raporu ScriptProperties'e yazar: kilit tutmasın (panel kayıtları beklemesin).
+  if (KART_AJAN_KURU) { var rk = kartAjanCalis_(); Logger.log('Kart ajanı (kuru): ' + JSON.stringify(rk)); return rk; }
   var kilit = LockService.getScriptLock(); if (!kilit.tryLock(30000)) return null;
   try { var r = kartAjanCalis_(); Logger.log('Kart ajanı: ' + JSON.stringify(r)); return r; }
   finally { kilit.releaseLock(); CacheService.getScriptCache().remove('panel_v1_n'); }
@@ -3782,8 +3802,8 @@ function adisyoKuryeYaz_(sh, c, kayit, yeni, islem, kaynak, iz) {
 }
 
 // Panelden: { islem: 'doldur' | 'duzelt' | 'kalsin' | 'ata', id, kurye }. 'doldur' bütün boşları kurye sistemindeki adla doldurur.
-function kuryeEslestirIslem_(d, kaynak) {
-  var e = kuryeEslestirme_(), sh = SpreadsheetApp.openById(KAYNAK.siparis.id).getSheetByName('Satıs Verileri'), iz = eslestirmeKaydi_();
+function kuryeEslestirIslem_(d, kaynak, hazir) {
+  var e = hazir || kuryeEslestirme_(), sh = SpreadsheetApp.openById(KAYNAK.siparis.id).getSheetByName('Satıs Verileri'), iz = eslestirmeKaydi_();
   var b = sh.getRange(1, 1, 1, sh.getLastColumn()).getDisplayValues()[0], c = { id: kolon_(b, ['Sipariş ID']), kurye: kolon_(b, ['Kurye']) };
   var bul = function (l) { return l.filter(function (x) { return x.id === String(d.id || '').trim(); })[0]; };
   if (d.islem === 'doldur') { var n = 0; e.bos.forEach(function (x) { if (adisyoKuryeYaz_(sh, c, x, x.oneri, 'Boş dolduruldu', kaynak || 'Panel', iz)) n++; }); return { tamam: true, yazilan: n }; }
@@ -3800,9 +3820,10 @@ function kuryeEslestirIslem_(d, kaynak) {
 
 // Zamanlayıcıyla çalıştırılabilir (Tetikleyiciler › saatlik): Adisyo'da kuryesi boş paket siparişlerini doldurur.
 function kuryeBoslariDoldur() {
-  var k = LockService.getScriptLock(); k.waitLock(20000);
-  try { var r = kuryeEslestirIslem_({ islem: 'doldur' }, 'Otomatik'); Logger.log('Doldurulan: ' + r.yazilan);
-    try { Logger.log('Adisyo ödeme: ' + JSON.stringify(tahsilatlariAdisyoyaIsle_())); } catch (e) { Logger.log(e); } }
+  var e = kuryeEslestirme_(); // okuma kilitsiz: panel kayıtlarını bekletmesin
+  var k = LockService.getScriptLock(); if (!k.tryLock(30000)) { Logger.log('Kilit alınamadı; bir sonraki çalışmaya kaldı.'); return; }
+  try { var r = e.bos.length ? kuryeEslestirIslem_({ islem: 'doldur' }, 'Otomatik', e) : { yazilan: 0 }; Logger.log('Doldurulan: ' + r.yazilan);
+    try { Logger.log('Adisyo ödeme: ' + JSON.stringify(tahsilatlariAdisyoyaIsle_())); } catch (er) { Logger.log(er); } }
   finally { k.releaseLock(); CacheService.getScriptCache().remove('panel_v1_n'); }
 }
 
@@ -3834,17 +3855,21 @@ function sonSatirlar_(ss, ad, n, basliklar) {
 /* ---------------- Sahibin panelden verdiği cevaplar ---------------- */
 
 // Panel POST ile { key, tur: 'cevap', kaynak: 'finans-soru', no, konu, cevap } gönderir.
+// Kilit 28 sn içinde alınamazsa hiçbir şey yazılmadan döner; panel "yazılmadı, tekrar deneyin" der.
+// (Eskiden waitLock istisna atıyordu; panel bunu "kayıt yazılmış olabilir" diye gösteriyordu.)
+var MESGUL_ = { hata: 'Sistem şu an başka bir işi bitiriyor; kayıt YAZILMADI. 15-20 saniye sonra yeniden deneyin.', mesgul: true };
+
 function doPost(e) {
   var d; try { d = JSON.parse(e.postData.contents); } catch (err) { return json_({ hata: 'Geçersiz istek' }); }
   var anahtar = PropertiesService.getScriptProperties().getProperty('PANEL_KEY');
   if (!anahtar || d.key !== anahtar) return json_({ hata: 'yetkisiz' });
   if (d.tur === 'puantaj') {
-    var kp = LockService.getScriptLock(); kp.waitLock(20000);
+    var kp = LockService.getScriptLock(); if (!kp.tryLock(28000)) return json_(MESGUL_);
     try { return json_(puantajDuzelt_(d)); }
     finally { kp.releaseLock(); CacheService.getScriptCache().remove('panel_v1_n'); }
   }
   if (d.tur === 'eslestir') {
-    var ke = LockService.getScriptLock(); ke.waitLock(25000);
+    var ke = LockService.getScriptLock(); if (!ke.tryLock(28000)) return json_(MESGUL_);
     try { return json_(kuryeEslestirIslem_(d)); } catch (err) { return json_({ hata: String(err.message || err) }); }
     finally { ke.releaseLock(); CacheService.getScriptCache().remove('panel_v1_n'); }
   }
@@ -3852,32 +3877,32 @@ function doPost(e) {
     try { return json_(rotaHesapla_(d)); } catch (err) { return json_({ hata: String(err.message || err) }); }
   }
   if (d.tur === 'kesinti') {
-    var kk = LockService.getScriptLock(); kk.waitLock(20000);
+    var kk = LockService.getScriptLock(); if (!kk.tryLock(28000)) return json_(MESGUL_);
     try { return json_(kesintiGir_(d)); }
     finally { kk.releaseLock(); CacheService.getScriptCache().remove('panel_v1_n'); }
   }
   if (d.tur === 'mesaiDuzelt') {
-    var kmd = LockService.getScriptLock(); kmd.waitLock(20000);
+    var kmd = LockService.getScriptLock(); if (!kmd.tryLock(28000)) return json_(MESGUL_);
     try { return json_(mesaiDuzelt_(d)); } catch (err) { return json_({ hata: String(err.message || err) }); }
     finally { kmd.releaseLock(); CacheService.getScriptCache().remove('panel_v1_n'); }
   }
   if (d.tur === 'kokpit') {
-    var kkp = LockService.getScriptLock(); kkp.waitLock(20000);
+    var kkp = LockService.getScriptLock(); if (!kkp.tryLock(28000)) return json_(MESGUL_);
     try { return json_(kokpitCevap_(d)); } catch (err) { return json_({ hata: String(err.message || err) }); }
     finally { kkp.releaseLock(); CacheService.getScriptCache().remove('panel_v1_n'); }
   }
   if (d.tur === 'panoNot') {
-    var kpn = LockService.getScriptLock(); kpn.waitLock(20000);
+    var kpn = LockService.getScriptLock(); if (!kpn.tryLock(28000)) return json_(MESGUL_);
     try { return json_(panoNot_(d)); } catch (err) { return json_({ hata: String(err.message || err) }); }
     finally { kpn.releaseLock(); CacheService.getScriptCache().remove('panel_v1_n'); }
   }
   if (d.tur === 'iadeIslem') {
-    var kii = LockService.getScriptLock(); kii.waitLock(20000);
+    var kii = LockService.getScriptLock(); if (!kii.tryLock(28000)) return json_(MESGUL_);
     try { return json_(iadeIslem_(d)); } catch (err) { return json_({ hata: String(err.message || err) }); }
     finally { kii.releaseLock(); }
   }
   if (d.tur === 'yorumOnay') {
-    var kyo = LockService.getScriptLock(); kyo.waitLock(20000);
+    var kyo = LockService.getScriptLock(); if (!kyo.tryLock(28000)) return json_(MESGUL_);
     try { return json_(yorumOnay_(d)); } catch (err) { return json_({ hata: String(err.message || err) }); }
     finally { kyo.releaseLock(); }
   }
@@ -3885,43 +3910,43 @@ function doPost(e) {
     try { return json_(musteriDetay_(d)); } catch (err) { return json_({ hata: String(err.message || err) }); }
   }
   if (d.tur === 'setcardFatura') {
-    var ksf = LockService.getScriptLock(); ksf.waitLock(25000);
+    var ksf = LockService.getScriptLock(); if (!ksf.tryLock(28000)) return json_(MESGUL_);
     try { return json_(setcardFaturaIslem_(d)); } catch (err) { return json_({ hata: String(err.message || err) }); }
     finally { ksf.releaseLock(); CacheService.getScriptCache().remove('panel_v1_n'); }
   }
   if (d.tur === 'pluxeeFatura') {
-    var kpf = LockService.getScriptLock(); kpf.waitLock(20000);
+    var kpf = LockService.getScriptLock(); if (!kpf.tryLock(28000)) return json_(MESGUL_);
     try { return json_(pluxeeFaturaIslem_(d)); } catch (err) { return json_({ hata: String(err.message || err) }); }
     finally { kpf.releaseLock(); CacheService.getScriptCache().remove('panel_v1_n'); }
   }
   if (d.tur === 'hesap') {
-    var kh = LockService.getScriptLock(); kh.waitLock(20000);
+    var kh = LockService.getScriptLock(); if (!kh.tryLock(28000)) return json_(MESGUL_);
     try { return json_(hesapKapat_(d)); }
     finally { kh.releaseLock(); CacheService.getScriptCache().remove('panel_v1_n'); }
   }
   if (d.tur === 'vardiya') {
-    var kv = LockService.getScriptLock(); kv.waitLock(20000);
+    var kv = LockService.getScriptLock(); if (!kv.tryLock(28000)) return json_(MESGUL_);
     try { return json_(vardiyaGir_(d)); }
     finally { kv.releaseLock(); CacheService.getScriptCache().remove('panel_v1_n'); }
   }
   if (d.tur === 'avans') {
-    var kav = LockService.getScriptLock(); kav.waitLock(20000);
+    var kav = LockService.getScriptLock(); if (!kav.tryLock(28000)) return json_(MESGUL_);
     try { return json_(avansGir_(d)); }
     finally { kav.releaseLock(); CacheService.getScriptCache().remove('panel_v1_n'); }
   }
   if (d.tur === 'odeme') {
-    var k = LockService.getScriptLock(); k.waitLock(20000);
+    var k = LockService.getScriptLock(); if (!k.tryLock(28000)) return json_(MESGUL_);
     try { return json_(toptanciOdemeGir_(d)); }
     finally { k.releaseLock(); CacheService.getScriptCache().remove('panel_v1_n'); }
   }
   if (d.tur === 'fis') {
-    var kf = LockService.getScriptLock(); kf.waitLock(20000);
+    var kf = LockService.getScriptLock(); if (!kf.tryLock(28000)) return json_(MESGUL_);
     try { return json_(fisKaydet_(d)); }
     finally { kf.releaseLock(); CacheService.getScriptCache().remove('panel_v1_n'); }
   }
   var cevap = String(d.cevap || '').replace(/\s+/g, ' ').trim().slice(0, 1500);
   if (!cevap) return json_({ hata: 'Cevap boş.' });
-  var kilit = LockService.getScriptLock(); kilit.waitLock(20000);
+  var kilit = LockService.getScriptLock(); if (!kilit.tryLock(28000)) return json_(MESGUL_);
   try {
     if (d.kaynak === 'finans-soru') return json_(finansSoruCevapla_(d, cevap));
     if (d.kaynak === 'personel-bilgi') return json_(personelBilgiGir_(d));
