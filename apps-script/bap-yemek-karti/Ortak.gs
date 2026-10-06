@@ -6,8 +6,9 @@
  *   Edenred : MacBook edenred.mjs → doPost tur 'edenred'  → Edenred.gs  → 'Edenred' sekmesi
  *   Paye    : Gmail "Gün Sonu Raporu" Excel'i (günde 2)   → Paye.gs     → 'Paye' (gün sonu) + 'Paye İşlemler' (işlem işlem)
  *   SetCard : SetCard API (saatte bir, MacBook gerekmez)   → SetCard.gs  → 'SetCard' sekmesi
+ *   Multinet: MacBook multinet.mjs → doPost tur 'multinet' / 'multinetFatura' → Multinet.gs → 'Multinet', 'Multinet Fatura'
  *   Metropol: MacBook metropol.mjs → doPost tur 'metropol' → Metropol.gs → 'Metropol' sekmesi (terminal = kurye)
- *   SMS doğrulama kodları (Pluxee, Edenred): Kod Kutusu.gs — iPhone Kestirmeler GET ?sayfa=kod&kaynak=…&k=…&kod=…
+ *   SMS doğrulama kodları (Pluxee, Edenred, Multinet): Kod Kutusu.gs — iPhone Kestirmeler GET ?sayfa=kod&kaynak=…&k=…&kod=…
  *
  * Yemek kartı ajanı (açık hesapları kapatan) panel veri kapısında; bu tablodan okur.
  * Bir kez: kurulum() (Kurulum.gs).
