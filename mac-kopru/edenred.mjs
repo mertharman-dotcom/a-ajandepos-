@@ -36,9 +36,9 @@ function log(m) {
 const bekle = ms => new Promise(c => setTimeout(c, ms));
 const tarih = (d, ayrac) => { const p = n => String(n).padStart(2, '0'); return `${p(d.getDate())}${ayrac}${p(d.getMonth() + 1)}${ayrac}${d.getFullYear()}`; };
 
-/* ---------- kurye köprüsü (kurye-net-calisma-suresi › Kopru.gs doPost) ---------- */
+/* ---------- BAP Yemek Kartı web uygulaması (ayar.json › ykWebapp; yoksa eski kurye köprüsü) ---------- */
 async function kopru(govde) {
-  const res = await fetch(AYAR.webapp, { method: 'POST', headers: { 'content-type': 'text/plain;charset=utf-8' },
+  const res = await fetch(AYAR.ykWebapp || AYAR.webapp, { method: 'POST', headers: { 'content-type': 'text/plain;charset=utf-8' },
     body: JSON.stringify({ anahtar: AYAR.anahtar, ...govde }), redirect: 'follow' });
   const t = await res.text();
   try { return JSON.parse(t); } catch (_) { return { hata: t.slice(0, 200) }; }

@@ -134,7 +134,7 @@ function paketHazirla_() {
   var out = {
     surum: 1,
     olusturma: Utilities.formatDate(simdi, TZ, "yyyy-MM-dd'T'HH:mm:ss"),
-    kaynaklar: [], satis: null, nabiz: null, isKaydi: null, hub: null, finans: null, personel: null, kurye: null, genel: null, fisKayit: null, musteri: null, yemekKarti: null, pluxeeFatura: null, ykKontrol: null, setcardFatura: null, metropolFatura: null, multinetFatura: null, hatalar: []
+    kaynaklar: [], satis: null, nabiz: null, isKaydi: null, hub: null, finans: null, personel: null, kurye: null, genel: null, fisKayit: null, musteri: null, yemekKarti: null, mobilFatura: null, ykKontrol: null, setcardFatura: null, metropolFatura: null, multinetFatura: null, hatalar: []
   };
   Object.keys(KAYNAK).forEach(function (k) {
     var s = KAYNAK[k];
@@ -158,7 +158,7 @@ function paketHazirla_() {
   bolum_(out, 'fisKayit', fisKayit_);
   bolum_(out, 'musteri', musteri_);
   bolum_(out, 'yemekKarti', yemekKarti_);
-  bolum_(out, 'pluxeeFatura', pluxeeFatura_);
+  bolum_(out, 'mobilFatura', mobilFatura_);
   bolum_(out, 'ykKontrol', ykKontrol_);
   bolum_(out, 'setcardFatura', setcardFatura_);
   bolum_(out, 'metropolFatura', metropolFatura_);
@@ -1481,105 +1481,32 @@ function yorumOnay_(d) {
 /* ---------------- Genel bilgiler (BAP GENEL BİLGİLER: menü, şubeler, bölgeler, ödeme) ---------------- */
 var GENEL_PORTAL_URL = 'https://bap-genel-bilgiler.mertharman.workers.dev/';
 
-/* ---------------- Pluxee haftalık fatura ----------------
- * Sahibin kuralı: her Cuma 23:55'te kesilir. Pluxee ayın ilk 6 günü fatura kestirmediği için o günlere denk gelen Cuma atlanır.
- * Ayrıca ayın son günü 23:55'te kesilir (son gün Cuma ise tek fatura). Plan: 3 günde al.
- * Akış (kurye dosyası › 'Pluxee Fatura' sekmesi, her fatura günü bir satır):
- *   1) Sahip panelden (Finans › Pluxee haftalık fatura) "Onayla" der → satır 'Onaylandı'. ONAY_GEREKIR false ise satırı
- *      saatlik tarama kendisi 'Onaylandı (otomatik)' yazar.
- *   2) MacBook'taki Pluxee programı 23:55'te satırı okur; yalnız 'Onaylandı' ise faturayı keser ve sonucu aynı satıra yazar
- *      (Durum 'Kesildi' / 'Kesilemedi', tutarlar, ödeme tarihi). Ayrıntı: docs/pluxee-fatura.md
- *   3) Fatura günü 21:00'den sonra hâlâ onay yoksa bir kez WhatsApp hatırlatması gider.
+/* ---------------- Mobilden kesilen yemek kartı faturaları: Pluxee, Edenred ----------------
+ * Bu iki kartın faturası yalnız mobil uygulamadan kesilir (sahibin bilgisi 06.10) → program kesemez; panel fatura günü hatırlatır ve
+ * kesildiğini KolayBi'deki satış faturasından (müşteri adı) anlar. Kurallar sahibin:
+ *   Pluxee : her Cuma (ayın 1–6'sı kesilemez → 7'sinden itibaren) + ayın son günü
+ *   Edenred: her Cuma (ayın ilk 7 günü kesilemez → 8'inden itibaren) + ayın son günü
  */
-// Pluxee faturası yalnız mobil uygulamadan kesilebiliyor (sahibin bilgisi 06.10) → program kesemez; KESEN_HAZIR false kalır,
-// WhatsApp "kesilecek" hatırlatması gitmez.
-var PLUXEE_FATURA = { PLAN: '3 günde al', SAAT: '23:55', ONAY_GEREKIR: true, HATIRLAT_SAAT: 21, KESEN_HAZIR: false };
-var PLUXEE_FATURA_BASLIK = ['Fatura Günü', 'Durum', 'Plan', 'Onay Zamanı', 'Onaylayan', 'Genel Toplam (TL)', 'KDV Hariç (TL)', 'KDV (TL)',
-                            'Ödeme Tarihi', 'Kesim Zamanı', 'KolayBi Faturası', 'Not'];
-// Kurye projesindeki Bildirim.gs ile aynı Make webhook'u ("BAP Bildirim - Script WA").
-// Not: o senaryo başlığında "Pluxee" geçenleri atlar (MacBook kod bildirimleri); bu yüzden başlıkta "Pluxee" kullanılmaz.
-var BILDIRIM_HOOK = 'https://hook.eu1.make.com/vpgqfj34j52xk5szvx79rbse69o3uxs6';
-
-function pluxeeFaturaGunuMu_(gun) {
-  var d = new Date(gun + 'T00:00:00Z'), g = d.getUTCDate(), son = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth() + 1, 0)).getUTCDate();
-  return g === son || (d.getUTCDay() === 5 && g > 6);
-}
-function pluxeeFaturaGunleri_(bas, n) {
-  var l = [], g = bas; for (var i = 0; i < 70 && l.length < n; i++) { if (pluxeeFaturaGunuMu_(g)) l.push(g); g = gunEkle_(g, 1); } return l;
-}
+var MOBIL_FATURA = [
+  { ad: 'Pluxee', musteri: /pluxee|sodexo/, ilkGun: 7 },
+  { ad: 'Edenred', musteri: /edenred|ticket/, ilkGun: 8 }
+];
 function takvimGunu_() { return Utilities.formatDate(new Date(), TZ, 'yyyy-MM-dd'); }
-function trGun_(gun) { return gun.slice(8, 10) + '.' + gun.slice(5, 7) + '.' + gun.slice(0, 4); }
-
-function pluxeeFaturaSekmesi_(ss) {
-  var sh = ss.getSheetByName('Pluxee Fatura');
-  if (!sh) { sh = ss.insertSheet('Pluxee Fatura'); sh.appendRow(PLUXEE_FATURA_BASLIK); sh.setFrozenRows(1); sh.getRange(1, 1, 1, PLUXEE_FATURA_BASLIK.length).setFontWeight('bold'); }
-  return sh;
+function cumaFaturaGunuMu_(gun, ilkGun) {
+  var d = new Date(gun + 'T00:00:00Z'), g = d.getUTCDate(), son = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth() + 1, 0)).getUTCDate();
+  return g === son || (d.getUTCDay() === 5 && g >= ilkGun);
 }
-// Satırlar: { satir, gun: 'yyyy-MM-dd', durum, ... } (başlık adıyla okunur)
-function pluxeeFaturaSatirlari_(sh) {
-  var lc = sh.getLastColumn(), b = sh.getRange(1, 1, 1, lc).getDisplayValues()[0], out = [];
-  if (sh.getLastRow() < 2) return { b: b, l: out };
-  sh.getRange(2, 1, sh.getLastRow() - 1, lc).getDisplayValues().forEach(function (r, i) {
-    var al = function (h) { var j = kolon_(b, [h]); return j >= 0 ? String(r[j] || '').trim() : ''; };
-    var gun = gunStr_(al('Fatura Günü')); if (!gun) return;
-    out.push({ satir: i + 2, gun: gun, durum: al('Durum'), plan: al('Plan'), onay: al('Onay Zamanı'), onaylayan: al('Onaylayan'),
-      toplam: sayi_(al('Genel Toplam (TL)')), kdvHaric: sayi_(al('KDV Hariç (TL)')), kdv: sayi_(al('KDV (TL)')), odeme: al('Ödeme Tarihi'),
-      kesim: al('Kesim Zamanı'), kolaybi: al('KolayBi Faturası'), not: al('Not') });
+function mobilFatura_() {
+  var bugun = takvimGunu_(), sonGun = new Date(Date.UTC(+bugun.slice(0, 4), +bugun.slice(5, 7), 0)).toISOString().slice(0, 10);
+  var gunu = function (ms) { return new Date(ms).toISOString().slice(0, 10); };
+  return MOBIL_FATURA.map(function (k) {
+    var kb = []; try { kb = kolaybiSatis_(k.musteri); } catch (err) { }
+    kb.sort(function (p, q) { return q.ms - p.ms; });
+    var takvim = [], g = bugun; for (var i = 0; i < 45 && takvim.length < 3; i++) { if (cumaFaturaGunuMu_(g, k.ilkGun)) takvim.push(g); g = gunEkle_(g, 1); }
+    return { ad: k.ad, ilkGun: k.ilkGun, bugun: bugun, faturaGunu: cumaFaturaGunuMu_(bugun, k.ilkGun), sonGun: bugun === sonGun,
+      bugunKesildi: kb.some(function (f) { return gunu(f.ms) === bugun; }), kolaybiOkundu: kb.length > 0, takvim: takvim,
+      liste: kb.slice(0, 8).map(function (f) { return { no: f.no, tarih: kartTam_(f.ms).slice(0, 5) + '.' + new Date(f.ms).getUTCFullYear(), tutar: f.tutar, odendi: f.odendi }; }) };
   });
-  return { b: b, l: out };
-}
-
-// Panel paketi: takvim, bugünün durumu, son faturalar
-function pluxeeFatura_() {
-  var ss = SpreadsheetApp.openById(KAYNAK.yemekKarti.id), sh = ss.getSheetByName('Pluxee Fatura'), bugun = takvimGunu_();
-  var l = sh ? pluxeeFaturaSatirlari_(sh).l : [], bul = function (g) { return l.filter(function (x) { return x.gun === g; }).pop() || null; };
-  var sonraki = pluxeeFaturaGunleri_(bugun, 5);
-  return { plan: PLUXEE_FATURA.PLAN, saat: PLUXEE_FATURA.SAAT, onayGerekir: PLUXEE_FATURA.ONAY_GEREKIR, kesenHazir: PLUXEE_FATURA.KESEN_HAZIR, bugun: bugun,
-           takvim: sonraki.map(function (g) { var x = bul(g); return { gun: g, durum: x ? x.durum : '' }; }),
-           son: l.slice(-8).reverse() };
-}
-
-// Panelden: { islem: 'onayla' | 'vazgec', gun: 'yyyy-MM-dd' }. Yalnız önümüzdeki 8 gün içindeki fatura günleri.
-function pluxeeFaturaIslem_(d) {
-  var gun = String(d.gun || ''), islem = d.islem === 'vazgec' ? 'vazgec' : d.islem === 'onayla' ? 'onayla' : '';
-  if (!islem || !/^\d{4}-\d{2}-\d{2}$/.test(gun)) return { hata: 'Geçersiz istek.' };
-  var bugun = takvimGunu_();
-  if (gun < bugun || gun > gunEkle_(bugun, 8)) return { hata: 'Yalnız önümüzdeki 8 gündeki fatura günü onaylanabilir.' };
-  if (!pluxeeFaturaGunuMu_(gun)) return { hata: trGun_(gun) + ' fatura günü değil.' };
-  if (gun === bugun && Utilities.formatDate(new Date(), TZ, 'HH:mm') >= PLUXEE_FATURA.SAAT) return { hata: 'Bugünkü fatura saati geçti.' };
-  var ss = SpreadsheetApp.openById(KAYNAK.yemekKarti.id), sh = pluxeeFaturaSekmesi_(ss), s = pluxeeFaturaSatirlari_(sh);
-  var x = s.l.filter(function (y) { return y.gun === gun; }).pop();
-  if (x && /^kesildi/i.test(x.durum)) return { hata: 'Bu fatura zaten kesilmiş.' };
-  var damga = Utilities.formatDate(new Date(), TZ, 'dd.MM.yyyy HH:mm:ss'), durum = islem === 'onayla' ? 'Onaylandı' : 'Kesilmeyecek';
-  var deger = { 'Fatura Günü': "'" + trGun_(gun), 'Durum': durum, 'Plan': PLUXEE_FATURA.PLAN, 'Onay Zamanı': damga, 'Onaylayan': 'Panel' };
-  var satir = x ? x.satir : sh.getLastRow() + 1;
-  Object.keys(deger).forEach(function (h) { var j = kolon_(s.b, [h]); if (j >= 0) sh.getRange(satir, j + 1).setValue(deger[h]); });
-  try { cevapKaydet_('Finans', 'BAP Yemek Kartı Tahsilatları › Pluxee Fatura', satir, 'Pluxee haftalık fatura ' + trGun_(gun), durum, damga.slice(0, 16)); } catch (err) { }
-  return { tamam: true, gun: gun, durum: durum };
-}
-
-// Saatlik taramadan çağrılır: onay gerekmiyorsa fatura günü satırı açar; gerekiyorsa 21:00'den sonra bir kez hatırlatır.
-function pluxeeFaturaTara_() {
-  if (!PLUXEE_FATURA.KESEN_HAZIR) return;
-  var bugun = takvimGunu_(); if (!pluxeeFaturaGunuMu_(bugun)) return;
-  var saat = Utilities.formatDate(new Date(), TZ, 'HH:mm'); if (saat >= PLUXEE_FATURA.SAAT) return;
-  var ss = SpreadsheetApp.openById(KAYNAK.yemekKarti.id), sh = ss.getSheetByName('Pluxee Fatura');
-  var x = sh ? pluxeeFaturaSatirlari_(sh).l.filter(function (y) { return y.gun === bugun; }).pop() : null;
-  if (x && x.durum) return; // onaylandı / kesilmeyecek / kesildi
-  if (!PLUXEE_FATURA.ONAY_GEREKIR) {
-    sh = pluxeeFaturaSekmesi_(ss); var b = pluxeeFaturaSatirlari_(sh).b, satir = sh.getLastRow() + 1;
-    var deger = { 'Fatura Günü': "'" + trGun_(bugun), 'Durum': 'Onaylandı', 'Plan': PLUXEE_FATURA.PLAN,
-                  'Onay Zamanı': Utilities.formatDate(new Date(), TZ, 'dd.MM.yyyy HH:mm:ss'), 'Onaylayan': 'Otomatik' };
-    Object.keys(deger).forEach(function (h) { var j = kolon_(b, [h]); if (j >= 0) sh.getRange(satir, j + 1).setValue(deger[h]); });
-    return;
-  }
-  if (+saat.slice(0, 2) < PLUXEE_FATURA.HATIRLAT_SAAT) return;
-  var p = PropertiesService.getScriptProperties(), k = 'PLX_FATURA_HATIRLATMA_' + bugun; if (p.getProperty(k)) return;
-  p.setProperty(k, '1'); // önce işaretle: POST tekrar denenmez, çift mesaj gitmesin
-  UrlFetchApp.fetch(BILDIRIM_HOOK, { method: 'post', contentType: 'application/json', muteHttpExceptions: true,
-    payload: JSON.stringify({ tip: 'finans', baslik: 'Haftalık yemek kartı faturası onay bekliyor',
-      mesaj: 'Bu gece ' + PLUXEE_FATURA.SAAT + "'te Pluxee faturası (" + PLUXEE_FATURA.PLAN + ') kesilecek. Onay yoksa kesilmez. Panel › Finans › Pluxee haftalık fatura',
-      zaman: Utilities.formatDate(new Date(), TZ, 'dd.MM.yyyy HH:mm') }) });
 }
 
 /* ---------------- Yemek kartları: iki taraflı kontrol (panel › Yemek Kartları) ----------------
@@ -2540,7 +2467,6 @@ function puantajTaramasi() {
   else Logger.log(var_ ? 'Kilit alınamadı; tarama bir sonraki saate kaldı.' : 'Toplamı eski kalan satır yok.');
   // Aynı saatlik tetikleyici yemek kartı ajanını da çalıştırır (ayrı tetikleyici kurmaya gerek yok).
   try { kartAjani(); } catch (err) { Logger.log('Kart ajanı: ' + err); }
-  try { pluxeeFaturaTara_(); } catch (err) { Logger.log('Pluxee fatura: ' + err); }
 }
 
 /* ---------------- Vardiya girişi (panelden) ---------------- */
@@ -3970,11 +3896,6 @@ function doPost(e) {
     var ksf = LockService.getScriptLock(); if (!ksf.tryLock(28000)) return json_(MESGUL_);
     try { return json_(setcardFaturaIslem_(d)); } catch (err) { return json_({ hata: String(err.message || err) }); }
     finally { ksf.releaseLock(); CacheService.getScriptCache().remove('panel_v1_n'); }
-  }
-  if (d.tur === 'pluxeeFatura') {
-    var kpf = LockService.getScriptLock(); if (!kpf.tryLock(28000)) return json_(MESGUL_);
-    try { return json_(pluxeeFaturaIslem_(d)); } catch (err) { return json_({ hata: String(err.message || err) }); }
-    finally { kpf.releaseLock(); CacheService.getScriptCache().remove('panel_v1_n'); }
   }
   if (d.tur === 'hesap') {
     var kh = LockService.getScriptLock(); if (!kh.tryLock(28000)) return json_(MESGUL_);
