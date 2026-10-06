@@ -111,6 +111,7 @@ async function kullanicilar(page) {
 
 // Manuel fatura kesimi (Operation/ManualBilling sayfasındaki form; 06.10.2026):
 //   POST /Operation/ManualBillingFilter  IsYeriNo=<işyeri> VadeTipId=3 (GEÇ) UrunTipId=1 (Resto) FaturaTarihManual='YYYY-AA-GG SS:dd:ss' CustomButton=KayitlariGetir
+// Doğrulandı (06.10 HAR): gövde birebir bu; ayın 1–6'sı site "Ayın 1'i ve 6'sı arasında fatura kesilememektedir!" der.
 // Yalnız `--fatura-kes` ile çalışır; önce `--fatura-kuru` sayfayı açıp formu doldurur, basmaz (ekran görüntüsü: metropol_fatura.png).
 async function faturaKes(page, kuru) {
   await page.goto(KOK + '/Operation/ManualBilling', { waitUntil: 'networkidle' });
@@ -121,12 +122,15 @@ async function faturaKes(page, kuru) {
   const d = new Date(), z = `${d.getFullYear()}-${p2(d.getMonth() + 1)}-${p2(d.getDate())} ${p2(d.getHours())}:${p2(d.getMinutes())}:${p2(d.getSeconds())}`;
   await page.fill('#FaturaTarihManual', z);
   if (kuru) { await page.screenshot({ path: path.join(DIZIN, 'metropol_fatura.png'), fullPage: true }); log('KURU: form dolduruldu (' + z + '), düğmeye basılmadı → metropol_fatura.png'); return { kuru: true, tarih: z }; }
+  if (+z.slice(8, 10) <= 6) throw new Error('Metropol ayın 1–6\'sı arasında fatura kestirmez');
   await Promise.all([page.waitForLoadState('networkidle').catch(() => {}), page.locator('button[name="CustomButton"][value="KayitlariGetir"]').click()]);
   await bekle(2000);
+  // Oturum düşmüşse site girişe yönlendirir (06.10: ~25 dk boşta kalınca); fatura kesilmemiştir.
+  if (/\/Auth\/Login/i.test(page.url())) throw new Error('oturum düşmüş; fatura KESİLMEDİ, yeniden çalıştır');
   const html = await page.content();
   await page.screenshot({ path: path.join(DIZIN, 'metropol_fatura.png'), fullPage: true });
-  const uyari = await page.evaluate(() => { const t = document.querySelector('#alertTitle'), m = document.querySelector('#alertModal .alert div:last-child, #alertMessage');
-    return [t && t.textContent, m && m.textContent].filter(Boolean).join(' ').trim(); }).catch(() => '');
+  // Site sonucu sayfanın üstünde .alert kutusunda yazar (ör. "Ayın 1'i ve 6'sı arasında fatura kesilememektedir!")
+  const uyari = await page.evaluate(() => [...document.querySelectorAll('form .alert, .white-box .alert')].map(e => e.textContent.trim()).filter(Boolean).join(' | ')).catch(() => '');
   const liste = tablo(html.slice(html.indexOf('Fatura Listesi')));
   log('fatura sonucu: ' + (uyari || '—') + ' · liste: ' + JSON.stringify(liste).slice(0, 400));
   return { tarih: z, uyari, liste };
