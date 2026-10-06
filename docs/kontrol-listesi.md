@@ -152,6 +152,7 @@ Tablolarda yapılan her değişikliğin eski ve yeni değeri **STOK › Fiyat_Du
 | P15 | Yemek kartı kodu kurye projesinin içindeydi (karışıklık). Ayrı **BAP Yemek Kartı** projesi (tabloya bağlı): Pluxee, Edenred, Paye, SetCard, SMS kod kutusu tek yerde — `docs/yemek-karti-projesi.md` | ◐ 06.10 kod yazıldı; kimlik bekleniyor. Sonra: yayın, `kurulum`, akşam Mac adresi + kestirmeler, 1 gün sonra kurye'den eski kod silinir |
 | P16 | Yemek kartı iki taraflı kontrolü (sahibin isteği 06.10): online çekim ↔ Trendyol siparişi, kapıda çekim ↔ kurye açık hesabı (kapat + eşleşmeyi yaz), açıkta kalanlar iki yönlü, parçalı ödeme ayrı — `docs/yemek-karti-projesi.md` › İki taraflı kontrol | ☐ sahibi isteyince; şimdilik yapılmıyor |
 | P17 | SetCard mali faturası panelde elle 'kestim' diye işaretleniyordu (gereksiz: KolayBi satış faturaları zaten sistemde). Artık Kolaybi Fatura Ham Veri › Satis_Faturalari'ndan bulunur (SETCARD, aynı tutar, −3/+20 gün); SetCard ödediği halde KolayBi'de tahsil işlenmemişse uyarır | ☑ 06.10. Sıradaki: aynı kontrol Pluxee / Edenred / Multinet / Tokenflex / Metropal / Sofra (Paye) faturaları için |
+| P18 | SetCard fatura takvimi (sahibin kuralı 06.10): her Cuma, ayın 11'inden itibaren; ayda en çok 4; ayın son günü mutlaka. Panel fatura günü Yönetim Merkezi'nde uyarır (`setcardFaturaGunuMu_`) | ◐ uyarı yayında; şimdilik sahibi kesiyor. Sonra: BAP Yemek Kartı fatura günü kendisi kesecek (önce kuru), sonuç panelde |
 
 ## Y · Yapı
 
