@@ -101,7 +101,7 @@ function setcardFatura_(kuru) {
     rapor.push(satir);
   });
   var aylik = null; try { aylik = setcardIstek_('Report/SelectMonthlyInvoice', undefined, token); } catch (e) { }
-  Logger.log((kuru ? 'KURU — ' : '') + JSON.stringify({ fatura: rapor, aylik: aylik }));
+  Logger.log((kuru ? 'KURU — ' : '') + rapor.length + ' fatura; kesilebilir: ' + rapor.filter(function (f) { return f.kesilebilir; }).map(function (f) { return f.takipNo + ' (' + f.tutar + ' TL)' + (f.sonuc ? ' → ' + f.sonuc : ''); }).join(', '));
   return { kuru: kuru, fatura: rapor, aylik: aylik };
 }
 
