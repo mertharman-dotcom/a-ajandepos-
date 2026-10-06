@@ -44,6 +44,9 @@ function setcardGiris_() {
 
 /* ---------------- 1) İŞLEMLER ---------------- */
 
+// Bir kez: son 31 günün işlemlerini çeker (kontrol sayfası geçmiş günleri de karşılaştırabilsin). Tekrar çalıştırmak zararsız.
+function setcardGecmisCek() { var r = setcardCek(31); Logger.log(JSON.stringify(r)); return r; }
+
 function setcardCek(gunSayisi) {
   var kilit = LockService.getScriptLock(); if (!kilit.tryLock(30000)) return { atlandi: 'meşgul' };
   try {

@@ -1629,7 +1629,10 @@ function ykKontrol_() {
     var onlineVar = veri.cekim.some(function (y) { return y.online; });
     var C = veri.cekim.filter(function (y) { return isGunu_(y.ms) >= bas; }).map(function (y) { return { y: y, kul: false }; });
     k.cekim = C.length;
-    var kapsar = function (o) { return veri.gunler ? !!veri.gunler[isGunu_(o.ms)] : (veri.son !== null && veri.son >= (o.hi || o.ms) ); };
+    // Çekim verisinin başladığı andan önceki siparişler de "bekliyor" sayılır (kart verisi sonradan bağlandıysa yanlış alarm olmasın)
+    var ilk = null; veri.cekim.forEach(function (y) { if (!y.saatYok && (ilk === null || y.ms < ilk)) ilk = y.ms; });
+    var kapsar = function (o) { if (veri.gunler) return !!veri.gunler[isGunu_(o.ms)];
+      return veri.son !== null && veri.son >= (o.hi || o.ms) && ilk !== null && (o.lo === null || o.lo === undefined ? o.ms : o.lo) >= ilk - 6 * 3600000; };
     var uyar = function (o, y) {
       if (!!y.online !== !!o.online) return false;
       if (o.saatYok || y.saatYok || o.lo === null) return isGunu_(y.ms) === isGunu_(o.ms);
