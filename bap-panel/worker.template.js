@@ -397,15 +397,14 @@ export default {
     }
 
     if (url.pathname === '/api/setcard-fatura' && request.method === 'POST') {
-      // SetCard faturası: "Fatura Kes" (kes) ya da "Mali faturayı kestim" (mali). Yalnız panelin kendisinden.
+      // SetCard faturası "Fatura Kes". Yalnız panelin kendisinden.
       if (request.headers.get('x-bap-panel') !== '1' || (request.headers.get('origin') || url.origin) !== url.origin) {
         return json({ hata: 'İzin verilmeyen istek.' }, 403);
       }
       let govde;
       try { govde = await request.json(); } catch (e) { return json({ hata: 'Geçersiz istek.' }, 400); }
-      const islem = govde.islem === 'kes' ? 'kes' : govde.islem === 'mali' ? 'mali' : '';
-      if (!islem) return json({ hata: 'Geçersiz işlem.' }, 400);
-      const ileti = JSON.stringify({ key: env.GAS_KEY, tur: 'setcardFatura', islem, takipNo: String(govde.takipNo || '').replace(/\D/g, '').slice(0, 20), not: String(govde.not || '').slice(0, 60) });
+      if (govde.islem !== 'kes') return json({ hata: 'Geçersiz işlem.' }, 400);
+      const ileti = JSON.stringify({ key: env.GAS_KEY, tur: 'setcardFatura', islem: 'kes', takipNo: String(govde.takipNo || '').replace(/\D/g, '').slice(0, 20) });
       try {
         const r = await fetch(env.GAS_URL, { method: 'POST', headers: { 'content-type': 'application/json' }, body: ileti, redirect: 'follow' });
         const metin = await r.text();

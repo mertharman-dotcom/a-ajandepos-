@@ -104,10 +104,10 @@ function setcardFatura_(kuru) {
 
 /* ---------------- 3) FATURA SEKMESİ (panel bunu okur) ----------------
  * 'SetCard Fatura': Fatura Takibi'nin kopyası, takip numarasıyla güncellenir (satır silinmez).
- * 'Kesim Zamanı' bu programın kestiği an, 'Mali Fatura' sahibinin KolayBi'de kestiği resmi fatura (panelden işaretlenir).
+ * 'Kesim Zamanı' bu programın kestiği an. Mali fatura burada tutulmaz: panel KolayBi satış faturalarından bulur.
  */
 var SETCARD_FATURA_SEKME = 'SetCard Fatura';
-var SETCARD_FATURA_BASLIK = ['Takip No', 'Fatura Tarihi', 'Tutar (TL)', 'Durum', 'Ödeme Tarihi', 'Son Kontrol', 'Kesim Zamanı', 'Mali Fatura', 'Mali Fatura Zamanı'];
+var SETCARD_FATURA_BASLIK = ['Takip No', 'Fatura Tarihi', 'Tutar (TL)', 'Durum', 'Ödeme Tarihi', 'Son Kontrol', 'Kesim Zamanı'];
 
 function setcardFaturaTazele_(token) {
   token = token || setcardGiris_();

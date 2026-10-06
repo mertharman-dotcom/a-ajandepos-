@@ -2215,9 +2215,11 @@ function musteriYorum(a,M){var link=(kaynaklar("musteri")[0]||{}).link;
  (sipariş ↔ kart çekimi, açıkta kalanlar), kurye açık hesap ajanı ve gün gün mutabakat. */
 var YK_SEKME="";
 function ykUyarilar(){var u=[],F=VERI&&VERI.setcardFatura,K=VERI&&VERI.ykKontrol;
-  if(F&&F.liste)F.liste.forEach(function(x){
+  if(F&&F.liste){var tah={n:0,t:0};F.liste.forEach(function(x){
     if(/kesilmedi/i.test(x.durum)&&x.tutar>0)u.push({s:"e-dikkat",m:"SetCard: "+para(x.tutar)+" kesilmemiş fatura (takip "+x.takipNo+"). İstersen Yemek Kartları › SetCard faturası › Fatura Kes."});
-    else if(/^fatura kesildi/i.test(x.durum)&&!x.mali)u.push({s:"e-kotu",m:"SetCard: "+para(x.tutar)+" fatura kesildi"+(x.kesim?" ("+x.kesim+")":"")+". KolayBi'de mali faturayı kesip SetCard'a gönder, sonra burada ‘Mali faturayı kestim’ de."});});
+    else if(!/kesilmedi/i.test(x.durum)&&!x.kolaybi&&F.kolaybiOkundu&&/^fatura kesildi/i.test(x.durum))u.push({s:"e-kotu",m:"SetCard: "+para(x.tutar)+" fatura kesildi ("+x.tarih+") ama KolayBi'de karşılığı yok. KolayBi'den SETCARD'a mali faturayı kes."});
+    if(/ödeme|odeme/i.test(x.durum)&&x.kolaybi&&!x.kolaybi.odendi){tah.n++;tah.t+=x.tutar;}});
+    if(tah.n)u.push({s:"e-notr",m:"SetCard "+tah.n+" faturayı ödedi ("+para(tah.t)+") ama KolayBi'de ‘tahsil edilmedi’ görünüyor; tahsilatı KolayBi'ye işle."});}
   if(K&&K.kartlar)K.kartlar.forEach(function(k){var n=k.cekimsiz.length+k.siparissiz.length+k.parcali.length;if(n)u.push({s:"e-notr",m:k.ad+": "+n+" açıkta kalan ödeme ("+k.cekimsiz.length+" çekimsiz sipariş, "+k.siparissiz.length+" siparişsiz çekim, "+k.parcali.length+" farklı tutar)."});});
   return u;}
 function ykUyariKutusu(link){var u=ykUyarilar();if(!u.length)return null;
@@ -2234,21 +2236,21 @@ function ykSayfa(a){a.appendChild(ust("Yemek kartları","Pluxee, Edenred, Paye, 
   ykMutabakat(a);}
 
 function setcardFaturaBlok(a){var F=VERI.setcardFatura;if(!F)return;var kap=el("div");
-  var RENK=function(d){return /kesilmedi/i.test(d)?"e-dikkat":/^fatura kesildi/i.test(d)?"e-kotu":/ödeme|odeme/i.test(d)?"e-iyi":"e-notr";};
-  function gonder(x,islem,dug,durum,not){dug.setAttribute("disabled","");durum.textContent=islem==="kes"?"SetCard'da kesiliyor…":"Kaydediliyor…";durum.className="cevap-durum";
-    fetch("/api/setcard-fatura",{method:"POST",credentials:"same-origin",headers:{"content-type":"application/json","x-bap-panel":"1"},body:JSON.stringify({takipNo:x.takipNo,islem:islem,not:not||""})})
-      .then(function(r){return r.json();}).then(function(r){if(r&&r.tamam){if(islem==="kes"){x.durum="Fatura Kesildi";x.kesim="şimdi";}else{x.mali=r.mali;x.maliZaman="şimdi";}ciz();}
+  var RENK=function(d){return /kesilmedi/i.test(d)?"e-dikkat":/^fatura kesildi/i.test(d)?"e-notr":/ödeme|odeme/i.test(d)?"e-iyi":"e-notr";};
+  function kes(x,dug,durum){dug.setAttribute("disabled","");durum.textContent="SetCard'da kesiliyor…";durum.className="cevap-durum";
+    fetch("/api/setcard-fatura",{method:"POST",credentials:"same-origin",headers:{"content-type":"application/json","x-bap-panel":"1"},body:JSON.stringify({takipNo:x.takipNo,islem:"kes"})})
+      .then(function(r){return r.json();}).then(function(r){if(r&&r.tamam){x.durum="Fatura Kesildi";x.kesim="şimdi";ciz();}
         else{durum.textContent=(r&&r.hata)||"Yapılamadı.";durum.className="cevap-durum kotu";if(!(r&&r.belirsiz))dug.removeAttribute("disabled");}})
-      .catch(function(){durum.textContent="Bağlantı koptu; işlem yapılmış olabilir. Paneli yenile.";durum.className="cevap-durum kotu";});}
+      .catch(function(){durum.textContent="Bağlantı koptu; fatura kesilmiş olabilir. Paneli yenile.";durum.className="cevap-durum kotu";});}
   function ciz(){kap.textContent="";
-    kap.appendChild(F.liste.length?tablo([["Takip no"],["Fatura tarihi"],["Tutar",1],["SetCard durumu"],["Ödeme tarihi"],["Mali fatura (KolayBi)"],["İşlem"]],F.liste.map(function(x){var durum=el("span",{class:"cevap-durum"}),is=null;
-      if(/kesilmedi/i.test(x.durum)&&x.tutar>0)is=el("span",{style:"display:flex;gap:6px;flex-wrap:wrap"},[el("button",{type:"button",class:"dugme",style:"padding:4px 10px;font-size:13px",onclick:function(ev){
-        if(!confirm("SetCard'da "+para(x.tutar)+" tutarındaki fatura kesilsin mi? (takip "+x.takipNo+")\nSonra KolayBi'den mali faturayı kesip SetCard'a göndermen gerekir."))return;gonder(x,"kes",ev.target,durum);}},["Fatura Kes"]),durum]);
-      else if(/^fatura kesildi/i.test(x.durum)&&!x.mali)is=el("span",{style:"display:flex;gap:6px;flex-wrap:wrap"},[el("button",{type:"button",class:"dugme",style:"padding:4px 10px;font-size:13px",onclick:function(ev){
-        var no=prompt("KolayBi fatura numarası (bilmiyorsan boş bırak):","");if(no===null)return;gonder(x,"mali",ev.target,durum,no||"Kesildi");}},["Mali faturayı kestim"]),durum]);
-      return [x.takipNo,x.tarih||"—",para(x.tutar),el("span",{class:"etiket "+RENK(x.durum),text:x.durum||"—"}),x.odeme||"—",x.mali?(x.mali+(x.maliZaman?" · "+x.maliZaman:"")):(/ödeme|odeme/i.test(x.durum)?"—":"bekliyor"),is];})):bos("SetCard faturası yok."));}
+    kap.appendChild(F.liste.length?tablo([["Takip no"],["Fatura tarihi"],["Tutar",1],["SetCard durumu"],["SetCard ödemesi"],["KolayBi faturası"],["KolayBi tahsilat"],["İşlem"]],F.liste.map(function(x){var durum=el("span",{class:"cevap-durum"}),is=null,kesilmedi=/kesilmedi/i.test(x.durum),odendi=/ödeme|odeme/i.test(x.durum),k=x.kolaybi;
+      if(kesilmedi&&x.tutar>0)is=el("span",{style:"display:flex;gap:6px;flex-wrap:wrap"},[el("button",{type:"button",class:"dugme",style:"padding:4px 10px;font-size:13px",onclick:function(ev){
+        if(!confirm("SetCard'da "+para(x.tutar)+" tutarındaki fatura kesilsin mi? (takip "+x.takipNo+")\nSonra KolayBi'den SETCARD'a mali faturayı kesmen gerekir; kestiğinde burada kendiliğinden görünür."))return;kes(x,ev.target,durum);}},["Fatura Kes"]),durum]);
+      var kbHucre=kesilmedi?"—":k?el("span",{title:k.no,text:k.no.slice(-6)+" · "+k.tarih}):el("span",{class:"etiket "+(F.kolaybiOkundu?"e-kotu":"e-notr"),text:F.kolaybiOkundu?"yok — kesilmeli":"okunamadı"});
+      var tahHucre=!k?"—":k.odendi?el("span",{class:"etiket e-iyi",text:"tahsil edildi"}):el("span",{class:"etiket "+(odendi?"e-dikkat":"e-notr"),text:odendi?"işlenmemiş":"bekliyor"});
+      return [x.takipNo,x.tarih||"—",para(x.tutar),el("span",{class:"etiket "+RENK(x.durum),text:x.durum||"—"}),x.odeme||"—",kbHucre,tahHucre,is];})):bos("SetCard faturası yok."));}
   ciz();
-  a.appendChild(blok("SetCard faturası","SetCard › Fatura Takibi saatte bir buraya gelir"+(F.kontrol?" (son kontrol "+F.kontrol+")":"")+". ‘Fatura Kes’ sitedeki düğmeyle aynı işi yapar. Kesilen fatura için KolayBi'den mali faturayı kesip SetCard'a göndermen gerekir; gönderince ‘Mali faturayı kestim’ de. KolayBi bağlanınca bu adımı da ben yapacağım.",kap));}
+  a.appendChild(blok("SetCard faturası","SetCard › Fatura Takibi saatte bir buraya gelir"+(F.kontrol?" (son kontrol "+F.kontrol+")":"")+". ‘Fatura Kes’ sitedeki düğmeyle aynı işi yapar. Mali fatura KolayBi satış faturalarından kendiliğinden bulunur (SETCARD, aynı tutar, birkaç gün içinde); bulunamazsa ‘yok — kesilmeli’ yazar. ‘KolayBi tahsilat’: SetCard ödediği halde KolayBi'de tahsil işlenmemişse ‘işlenmemiş’.",kap));}
 
 function ykKontrolBlok(a){var K=VERI.ykKontrol;if(!K)return;
   var kartlar=K.kartlar||[];if(!kartlar.length)return;
