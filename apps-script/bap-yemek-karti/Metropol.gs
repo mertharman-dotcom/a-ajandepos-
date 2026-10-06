@@ -26,17 +26,6 @@ function metropolYaz(satirlar) {
   return { ok: true, eklenen: yeni.length, atlanan: (satirlar || []).length - yeni.length };
 }
 
-/* Metropol manuel fatura kesimi sonucu (metropol.mjs --fatura-kes → doPost tur 'metropolFatura') → 'Metropol Fatura' sekmesi (yalnız ekler). */
-var METROPOL_FATURA_BASLIK = ['Kesim Zamanı', 'Fatura Tarihi', 'Sitenin Mesajı', 'Fatura Listesi', 'Kayıt Zamanı'];
-function metropolFaturaYaz(sonuc) {
-  sonuc = sonuc || {};
-  var ss = ykTablo_(), sh = ss.getSheetByName('Metropol Fatura');
-  if (!sh) { sh = ss.insertSheet('Metropol Fatura'); sh.getRange(1, 1, 1, METROPOL_FATURA_BASLIK.length).setValues([METROPOL_FATURA_BASLIK]).setFontWeight('bold'); sh.setFrozenRows(1); }
-  var damga = Utilities.formatDate(new Date(), TZ, 'dd.MM.yyyy HH:mm:ss');
-  sh.appendRow(["'" + String(sonuc.tarih || ''), "'" + String(sonuc.tarih || '').slice(0, 10), String(sonuc.uyari || '').slice(0, 300), JSON.stringify(sonuc.liste || []).slice(0, 2000), damga]);
-  return { ok: true };
-}
-
 /* Metropol › Fatura Ödeme Bilgileri (metropol.mjs → doPost tur 'metropolOdeme') → 'Metropol Ödeme' sekmesi.
  * Sütunlar sitedeki başlıklarla aynı adla açılır (yeni başlık sona eklenir); aynı satır iki kez yazılmaz. */
 function metropolOdemeYaz(satirlar) {

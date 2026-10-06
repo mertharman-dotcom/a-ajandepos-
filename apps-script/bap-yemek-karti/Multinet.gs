@@ -42,3 +42,13 @@ function multinetFaturaYaz(faturalar) {
   });
   return { ok: true, fatura: n };
 }
+
+/* Multinet'te faturalanmayı bekleyen tutar (sitenin "fatura oluştur" ekranındaki özet) → 'Multinet Bekleyen' (tek satır, üzerine yazılır). */
+function multinetBekleyenYaz(b) {
+  b = b || {};
+  var ss = ykTablo_(), sh = ss.getSheetByName('Multinet Bekleyen') || ss.insertSheet('Multinet Bekleyen');
+  sh.getRange(1, 1, 2, 4).setValues([['Tutar (TL)', 'İşlem', 'Ürün', 'Güncellendi'], [Number(b.tutar) || 0, Number(b.adet) || 0, String(b.urun || ''), Utilities.formatDate(new Date(), TZ, 'dd.MM.yyyy HH:mm')]]);
+  sh.getRange(1, 1, 1, 4).setFontWeight('bold');
+  return { ok: true };
+}
+

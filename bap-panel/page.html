@@ -2243,6 +2243,11 @@ function ykUyarilar(){var u=[],F=VERI&&VERI.setcardFatura,K=VERI&&VERI.ykKontrol
     else if(!/kesilmedi/i.test(x.durum)&&!x.kolaybi&&F.kolaybiOkundu&&/^fatura kesildi/i.test(x.durum))u.push({s:"e-kotu",m:"SetCard: "+para(x.tutar)+" fatura kesildi ("+x.tarih+") ama KolayBi'de karşılığı yok. KolayBi'den SETCARD'a mali faturayı kes."});
     if(/ödeme|odeme/i.test(x.durum)&&x.kolaybi&&!x.kolaybi.odendi){tah.n++;tah.t+=x.tutar;}});
     if(tah.n)u.push({s:"e-notr",m:"SetCard "+tah.n+" faturayı ödedi ("+para(tah.t)+") ama KolayBi'de ‘tahsil edilmedi’ görünüyor; tahsilatı KolayBi'ye işle."});}
+  var N=VERI&&VERI.multinetFatura;
+  if(N&&N.faturaGunu){var k=N.kesim;
+    if(!k)u.push({s:"e-notr",m:"Bugün Multinet fatura günü (Salı): "+N.saat+"'da "+N.vade+" vadeyle kesilecek"+(N.bekleyen?" — faturalanacak "+para(N.bekleyen.tutar):"")+"."});
+    else if(/^kesildi/i.test(k.sonuc)&&!N.kolaybiBugun)u.push({s:"e-kotu",m:"Multinet faturası kesildi ("+k.zaman+"). KolayBi'den MULTINET'e mali faturayı kes."});
+    else if(!/^kesildi/i.test(k.sonuc))u.push({s:"e-kotu",m:"Multinet faturası kesilemedi ("+k.zaman+"): "+(k.mesaj||k.sonuc)+". Gün sonu alınmamışsa al, sonra Multinet'ten kes."});}
   var M=VERI&&VERI.metropolFatura;
   if(M&&M.faturaGunu&&!M.bugunKesildi)u.push({s:M.sonGun?"e-kotu":"e-dikkat",m:"Bugün Metropol fatura günü ("+(M.sonGun?"ayın son günü":"ayın 15'i")+")"+(M.biriken!=null?": biriken "+para(M.biriken):"")+". Metropol › Manuel Fatura Kesimi'nden kes, sonra KolayBi'den METROPAL'e mali faturayı kes (KolayBi'de görününce uyarı kalkar)."});
   if(K&&K.kartlar)K.kartlar.forEach(function(k){var n=k.cekimsiz.length+k.siparissiz.length+k.parcali.length;if(n)u.push({s:"e-notr",m:k.ad+": "+n+" açıkta kalan ödeme ("+k.cekimsiz.length+" çekimsiz sipariş, "+k.siparissiz.length+" siparişsiz çekim, "+k.parcali.length+" farklı tutar)."});});
@@ -2259,7 +2264,7 @@ function ykBugun(){var K=VERI.ykKontrol;return K&&K.bas?gunEkleTr(K.bas,(K.gun||
 function ykDonemBas(d){var b=ykBugun(),t=new Date(b+"T00:00:00Z");
   if(d==="bugun")return b;if(d==="hafta")return gunEkleTr(b,-((t.getUTCDay()+6)%7));if(d==="ay")return b.slice(0,8)+"01";return gunEkleTr(b,-29);}
 function ykSayfa(a){a.appendChild(ust("Yemek kartları","Pluxee, Paye, Edenred, Multinet, Metropol, SetCard: çekimler, faturalar, siparişlerle karşılaştırma ve kurye açık hesapları. Kaynak: BAP Yemek Kartı Tahsilatları tablosu."));
-  a.appendChild(nabizSeridi("yemekkart"));var h=hatalarKutusu(["ykKontrol","setcardFatura","metropolFatura","pluxeeFatura","yemekKarti"]);if(h)a.appendChild(h);
+  a.appendChild(nabizSeridi("yemekkart"));var h=hatalarKutusu(["ykKontrol","setcardFatura","metropolFatura","multinetFatura","pluxeeFatura","yemekKarti"]);if(h)a.appendChild(h);
   var u=ykUyariKutusu(false);if(u)a.appendChild(u);
   ykOzetBlok(a);
   ykIslemBlok(a);
@@ -2331,6 +2336,13 @@ function metropolFaturaBlok(a){var M=VERI.metropolFatura;if(!M)return;
     M.biriken!=null?rakam("Biriken (son faturadan beri)",para(M.biriken),"Metropol çekimleri"):null]));
   a.appendChild(blok("Metropol faturası","Kural: ayda 2 fatura — ayın 15'i ve ayın son günü (site ayın 1–6'sında kestirmez). Şimdilik sen kesiyorsun (Metropol › Manuel Fatura Kesimi), sonra MacBook programı kesecek. Kesildiğini KolayBi'deki METROPAL faturasından anlarım; fatura günü kesilmemişse Yönetim Merkezi'nde uyarı çıkar.",
     M.liste.length?tablo([["KolayBi faturası"],["Tarih"],["Tutar",1],["KolayBi tahsilat"]],M.liste.map(function(x){return [x.no.slice(-6),x.tarih,para(x.tutar),el("span",{class:"etiket "+(x.odendi?"e-iyi":"e-notr"),text:x.odendi?"tahsil edildi":"bekliyor"})];})):bos(M.kolaybiOkundu?"KolayBi'de METROPAL faturası yok.":"KolayBi satış faturaları okunamadı.")));}
+
+function multinetFaturaBlok(a){var N=VERI.multinetFatura;if(!N)return;var k=N.kesim;
+  a.appendChild(el("div",{class:"rakamlar"},[rakam("Bugün",N.faturaGunu?(k?(/^kesildi/i.test(k.sonuc)?"Kesildi "+k.zaman+" ✓":k.sonuc):"Fatura günü — "+N.saat+"'da kesilecek"):"Fatura günü değil",N.faturaGunu?"Salı, "+N.vade+" vade":null,N.faturaGunu&&k&&!/^kesildi/i.test(k.sonuc)?"asagi":""),
+    N.bekleyen?rakam("Faturalanacak",para(N.bekleyen.tutar),N.bekleyen.adet+" işlem · "+(N.bekleyen.guncel||"")):null,
+    rakam("Sonraki fatura günleri",N.takvim.filter(function(g){return g!==N.bugun;}).slice(0,2).map(function(g){return gunAd(g);}).join(", ")||"—","her Salı "+N.saat)]));
+  a.appendChild(blok("Multinet faturası","Kural: her Salı "+N.saat+", "+N.vade+" vade. Mac'teki Multinet programı keser (otomatik kesim açılana kadar yalnız dener ve buraya yazar); Multinet gün sonu alınmamışsa faturayı reddeder. Kesildikten sonra KolayBi'den MULTINET'e mali fatura kesilmeli. Ödendi bilgisi Multinet'ten gelir, Finans alacaktan düşer.",
+    N.liste.length?tablo([["Fatura (KolayBi)"],["Tarih"],["Tutar",1],["Vade"],["Multinet durumu"],["Ödeme tarihi"]],N.liste.map(function(x){return [x.no.slice(-6),x.tarih,para(x.tutar),x.vade||"—",el("span",{class:"etiket "+(/tamamland/i.test(x.durum)?"e-iyi":"e-notr"),text:x.durum||"—"}),x.odeme||"—"];})):bos("Multinet faturası henüz gelmedi (Mac programı kurulunca gelir).")));}
 
 function ykKontrolBlok(a){var K=VERI.ykKontrol;if(!K)return;
   var kartlar=K.kartlar||[];if(!kartlar.length)return;

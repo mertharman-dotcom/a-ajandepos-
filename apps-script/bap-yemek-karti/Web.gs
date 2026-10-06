@@ -24,7 +24,8 @@ function doPost(e) {
     if (g.tur === 'pluxee') return jsonYanit_(pluxeeYaz(g.satirlar || []));
     if (g.tur === 'edenred') return jsonYanit_(edenredYaz(g.satirlar || []));
     if (g.tur === 'metropol') return jsonYanit_(metropolYaz(g.satirlar || []));
-    if (g.tur === 'metropolFatura') return jsonYanit_(metropolFaturaYaz(g.sonuc));
+    if (g.tur === 'faturaKesim') return jsonYanit_(faturaKesimYaz(g.kart, g.sonuc));
+    if (g.tur === 'multinetBekleyen') return jsonYanit_(multinetBekleyenYaz(g.bekleyen));
     if (g.tur === 'metropolOdeme') return jsonYanit_(metropolOdemeYaz(g.satirlar));
     if (g.tur === 'multinet') return jsonYanit_(multinetYaz(g.satirlar));
     if (g.tur === 'multinetFatura') return jsonYanit_(multinetFaturaYaz(g.faturalar));

@@ -8,7 +8,8 @@
 //   --tabloya-yazma                          yalnız CSV
 //   --fatura-kuru                            fatura dönemlerini (vade seçenekleri) gösterir, kesmez
 //   --fatura-kes                             faturayı keser (createMerchantInvoiceSummary; vade ayar.json › multinet.vade, varsayılan 3)
-// Ayar: ayar.json › multinet { vkn, telefon, geriGun, vade }, ayar.json › ykWebapp. Çıktı: multinet_islemler.csv (+ multinet.log)
+//   --fatura-zamanli                         Salı 23:30 zamanlayıcısı: otoFatura true ise keser, değilse dener; sonra işlem/fatura çekimine devam eder
+// Ayar: ayar.json › multinet { vkn, telefon, geriGun, vade, otoFatura }, ayar.json › ykWebapp. Çıktı: multinet_islemler.csv (+ multinet.log)
 // Depodaki kopya: mac-kopru/multinet.mjs — değişiklik önce depoda.
 //
 // Site (06.10.2026, JSON API, oturum çerezi + x-csrf-token):
@@ -135,16 +136,25 @@ async function girisYap(page) {
 
     const sube = (await api(page, 'transactions/getBranches', { customerId: OT.customerId }))[0];
     if (!sube) throw new Error('şube bulunamadı');
-    if (process.argv.includes('--fatura-kuru') || process.argv.includes('--fatura-kes')) {
+    // Fatura (sahibin kuralı 06.10: Salı 23:30, 3 gün vade). --fatura-zamanli: zamanlayıcıdan; ayar.json › multinet.otoFatura true ise keser,
+    // değilse yalnız dener (kuru) ve kaydeder. --fatura-kes: elle, her zaman keser. --fatura-kuru: yalnız gösterir.
+    const FZ = process.argv.includes('--fatura-zamanli');
+    if (FZ || process.argv.includes('--fatura-kuru') || process.argv.includes('--fatura-kes')) {
+      const vade = Number(MN.vade || 3), kes = process.argv.includes('--fatura-kes') || (FZ && MN.otoFatura === true);
+      const ozet = (await api(page, 'invoices/getMerchantInvoiceSummary', { merchantId: sube.Id }).catch(() => []) || [])[0] || {};
+      const tutar = kurus(ozet.Total), adet = ozet.Quantity || 0;
+      log(`faturalanacak: ${tutar} TL (${adet} işlem, ${ozet.MerchantProductDescription || '?'})`);
+      if (YAZMA) await yk({ tur: 'multinetBekleyen', bekleyen: { tutar, adet, urun: ozet.MerchantProductDescription || '' } }).catch(() => {});
       const donem = await api(page, 'invoices/getPaymentPeriodList', { merchantId: sube.Id }) || [];
       log('vade seçenekleri: ' + donem.map(d => `${d.ProductDescription} ${d.DueDay} gün %${(d.Commission || 0) / 100}${d.IsInvoiceable ? '' : ' (kesilemez)'}`).join(' | '));
-      if (process.argv.includes('--fatura-kes')) {
-        const vade = Number(MN.vade || 3);
+      let sonuc = { kuru: !kes, kesildi: false, tutar, vade: vade + ' gün', mesaj: kes ? '' : 'otomatik kesim kapalı (ayar.json › multinet.otoFatura)' };
+      if (kes) {
         // POST tekrar denenmez; hata gelirse (ör. gün sonu alınmamış) fatura kesilmemiştir.
-        try { const r = await api(page, 'invoices/createMerchantInvoiceSummary', { dueDay: vade, merchantId: sube.Id }); log('FATURA KESİLDİ (' + vade + ' gün vade): ' + JSON.stringify(r).slice(0, 300)); }
-        catch (e) { log('fatura KESİLMEDİ: ' + e.message); }
+        try { const r = await api(page, 'invoices/createMerchantInvoiceSummary', { dueDay: vade, merchantId: sube.Id }); sonuc.kesildi = true; sonuc.mesaj = JSON.stringify(r || '').slice(0, 300); log('FATURA KESİLDİ (' + vade + ' gün vade)'); }
+        catch (e) { sonuc.mesaj = e.message; log('fatura KESİLMEDİ: ' + e.message); }
       }
-      return;
+      if (YAZMA && (kes || FZ)) log('kayıt: ' + JSON.stringify(await yk({ tur: 'faturaKesim', kart: 'Multinet', sonuc })));
+      if (!FZ) return;
     }
     const ham = await api(page, 'transactions/getMerchantTransactionDetailSummaries',
       { customerId: OT.customerId, merchantId: sube.Id, terminalIds: [], transactionDateRange: `${ymd(bas)}-${ymd(bit)}` }) || [];
