@@ -37,6 +37,9 @@ var KC_GIDER_SATIR_KATEGORI = [
   ['hakediş', 'Platform komisyonu'], ['hakedis', 'Platform komisyonu'],
   ['komisyon', 'Platform komisyonu'], ['hizmet bedeli', 'Platform komisyonu'], ['aracılık', 'Platform komisyonu']
 ];
+// Tedarikçi adında geçen kelime → SABİT kategori: satır adı, Kolaybi tipi ya da Gider_Kategorileri ne derse desin bu kazanır.
+// HemenYolda (NEURODİS) aylık faturası bazen 'Platform komisyonu' düşüyordu; sahibi tek kategori istedi (06.10).
+var KC_GIDER_SABIT = [['neurodis', 'Taşımacılık Abonelik'], ['hemenyolda', 'Taşımacılık Abonelik']];
 // Tedarikçi adında geçen kelime → kategori. İstersen "Gider_Kategorileri" sekmesi açıp (A kelime, B kategori) buradakileri ezersin.
 var KC_GIDER_KATEGORI = [
   ['bedaş', 'Elektrik'], ['ayedaş', 'Elektrik'], ['enerjisa', 'Elektrik'], ['ck ', 'Elektrik'], ['elektrik', 'Elektrik'], ['enerji', 'Elektrik'],
@@ -347,7 +350,7 @@ function kolaybiGiderFaturalariCek(minTarihOpt) {
 
     if (lines.length <= 1) {                                   // tek satır → tek kayıt (eskisi gibi)
       var ad1 = lines.length ? (lines[0].name || lines[0].description || (lines[0].product && lines[0].product.name) || '') : '';
-      liste.push([String(f.id), f.serial_no || '', tarih, vade, ted, toplam, odenen, kalan, kc_satirKategori_(ad1) || tedKat, aciklamaTum.slice(0, 200), kaynakTip, tipId]);
+      liste.push([String(f.id), f.serial_no || '', tarih, vade, ted, toplam, odenen, kalan, kc_sabitKategori_(ted) || kc_satirKategori_(ad1) || tedKat, aciklamaTum.slice(0, 200), kaynakTip, tipId]);
       return;
     }
     // çok satırlı (platform faturaları): her satır ayrı kayıt, tutarlar KDV dahil toplama ölçeklenir
@@ -361,7 +364,7 @@ function kolaybiGiderFaturalariCek(minTarihOpt) {
       var t = Math.round(satirTutar[i] * oran * 100) / 100;
       var o = Math.round(t * odenenOran * 100) / 100;
       liste.push([String(f.id) + '-' + (i + 1), f.serial_no || '', tarih, vade, ted, t, o, Math.round((t - o) * 100) / 100,
-                  kc_satirKategori_(ad) || tedKat, String(ad).slice(0, 200), kaynakTip, tipId]);
+                  kc_sabitKategori_(ted) || kc_satirKategori_(ad) || tedKat, String(ad).slice(0, 200), kaynakTip, tipId]);
     });
   }
   // 1) Genel gider belgeleri
@@ -489,7 +492,7 @@ function giderKategorileriniYenile() {
   var kol = d.map(function (r) { return [r[8]]; }), sayac = 0;
   for (var i = 0; i < d.length; i++) {
     if (String(d[i][10]).indexOf('kolaybi') !== 0) continue;
-    var yeni = kc_satirKategori_(d[i][9]) || kc_giderKategori_(d[i][4] + ' ' + d[i][9], kategoriler, d[i][11], '');
+    var yeni = kc_sabitKategori_(d[i][4]) || kc_satirKategori_(d[i][9]) || kc_giderKategori_(d[i][4] + ' ' + d[i][9], kategoriler, d[i][11], '');
     if (yeni !== d[i][8]) { kol[i][0] = yeni; sayac++; }
   }
   sh.getRange(2, 9, kol.length, 1).setValues(kol);
@@ -623,6 +626,12 @@ function giderXmlBackfill() {
 }
 
 /** Fatura satırı adından kategori (platform faturaları için). Bulamazsa ''. */
+function kc_sabitKategori_(ted) {
+  var t = String(ted || '').replace(/İ/g, 'i').replace(/I/g, 'ı').toLowerCase();
+  for (var i = 0; i < KC_GIDER_SABIT.length; i++) if (t.indexOf(KC_GIDER_SABIT[i][0]) !== -1) return KC_GIDER_SABIT[i][1];
+  return '';
+}
+
 function kc_satirKategori_(ad) {
   var t = String(ad || '').replace(/İ/g, 'i').replace(/I/g, 'ı').toLowerCase();
   if (!t) return '';
