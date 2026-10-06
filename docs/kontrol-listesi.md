@@ -150,6 +150,7 @@ Tablolarda yapılan her değişikliğin eski ve yeni değeri **STOK › Fiyat_Du
 | P13 | Yönetim paneli "Apps Script adresi bulunamadı": Cloudflare'deki GAS_URL eski dağıtımı gösteriyordu; canlı Veri Kapısı dağıtımı `AKfycbz9eMemg…`. GAS_URL artık yayında `projeler.json`'dan yazılıyor | ☑ 05.10 |
 | P14 | SetCard çekimleri ve aylık fatura elle takip ediliyordu. `SetCard.gs` (BAP Yemek Kartı projesi): SetCard API'sinden (SMS yok, MacBook gerekmez) saatlik çekim → YEMEKKARTI › SetCard; kart ajanında 'SetCard' kaynağı; `setcardFaturaKuru` / `setcardFaturaKes` sitedeki "Fatura Kes" ile aynı (sonra resmi fatura KolayBi'den SetCard'a gider) | ◐ 06.10 yazıldı. Sahibi: BAP Yemek Kartı projesinde komut dosyası özelliklerine SETCARD_VKN / SETCARD_GSM / SETCARD_SIFRE, sonra `kurulum`. Yalnız Erenköy girişi görüldü; Fikirtepe ayrı kullanıcıysa eklenecek. Fatura kesimi zamanlaması sahiple konuşulacak |
 | P15 | Yemek kartı kodu kurye projesinin içindeydi (karışıklık). Ayrı **BAP Yemek Kartı** projesi (tabloya bağlı): Pluxee, Edenred, Paye, SetCard, SMS kod kutusu tek yerde — `docs/yemek-karti-projesi.md` | ◐ 06.10 kod yazıldı; kimlik bekleniyor. Sonra: yayın, `kurulum`, akşam Mac adresi + kestirmeler, 1 gün sonra kurye'den eski kod silinir |
+| P16 | Yemek kartı iki taraflı kontrolü (sahibin isteği 06.10): online çekim ↔ Trendyol siparişi, kapıda çekim ↔ kurye açık hesabı (kapat + eşleşmeyi yaz), açıkta kalanlar iki yönlü, parçalı ödeme ayrı — `docs/yemek-karti-projesi.md` › İki taraflı kontrol | ☐ sahibi isteyince; şimdilik yapılmıyor |
 
 ## Y · Yapı
 
