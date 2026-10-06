@@ -53,3 +53,15 @@ Bütün yemek kartları için geçerli (Pluxee, Edenred, Paye, SetCard). Örnek:
 
 Mevcut parçalar: kart ajanı (`acikKanit_` / `kartEslestir_`, veri kapısı; şu an yalnız tam tutar eşleşmesi), Finans › Yemek kartı mutabakatı (YK3; gün toplamı).
 Bu iş ikisini sipariş × çekim düzeyinde birleştirir; yeni bir sekme / ikinci liste açılmaz.
+
+### Online yemek kartı ödemeleri (sahibin bilgisi, 06.10.2026)
+
+| Platform | Online ödenebilen kartlar | Not |
+|---|---|---|
+| Trendyol Go | Multinet, Pluxee, Edenred, SetCard | Pluxee'de Trendyol'a VKN 4570271821 tanımlı (diğerlerinde TCKN 45289231790) |
+| Yemeksepeti | Pluxee, Edenred, Multinet | sahibinin bildiği kadarıyla |
+| Diğer kartlar / kanallar | — | hepsi kapıda ödeme (kurye terminali) |
+
+Kontrolde: online sipariş yalnız online çekimle eşleşir (SetCard'da 'Trendyol Pos'). Pluxee / Edenred / Multinet online ödemelerinin
+kart firmasının portalında ayrı görünüp görünmediği henüz bilinmiyor; görünmüyorsa bu siparişler "online — karşılaştırılmadı" sayılır.
+
