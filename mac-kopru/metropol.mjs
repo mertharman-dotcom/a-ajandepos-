@@ -148,7 +148,7 @@ async function main() {
     if (!(await oturumAcik(page))) await girisYap(page);
     if (process.argv.includes('--fatura-kes') || process.argv.includes('--fatura-kuru')) {
       const r = await faturaKes(page, !process.argv.includes('--fatura-kes'));
-      if (YAZMA && !r.kuru) log('tabloya: ' + JSON.stringify(await yk({ tur: 'metropolFatura', sonuc: r })));
+      if (YAZMA) log('tabloya: ' + JSON.stringify(await yk({ tur: 'faturaKesim', kart: 'Metropol', sonuc: { kuru: !!r.kuru, kesildi: !r.kuru && !/kesilememektedir|hata|error/i.test(r.uyari || ''), tarih: r.tarih, mesaj: (r.uyari || '') + (r.liste && r.liste.length ? ' · ' + JSON.stringify(r.liste).slice(0, 200) : '') } })));
       return;
     }
     const kisi = await kullanicilar(page).catch(e => { log('kullanıcı listesi okunamadı: ' + e.message); return { terminal: {}, telefon: {} }; });

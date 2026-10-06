@@ -134,7 +134,7 @@ function paketHazirla_() {
   var out = {
     surum: 1,
     olusturma: Utilities.formatDate(simdi, TZ, "yyyy-MM-dd'T'HH:mm:ss"),
-    kaynaklar: [], satis: null, nabiz: null, isKaydi: null, hub: null, finans: null, personel: null, kurye: null, genel: null, fisKayit: null, musteri: null, yemekKarti: null, pluxeeFatura: null, ykKontrol: null, setcardFatura: null, metropolFatura: null, hatalar: []
+    kaynaklar: [], satis: null, nabiz: null, isKaydi: null, hub: null, finans: null, personel: null, kurye: null, genel: null, fisKayit: null, musteri: null, yemekKarti: null, pluxeeFatura: null, ykKontrol: null, setcardFatura: null, metropolFatura: null, multinetFatura: null, hatalar: []
   };
   Object.keys(KAYNAK).forEach(function (k) {
     var s = KAYNAK[k];
@@ -162,6 +162,7 @@ function paketHazirla_() {
   bolum_(out, 'ykKontrol', ykKontrol_);
   bolum_(out, 'setcardFatura', setcardFatura_);
   bolum_(out, 'metropolFatura', metropolFatura_);
+  bolum_(out, 'multinetFatura', multinetFatura_);
   return out;
 }
 
@@ -1772,7 +1773,7 @@ function metropolFatura_() {
   kb.sort(function (p, q) { return q.ms - p.ms; });
   var gunu = function (ms) { return new Date(ms).toISOString().slice(0, 10); };
   var buAy = kb.filter(function (f) { return gunu(f.ms).slice(0, 7) === ay; }).length;
-  var bugunKesildi = kb.some(function (f) { return gunu(f.ms) === bugun; });
+  var kesim = faturaKesimBugun_('Metropol'), bugunKesildi = kb.some(function (f) { return gunu(f.ms) === bugun; }) || !!(kesim && /^kesildi/i.test(kesim.sonuc));
   // Biriken: son METROPAL faturasından bu yana Metropol çekimleri (Metropol sekmesi gelmeye başladıysa)
   var biriken = null, son = kb[0] ? kb[0].ms : null;
   try { var v = metropolCekimleri_(SpreadsheetApp.openById(KAYNAK.kurye.id));
@@ -1781,6 +1782,41 @@ function metropolFatura_() {
   return { bugun: bugun, faturaGunu: metropolFaturaGunuMu_(bugun), sonGun: bugun === new Date(Date.UTC(+bugun.slice(0, 4), +bugun.slice(5, 7), 0)).toISOString().slice(0, 10),
     bugunKesildi: bugunKesildi, buAy: buAy, hak: 2, takvim: takvim, biriken: biriken, kolaybiOkundu: kb.length > 0,
     liste: kb.slice(0, 8).map(function (f) { return { no: f.no, tarih: kartTam_(f.ms).slice(0, 5) + '.' + new Date(f.ms).getUTCFullYear(), tutar: f.tutar, odendi: f.odendi }; }) };
+}
+
+// BAP Yemek Kartı › 'Fatura Kesimleri' (Mac programlarının kesim kayıtları): bu kartın bugünkü son kaydı { zaman, sonuc, mesaj } | null
+function faturaKesimBugun_(kart) {
+  try { var sh = SpreadsheetApp.openById(KAYNAK.yemekKarti.id).getSheetByName('Fatura Kesimleri'); if (!sh || sh.getLastRow() < 2) return null;
+    var bugun = takvimGunu_(), g = bugun.slice(8, 10) + '.' + bugun.slice(5, 7) + '.' + bugun.slice(0, 4), son = null;
+    sh.getRange(Math.max(2, sh.getLastRow() - 40), 1, Math.min(40, sh.getLastRow() - 1), 6).getDisplayValues().forEach(function (r) {
+      if (String(r[0]).indexOf(g) === 0 && norm_(r[1]) === norm_(kart)) son = { zaman: String(r[0]).slice(11, 16), sonuc: r[2], mesaj: r[5] }; });
+    return son; } catch (err) { return null; }
+}
+
+/* ---------------- Multinet faturası (panel › Yemek Kartları) ----------------
+ * Sahibin kuralı (06.10.2026): her Salı 23:30, 3 gün vade. MacBook multinet.mjs --fatura-zamanli keser (ayar.json › otoFatura açılınca;
+ * o zamana kadar yalnız dener ve kaydeder). Faturalanmayı bekleyen tutar sitenin özetinden ('Multinet Bekleyen').
+ * Multinet faturasında KolayBi fatura no yazar ('Multinet Fatura'); mali fatura KolayBi'de MULTINET'e kesilmiş olmalı.
+ */
+function multinetFatura_() {
+  var ss = SpreadsheetApp.openById(KAYNAK.yemekKarti.id), bugun = takvimGunu_(), GUN = 86400000;
+  var faturaGunu = new Date(bugun + 'T00:00:00Z').getUTCDay() === 2;
+  var liste = [], bek = null;
+  var mf = ss.getSheetByName('Multinet Fatura');
+  if (mf && mf.getLastRow() > 1) { var b = mf.getRange(1, 1, 1, mf.getLastColumn()).getDisplayValues()[0];
+    var c = { no: kolon_(b, ['Fatura No']), t: kolon_(b, ['Fatura Tarihi']), tu: kolon_(b, ['Tutar (TL)']), d: kolon_(b, ['Durum']), o: kolon_(b, ['Ödeme Tarihi']), v: kolon_(b, ['Vade']) };
+    mf.getRange(2, 1, mf.getLastRow() - 1, mf.getLastColumn()).getDisplayValues().forEach(function (r) {
+      var no = String(r[c.no] || '').replace(/^'/, ''); if (!no) return;
+      liste.push({ no: no, tarih: String(r[c.t] || '').replace(/^'/, ''), tutar: sayi_(r[c.tu]), durum: r[c.d], odeme: String(r[c.o] || '').replace(/^'/, ''), vade: String(r[c.v] || '').replace(/^'/, '') }); }); }
+  liste.sort(function (p, q) { return (zaman_(q.tarih) || 0) - (zaman_(p.tarih) || 0); });
+  var bs = ss.getSheetByName('Multinet Bekleyen');
+  if (bs && bs.getLastRow() > 1) { var v = bs.getRange(2, 1, 1, 4).getDisplayValues()[0]; bek = { tutar: sayi_(v[0]), adet: sayi_(v[1]), guncel: v[3] }; }
+  var kesim = faturaKesimBugun_('Multinet');
+  var kb = []; try { kb = kolaybiSatis_(/multinet/); } catch (err) { }
+  var gunu = function (ms) { return new Date(ms).toISOString().slice(0, 10); };
+  var kbBugun = kb.some(function (f) { return gunu(f.ms) >= gunEkle_(bugun, -1); });
+  var takvim = [], g = bugun; for (var i = 0; i < 21 && takvim.length < 3; i++) { if (new Date(g + 'T00:00:00Z').getUTCDay() === 2) takvim.push(g); g = gunEkle_(g, 1); }
+  return { bugun: bugun, faturaGunu: faturaGunu, saat: '23:30', vade: '3 gün', kesim: kesim, kolaybiBugun: kbBugun, bekleyen: bek, takvim: takvim, liste: liste.slice(0, 8) };
 }
 
 function setcardFaturaIslem_(d) {
