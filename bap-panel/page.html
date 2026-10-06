@@ -2216,7 +2216,9 @@ function musteriYorum(a,M){var link=(kaynaklar("musteri")[0]||{}).link;
 var YK_SEKME="";
 function ykUyarilar(){var u=[],F=VERI&&VERI.setcardFatura,K=VERI&&VERI.ykKontrol;
   if(F&&F.liste){var tah={n:0,t:0};F.liste.forEach(function(x){
-    if(/kesilmedi/i.test(x.durum)&&x.tutar>0)u.push({s:"e-dikkat",m:"SetCard: "+para(x.tutar)+" kesilmemiş fatura (takip "+x.takipNo+"). İstersen Yemek Kartları › SetCard faturası › Fatura Kes."});
+    if(/kesilmedi/i.test(x.durum)&&x.tutar>0){var R=F.kural||{};
+      if(R.faturaGunu&&R.buAy<R.hak)u.push({s:R.sonGun?"e-kotu":"e-dikkat",m:"Bugün SetCard fatura günü"+(R.sonGun?" — AYIN SON GÜNÜ, mutlaka kes":" (Cuma)")+": biriken "+para(x.tutar)+". Bu ay "+R.buAy+"/"+R.hak+" fatura kesildi. Yemek Kartları › SetCard faturası › Fatura Kes."});
+      else if(R.faturaGunu&&R.sonGun)u.push({s:"e-kotu",m:"Bugün ayın son günü ama bu ayki "+R.hak+" SetCard fatura hakkı dolmuş görünüyor; biriken "+para(x.tutar)+". SetCard'a sor."});}
     else if(!/kesilmedi/i.test(x.durum)&&!x.kolaybi&&F.kolaybiOkundu&&/^fatura kesildi/i.test(x.durum))u.push({s:"e-kotu",m:"SetCard: "+para(x.tutar)+" fatura kesildi ("+x.tarih+") ama KolayBi'de karşılığı yok. KolayBi'den SETCARD'a mali faturayı kes."});
     if(/ödeme|odeme/i.test(x.durum)&&x.kolaybi&&!x.kolaybi.odendi){tah.n++;tah.t+=x.tutar;}});
     if(tah.n)u.push({s:"e-notr",m:"SetCard "+tah.n+" faturayı ödedi ("+para(tah.t)+") ama KolayBi'de ‘tahsil edilmedi’ görünüyor; tahsilatı KolayBi'ye işle."});}
@@ -2250,7 +2252,10 @@ function setcardFaturaBlok(a){var F=VERI.setcardFatura;if(!F)return;var kap=el("
       var tahHucre=!k?"—":k.odendi?el("span",{class:"etiket e-iyi",text:"tahsil edildi"}):el("span",{class:"etiket "+(odendi?"e-dikkat":"e-notr"),text:odendi?"işlenmemiş":"bekliyor"});
       return [x.takipNo,x.tarih||"—",para(x.tutar),el("span",{class:"etiket "+RENK(x.durum),text:x.durum||"—"}),x.odeme||"—",kbHucre,tahHucre,is];})):bos("SetCard faturası yok."));}
   ciz();
-  a.appendChild(blok("SetCard faturası","SetCard › Fatura Takibi saatte bir buraya gelir"+(F.kontrol?" (son kontrol "+F.kontrol+")":"")+". ‘Fatura Kes’ sitedeki düğmeyle aynı işi yapar. Mali fatura KolayBi satış faturalarından kendiliğinden bulunur (SETCARD, aynı tutar, birkaç gün içinde); bulunamazsa ‘yok — kesilmeli’ yazar. ‘KolayBi tahsilat’: SetCard ödediği halde KolayBi'de tahsil işlenmemişse ‘işlenmemiş’.",kap));}
+  var R=F.kural;if(R)a.appendChild(el("div",{class:"rakamlar"},[rakam("Bugün",R.faturaGunu?(R.sonGun?"Fatura günü — ayın son günü":"Fatura günü (Cuma)"):"Fatura günü değil",R.faturaGunu?"biriken bakiyeyi kes":null,R.faturaGunu?"asagi":""),
+    rakam("Bu ay kesilen",R.buAy+" / "+R.hak,"ayda en çok "+R.hak+" fatura",R.buAy>=R.hak?"asagi":""),
+    rakam("Sonraki fatura günleri",R.takvim.filter(function(g){return g!==R.bugun;}).slice(0,3).map(function(g){return gunAd(g);}).join(", ")||"—","her Cuma (ayın "+R.ilkGun+"'inden itibaren) + ayın son günü")]));
+  a.appendChild(blok("SetCard faturası","Kural: her Cuma (ayın "+(R?R.ilkGun:11)+"'inden önce kesilemez), ayda en çok "+(R?R.hak:4)+" fatura, ayın son günü mutlaka. Fatura günü Yönetim Merkezi'nde uyarı çıkar; şimdilik sen kesiyorsun, sonra program kesecek. SetCard › Fatura Takibi saatte bir buraya gelir"+(F.kontrol?" (son kontrol "+F.kontrol+")":"")+". ‘Fatura Kes’ sitedeki düğmeyle aynı işi yapar. Mali fatura KolayBi satış faturalarından kendiliğinden bulunur (SETCARD, aynı tutar, birkaç gün içinde); bulunamazsa ‘yok — kesilmeli’ yazar. ‘KolayBi tahsilat’: SetCard ödediği halde KolayBi'de tahsil işlenmemişse ‘işlenmemiş’.",kap));}
 
 function ykKontrolBlok(a){var K=VERI.ykKontrol;if(!K)return;
   var kartlar=K.kartlar||[];if(!kartlar.length)return;

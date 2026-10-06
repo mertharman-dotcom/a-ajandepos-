@@ -1698,9 +1698,20 @@ function kolaybiSatis_(musteriRe) {
   });
   return out;
 }
+// Sahibin kuralı (06.10.2026): SetCard faturası her Cuma kesilir; ayın 10'undan sonra kesilebilir (11'i ve sonrası);
+// ayda en çok 4 fatura; ayın son günü mutlaka kesilir. Şimdilik sahibi keser, panel o gün uyarır (sonra program kesecek).
+var SETCARD_FATURA = { ILK_GUN: 11, AYLIK_HAK: 4 };
+function setcardFaturaGunuMu_(gun) {
+  var d = new Date(gun + 'T00:00:00Z'), g = d.getUTCDate(), son = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth() + 1, 0)).getUTCDate();
+  return g === son || (d.getUTCDay() === 5 && g >= SETCARD_FATURA.ILK_GUN);
+}
 function setcardFatura_() {
   var sh = SpreadsheetApp.openById(KAYNAK.yemekKarti.id).getSheetByName('SetCard Fatura'); if (!sh) return null;
   var l = setcardFaturaSatirlari_(sh).l.sort(function (p, q) { return String(q.tarih).localeCompare(String(p.tarih)) || (+q.takipNo) - (+p.takipNo); });
+  var bugun = takvimGunu_(), ay = bugun.slice(0, 7), sonGun = new Date(Date.UTC(+bugun.slice(0, 4), +bugun.slice(5, 7), 0)).toISOString().slice(0, 10);
+  // Bu ay kesilen: fatura tarihi bu ay olan ve "Kesilmedi" olmayan (SetCard'ın biriken bakiye satırı sayılmaz)
+  var buAy = l.filter(function (x) { return String(x.tarih).slice(0, 7) === ay && !/kesilmedi/i.test(x.durum); }).length;
+  var takvim = [], g = bugun; for (var i = 0; i < 45 && takvim.length < 4; i++) { if (setcardFaturaGunuMu_(g)) takvim.push(g); g = gunEkle_(g, 1); }
   var kb = []; try { kb = kolaybiSatis_(/setcard/); } catch (err) { }
   var kul = {}, GUN = 86400000;
   // eskiden yeniye eşleştir: aynı tutarda iki fatura varsa sırayla
@@ -1712,7 +1723,8 @@ function setcardFatura_() {
     if (!b) return; kul[b.i] = 1;
     x.kolaybi = { no: b.f.no, tarih: kartTam_(b.f.ms).slice(0, 5) + '.' + new Date(b.f.ms).getUTCFullYear(), odendi: b.f.odendi, kalan: b.f.kalan };
   });
-  return { liste: l.slice(0, 12), kontrol: l.length ? l[0].kontrol : '', kolaybiOkundu: kb.length > 0 };
+  return { liste: l.slice(0, 12), kontrol: l.length ? l[0].kontrol : '', kolaybiOkundu: kb.length > 0,
+           kural: { bugun: bugun, faturaGunu: setcardFaturaGunuMu_(bugun), sonGun: bugun === sonGun, buAy: buAy, hak: SETCARD_FATURA.AYLIK_HAK, ilkGun: SETCARD_FATURA.ILK_GUN, takvim: takvim } };
 }
 function setcardFaturaIslem_(d) {
   var no = String(d.takipNo || '').replace(/\D/g, ''); if (!no) return { hata: 'Takip numarası yok.' };
