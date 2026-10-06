@@ -830,7 +830,10 @@ function finansSayfa(a){var f=VERI.finans;a.appendChild(ust("Finans","Tedarikçi
     rakam("Vadesi geçen borç",para(b.vadesiGecen),b.vgTedarikci+" tedarikçide",b.vadesiGecen>0?"asagi":""),rakam("Kurum ve yemek kartı alacağı",para(ac.toplam),ac.vadesiGecen?para(ac.vadesiGecen)+" vadesi geçmiş":"Vadesi geçen yok",ac.vadesiGecen?"asagi":"")]));
   var sol=el("div",null,[blok("Tedarikçi borçları","Ödemeler en eski faturadan başlanarak düşülür; vadesi geçen, vade gününü aşmış ve ödenmemiş kısımdır. Tam adı görmek için isme gel.",
       b.liste.length?tablo([["Tedarikçi"],["Borç",1],["Vadesi geçen",1],["En eski gecikme"],["Vade",1]],b.liste.map(function(x){return [tedHucre(x.ad),para(x.borc),x.vadesiGecen?para(x.vadesiGecen):"—",x.enEski?tarihTr(x.enEski):"—",x.vadeGun+" gün"];})):bos("Açık tedarikçi borcu yok."))]);
-  var sag=el("div",null,[blok("Kurum ve yemek kartı alacakları","Kesilmiş ama tahsil edilmemiş satış faturaları.",ac.liste.length?tablo([["Kurum"],["Fatura",1],["Kalan",1],["Vadesi geçen",1]],ac.liste.map(function(x){return [x.ad,String(x.adet),para(x.kalan),x.vadesiGecen?para(x.vadesiGecen):"—"];})):bos("Açık alacak yok."))]);
+  var ko=ac.kartOdendi&&ac.kartOdendi.liste.length?ac.kartOdendi:null;
+  var sag=el("div",null,[blok("Kurum ve yemek kartı alacakları","Kesilmiş ama tahsil edilmemiş satış faturaları."+(ko?" Yemek kartı firmasının sisteminde ödendiği görünenler ("+para(ko.toplam)+") alacaktan düşüldü; aşağıda, KolayBi'ye tahsilat olarak işlenmeli.":""),
+    el("div",null,[ac.liste.length?tablo([["Kurum"],["Fatura",1],["Kalan",1],["Vadesi geçen",1]],ac.liste.map(function(x){return [x.ad,String(x.adet),para(x.kalan),x.vadesiGecen?para(x.vadesiGecen):"—"];})):bos("Açık alacak yok."),
+      ko?el("div",{style:"margin-top:12px"},[el("h4",{style:"margin:0 0 6px",text:"Ödendi, KolayBi'ye işlenmedi ("+ko.liste.length+")"}),tablo([["Fatura"],["Kurum"],["Tutar",1],["Ödeyen sistem"],["Ödeme tarihi"]],ko.liste.map(function(x){return [x.no.slice(-6),x.ad,para(x.kalan),x.kaynak,x.odeme||"—"];}))]):null]))]);
   a.appendChild(el("div",{class:"iki"},[sol,sag]));
   if(f.gider){var g=f.gider,son=Math.max(0,g.aylar.length-6),ay=g.aylar.slice(son);
     a.appendChild(blok("Aylık giderler","KDV dahil, kaleme göre. Son ay henüz kapanmadığı için eksik görünür; personel ve kurye kalemleri geç işlenir.",

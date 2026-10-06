@@ -36,3 +36,25 @@ function metropolFaturaYaz(sonuc) {
   sh.appendRow(["'" + String(sonuc.tarih || ''), "'" + String(sonuc.tarih || '').slice(0, 10), String(sonuc.uyari || '').slice(0, 300), JSON.stringify(sonuc.liste || []).slice(0, 2000), damga]);
   return { ok: true };
 }
+
+/* Metropol › Fatura Ödeme Bilgileri (metropol.mjs → doPost tur 'metropolOdeme') → 'Metropol Ödeme' sekmesi.
+ * Sütunlar sitedeki başlıklarla aynı adla açılır (yeni başlık sona eklenir); aynı satır iki kez yazılmaz. */
+function metropolOdemeYaz(satirlar) {
+  satirlar = (satirlar || []).filter(function (x) { return x && Object.keys(x).some(function (k) { return String(x[k]).trim(); }); });
+  if (!satirlar.length) return { ok: true, eklenen: 0 };
+  var ss = ykTablo_(), sh = ss.getSheetByName('Metropol Ödeme');
+  if (!sh) { sh = ss.insertSheet('Metropol Ödeme'); sh.getRange(1, 1).setValue('Kayıt Zamanı').setFontWeight('bold'); sh.setFrozenRows(1); }
+  var bas = sh.getRange(1, 1, 1, sh.getLastColumn()).getValues()[0].map(String);
+  var yeniB = []; satirlar.forEach(function (x) { Object.keys(x).forEach(function (k) { if (k && bas.indexOf(k) < 0 && yeniB.indexOf(k) < 0) yeniB.push(k); }); });
+  if (yeniB.length) { sh.getRange(1, bas.length + 1, 1, yeniB.length).setValues([yeniB]).setFontWeight('bold'); bas = bas.concat(yeniB); }
+  var anahtar = function (r) { return bas.slice(1).map(function (b, i) { return String(r[i + 1] == null ? '' : r[i + 1]).replace(/^'/, '').trim(); }).join('|'); };
+  var var_ = {};
+  if (sh.getLastRow() > 1) sh.getRange(2, 1, sh.getLastRow() - 1, bas.length).getDisplayValues().forEach(function (r) { var_[anahtar(r)] = 1; });
+  var damga = Utilities.formatDate(new Date(), TZ, 'dd.MM.yyyy HH:mm:ss'), yeni = [];
+  satirlar.forEach(function (x) {
+    var r = bas.map(function (b, i) { return i === 0 ? damga : (x[b] == null || x[b] === '' ? '' : "'" + String(x[b]).trim()); });
+    var k = anahtar(r); if (var_[k]) return; var_[k] = 1; yeni.push(r);
+  });
+  if (yeni.length) sh.getRange(sh.getLastRow() + 1, 1, yeni.length, bas.length).setValues(yeni);
+  return { ok: true, eklenen: yeni.length };
+}
