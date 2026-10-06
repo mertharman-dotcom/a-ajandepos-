@@ -25,6 +25,7 @@ function doPost(e) {
     if (g.tur === 'edenred') return jsonYanit_(edenredYaz(g.satirlar || []));
     if (g.tur === 'metropol') return jsonYanit_(metropolYaz(g.satirlar || []));
     if (g.tur === 'metropolFatura') return jsonYanit_(metropolFaturaYaz(g.sonuc));
+    if (g.tur === 'metropolOdeme') return jsonYanit_(metropolOdemeYaz(g.satirlar));
     if (/^kod(Iste|Yaz|Oku|Sil|Durum)$/.test(String(g.tur))) return jsonYanit_(kodKutusu_(g));
     // Panel › Yemek Kartları › SetCard faturası "Fatura Kes" (veri kapısı üzerinden; sahibinin düğmesiyle)
     if (g.tur === 'setcardFaturaKes') return jsonYanit_(setcardFaturaKesTek_(g.takipNo));

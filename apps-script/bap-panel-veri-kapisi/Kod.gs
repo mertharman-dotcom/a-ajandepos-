@@ -1244,11 +1244,15 @@ function finans_() {
 
   // Yemek kartı / kurum alacakları (satış faturaları)
   var sf = satirlar_(ss, 'Satis_Faturalari');
-  var sI = kolon_(sf.b, ['Fatura_ID']), sM = kolon_(sf.b, ['Musteri']), sK = kolon_(sf.b, ['Kalan']), sV = kolon_(sf.b, ['Vade_Tarihi']), sD = kolon_(sf.b, ['Odeme_Durumu']);
-  var alacak = { toplam: 0, vadesiGecen: 0, liste: [] }, am = {}, gorSf = {};
+  var sI = kolon_(sf.b, ['Fatura_ID']), sNo = kolon_(sf.b, ['Fatura_No']), sM = kolon_(sf.b, ['Musteri']), sK = kolon_(sf.b, ['Kalan']), sV = kolon_(sf.b, ['Vade_Tarihi']), sD = kolon_(sf.b, ['Odeme_Durumu']);
+  // Yemek kartı firmasının sisteminde ödendiği görünen ama KolayBi'ye tahsil işlenmemiş faturalar alacaktan düşülür, ayrı gösterilir.
+  var kartOdenen = {}; try { kartOdenen = kartOdenenFaturalar_(); } catch (err) { }
+  var alacak = { toplam: 0, vadesiGecen: 0, liste: [], kartOdendi: { toplam: 0, liste: [] } }, am = {}, gorSf = {};
   sf.r.forEach(function (r) {
     var id = String(r[sI] || ''); if (id && gorSf[id]) return; if (id) gorSf[id] = 1;
     var kalan = sayi_(r[sK]); if (kalan < 0.5 || /^paid$/i.test(String(r[sD] || ''))) return;
+    var fno = sNo >= 0 ? String(r[sNo] || '').trim() : '', ko = kartOdenen[fno];
+    if (ko) { alacak.kartOdendi.toplam += kalan; alacak.kartOdendi.liste.push({ no: fno, ad: String(r[sM] || '').trim(), kalan: Math.round(kalan), kaynak: ko.kaynak, odeme: ko.odeme }); return; }
     var ad = String(r[sM] || '').trim() || 'Belirtilmemiş', v = zaman_(r[sV]);
     var x = am[ad] = am[ad] || { ad: ad, kalan: 0, vadesiGecen: 0, adet: 0 };
     x.kalan += kalan; x.adet++; alacak.toplam += kalan;
@@ -1256,6 +1260,7 @@ function finans_() {
   });
   alacak.liste = Object.keys(am).map(function (k) { var x = am[k]; return { ad: x.ad, kalan: Math.round(x.kalan), vadesiGecen: Math.round(x.vadesiGecen), adet: x.adet }; })
     .sort(function (a, b) { return b.kalan - a.kalan; });
+  alacak.kartOdendi.toplam = Math.round(alacak.kartOdendi.toplam);
   out.alacak = alacak;
 
   // Aylık gider tablosu ve açık sorular (BAP Aylık Gider Takibi)
@@ -1706,13 +1711,10 @@ function setcardFaturaGunuMu_(gun) {
   var d = new Date(gun + 'T00:00:00Z'), g = d.getUTCDate(), son = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth() + 1, 0)).getUTCDate();
   return g === son || (d.getUTCDay() === 5 && g >= SETCARD_FATURA.ILK_GUN);
 }
-function setcardFatura_() {
+// SetCard Fatura satırları + KolayBi karşılığı (x.kolaybi). Panel (setcardFatura_) ve Finans alacakları (finans_) aynı eşleşmeyi kullanır.
+function setcardEslesme_() {
   var sh = SpreadsheetApp.openById(KAYNAK.yemekKarti.id).getSheetByName('SetCard Fatura'); if (!sh) return null;
   var l = setcardFaturaSatirlari_(sh).l.sort(function (p, q) { return String(q.tarih).localeCompare(String(p.tarih)) || (+q.takipNo) - (+p.takipNo); });
-  var bugun = takvimGunu_(), ay = bugun.slice(0, 7), sonGun = new Date(Date.UTC(+bugun.slice(0, 4), +bugun.slice(5, 7), 0)).toISOString().slice(0, 10);
-  // Bu ay kesilen: fatura tarihi bu ay olan ve "Kesilmedi" olmayan (SetCard'ın biriken bakiye satırı sayılmaz)
-  var buAy = l.filter(function (x) { return String(x.tarih).slice(0, 7) === ay && !/kesilmedi/i.test(x.durum); }).length;
-  var takvim = [], g = bugun; for (var i = 0; i < 45 && takvim.length < 4; i++) { if (setcardFaturaGunuMu_(g)) takvim.push(g); g = gunEkle_(g, 1); }
   var kb = []; try { kb = kolaybiSatis_(/setcard/); } catch (err) { }
   var kul = {}, GUN = 86400000;
   // eskiden yeniye eşleştir: aynı tutarda iki fatura varsa sırayla
@@ -1724,6 +1726,21 @@ function setcardFatura_() {
     if (!b) return; kul[b.i] = 1;
     x.kolaybi = { no: b.f.no, tarih: kartTam_(b.f.ms).slice(0, 5) + '.' + new Date(b.f.ms).getUTCFullYear(), odendi: b.f.odendi, kalan: b.f.kalan };
   });
+  return { l: l, kbVar: kb.length > 0 };
+}
+// Kart sistemine göre ödenmiş ama KolayBi'de tahsil işlenmemiş satış faturaları: { 'EFA…': { kaynak, odeme } }
+function kartOdenenFaturalar_() {
+  var out = {}, e = null; try { e = setcardEslesme_(); } catch (err) { }
+  if (e) e.l.forEach(function (x) { if (x.kolaybi && !x.kolaybi.odendi && /ödeme|odeme/i.test(x.durum)) out[x.kolaybi.no] = { kaynak: 'SetCard', odeme: x.odeme }; });
+  return out;
+}
+function setcardFatura_() {
+  var e = setcardEslesme_(); if (!e) return null;
+  var l = e.l, kb = { length: e.kbVar ? 1 : 0 };
+  var bugun = takvimGunu_(), ay = bugun.slice(0, 7), sonGun = new Date(Date.UTC(+bugun.slice(0, 4), +bugun.slice(5, 7), 0)).toISOString().slice(0, 10);
+  // Bu ay kesilen: fatura tarihi bu ay olan ve "Kesilmedi" olmayan (SetCard'ın biriken bakiye satırı sayılmaz)
+  var buAy = l.filter(function (x) { return String(x.tarih).slice(0, 7) === ay && !/kesilmedi/i.test(x.durum); }).length;
+  var takvim = [], g = bugun; for (var i = 0; i < 45 && takvim.length < 4; i++) { if (setcardFaturaGunuMu_(g)) takvim.push(g); g = gunEkle_(g, 1); }
   return { liste: l.slice(0, 12), kontrol: l.length ? l[0].kontrol : '', kolaybiOkundu: kb.length > 0,
            kural: { bugun: bugun, faturaGunu: setcardFaturaGunuMu_(bugun), sonGun: bugun === sonGun, buAy: buAy, hak: SETCARD_FATURA.AYLIK_HAK, ilkGun: SETCARD_FATURA.ILK_GUN, takvim: takvim } };
 }

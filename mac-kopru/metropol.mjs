@@ -178,6 +178,12 @@ async function main() {
         log('tabloya: ' + JSON.stringify(r));
       }
     }
+    // Fatura Ödeme Bilgileri: Metropol'ün hangi faturayı ne zaman ödediği (Finans'ta alacak kapatmak için). Sütun adları sayfadan alınır.
+    try {
+      const od = tablo((await sayfa(page, '/Home/OdemeDetay')).html);
+      log('fatura ödeme bilgileri: ' + od.length + ' satır' + (od[0] ? ' · sütunlar: ' + Object.keys(od[0]).join(' | ') : ''));
+      if (YAZMA && od.length) log('tabloya: ' + JSON.stringify(await yk({ tur: 'metropolOdeme', satirlar: od.slice(0, 500) })));
+    } catch (e) { log('fatura ödeme bilgileri okunamadı: ' + e.message); }
   } finally { await ctx.close().catch(() => {}); }
 }
 main().catch(e => { log('HATA: ' + (e && e.message || e)); process.exit(1); });
