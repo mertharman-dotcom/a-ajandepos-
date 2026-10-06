@@ -4,7 +4,7 @@
  * SetCard üye işyeri sitesi (uye.setcard.com.tr) düz bir JSON API kullanıyor (api.setcard.com.tr), SMS / robot doğrulaması yok.
  * Bu yüzden MacBook gerekmez; Apps Script doğrudan çeker.
  *   setcardCek()        – son 3 günün işlemlerini YEMEKKARTI › SetCard sekmesine EKLER (STI ID ile; aynı işlem iki kez yazılmaz)
- *   setcardFaturaKuru() – kesilmeyi bekleyen faturaları listeler, hiçbir şey kesmez
+ *   setcardFaturaKuru() – Fatura Takibi'ndeki faturaları durumlarıyla listeler, hiçbir şey kesmez
  *   setcardFaturaKes()  – durumu "kesilebilir" (faturaDurumu 0) olanları sitedeki "Fatura Kes" düğmesiyle aynı şekilde keser.
  *                         Sonra resmi faturayı (KolayBi) SetCard'a ulaştırmak gerekir — site de bunu söylüyor.
  *
@@ -85,10 +85,11 @@ function setcardFaturaKes() { return setcardFatura_(false); }
 
 function setcardFatura_(kuru) {
   var token = setcardGiris_();
-  var d = setcardIstek_('Invoice/MPosGetUnpaidInvoiceList', undefined, token) || {};
+  // Sitede Fatura › Fatura Takibi sayfası (bütün faturalar ve durumları). "Fatura Kes" yalnız faturaDurumu 0 ("Fatura Kesilmedi") olana basılabilir.
+  var d = setcardIstek_('Invoice/MPosGetInvoiceList', undefined, token) || {};
   var liste = d.invoiceList || [], rapor = [];
   liste.forEach(function (f) {
-    var satir = { takipNo: f.faturaTakipNo, durum: f.faturaDurumAciklama, kesilebilir: f.faturaDurumu === 0, alan: f };
+    var satir = { takipNo: f.faturaTakipNo, durum: f.faturaDurumAciklama, tutar: f.tutar, odemeTarihi: f.paymentDate, kesilebilir: f.faturaDurumu === 0 };
     if (!kuru && satir.kesilebilir) {
       try { setcardIstek_('Invoice/UpdateMPosInvoiceByTrackingNo', { InvoiceTrackingNo: Number(f.faturaTakipNo) }, token); satir.sonuc = 'kesildi'; }
       catch (e) { satir.sonuc = 'HATA: ' + e.message; }
