@@ -35,7 +35,7 @@ var KAYNAK = {
   kurye:    { id: '1LG7naAbMM9aL3K0QNzzrjXomC2LXjx4rdSCYNYWzDQo', ad: 'Kurye çalışma süresi',    bolum: 'kurye',    beklenenDk: 1440 },
   personel: { id: '1WBniOC2h9SvD20bHZl3G4o0f4kUmjbXtIrNvYVyV8Hg', ad: 'Personel',                bolum: 'personel', beklenenDk: 1440 },
   yorum:    { id: '1KLWCEBwFMHCTrTnCYLhv2ctg5PvGtS9DNzoMXF-Z1JE', ad: 'Trendyol yorumları',      bolum: 'musteri',  beklenenDk: 1440 },
-  yemekKarti: { id: '19RVXZQwKZRCW6xnZxSwhRHXte4VWhaVqruaTZRwVJbM', ad: 'Yemek kartı tahsilatları', bolum: 'finans', beklenenDk: 2880 }
+  yemekKarti: { id: '19RVXZQwKZRCW6xnZxSwhRHXte4VWhaVqruaTZRwVJbM', ad: 'Yemek kartı tahsilatları', bolum: 'yemekkart', beklenenDk: 180 }
 };
 
 var DEPARTMANLAR = ['Müşteri İlişkileri', 'Operasyon', 'Finans', 'Satış & Gelir', 'Teknoloji & Sistemler',
@@ -134,7 +134,7 @@ function paketHazirla_() {
   var out = {
     surum: 1,
     olusturma: Utilities.formatDate(simdi, TZ, "yyyy-MM-dd'T'HH:mm:ss"),
-    kaynaklar: [], satis: null, nabiz: null, isKaydi: null, hub: null, finans: null, personel: null, kurye: null, genel: null, fisKayit: null, musteri: null, yemekKarti: null, hatalar: []
+    kaynaklar: [], satis: null, nabiz: null, isKaydi: null, hub: null, finans: null, personel: null, kurye: null, genel: null, fisKayit: null, musteri: null, yemekKarti: null, pluxeeFatura: null, ykKontrol: null, setcardFatura: null, hatalar: []
   };
   Object.keys(KAYNAK).forEach(function (k) {
     var s = KAYNAK[k];
@@ -159,6 +159,8 @@ function paketHazirla_() {
   bolum_(out, 'musteri', musteri_);
   bolum_(out, 'yemekKarti', yemekKarti_);
   bolum_(out, 'pluxeeFatura', pluxeeFatura_);
+  bolum_(out, 'ykKontrol', ykKontrol_);
+  bolum_(out, 'setcardFatura', setcardFatura_);
   return out;
 }
 
@@ -1482,7 +1484,8 @@ var GENEL_PORTAL_URL = 'https://bap-genel-bilgiler.mertharman.workers.dev/';
  *      (Durum 'Kesildi' / 'Kesilemedi', tutarlar, ödeme tarihi). Ayrıntı: docs/pluxee-fatura.md
  *   3) Fatura günü 21:00'den sonra hâlâ onay yoksa bir kez WhatsApp hatırlatması gider.
  */
-var PLUXEE_FATURA = { PLAN: '3 günde al', SAAT: '23:55', ONAY_GEREKIR: true, HATIRLAT_SAAT: 21 };
+// KESEN_HAZIR: MacBook'taki kesim adımı yazılınca true yapılır; o zamana kadar WhatsApp hatırlatması gitmez ("kesilecek" demek yanlış olur).
+var PLUXEE_FATURA = { PLAN: '3 günde al', SAAT: '23:55', ONAY_GEREKIR: true, HATIRLAT_SAAT: 21, KESEN_HAZIR: false };
 var PLUXEE_FATURA_BASLIK = ['Fatura Günü', 'Durum', 'Plan', 'Onay Zamanı', 'Onaylayan', 'Genel Toplam (TL)', 'KDV Hariç (TL)', 'KDV (TL)',
                             'Ödeme Tarihi', 'Kesim Zamanı', 'KolayBi Faturası', 'Not'];
 // Kurye projesindeki Bildirim.gs ile aynı Make webhook'u ("BAP Bildirim - Script WA").
@@ -1520,10 +1523,10 @@ function pluxeeFaturaSatirlari_(sh) {
 
 // Panel paketi: takvim, bugünün durumu, son faturalar
 function pluxeeFatura_() {
-  var ss = SpreadsheetApp.openById(KAYNAK.kurye.id), sh = ss.getSheetByName('Pluxee Fatura'), bugun = takvimGunu_();
+  var ss = SpreadsheetApp.openById(KAYNAK.yemekKarti.id), sh = ss.getSheetByName('Pluxee Fatura'), bugun = takvimGunu_();
   var l = sh ? pluxeeFaturaSatirlari_(sh).l : [], bul = function (g) { return l.filter(function (x) { return x.gun === g; }).pop() || null; };
   var sonraki = pluxeeFaturaGunleri_(bugun, 5);
-  return { plan: PLUXEE_FATURA.PLAN, saat: PLUXEE_FATURA.SAAT, onayGerekir: PLUXEE_FATURA.ONAY_GEREKIR, bugun: bugun,
+  return { plan: PLUXEE_FATURA.PLAN, saat: PLUXEE_FATURA.SAAT, onayGerekir: PLUXEE_FATURA.ONAY_GEREKIR, kesenHazir: PLUXEE_FATURA.KESEN_HAZIR, bugun: bugun,
            takvim: sonraki.map(function (g) { var x = bul(g); return { gun: g, durum: x ? x.durum : '' }; }),
            son: l.slice(-8).reverse() };
 }
@@ -1536,22 +1539,23 @@ function pluxeeFaturaIslem_(d) {
   if (gun < bugun || gun > gunEkle_(bugun, 8)) return { hata: 'Yalnız önümüzdeki 8 gündeki fatura günü onaylanabilir.' };
   if (!pluxeeFaturaGunuMu_(gun)) return { hata: trGun_(gun) + ' fatura günü değil.' };
   if (gun === bugun && Utilities.formatDate(new Date(), TZ, 'HH:mm') >= PLUXEE_FATURA.SAAT) return { hata: 'Bugünkü fatura saati geçti.' };
-  var ss = SpreadsheetApp.openById(KAYNAK.kurye.id), sh = pluxeeFaturaSekmesi_(ss), s = pluxeeFaturaSatirlari_(sh);
+  var ss = SpreadsheetApp.openById(KAYNAK.yemekKarti.id), sh = pluxeeFaturaSekmesi_(ss), s = pluxeeFaturaSatirlari_(sh);
   var x = s.l.filter(function (y) { return y.gun === gun; }).pop();
   if (x && /^kesildi/i.test(x.durum)) return { hata: 'Bu fatura zaten kesilmiş.' };
   var damga = Utilities.formatDate(new Date(), TZ, 'dd.MM.yyyy HH:mm:ss'), durum = islem === 'onayla' ? 'Onaylandı' : 'Kesilmeyecek';
   var deger = { 'Fatura Günü': "'" + trGun_(gun), 'Durum': durum, 'Plan': PLUXEE_FATURA.PLAN, 'Onay Zamanı': damga, 'Onaylayan': 'Panel' };
   var satir = x ? x.satir : sh.getLastRow() + 1;
   Object.keys(deger).forEach(function (h) { var j = kolon_(s.b, [h]); if (j >= 0) sh.getRange(satir, j + 1).setValue(deger[h]); });
-  try { cevapKaydet_('Finans', 'Kurye Net Çalışma Süresi › Pluxee Fatura', satir, 'Pluxee haftalık fatura ' + trGun_(gun), durum, damga.slice(0, 16)); } catch (err) { }
+  try { cevapKaydet_('Finans', 'BAP Yemek Kartı Tahsilatları › Pluxee Fatura', satir, 'Pluxee haftalık fatura ' + trGun_(gun), durum, damga.slice(0, 16)); } catch (err) { }
   return { tamam: true, gun: gun, durum: durum };
 }
 
 // Saatlik taramadan çağrılır: onay gerekmiyorsa fatura günü satırı açar; gerekiyorsa 21:00'den sonra bir kez hatırlatır.
 function pluxeeFaturaTara_() {
+  if (!PLUXEE_FATURA.KESEN_HAZIR) return;
   var bugun = takvimGunu_(); if (!pluxeeFaturaGunuMu_(bugun)) return;
   var saat = Utilities.formatDate(new Date(), TZ, 'HH:mm'); if (saat >= PLUXEE_FATURA.SAAT) return;
-  var ss = SpreadsheetApp.openById(KAYNAK.kurye.id), sh = ss.getSheetByName('Pluxee Fatura');
+  var ss = SpreadsheetApp.openById(KAYNAK.yemekKarti.id), sh = ss.getSheetByName('Pluxee Fatura');
   var x = sh ? pluxeeFaturaSatirlari_(sh).l.filter(function (y) { return y.gun === bugun; }).pop() : null;
   if (x && x.durum) return; // onaylandı / kesilmeyecek / kesildi
   if (!PLUXEE_FATURA.ONAY_GEREKIR) {
@@ -1568,6 +1572,139 @@ function pluxeeFaturaTara_() {
     payload: JSON.stringify({ tip: 'finans', baslik: 'Haftalık yemek kartı faturası onay bekliyor',
       mesaj: 'Bu gece ' + PLUXEE_FATURA.SAAT + "'te Pluxee faturası (" + PLUXEE_FATURA.PLAN + ') kesilecek. Onay yoksa kesilmez. Panel › Finans › Pluxee haftalık fatura',
       zaman: Utilities.formatDate(new Date(), TZ, 'dd.MM.yyyy HH:mm') }) });
+}
+
+/* ---------------- Yemek kartları: iki taraflı kontrol (panel › Yemek Kartları) ----------------
+ * Son YK_KONTROL_GUN iş günü, kart kart:
+ *   Sipariş tarafı: Adisyo'da yemek kartıyla kapanan siparişler (online platform yemek kartı dahil) + kuryede hâlâ açık yemek kartı hesapları.
+ *   Çekim tarafı : BAP Yemek Kartı Tahsilatları (Pluxee, Edenred, Paye İşlemler, SetCard).
+ *   1) aynı tutar, zaman penceresinde → eşleşti
+ *   2) kalan sipariş için daha az tutarlı çekim → 'eksik' (parçalı ödeme olabilir: kalanı nakit / kredi kartı / başka kart)
+ *      ya da biraz fazla (en çok 100 TL) → 'fazla' (bahşiş ya da yanlış tutar)
+ *   3) eşleşmeyen sipariş → "çekimi yok", eşleşmeyen çekim → "siparişi yok"
+ * Online ödeme (SetCard 'Trendyol Pos') yalnız online siparişle, kapıda ödeme (Mobil Pos, kurye terminali) yalnız kapıda siparişle eşleşir.
+ * Çekim verisi henüz gelmemiş saatler "bekliyor" sayılır, açıkta gösterilmez. Hiçbir şey yazmaz.
+ */
+var YK_KONTROL_GUN = 7;
+function ykKartAd_(odeme) { var k = yemekKartAdi_(odeme); return k === 'Setcard' ? 'SetCard' : k; }
+
+function ykKontrol_() {
+  var bugun = isGunu_(simdi_()), bas = gunEkle_(bugun, -(YK_KONTROL_GUN - 1)), DK = 60000;
+  var ks = SpreadsheetApp.openById(KAYNAK.kurye.id), sip = [];
+  // 1) Adisyo: yemek kartıyla kapanan siparişler
+  var sv = siparisVerisi_(gunEkle_(bas, -1)), c = sv.c;
+  sv.rows.forEach(function (r) {
+    var ms = zaman_(r[c.tarih]); if (ms === null || isGunu_(ms) < bas || norm_(r[c.durum]) !== 'kapali' || c.odeme < 0) return;
+    var od = fisOdeme_(r[c.odeme], c.tahsil >= 0 ? r[c.tahsil] : ''); if (od !== 'yemek' && od !== 'onlineKart') return;
+    var online = od === 'onlineKart';
+    sip.push({ kart: ykKartAd_(r[c.odeme]), online: online, ms: ms, lo: ms - (online ? 15 : 30) * DK, hi: ms + (online ? 90 : 300) * DK,
+      tutar: sayi_(r[c.tutar]), id: String(c.id >= 0 ? r[c.id] : ''), kanal: String(c.kanal >= 0 ? r[c.kanal] : '').trim(), sube: String(c.sube >= 0 ? r[c.sube] : '').trim(), odeme: String(r[c.odeme] || '').trim(), kaynak: 'Adisyo' });
+  });
+  // 2) Kuryede hâlâ açık yemek kartı hesapları (Adisyo'da 'Açık Hesap' görünür; kart adı kurye sisteminde)
+  try {
+    acikListe_(ks, tahsilatlar_(ks), bugun, {}, null).liste.forEach(function (x) {
+      if (x.gun < bas || fisOdeme_(x.odeme, '') !== 'yemek') return;
+      var rf = kartRef_(x.gun, x.teslim, null), kart = ykKartAd_(x.odeme), ms = rf ? rf.ms : Date.parse(x.gun + 'T12:00:00Z');
+      // Adisyo'da aynı sipariş zaten kartla kapanmışsa ikinci kez sayılmaz
+      if (sip.some(function (o) { return o.kart === kart && Math.abs(o.tutar - x.tutar) < 0.5 && Math.abs(o.ms - ms) <= 120 * DK; })) return;
+      sip.push({ kart: kart, online: false, ms: ms, lo: rf ? ms - 120 * DK : null, hi: rf ? ms + 120 * DK : null, saatYok: !rf,
+        tutar: x.tutar, id: x.id, no: x.no, kurye: x.kurye, odeme: x.odeme, kaynak: 'Kurye açık hesap' });
+    });
+  } catch (err) { }
+
+  var oge = function (o) { return { zaman: o.saatYok ? kartTam_(o.ms).slice(0, 5) : kartTam_(o.ms), tutar: o.tutar, kaynak: o.kaynak, kanal: o.kanal || '', id: o.id || '', no: o.no || '',
+    kurye: o.kurye || '', odeme: o.odeme || '', online: !!o.online }; };
+  var cekOge = function (y) { return { zaman: y.tam, tutar: y.tutar, online: !!y.online, kurye: y.kurye || '', terminal: y.terminal || '' }; };
+  var out = { bas: bas, gun: YK_KONTROL_GUN, kartlar: [] }, okundu = {};
+
+  KART_KAYNAKLARI.forEach(function (kk) {
+    var veri; try { veri = (kk.tumu || kk.oku)(ks); } catch (err) { veri = { hata: String(err.message || err) }; }
+    var O = sip.filter(function (o) { return o.kart === kk.ad; }).sort(function (p, q) { return p.ms - q.ms; });
+    okundu[kk.ad] = 1;
+    var k = { ad: kk.ad, siparis: O.length, cekim: 0, eslesen: 0, bekleyen: 0, onlineAyri: 0, parcali: [], cekimsiz: [], siparissiz: [], son: null };
+    out.kartlar.push(k);
+    if (!veri) { k.hata = 'Çekim sekmesi yok ya da boş'; return; }
+    if (veri.hata) { k.hata = veri.hata; return; }
+    k.son = veri.son === null ? null : kartTam_(veri.son);
+    var onlineVar = veri.cekim.some(function (y) { return y.online; });
+    var C = veri.cekim.filter(function (y) { return isGunu_(y.ms) >= bas; }).map(function (y) { return { y: y, kul: false }; });
+    k.cekim = C.length;
+    var kapsar = function (o) { return veri.gunler ? !!veri.gunler[isGunu_(o.ms)] : (veri.son !== null && veri.son >= (o.hi || o.ms) ); };
+    var uyar = function (o, y) {
+      if (!!y.online !== !!o.online) return false;
+      if (o.saatYok || y.saatYok || o.lo === null) return isGunu_(y.ms) === isGunu_(o.ms);
+      return y.ms >= o.lo && y.ms <= o.hi;
+    };
+    var enYakin = function (o, f) { var b = null; C.forEach(function (x) { if (x.kul || !uyar(o, x.y) || !f(x.y)) return;
+      if (!b || Math.abs(x.y.ms - o.ms) < Math.abs(b.y.ms - o.ms)) b = x; }); return b; };
+    var kalan = [];
+    O.forEach(function (o) {
+      if (o.online && !onlineVar) { k.onlineAyri++; return; }   // bu kartın online ödemeleri terminal verisinde görünmüyor
+      var b = enYakin(o, function (y) { return Math.abs(y.tutar - o.tutar) < 0.5; });
+      if (b) { b.kul = true; k.eslesen++; return; }
+      kalan.push(o);
+    });
+    kalan.forEach(function (o) {
+      var b = enYakin(o, function (y) { return y.tutar < o.tutar - 0.5 || (y.tutar > o.tutar + 0.5 && y.tutar <= o.tutar + 100); });
+      if (b) { b.kul = true; var fark = Math.round((b.y.tutar - o.tutar) * 100) / 100;
+        k.parcali.push({ tip: fark < 0 ? 'eksik' : 'fazla', fark: fark, siparis: oge(o), cekim: cekOge(b.y) }); return; }
+      if (!kapsar(o)) { k.bekleyen++; return; }
+      k.cekimsiz.push(oge(o));
+    });
+    C.forEach(function (x) { if (!x.kul) k.siparissiz.push(cekOge(x.y)); });
+    k.cekimsiz = k.cekimsiz.slice(-60).reverse(); k.siparissiz = k.siparissiz.slice(-60).reverse(); k.parcali = k.parcali.slice(-60).reverse();
+  });
+  // Çekim verisi sisteme gelmeyen kartlar (Multinet, Metropol …): yalnız sipariş sayısı
+  var diger = {}; sip.forEach(function (o) { if (okundu[o.kart]) return; var d = diger[o.kart] = diger[o.kart] || { ad: o.kart, siparis: 0, tutar: 0 }; d.siparis++; d.tutar += o.tutar; });
+  out.verisiz = Object.keys(diger).map(function (x) { diger[x].tutar = Math.round(diger[x].tutar); return diger[x]; });
+  return out;
+}
+
+/* ---------------- SetCard faturası (panel › Yemek Kartları) ----------------
+ * 'SetCard Fatura' sekmesini BAP Yemek Kartı projesi saatte bir SetCard › Fatura Takibi'nden tazeler.
+ * Panelden: islem 'kes' → BAP Yemek Kartı web uygulaması keser (sitedeki "Fatura Kes" ile aynı);
+ *           islem 'mali' → sahibi KolayBi'de resmi faturayı kestiğini işaretler (fatura no isteğe bağlı).
+ */
+var YK_WEB = 'https://script.google.com/macros/s/AKfycbx9fcm_VBi6Ug-d1Uf9z-6Yao0AzIePIhasKN_Vv9A6yuBnqR4ZDPvSX_ho9JF-jC1OKA/exec';  // projeler.json › bap-yemek-karti
+var YK_ANAHTAR = '9da1e5281cabba3ab4e9ea49';   // BAP Yemek Kartı › Ortak.gs KOPRU_ANAHTAR
+
+function setcardFaturaSatirlari_(sh) {
+  var lc = sh.getLastColumn(), b = sh.getRange(1, 1, 1, lc).getDisplayValues()[0], l = [];
+  if (sh.getLastRow() > 1) sh.getRange(2, 1, sh.getLastRow() - 1, lc).getDisplayValues().forEach(function (r, i) {
+    var al = function (h) { var j = kolon_(b, [h]); return j >= 0 ? String(r[j] || '').trim() : ''; };
+    var no = al('Takip No').replace(/^'/, ''); if (!no) return;
+    l.push({ satir: i + 2, takipNo: no, tarih: al('Fatura Tarihi'), tutar: sayi_(al('Tutar (TL)')), durum: al('Durum'), odeme: al('Ödeme Tarihi'),
+      kontrol: al('Son Kontrol'), kesim: al('Kesim Zamanı'), mali: al('Mali Fatura'), maliZaman: al('Mali Fatura Zamanı') });
+  });
+  return { b: b, l: l };
+}
+function setcardFatura_() {
+  var sh = SpreadsheetApp.openById(KAYNAK.yemekKarti.id).getSheetByName('SetCard Fatura'); if (!sh) return null;
+  var l = setcardFaturaSatirlari_(sh).l.sort(function (p, q) { return String(q.tarih).localeCompare(String(p.tarih)) || (+q.takipNo) - (+p.takipNo); });
+  return { liste: l.slice(0, 12), kontrol: l.length ? l[0].kontrol : '' };
+}
+function setcardFaturaIslem_(d) {
+  var no = String(d.takipNo || '').replace(/\D/g, ''); if (!no) return { hata: 'Takip numarası yok.' };
+  var ss = SpreadsheetApp.openById(KAYNAK.yemekKarti.id), sh = ss.getSheetByName('SetCard Fatura'); if (!sh) return { hata: "'SetCard Fatura' sekmesi yok." };
+  var t = setcardFaturaSatirlari_(sh), x = t.l.filter(function (y) { return y.takipNo === no; })[0];
+  if (!x) return { hata: no + ' numaralı fatura listede yok; panel yenilensin.' };
+  if (d.islem === 'kes') {
+    if (!/kesilmedi/i.test(x.durum)) return { hata: 'Fatura "' + x.durum + '" durumunda; kesilemez.' };
+    // POST tekrar denenmez (çift kesim riski); cevap gelmezse panel "yenileyip kontrol et" der.
+    var r = UrlFetchApp.fetch(YK_WEB, { method: 'post', contentType: 'application/json', muteHttpExceptions: true, followRedirects: true,
+      payload: JSON.stringify({ anahtar: YK_ANAHTAR, tur: 'setcardFaturaKes', takipNo: no }) });
+    var j = null; try { j = JSON.parse(r.getContentText()); } catch (err) { }
+    if (!j) return { belirsiz: true, hata: 'BAP Yemek Kartı beklenmeyen cevap verdi; fatura kesilmiş olabilir. Paneli yenileyip kontrol et.' };
+    if (j.tamam) try { cevapKaydet_('Finans', 'BAP Yemek Kartı Tahsilatları › SetCard Fatura', x.satir, 'SetCard fatura ' + no + ' (' + x.tutar + ' TL)', 'Kesildi (panel)', Utilities.formatDate(new Date(), TZ, 'dd.MM.yyyy HH:mm')); } catch (err) { }
+    return j;
+  }
+  if (d.islem === 'mali') {
+    var j1 = kolon_(t.b, ['Mali Fatura']), j2 = kolon_(t.b, ['Mali Fatura Zamanı']); if (j1 < 0 || j2 < 0) return { hata: "'Mali Fatura' sütunu yok." };
+    var not = String(d.not || '').trim().slice(0, 60) || 'Kesildi';
+    sh.getRange(x.satir, j1 + 1).setValue(not); sh.getRange(x.satir, j2 + 1).setValue(Utilities.formatDate(new Date(), TZ, 'dd.MM.yyyy HH:mm'));
+    return { tamam: true, takipNo: no, mali: not };
+  }
+  return { hata: 'Geçersiz işlem.' };
 }
 
 function genel_() {
@@ -2779,7 +2916,7 @@ var KART_KAYNAKLARI = [
   { ad: 'Pluxee', odeme: /pluxee|sodexo/i, oku: function (ks) { return pluxeeCekimleri_(ks); } },
   { ad: 'Paye',   odeme: /paye/i,          oku: function (ks) { return payeCekimleri_(ks); } },
   { ad: 'Edenred', odeme: /edenred|^\s*ticket/i, oku: function (ks) { return edenredCekimleri_(ks); } },
-  { ad: 'SetCard', odeme: /set\s*card/i,  oku: function (ks) { return setcardCekimleri_(ks); } }
+  { ad: 'SetCard', odeme: /set\s*card/i,  oku: function (ks) { var v = setcardCekimleri_(ks); if (v && v.cekim && !v.hata) v.cekim = v.cekim.filter(function (y) { return !y.online; }); return v; }, tumu: function (ks) { return setcardCekimleri_(ks); } }
 ];
 function acikKanit_(ks, liste) {
   var ozet = {}; if (!liste.length) return ozet;
@@ -2926,12 +3063,14 @@ function edenredCekimleri_(ks) {
 // SetCard (kurye projesi SetCard.gs → YEMEKKARTI › SetCard). Yalnız harcamalar; iptal / iade satırları sayılmaz.
 function setcardCekimleri_(ks) {
   var e = kartSekmesi_(ks, 'SetCard', 6000); if (!e) return null;
-  var cz = kolon_(e.b, ['İşlem Zamanı']), ct = kolon_(e.b, ['Tutar (TL)']), cy = kolon_(e.b, ['İşlem Türü']), cekim = [], son = null;
+  var cz = kolon_(e.b, ['İşlem Zamanı']), ct = kolon_(e.b, ['Tutar (TL)']), cy = kolon_(e.b, ['İşlem Türü']), cter = kolon_(e.b, ['Terminal']), cku = kolon_(e.b, ['Cihaz / Kullanıcı']), cekim = [], son = null;
   if (cz < 0 || ct < 0) return { hata: "SetCard sekmesinde 'İşlem Zamanı' ya da 'Tutar (TL)' sütunu yok" };
   e.v.forEach(function (r) {
     if (cy >= 0 && /iptal|iade/.test(norm_(r[cy]))) return;
     var ms = zaman_(r[cz]), t = sayi_(r[ct]); if (ms === null || !(t > 0)) return;
-    var tam = kartTam_(ms); cekim.push({ ms: ms, tutar: t, zaman: tam.slice(6), tam: tam });
+    var ter = cter >= 0 ? String(r[cter] || '').trim() : '';
+    // 'Trendyol Pos' = Trendyol'da online ödenen SetCard; 'Mobil Pos' = kurye / dükkan terminali (kapıda)
+    var tam = kartTam_(ms); cekim.push({ ms: ms, tutar: t, zaman: tam.slice(6), tam: tam, online: /trendyol/i.test(ter), terminal: ter, kurye: cku >= 0 ? String(r[cku] || '').trim() : '' });
     if (son === null || ms > son) son = ms;
   });
   return { cekim: cekim, son: son };
@@ -3629,6 +3768,11 @@ function doPost(e) {
   }
   if (d.tur === 'musteri') {
     try { return json_(musteriDetay_(d)); } catch (err) { return json_({ hata: String(err.message || err) }); }
+  }
+  if (d.tur === 'setcardFatura') {
+    var ksf = LockService.getScriptLock(); ksf.waitLock(25000);
+    try { return json_(setcardFaturaIslem_(d)); } catch (err) { return json_({ hata: String(err.message || err) }); }
+    finally { ksf.releaseLock(); CacheService.getScriptCache().remove('panel_v1_n'); }
   }
   if (d.tur === 'pluxeeFatura') {
     var kpf = LockService.getScriptLock(); kpf.waitLock(20000);

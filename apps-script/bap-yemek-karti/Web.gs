@@ -24,6 +24,8 @@ function doPost(e) {
     if (g.tur === 'pluxee') return jsonYanit_(pluxeeYaz(g.satirlar || []));
     if (g.tur === 'edenred') return jsonYanit_(edenredYaz(g.satirlar || []));
     if (/^kod(Iste|Yaz|Oku|Sil|Durum)$/.test(String(g.tur))) return jsonYanit_(kodKutusu_(g));
+    // Panel › Yemek Kartları › SetCard faturası "Fatura Kes" (veri kapısı üzerinden; sahibinin düğmesiyle)
+    if (g.tur === 'setcardFaturaKes') return jsonYanit_(setcardFaturaKesTek_(g.takipNo));
     // pluxee.mjs'in eski türleri → ortak kod kutusu (kaynak 'pluxee').
     // pluxee.mjs girişten ÖNCE pluxeeKodSil der: "bundan sonra gelen kodu ver" anı odur. pluxeeKodIste yalnız haber verir.
     if (g.tur === 'pluxeeKodSil') return jsonYanit_(kodKutusu_({ tur: 'kodIste', kaynak: 'pluxee' }));
