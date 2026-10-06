@@ -74,7 +74,8 @@ function setcardCek(gunSayisi) {
         m(gs.replace('T', ' ').slice(0, 19)), damga]);
     });
     if (yeni.length) sh.getRange(sh.getLastRow() + 1, 1, yeni.length, SETCARD_BASLIK.length).setValues(yeni);
-    return { isyeri: isyeri.length, gelen: liste.length, eklenen: yeni.length };
+    var fatura = null; try { fatura = setcardFaturaTazele_(token); } catch (e) { fatura = 'HATA: ' + e.message; }
+    return { isyeri: isyeri.length, gelen: liste.length, eklenen: yeni.length, fatura: fatura };
   } finally { kilit.releaseLock(); }
 }
 
@@ -100,3 +101,44 @@ function setcardFatura_(kuru) {
   Logger.log((kuru ? 'KURU — ' : '') + JSON.stringify({ fatura: rapor, aylik: aylik }));
   return { kuru: kuru, fatura: rapor, aylik: aylik };
 }
+
+/* ---------------- 3) FATURA SEKMESİ (panel bunu okur) ----------------
+ * 'SetCard Fatura': Fatura Takibi'nin kopyası, takip numarasıyla güncellenir (satır silinmez).
+ * 'Kesim Zamanı' bu programın kestiği an, 'Mali Fatura' sahibinin KolayBi'de kestiği resmi fatura (panelden işaretlenir).
+ */
+var SETCARD_FATURA_SEKME = 'SetCard Fatura';
+var SETCARD_FATURA_BASLIK = ['Takip No', 'Fatura Tarihi', 'Tutar (TL)', 'Durum', 'Ödeme Tarihi', 'Son Kontrol', 'Kesim Zamanı', 'Mali Fatura', 'Mali Fatura Zamanı'];
+
+function setcardFaturaTazele_(token) {
+  token = token || setcardGiris_();
+  var liste = (setcardIstek_('Invoice/MPosGetInvoiceList', undefined, token) || {}).invoiceList || [];
+  var ss = ykTablo_(), sh = ss.getSheetByName(SETCARD_FATURA_SEKME);
+  if (!sh) { sh = ss.insertSheet(SETCARD_FATURA_SEKME); sh.getRange(1, 1, 1, SETCARD_FATURA_BASLIK.length).setValues([SETCARD_FATURA_BASLIK]).setFontWeight('bold'); sh.setFrozenRows(1); }
+  var b = sh.getRange(1, 1, 1, sh.getLastColumn()).getValues()[0].map(String), col = function (h) { return b.indexOf(h); };
+  var satir = {};
+  if (sh.getLastRow() > 1) sh.getRange(2, col('Takip No') + 1, sh.getLastRow() - 1, 1).getDisplayValues().forEach(function (r, i) { satir[String(r[0]).replace(/^'/, '')] = i + 2; });
+  var damga = Utilities.formatDate(new Date(), TZ, 'dd.MM.yyyy HH:mm'), gun = function (v) { v = String(v || ''); return /^0001|^$/.test(v) ? '' : "'" + v.slice(0, 10); };
+  liste.forEach(function (f) {
+    var no = String(f.faturaTakipNo || ''); if (!no) return;
+    var r = satir[no] || (satir[no] = sh.getLastRow() + 1);
+    var deger = { 'Takip No': "'" + no, 'Fatura Tarihi': gun(f.tarih), 'Tutar (TL)': Number(f.tutar) || 0, 'Durum': f.faturaDurumAciklama || '', 'Ödeme Tarihi': gun(f.paymentDate), 'Son Kontrol': damga };
+    Object.keys(deger).forEach(function (h) { if (col(h) >= 0) sh.getRange(r, col(h) + 1).setValue(deger[h]); });
+  });
+  return { fatura: liste.length };
+}
+
+// Panelden (veri kapısı → doPost tur 'setcardFaturaKes'): yalnız o takip numarası ve yalnız durumu "Fatura Kesilmedi" ise keser.
+function setcardFaturaKesTek_(takipNo) {
+  takipNo = String(takipNo || '').replace(/\D/g, ''); if (!takipNo) return { hata: 'Takip numarası yok.' };
+  var token = setcardGiris_();
+  var f = ((setcardIstek_('Invoice/MPosGetInvoiceList', undefined, token) || {}).invoiceList || []).filter(function (x) { return String(x.faturaTakipNo) === takipNo; })[0];
+  if (!f) return { hata: takipNo + ' numaralı fatura SetCard listesinde yok.' };
+  if (f.faturaDurumu !== 0) return { hata: 'Fatura "' + f.faturaDurumAciklama + '" durumunda; kesilemez.' };
+  setcardIstek_('Invoice/UpdateMPosInvoiceByTrackingNo', { InvoiceTrackingNo: Number(takipNo) }, token);
+  setcardFaturaTazele_(token);
+  var sh = ykTablo_().getSheetByName(SETCARD_FATURA_SEKME), b = sh.getRange(1, 1, 1, sh.getLastColumn()).getValues()[0].map(String);
+  var nos = sh.getRange(2, b.indexOf('Takip No') + 1, sh.getLastRow() - 1, 1).getDisplayValues().map(function (r) { return String(r[0]).replace(/^'/, ''); });
+  var i = nos.indexOf(takipNo); if (i >= 0) sh.getRange(i + 2, b.indexOf('Kesim Zamanı') + 1).setValue(Utilities.formatDate(new Date(), TZ, 'dd.MM.yyyy HH:mm'));
+  return { tamam: true, takipNo: takipNo, tutar: f.tutar };
+}
+

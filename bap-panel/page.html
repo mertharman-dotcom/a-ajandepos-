@@ -281,7 +281,7 @@ h1{font-size:34px;line-height:1.12;margin:0;font-weight:700;letter-spacing:-.015
 <script>
 (function(){
 "use strict";
-var BOLUMLER=[["merkez","Yönetim Merkezi"],["ozet","İşletme Özeti"],["fis","Günlük Fiş"],["satis","Satışlar"],["maliyet","Satış Maliyeti"],["finans","Finans"],["odeme","Toptancı Ödemeleri"],["alim","Alımlar & Giderler"],["stok","Ürün, Stok & Hazırlık"],["kurye","Kurye & Teslimat"],["personel","Personel"],["musteri","Müşteri İlişkileri"],["genel","Genel Bilgiler"],["kararlar","Kararlarım"],["panolar","Departman Panoları"],["ai","AI Ekibi"]];
+var BOLUMLER=[["merkez","Yönetim Merkezi"],["ozet","İşletme Özeti"],["fis","Günlük Fiş"],["satis","Satışlar"],["maliyet","Satış Maliyeti"],["finans","Finans"],["yemekkart","Yemek Kartları"],["odeme","Toptancı Ödemeleri"],["alim","Alımlar & Giderler"],["stok","Ürün, Stok & Hazırlık"],["kurye","Kurye & Teslimat"],["personel","Personel"],["musteri","Müşteri İlişkileri"],["genel","Genel Bilgiler"],["kararlar","Kararlarım"],["panolar","Departman Panoları"],["ai","AI Ekibi"]];
 var YETKI={L0:"Yalnız inceleme",L1:"Öneri ve taslak",L2:"Önceden izinli küçük işlem",L3:"Direktör yetkisinde",L4:"Senin onayın gerekiyor",L5:"Yapay zeka uygulayamaz"};
 var DURUM={COMPLETED:"Tamamlandı",WAITING_MERT:"Senin onayını bekliyor",WAITING_REVIEW:"İkinci kontrol bekliyor",ROUTED:"Sıraya alındı",IN_ANALYSIS:"Analizde",NEW:"Yeni",BLOCKED:"Durduruldu",ERROR_FINAL:"Hatayla kapandı",APPROVED:"Onaylandı",REJECTED:"Reddedildi",IN_IMPLEMENTATION:"Uygulanıyor",EXECUTED:"Uygulandı",VERIFYING:"Doğrulanıyor",VERIFIED:"Doğrulandı","BOŞ":"Durumu yazılmamış"};
 var VERI=null, AKTIF=(location.hash||"#merkez").slice(1), YUKLENIYOR=false;
@@ -383,6 +383,7 @@ function merkez(a){var bek=VERI.hub?VERI.hub.bekleyen:[];var sessiz=VERI.isKaydi
   var alt=bek.length?bek.length+" karar senden cevap bekliyor.":"Şu an senden cevap bekleyen karar yok.";if(sessiz)alt+=" "+sessiz+" departman son 24 saatte hiç kayıt yazmadı.";if(sorunlu)alt+=" "+sorunlu+" sistemde sorun görünüyor.";
   a.appendChild(ust("Bugün neye müdahale etmelisin?",alt));a.appendChild(nabizSeridi(null));var h=hatalarKutusu();if(h)a.appendChild(h);
   a.appendChild(satisRakamlari());
+  var yku=ykUyariKutusu(true);if(yku)a.appendChild(yku);
   var sol=el("div",null,[blok("Senden beklenen kararlar","Yapay zeka görev merkezinde senin onayını bekleyen işler. Departmanların Kokpit'teki soruları geçişten sonra buraya eklenecek.",bek.length?el("div",{class:"liste"},bek.slice(0,5).map(kararSatiri)):bos("Bekleyen karar yok.")),
     blok("Departmanlar ne yapıyor","Ortak iş kaydına yazılan satırlara göre. Hiç yazmayan departman ya çalışmıyor ya da kaydını yazamıyor.",departmanTablosu())]);
   var sag=el("div",null,[blok("Sistem nabzı",VERI.nabiz&&VERI.nabiz.sonKontrol?"Son kontrol: "+VERI.nabiz.sonKontrol:null,nabizListesi()),blok("Bugün kanallar","Kapanmış siparişlerin cirosu.",cubuklar(VERI.satis&&VERI.satis.kanalBugun))]);
@@ -836,6 +837,27 @@ function finansSayfa(a){var f=VERI.finans;a.appendChild(ust("Finans","Tedarikçi
       tablo([["Kalem"]].concat(ay.map(function(x){return [x,1];})),g.kalemler.filter(function(x){return x.degerler.slice(son).some(function(v){return v;});}).map(function(x){return [x.ad].concat(x.degerler.slice(son).map(function(v){return v?TL.format(Math.round(v)):"—";}));})
         .concat([[el("strong",{text:"Toplam"})].concat((g.toplam||[]).slice(son).map(function(v){return el("strong",{text:TL.format(Math.round(v||0))});}))]))));}
   if(f.sorular&&f.sorular.length)a.appendChild(blok("Finansın açık soruları","Cevabını buraya yaz ve gönder; soru satırına eklenir, Finans ekibi bir sonraki çalışmasında işler. Kapananlar gösterilmez.",el("div",{class:"liste"},f.sorular.map(soruSatiri))));}
+
+// Pluxee haftalık fatura: takvim + onay. Faturayı MacBook'taki Pluxee programı keser; panel yalnız onay verir.
+function pluxeeFaturaBlok(a){var P=VERI.pluxeeFatura;if(!P)return;var kap=el("div");
+  var DURUM_RENK=function(d){return /^kesildi/i.test(d)?"e-iyi":/onaylan/i.test(d)?"e-iyi":/kesilemedi/i.test(d)?"e-kotu":/kesilmeyecek/i.test(d)?"e-notr":"e-dikkat";};
+  function islem(g,isl,dug,durum){dug.setAttribute("disabled","");durum.textContent="Kaydediliyor…";durum.className="cevap-durum";
+    fetch("/api/pluxee-fatura",{method:"POST",credentials:"same-origin",headers:{"content-type":"application/json","x-bap-panel":"1"},body:JSON.stringify({gun:g.gun,islem:isl})})
+      .then(function(r){return r.json();}).then(function(r){if(r&&r.tamam){g.durum=r.durum;ciz();}else{durum.textContent=(r&&r.hata)||"Kaydedilemedi.";durum.className="cevap-durum kotu";dug.removeAttribute("disabled");}})
+      .catch(function(){durum.textContent="Bağlantı koptu; kayıt yazılmış olabilir. Paneli yenile.";durum.className="cevap-durum kotu";});}
+  function ciz(){kap.textContent="";
+    kap.appendChild(tablo([["Fatura günü"],["Durum"],["İşlem"]],P.takvim.map(function(g){var durum=el("span",{class:"cevap-durum"});
+      var dugmeler=/^kesil(di|emedi)/i.test(g.durum)?null:el("span",{style:"display:flex;gap:6px;flex-wrap:wrap"},[
+        !/onaylan/i.test(g.durum)?el("button",{type:"button",class:"dugme",style:"padding:4px 10px;font-size:13px",onclick:function(ev){islem(g,"onayla",ev.target,durum);}},["Onayla"]):null,
+        !/kesilmeyecek/i.test(g.durum)?el("button",{type:"button",class:"dugme",style:"padding:4px 10px;font-size:13px",onclick:function(ev){islem(g,"vazgec",ev.target,durum);}},["Bu sefer kesme"]):null,durum]);
+      return [gunAd(g.gun)+(g.gun===P.bugun?" (bugün)":"")+" · "+P.saat,el("span",{class:"etiket "+DURUM_RENK(g.durum),text:g.durum||(P.onayGerekir?"Onay bekliyor":"Otomatik kesilecek")}),dugmeler];})));
+    if(P.son.length)kap.appendChild(el("div",{style:"margin-top:14px"},[el("h4",{style:"margin:0 0 6px",text:"Son faturalar"}),
+      tablo([["Gün"],["Durum"],["Genel toplam",1],["KDV hariç",1],["Ödeme tarihi"],["KolayBi"],["Not"]],P.son.map(function(x){
+        return [gunAd(x.gun),el("span",{class:"etiket "+DURUM_RENK(x.durum),text:x.durum||"—"}),x.toplam?para(x.toplam):"—",x.kdvHaric?para(x.kdvHaric):"—",x.odeme||"—",x.kolaybi||"—",x.not||""];}))]));}
+  ciz();
+  a.appendChild(blok("Pluxee haftalık fatura","Her Cuma "+P.saat+" (ayın ilk 6 gününe denk gelen Cuma hariç) ve ayın son günü "+P.saat+". Plan: "+P.plan+". "+
+    (P.onayGerekir?"Onaylamadığın fatura kesilmez; fatura günü 21:00'de hâlâ onay yoksa WhatsApp'tan hatırlatılır. ":"Onay gerekmiyor, kendiliğinden kesilir. ")+
+    (P.kesenHazir?"Faturayı MacBook'taki Pluxee programı keser ve sonucu buraya yazar. ":"Faturayı kesen otomatik adım henüz hazır değil; şimdilik Pluxee'de sen kesiyorsun (hatırlatma da kapalı). ")+"Kestikten sonra 24 saat içinde KolayBi'den mali faturayı iletmeyi unutma.",kap));}
 
 function soruSatiri(s){var notEl=el("div",{class:"meta"},[s.etki?el("span",{text:"Etkisi: "+s.etki}):null,s.cevap?el("span",{text:"Not: "+s.cevap}):null]);
   var alan=el("textarea",{class:"cevap-alan",rows:"2",maxlength:"1500",placeholder:"Cevabını yaz…","aria-label":s.konu+" için cevap"});
@@ -1961,11 +1983,38 @@ function acikSirala(l){var t=function(a,b){return b.yas-a.yas||String(a.saat||""
   else if(ACIK_SIRA==="odeme")k.sort(function(a,b){return a.odeme.localeCompare(b.odeme,"tr")||t(a,b);});
   else if(ACIK_SIRA==="tutar")k.sort(function(a,b){return b.tutar-a.tutar||t(a,b);});else k.sort(t);return k;}
 
+function hesapDugmeleri(x,yenile){var st=HESAP_ISLEM[x.id];
+  if(!x.id)return el("span",{style:"color:var(--gri);font-size:13px",text:"sipariş no yok"});
+  if(st&&st.durum==="gidiyor")return el("span",{class:"cevap-durum",text:"Kaydediliyor…"});
+  if(st&&st.durum==="tamam")return el("span",{class:"etiket "+(st.islem==="kes"?"e-dikkat":"e-iyi"),text:"✓ "+st.mesaj});
+  return el("span",{style:"display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-start"},[
+    el("button",{type:"button",class:"dugme",style:"padding:4px 10px;font-size:13px",onclick:function(){hesapKapat(x,"tahsil",yenile);}},["Tahsil edildi"]),
+    el("button",{type:"button",class:"dugme",style:"padding:4px 10px;font-size:13px",title:"Tutarı Kesintiler sekmesine yazar, bordrodan düşülür",onclick:function(){hesapKapat(x,"kes",yenile);}},["Kuryeden kes"]),
+    st&&st.durum==="hata"?el("span",{class:"cevap-durum kotu",style:"flex-basis:100%",text:st.mesaj}):null]);}
+// Yemek kartı ajanı (Pluxee + Paye): emin olduklarını kendisi kapatır (kuru modda yalnız listeler), emin olmadıklarını burada sorar.
+function kartAjanBlok(a,A){var S=A.kartSoru||[],E=A.kartEmin||[],R=A.kartAjan;
+  if(!S.length&&!E.length&&!R)return;
+  var son=R?"Son çalışma "+R.zaman+(R.kuru?"":" · "+R.kapatilan+" hesap kapattı")+".":"Henüz çalışmadı (saatlik tetikleyiciyle çalışır).";
+  var kap=el("div");
+  function ciz(){kap.textContent="";
+    if(S.length)kap.appendChild(el("div",null,[el("h4",{style:"margin:0 0 6px",text:"Emin olamadıkları ("+S.length+") — sen karar ver"}),
+      tablo([["Tarih"],["Adisyon"],["Kurye"],["Kart"],["Tutar",1],["Çekim"],["Neden emin değil"],["Karar"]],S.map(function(x){
+        return [gunAd(x.gun)+(x.teslim?" "+x.teslim:""),adisyonLink(x),x.kurye,x.kartKaynak,para(x.tutar),x.kartCekim?x.kartCekim.zaman+" · "+para(x.kartCekim.tutar):"—",
+          el("span",{style:"font-size:13px",text:x.kartNeden}),hesapDugmeleri(x,ciz)];}))]));
+    if(E.length)kap.appendChild(el("div",{style:"margin-top:14px"},[el("h4",{style:"margin:0 0 6px",text:(A.kartKuru?"Emin oldukları — açılınca kendisi kapatacak (":"Emin oldukları — bir sonraki çalışmada kapatacak (")+E.length+")"}),
+      tablo([["Tarih"],["Adisyon"],["Kurye"],["Kart"],["Tutar",1],["Çekim"],["Dayanak"]],E.map(function(x){
+        return [gunAd(x.gun)+(x.teslim?" "+x.teslim:""),adisyonLink(x),x.kurye,x.kartKaynak,para(x.tutar),x.kartCekim.zaman,el("span",{style:"font-size:13px",text:x.kartNeden})];}))]));
+    if(!S.length&&!E.length)kap.appendChild(bos("Şu an sorulacak ya da kapatılacak yemek kartı hesabı yok."));}
+  ciz();
+  a.appendChild(blok("Kurye açık hesap ajanı (Pluxee, Paye, Edenred, SetCard)",(A.kartKuru?"DENEME MODUNDA: hiçbir şeyi kapatmıyor, yalnız ne yapacağını gösteriyor. ‘Emin oldukları’ listesi doğruysa söyle, açalım. ":
+    "Saatte bir çalışır. ")+"Emin olmak için: kartta tam olarak bir çekim aynı tutarda, teslimden en fazla 90 dk uzakta ve o çekime uyan başka sipariş yok. Biri tutmazsa kapatmaz, aşağıda sana sorar. Paye gün sonu raporu ertesi gece geldiği için Paye hesapları bir gün sonra kapanır. "+son,kap));}
+
 function kuryeAcik(a,K){var A=K.acik;
   a.appendChild(el("div",{class:"rakamlar"},[rakam("Dünden eski açık",para(A.eski.toplam),A.eski.adet+" kayıt",A.eski.adet?"asagi":""),rakam("Bir aydan eski",String(A.eski.ayUstu),A.eski.ayUstu?"tahsil edilmedi ya da işaretlenmedi":null,A.eski.ayUstu?"asagi":""),
     rakam("Bugün açık",para(A.bugun.toplam),A.bugun.adet+" kayıt; gün kapanmadan normal"),rakam("Hariç tutulan",para(A.haric.toplam),A.haric.adet+" ‘Ödenmez’ sipariş (işletme/personel)"),
     A.adisyoOdendi?rakam("Adisyo'da ödenmiş",para(A.adisyoOdendi.toplam),A.adisyoOdendi.adet+" kayıt açık listeden çıkarıldı",A.adisyoOdendi.adet?"yukari":""):null]));
   if(A.kanitHata)a.appendChild(el("div",{class:"uyari"},[el("b",{text:"Adisyo / Pluxee kontrolü yapılamadı"}),el("div",{text:A.kanitHata})]));
+  if((A.kartSoru||[]).length||(A.kartEmin||[]).length)a.appendChild(el("div",{class:"uyari"},[el("b",{text:"Yemek kartı ajanı: "+(A.kartSoru||[]).length+" hesap senin kararını bekliyor"}),el("div",null,["Yemek Kartları sayfasında: ",el("a",{href:"#yemekkart",text:"aç"})])]));
   var kap=el("div");
   function tabloCiz(){kap.textContent="";
     kap.appendChild(el("div",{class:"hafta-sec"},[el("span",{style:"font-size:13.5px;color:var(--gri)",text:"Sırala:"}),el("div",{class:"sekmeler",style:"margin:0"},ACIK_SIRALAR.map(function(s2){return el("button",{type:"button","aria-pressed":ACIK_SIRA===s2[0]?"true":"false",onclick:function(){ACIK_SIRA=s2[0];tabloCiz();}},[s2[1]]);}))]));
@@ -1974,15 +2023,9 @@ function kuryeAcik(a,K){var A=K.acik;
       kap.appendChild(el("div",{class:"sekmeler",style:"margin:0 0 10px"},Object.keys(gt).sort(function(p,q){return gt[q].tutar-gt[p].tutar;}).map(function(k){return el("span",{class:"etiket e-notr",style:"font-size:13px;padding:4px 10px"},[k+": "+gt[k].adet+" kayıt, "+para(gt[k].tutar)]);})));}
     kap.appendChild(liste.length?tablo([["Tarih"],["Saat"],["Adisyon"],["Kurye"],["Ödeme"],["Tutar",1],["Durum"],["Kanıt"],["Kapat"]],liste.map(function(x){
       var yas=x.yas<=0?el("span",{class:"etiket e-notr",text:"bugün"}):el("span",{class:"etiket "+(x.yas>30?"e-kotu":x.yas>3?"e-dikkat":"e-notr"),text:x.yas+" gün"});
-      var st=HESAP_ISLEM[x.id],islemHucre;
-      if(!x.id)islemHucre=el("span",{style:"color:var(--gri);font-size:13px",text:"sipariş no yok"});
-      else if(st&&st.durum==="gidiyor")islemHucre=el("span",{class:"cevap-durum",text:"Kaydediliyor…"});
-      else if(st&&st.durum==="tamam")islemHucre=el("span",{class:"etiket "+(st.islem==="kes"?"e-dikkat":"e-iyi"),text:"✓ "+st.mesaj});
-      else islemHucre=el("span",{style:"display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-start"},[
-        el("button",{type:"button",class:"dugme",style:"padding:4px 10px;font-size:13px",onclick:function(){hesapKapat(x,"tahsil",tabloCiz);}},["Tahsil edildi"]),
-        el("button",{type:"button",class:"dugme",style:"padding:4px 10px;font-size:13px",title:"Tutarı Kesintiler sekmesine yazar, bordrodan düşülür",onclick:function(){hesapKapat(x,"kes",tabloCiz);}},["Kuryeden kes"]),
-        st&&st.durum==="hata"?el("span",{class:"cevap-durum kotu",style:"flex-basis:100%",text:st.mesaj}):null]);
-      var kanit=x.pluxee?el("span",{class:"etiket e-iyi",title:"Pluxee sekmesinde aynı tutarda çekim var; fişle karşılaştırıp ‘Tahsil edildi’ de",text:"Pluxee çekimi "+x.pluxee}):
+      var islemHucre=hesapDugmeleri(x,tabloCiz);
+      var kanit=x.kartKarar==="emin"?el("span",{class:"etiket e-iyi",title:"Ajan emin: "+x.kartNeden,text:x.kartKaynak+" çekimi "+x.kartZaman+" · ajan emin"}):
+        x.kartKarar==="soru"?el("span",{class:"etiket e-dikkat",title:x.kartNeden,text:x.kartZaman?x.kartKaynak+" "+x.kartZaman+" · sor":x.kartKaynak+" çekimi yok"}):
         (x.adisyo==="acik"?el("span",{class:"etiket e-notr",title:"Adisyo'da bu siparişin ‘Ödeme Alındı’ hücresi FALSE",text:"Adisyo'da açık"}):
         el("span",{style:"color:var(--gri);font-size:13px",title:x.adisyo==="eski"?"Adisyo verisi bu tarihe kadar gitmiyor":"Adisyo'da eşleşen sipariş bulunamadı",text:x.adisyo==="eski"?"Adisyo'da eski":"Adisyo'da yok"}));
       return [el("span",null,[gunAd(x.gun)+" ",yas]),x.saat||"—",adisyonLink(x),x.kurye,x.odeme,para(x.tutar),x.durum,kanit,islemHucre];})):bos("Açık hesap yok."));}
@@ -2000,7 +2043,9 @@ function kuryeAcik(a,K){var A=K.acik;
   var AO=A.adisyoOdendi;
   if(AO&&AO.adet)a.appendChild(blok("Adisyo'da ödenmiş görünenler ("+AO.adet+")","Kurye tablosu bunları hâlâ açık yazıyor ama kasada Adisyo'ya ‘Ödeme Alındı’ işlenmiş; bu yüzden yukarıdaki listeye ve toplamlara girmez. Kurye sistemi bir sonraki güncellemede kendisi de kapatmalı.",
     tablo([["Tarih"],["Adisyon"],["Kurye"],["Ödeme"],["Tutar",1]],AO.liste.map(function(x){return [gunAd(x.gun),String(x.no||""),x.kurye,x.odeme,para(x.tutar)];}))));
-  if(A.pluxee)a.appendChild(el("p",{class:"aciklama",style:"color:var(--gri);font-size:13px;margin:-14px 0 22px",text:"Pluxee çekim verisi en son "+A.pluxee.son.slice(8,10)+"."+A.pluxee.son.slice(5,7)+" "+A.pluxee.son.slice(11)+" tarihine kadar var; sonraki Pluxee siparişleri için kanıt aranamaz."}));
+  var KV=A.kart||{};Object.keys(KV).forEach(function(k){var v=KV[k];
+    if(v.hata){a.appendChild(el("div",{class:"uyari"},[el("b",{text:k+" çekimleri okunamadı"}),el("div",{text:v.hata})]));return;}
+    if(v.son)a.appendChild(el("p",{class:"aciklama",style:"color:var(--gri);font-size:13px;margin:-14px 0 22px",text:k+" çekim verisi en son "+v.son.slice(8,10)+"."+v.son.slice(5,7)+" "+v.son.slice(11)+" tarihine kadar var; sonraki "+k+" siparişleri için kanıt aranamaz."}));});
   var BH=A.bahsis;
   if(BH&&BH.adet)a.appendChild(blok("Bahşişler","Açık hesap kapatılırken girilen bahşişler; hesap tutarına eklenmez, Tahsilatlar › Bahşiş (TL) sütununda ayrı durur. Bu hafta: "+tarihTr(BH.haftaBasi)+"'den bugüne.",
     el("div",null,[el("div",{class:"rakamlar dortlu",style:"margin:0 0 12px"},[rakam("Bu hafta",para(BH.hafta)),rakam("Son 30 gün",para(BH.otuz),BH.adet+" siparişte")]),
@@ -2165,7 +2210,70 @@ function musteriYorum(a,M){var link=(kaynaklar("musteri")[0]||{}).link;
     var td=x.trendyol==="APPROVED"?["yayında","e-iyi"]:x.trendyol==="REJECTED"?["reddedildi"+(x.ret?": "+x.ret:""),"e-kotu"]:/^HATA/.test(x.durum)?["gönderilemedi","e-kotu"]:["Trendyol onayında","e-notr"];
     return [saatTr(x.gonderim),magKisa(x.magaza),puanYaz(x.puan,1),el("span",{title:x.cevap,text:x.cevap.length>90?x.cevap.slice(0,90)+"…":x.cevap}),el("span",{class:"etiket "+td[1],title:x.durum,text:td[0]})];})):bos("Henüz gönderilen cevap yok.")));}
 
-/* ---------------- Yemek kartı mutabakatı (Finans) ----------------
+/* ---------------- Yemek Kartları ----------------
+ Tek yerde: faturalar (SetCard Fatura Kes + KolayBi mali fatura uyarısı, Pluxee haftalık fatura), iki taraflı kontrol
+ (sipariş ↔ kart çekimi, açıkta kalanlar), kurye açık hesap ajanı ve gün gün mutabakat. */
+var YK_SEKME="";
+function ykUyarilar(){var u=[],F=VERI&&VERI.setcardFatura,K=VERI&&VERI.ykKontrol;
+  if(F&&F.liste)F.liste.forEach(function(x){
+    if(/kesilmedi/i.test(x.durum)&&x.tutar>0)u.push({s:"e-dikkat",m:"SetCard: "+para(x.tutar)+" kesilmemiş fatura (takip "+x.takipNo+"). İstersen Yemek Kartları › SetCard faturası › Fatura Kes."});
+    else if(/^fatura kesildi/i.test(x.durum)&&!x.mali)u.push({s:"e-kotu",m:"SetCard: "+para(x.tutar)+" fatura kesildi"+(x.kesim?" ("+x.kesim+")":"")+". KolayBi'de mali faturayı kesip SetCard'a gönder, sonra burada ‘Mali faturayı kestim’ de."});});
+  if(K&&K.kartlar)K.kartlar.forEach(function(k){var n=k.cekimsiz.length+k.siparissiz.length+k.parcali.length;if(n)u.push({s:"e-notr",m:k.ad+": "+n+" açıkta kalan ödeme ("+k.cekimsiz.length+" çekimsiz sipariş, "+k.siparissiz.length+" siparişsiz çekim, "+k.parcali.length+" farklı tutar)."});});
+  return u;}
+function ykUyariKutusu(link){var u=ykUyarilar();if(!u.length)return null;
+  return el("div",{class:"uyari"},[el("b",{text:"Yemek kartları"}),el("ul",{style:"margin:6px 0 0;padding-left:18px"},u.map(function(x){return el("li",null,[el("span",{class:"etiket "+x.s,style:"margin-right:6px",text:x.s==="e-kotu"?"yap":x.s==="e-dikkat"?"karar":"bak"}),x.m]);})),
+    link?el("div",{style:"margin-top:6px"},[el("a",{href:"#yemekkart",text:"Yemek Kartları sayfasını aç"})]):null]);}
+
+function ykSayfa(a){a.appendChild(ust("Yemek kartları","Pluxee, Edenred, Paye, SetCard: faturalar, siparişlerle karşılaştırma ve kurye açık hesapları. Kaynak: BAP Yemek Kartı Tahsilatları tablosu."));
+  a.appendChild(nabizSeridi("yemekkart"));var h=hatalarKutusu(["ykKontrol","setcardFatura","pluxeeFatura","yemekKarti"]);if(h)a.appendChild(h);
+  var u=ykUyariKutusu(false);if(u)a.appendChild(u);
+  setcardFaturaBlok(a);
+  ykKontrolBlok(a);
+  if(VERI.kurye&&VERI.kurye.acik)kartAjanBlok(a,VERI.kurye.acik);
+  pluxeeFaturaBlok(a);
+  ykMutabakat(a);}
+
+function setcardFaturaBlok(a){var F=VERI.setcardFatura;if(!F)return;var kap=el("div");
+  var RENK=function(d){return /kesilmedi/i.test(d)?"e-dikkat":/^fatura kesildi/i.test(d)?"e-kotu":/ödeme|odeme/i.test(d)?"e-iyi":"e-notr";};
+  function gonder(x,islem,dug,durum,not){dug.setAttribute("disabled","");durum.textContent=islem==="kes"?"SetCard'da kesiliyor…":"Kaydediliyor…";durum.className="cevap-durum";
+    fetch("/api/setcard-fatura",{method:"POST",credentials:"same-origin",headers:{"content-type":"application/json","x-bap-panel":"1"},body:JSON.stringify({takipNo:x.takipNo,islem:islem,not:not||""})})
+      .then(function(r){return r.json();}).then(function(r){if(r&&r.tamam){if(islem==="kes"){x.durum="Fatura Kesildi";x.kesim="şimdi";}else{x.mali=r.mali;x.maliZaman="şimdi";}ciz();}
+        else{durum.textContent=(r&&r.hata)||"Yapılamadı.";durum.className="cevap-durum kotu";if(!(r&&r.belirsiz))dug.removeAttribute("disabled");}})
+      .catch(function(){durum.textContent="Bağlantı koptu; işlem yapılmış olabilir. Paneli yenile.";durum.className="cevap-durum kotu";});}
+  function ciz(){kap.textContent="";
+    kap.appendChild(F.liste.length?tablo([["Takip no"],["Fatura tarihi"],["Tutar",1],["SetCard durumu"],["Ödeme tarihi"],["Mali fatura (KolayBi)"],["İşlem"]],F.liste.map(function(x){var durum=el("span",{class:"cevap-durum"}),is=null;
+      if(/kesilmedi/i.test(x.durum)&&x.tutar>0)is=el("span",{style:"display:flex;gap:6px;flex-wrap:wrap"},[el("button",{type:"button",class:"dugme",style:"padding:4px 10px;font-size:13px",onclick:function(ev){
+        if(!confirm("SetCard'da "+para(x.tutar)+" tutarındaki fatura kesilsin mi? (takip "+x.takipNo+")\nSonra KolayBi'den mali faturayı kesip SetCard'a göndermen gerekir."))return;gonder(x,"kes",ev.target,durum);}},["Fatura Kes"]),durum]);
+      else if(/^fatura kesildi/i.test(x.durum)&&!x.mali)is=el("span",{style:"display:flex;gap:6px;flex-wrap:wrap"},[el("button",{type:"button",class:"dugme",style:"padding:4px 10px;font-size:13px",onclick:function(ev){
+        var no=prompt("KolayBi fatura numarası (bilmiyorsan boş bırak):","");if(no===null)return;gonder(x,"mali",ev.target,durum,no||"Kesildi");}},["Mali faturayı kestim"]),durum]);
+      return [x.takipNo,x.tarih||"—",para(x.tutar),el("span",{class:"etiket "+RENK(x.durum),text:x.durum||"—"}),x.odeme||"—",x.mali?(x.mali+(x.maliZaman?" · "+x.maliZaman:"")):(/ödeme|odeme/i.test(x.durum)?"—":"bekliyor"),is];})):bos("SetCard faturası yok."));}
+  ciz();
+  a.appendChild(blok("SetCard faturası","SetCard › Fatura Takibi saatte bir buraya gelir"+(F.kontrol?" (son kontrol "+F.kontrol+")":"")+". ‘Fatura Kes’ sitedeki düğmeyle aynı işi yapar. Kesilen fatura için KolayBi'den mali faturayı kesip SetCard'a göndermen gerekir; gönderince ‘Mali faturayı kestim’ de. KolayBi bağlanınca bu adımı da ben yapacağım.",kap));}
+
+function ykKontrolBlok(a){var K=VERI.ykKontrol;if(!K)return;
+  var kartlar=K.kartlar||[];if(!kartlar.length)return;
+  if(!YK_SEKME||!kartlar.some(function(k){return k.ad===YK_SEKME;})){var ilk=kartlar.filter(function(k){return k.cekimsiz.length+k.siparissiz.length+k.parcali.length;})[0]||kartlar[0];YK_SEKME=ilk.ad;}
+  a.appendChild(el("div",{class:"rakamlar"},kartlar.map(function(k){var acik=k.cekimsiz.length+k.siparissiz.length+k.parcali.length;
+    return rakam(k.ad,k.hata?"veri yok":k.eslesen+" / "+k.siparis,k.hata?k.hata:(acik?acik+" açıkta kalan":"açık yok")+(k.bekleyen?" · "+k.bekleyen+" bekliyor":""),k.hata?"":acik?"asagi":"yukari");})));
+  var kap=el("div");
+  function ciz(){kap.textContent="";var k=kartlar.filter(function(x){return x.ad===YK_SEKME;})[0];
+    kap.appendChild(el("div",{class:"sekmeler",style:"margin:0 0 10px"},kartlar.map(function(x){var n=x.cekimsiz.length+x.siparissiz.length+x.parcali.length;
+      return el("button",{type:"button","aria-pressed":x.ad===YK_SEKME?"true":"false",onclick:function(){YK_SEKME=x.ad;ciz();}},[x.ad+(n?" ("+n+")":"")]);})));
+    if(k.hata){kap.appendChild(bos(k.ad+": "+k.hata));return;}
+    kap.appendChild(el("p",{class:"aciklama",text:k.siparis+" sipariş, "+k.cekim+" çekim; "+k.eslesen+" eşleşti."+(k.bekleyen?" "+k.bekleyen+" siparişin çekim verisi henüz gelmedi.":"")+(k.onlineAyri?" "+k.onlineAyri+" online ödeme bu kartın terminal verisinde görünmediği için karşılaştırılmadı.":"")+(k.son?" Son çekim: "+k.son+".":"")}));
+    var sip=function(o){return [o.zaman,para(o.tutar),o.online?"online":"kapıda",o.kaynak+(o.kanal?" · "+o.kanal:"")+(o.kurye?" · "+o.kurye:""),o.no||o.id||"—"];};
+    var cek=function(y){return [y.zaman,para(y.tutar),y.online?"online":"kapıda",(y.terminal||"")+(y.kurye?" · "+y.kurye:"")||"—"];};
+    kap.appendChild(el("h4",{style:"margin:6px 0",text:"Siparişte kart seçilmiş, çekimi yok ("+k.cekimsiz.length+")"}));
+    kap.appendChild(k.cekimsiz.length?tablo([["Zaman"],["Tutar",1],["Ödeme"],["Kaynak"],["Sipariş"]],k.cekimsiz.map(sip)):bos("Yok."));
+    kap.appendChild(el("h4",{style:"margin:14px 0 6px",text:"Çekim var, siparişi yok ("+k.siparissiz.length+")"}));
+    kap.appendChild(k.siparissiz.length?tablo([["Zaman"],["Tutar",1],["Ödeme"],["Terminal / kurye"]],k.siparissiz.map(cek)):bos("Yok."));
+    kap.appendChild(el("h4",{style:"margin:14px 0 6px",text:"Tutar farklı — parçalı ödeme ya da bahşiş olabilir ("+k.parcali.length+")"}));
+    kap.appendChild(k.parcali.length?tablo([["Sipariş"],["Sipariş tutarı",1],["Çekim"],["Çekim tutarı",1],["Fark",1],["Ne olabilir"]],k.parcali.map(function(p){
+      return [p.siparis.zaman+" · "+(p.siparis.no||p.siparis.id||p.siparis.kaynak),para(p.siparis.tutar),p.cekim.zaman+(p.cekim.kurye?" · "+p.cekim.kurye:""),para(p.cekim.tutar),
+        el("span",{class:"etiket "+(p.tip==="eksik"?"e-dikkat":"e-notr"),text:(p.fark>0?"+":"")+para(p.fark)}),p.tip==="eksik"?"Kalan "+para(-p.fark)+" nakit / kredi kartı / başka kartla ödenmiş olabilir":"Bahşiş ya da yanlış tutar"];})):bos("Yok."));}
+  ciz();
+  a.appendChild(blok("İki taraflı kontrol — son "+K.gun+" gün","Siparişte yemek kartı seçilenler ile kart çekimleri karşılaştırılır. Online ödeme (SetCard ‘Trendyol Pos’) online siparişle, kapıda ödeme (Mobil Pos, kurye terminali) kapıda siparişle eşleşir. Aynı tutar eşleşir; tutar farklıysa ‘parçalı’ diye gösterilir, açıkta sayılmaz. Hiçbir şeyi kapatmaz."+((K.verisiz||[]).length?" Çekim verisi gelmeyen kartlar: "+K.verisiz.map(function(v){return v.ad+" ("+v.siparis+" sipariş, "+para(v.tutar)+")";}).join(", ")+".":""),kap));}
+/* ---------------- Yemek kartı mutabakatı (Yemek Kartları) ----------------
  Adisyo'da POS'tan geçen yemek kartı satışı (online platform yemek kartı hariç) ile terminal gün sonu çekimi, iş günü bazında.
  Terminal verisi: BAP Yemek Kartı Tahsilatları (Pluxee, Edenred: işlem zamanı; Paye: gün sonu raporu). */
 var YK_KARTLAR=["Pluxee","Edenred","Paye","Multinet","Setcard","Metropol","Tokenflex","Diğer"],YK_TERMINAL={Pluxee:1,Edenred:1,Paye:1};
@@ -2187,7 +2295,8 @@ function ykMutabakat(a){var S=VERI.satis,Y=VERI.yemekKarti;if(!S||!S.yemekKartSa
     tablo([["Gün"]].concat(kartlar.map(function(k){return [k+(YK_TERMINAL[k]?" (terminal / Adisyo)":""),1];})),satir.concat([topSatir]))));}
 function gunEkleTr(g,k){return new Date(Date.parse(g+"T00:00:00Z")+k*86400000).toISOString().slice(0,10);}
 var CIZ={genel:genelSayfa,merkez:merkez,ozet:ozet,fis:fisSayfa,satis:satis,maliyet:maliyetSayfa,kararlar:kararlar,panolar:panolarSayfa,ai:ai,
-  finans:function(a){finansSayfa(a);ykMutabakat(a);},
+  finans:finansSayfa,
+  yemekkart:ykSayfa,
   odeme:toptanciOdemeSayfa,
   alim:alimSayfa,
   stok:kaynakBolumu("stok","Ürün, stok ve hazırlık","Stok seviyeleri, reçetesiz satışlar ve menü buraya gelecek."),

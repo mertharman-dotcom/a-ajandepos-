@@ -204,7 +204,7 @@ vardiya/açık hesap tazelemesi sırasıyla dolar. Gün yazılınca işaret kalk
   Açıklama, Giren, Kayıt Zamanı. Verilen tarafta kesinti, o saatten önce/sonra fiilen çevrimiçi geçen süredir; gerekçede
   kimin neye göre düzelttiği ve otomatik hesap yazar, Durum "Düzeltildi" olur. Düzeltme yoksa otomatik hesap geçerli.
 - Son paketin restorandan çıkış saati / km yoksa kapanışta son teslim esas alınır (eskiden hiç kesilmiyordu).
-- Erken giriş kesintisi çevrimdışı araları artık kesmiyor; Kesinti İstisnaları açıklaması başlığından okunuyor.
+- Erken giriş kesintisi çevrimdışı araları artık kesmiyor. (2.2, 05.10: "Kesinti İstisnaları" kaldırıldı; gün düzeltmesi "Mesai Düzeltme" ile.)
 
 Panel › Kurye › Kesintiler: **Kontrol edilecek mesailer** (son 3 hafta; son paketten sonra 15 dk'dan fazla boşta kalınıp
 kesilmeyen günler — vardiyasız ya da vardiyasından erken çıkan kurye — ve 45 dk üstü kapanış). "Son pakette kapat",
