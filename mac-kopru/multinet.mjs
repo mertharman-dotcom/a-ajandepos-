@@ -113,6 +113,25 @@ async function api(page, yol, govde, { yedekKullan = false } = {}) {
   throw new Error(`${yol}: HTTP ${r.kod} ${r.metin.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').slice(0, 150)}`);
 }
 
+// Sitenin KENDİ isteği: sayfa açılırken site bu isteği zaten atıyor; yolda yalnız gövdesi değiştirilir (ör. tarih aralığı).
+// Güvenlik duvarı bizim attığımız istekleri reddediyor, sitenin kendi isteklerini geçiriyor (07.10).
+async function siteIstegi(page, yol, adres, degistir) {
+  const desen = KOK + '/api/' + yol;
+  await page.route(desen, async route => {
+    let b = {}; try { b = JSON.parse(route.request().postData() || '{}'); } catch (_) {}
+    await route.continue({ postData: JSON.stringify(degistir(b)) });
+  });
+  try {
+    const bekleyen = page.waitForResponse(r => r.url().startsWith(desen) && r.request().method() === 'POST', { timeout: 60000 });
+    await page.goto(KOK + adres, { waitUntil: 'networkidle' });
+    const r = await bekleyen.catch(() => null);
+    if (!r) throw new Error(`${yol}: ${adres} sayfası bu isteği atmadı`);
+    const t = await r.text(); let j = null; try { j = JSON.parse(t); } catch (_) {}
+    if (!j) throw new Error(`${yol}: ${t.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').slice(0, 150)}`);
+    return sonuc_(yol, j);
+  } finally { await page.unroute(desen).catch(() => {}); }
+}
+
 async function girisYap(page) {
   if (!MN.vkn || !MN.telefon) throw new Error('ayar.json: multinet.vkn / multinet.telefon yok');
   await page.goto(KOK + '/auth/login', { waitUntil: 'networkidle' });
@@ -167,11 +186,12 @@ async function girisYap(page) {
     const FZ = process.argv.includes('--fatura-zamanli');
     if (FZ || process.argv.includes('--fatura-kuru') || process.argv.includes('--fatura-kes')) {
       const vade = Number(MN.vade || 3), kes = process.argv.includes('--fatura-kes') || (FZ && MN.otoFatura === true);
-      const ozet = (await api(page, 'invoices/getMerchantInvoiceSummary', { merchantId: sube.Id }).catch(() => []) || [])[0] || {};
+      await page.goto(KOK + '/invoices', { waitUntil: 'networkidle' });   // site özet ve vade listesini kendisi çeker
+      const ozet = (await api(page, 'invoices/getMerchantInvoiceSummary', { merchantId: sube.Id }, { yedekKullan: true }).catch(() => []) || [])[0] || {};
       const tutar = kurus(ozet.Total), adet = ozet.Quantity || 0;
       log(`faturalanacak: ${tutar} TL (${adet} işlem, ${ozet.MerchantProductDescription || '?'})`);
       if (YAZMA) await yk({ tur: 'multinetBekleyen', bekleyen: { tutar, adet, urun: ozet.MerchantProductDescription || '' } }).catch(() => {});
-      const donem = await api(page, 'invoices/getPaymentPeriodList', { merchantId: sube.Id }) || [];
+      const donem = await api(page, 'invoices/getPaymentPeriodList', { merchantId: sube.Id }, { yedekKullan: true }).catch(() => []) || [];
       log('vade seçenekleri: ' + donem.map(d => `${d.ProductDescription} ${d.DueDay} gün %${(d.Commission || 0) / 100}${d.IsInvoiceable ? '' : ' (kesilemez)'}`).join(' | '));
       let sonuc = { kuru: !kes, kesildi: false, tutar, vade: vade + ' gün', mesaj: kes ? '' : 'otomatik kesim kapalı (ayar.json › multinet.otoFatura)' };
       if (kes) {
@@ -182,8 +202,8 @@ async function girisYap(page) {
       if (YAZMA && (kes || FZ)) log('kayıt: ' + JSON.stringify(await yk({ tur: 'faturaKesim', kart: 'Multinet', sonuc })));
       if (!FZ) return;
     }
-    const ham = await api(page, 'transactions/getMerchantTransactionDetailSummaries',
-      { customerId: OT.customerId, merchantId: sube.Id, terminalIds: [], transactionDateRange: `${ymd(bas)}-${ymd(bit)}` }) || [];
+    const ham = await siteIstegi(page, 'transactions/getMerchantTransactionDetailSummaries', '/transactions',
+      b => ({ ...b, transactionDateRange: `${ymd(bas)}-${ymd(bit)}` })) || [];
     const iptal = new Set(ham.filter(x => kurus(x.Amount) < 0).map(x => String(x.ExternalServerRefNo || '')));
     const satirlar = ham.filter(x => kurus(x.Amount) > 0).map(x => ({
       zaman: zaman(x.TransactionCreateDate || x.Timestamp), tutar: kurus(x.Amount), ref: String(x.ServerRefNo || ''),
@@ -194,8 +214,8 @@ async function girisYap(page) {
     fs.writeFileSync(CIKTI, b.join(',') + '\n' + satirlar.map(x => b.map(h => k(x[h])).join(',')).join('\n') + '\n', 'utf8');
 
     const d90 = new Date(Date.now() - 90 * 86400000);
-    const fat = (await api(page, 'invoices/getMerchantDebitInvoiceSummaries', { customerBranchId: String(sube.Id), invoiceDateRange: `${ymd(d90)}-${ymd(new Date())}`,
-      validityDateRange: null, isGettingAccountActivityNoList: true, isGettingSlipNoList: true }) || []).map(f => ({
+    const fat = (await siteIstegi(page, 'invoices/getMerchantDebitInvoiceSummaries', '/invoices',
+      b => ({ ...b, invoiceDateRange: `${ymd(d90)}-${ymd(new Date())}` })) || []).map(f => ({
       no: f.InvoiceSeriNumber || '', tutar: kurus(f.InvoiceTotal), tarih: zaman(f.PreInvoiceDate), vade: zaman(f.ValidityDate),
       durum: f.InvoiceDebitPaymentTypeText || '', odeme: ((String(f.InvoiceStatusSubDescription || '').match(/\*\*(\d{1,2}\.\d{1,2}\.\d{4})\*\* tarihinde/) || [])[1]) || '',
       urun: f.ProductName || '' }));
