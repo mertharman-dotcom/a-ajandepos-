@@ -1,0 +1,21 @@
+{
+  "_aciklama": "TEST ortamı kimlikleri. Canlı kimlikler derlemede bunlara çevrilir; denetim başka kimlik bırakmaz. Projeler ilk kurulumda iş akışınca doldurulur.",
+  "test": {
+    "stok": "1xt38fjUwhkpRxMq7cNh0CK2rRQzvYHkcAsXe23k1tag",
+    "satis": "1jiYwHBbyABaZgBqZJN_0njoAoIlm9uCqYS1_PgscXSc",
+    "fatura": "1Z1h3F-fmaI5e34z7SX5sanHtyMoWk9OAIXdFj3bL32k",
+    "klasor": "1gfSihyC2uaiFZ0CAhy3UJZhD5kEI95CF"
+  },
+  "canli": {
+    "stok": "1Ec-xcTvh6D2DfxDwueSzQtguT3HR5VaSNOTWpqYPwhE",
+    "satis": "1gdn_rbaevKx9_-pNTRKL1DDtytFxZHr9QF-jrS4cHPE",
+    "fatura": "1JJ6UZzh8rSX1FE9Cr-UPzEAaE-2aKtM10bEvjAv2P5w",
+    "genelBilgiler": "1rcOUvokeb0VG3mm72-IKV1-bk0WugEcNSvDaHz41pP8",
+    "calisan": "1WBniOC2h9SvD20bHZl3G4o0f4kUmjbXtIrNvYVyV8Hg",
+    "panelDagitim": "AKfycbzczj4XzNQTIJu5NadZTDl6btT-7pOIOV3XNj4ZlsGxYJn7xlW0ks_f7AV-dx3vTi6X"
+  },
+  "projeler": {
+    "stok": { "scriptId": "", "deploymentId": "" },
+    "panel": { "scriptId": "", "deploymentId": "" }
+  }
+}

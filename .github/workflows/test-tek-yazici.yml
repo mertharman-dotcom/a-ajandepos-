@@ -1,0 +1,81 @@
+# TEST ORTAMI (canlı değil): tek yazıcı + stok kuyruğu denemesi.
+# İki AYRI test Apps Script projesi kurar/günceller ("BAP TEST Stok Tek Yazıcı", "BAP TEST Panel Tek Yazıcı") ve
+# test ön yüzünü Cloudflare Pages'te ÖNİZLEME dalına (test-tek-yazici.bap-sistem.pages.dev) koyar.
+# Canlı projelere, canlı dağıtımlara ve bap-sistem.pages.dev'in kendisine dokunmaz. Derleme denetimi geçmezse hiçbir şey yayınlanmaz.
+name: TEST — Tek Yazıcı Ortamı
+
+on:
+  workflow_dispatch:
+    inputs:
+      panel:
+        description: "Test paneline hangi kod gitsin: oneri (tek yazıcı) | eski (bugünkü canlı kod — geri dönüş denemesi)"
+        required: true
+        default: oneri
+
+permissions:
+  contents: write
+
+concurrency: { group: test-tek-yazici, cancel-in-progress: false }
+
+jobs:
+  kur:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 20 }
+      - name: Yerel testler
+        run: |
+          TZ=Europe/Istanbul node test/tek-yazici/yerel/kuyruk-test.js
+          node test/tek-yazici/yerel/eszamanli.js yeni | tail -3
+      - name: Derle ve denetle (ilk geçiş)
+        run: node test/tek-yazici/build.mjs --panel=${{ github.event.inputs.panel }}
+      - name: Sözdizimi
+        run: for f in test/tek-yazici/dist/stok/*.gs test/tek-yazici/dist/panel/*.gs; do node -e "new Function(require('fs').readFileSync(process.argv[1],'utf8'))" "$f" || exit 1; done
+      - name: clasp kur ve oturum aç
+        env: { CLASPRC_JSON: "${{ secrets.CLASPRC_JSON }}" }
+        run: |
+          test -n "$CLASPRC_JSON" || { echo "::error::CLASPRC_JSON yok"; exit 1; }
+          npm i -g @google/clasp@2.4.2
+          printf '%s' "$CLASPRC_JSON" > ~/.clasprc.json
+      - name: Test projelerini kur / güncelle
+        run: |
+          set -e
+          K=test/tek-yazici/test-kimlikleri.json
+          for p in stok panel; do
+            id=$(jq -r ".projeler.$p.scriptId" $K); dep=$(jq -r ".projeler.$p.deploymentId" $K)
+            baslik=$([ $p = stok ] && echo "BAP TEST Stok Tek Yazıcı (canlı değil)" || echo "BAP TEST Panel Tek Yazıcı (canlı değil)")
+            # Güvenlik: canlı projelerden biriyse dur
+            if jq -e --arg id "$id" '.projeler[] | select(.scriptId==$id)' apps-script/projeler.json >/dev/null; then echo "::error::$p test kimliği CANLI bir proje!"; exit 1; fi
+            if [ -z "$id" ]; then
+              tmp=$(mktemp -d); ( cd "$tmp" && clasp create --type standalone --title "$baslik" >/dev/null )
+              id=$(jq -r .scriptId "$tmp/.clasp.json"); rm -rf "$tmp"
+              echo "::notice::$p test projesi oluşturuldu: https://script.google.com/d/$id/edit"
+              jq --arg id "$id" ".projeler.$p.scriptId=\$id" $K > $K.tmp && mv $K.tmp $K
+            fi
+            ( cd test/tek-yazici/dist/$p
+              printf '{"scriptId":"%s","rootDir":"."}' "$id" > .clasp.json
+              clasp push -f
+              if [ -z "$dep" ]; then
+                dep=$(clasp deploy -d "test ${GITHUB_SHA::7}" | grep -oE 'AKfyc[A-Za-z0-9_-]+' | head -1)
+              else
+                clasp deploy -i "$dep" -d "test ${GITHUB_SHA::7}" >/dev/null
+              fi
+              echo "$dep" > /tmp/dep_$p )
+            dep=$(cat /tmp/dep_$p)
+            jq --arg d "$dep" ".projeler.$p.deploymentId=\$d" $K > $K.tmp && mv $K.tmp $K
+            echo "::notice::$p web adresi: https://script.google.com/macros/s/$dep/exec"
+          done
+          cat $K | jq .projeler
+      - name: Ön yüzü test panel adresiyle yeniden derle ve denetle
+        run: node test/tek-yazici/build.mjs --panel=${{ github.event.inputs.panel }} > /dev/null && cat test/tek-yazici/dist/denetim.txt | tail -3
+      - name: Test ön yüzü → Pages önizleme dalı (canlı adres değişmez)
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: npx -y wrangler@3 pages deploy test/tek-yazici/dist/on-yuz --project-name bap-sistem --branch test-tek-yazici --commit-dirty=true
+      - name: Test kimliklerini depoya yaz
+        run: |
+          git config user.name "github-actions"; git config user.email "actions@github.com"
+          git add test/tek-yazici/test-kimlikleri.json
+          git diff --cached --quiet || { git commit -m "TEST ortamı kimlikleri (iş akışı)"; git push; }
