@@ -142,7 +142,7 @@ Tablolarda yapılan her değişikliğin eski ve yeni değeri **STOK › Fiyat_Du
 | YS3 | Gmail'e yönlendirilen Yemeksepeti maillerinden "indirilmeyi bekleyen rapor" listesi + dosya bırakılmamışsa hatırlatma | ☐ ilk yönlendirilen mail görülünce (gönderen / konu biçimi bilinmiyor) |
 | YS4 | Panelde Yemeksepeti: görüntülenme → menü → sipariş hunisi, komisyon (ödeme ↔ brüt satış), puan, yeni/eski müşteri, iptal, çevrimdışı süre, hazırlık süresi, online/nakit | ◐ 07.10 örnek pano (artifact) sahibe gösterildi; panele taşınacak |
 | YS6 | 04.10'da 4 mağaza aynı anda 96 dk çevrimdışı (neden OTHER) — tablet / internet / Adisyo bağlantısı? Günlük 15 dk'yı geçince uyarı | ☐ |
-| YS5 | Tam otomatik çekim (MacBook köprüsüyle partner paneline giriş, Pluxee/Metropol gibi) — klasöre elle bırakma gerekmez | ☐ sahip isterse |
+| YS5 | Tam otomatik çekim: MacBook köprüsü (`yemeksepeti.mjs`, gerçek Chrome, oturum profilde kalır) partner panelinden raporu indirir, Google Drive masaüstü uygulamasıyla 'Yemeksepeti Raporları' klasörüne kaydeder. Giriş: e-posta + şifre + **e-postaya gelen kod**; tek giriş 4 mağazayı görüyor. Kod **sahip tarafından girilir** (oturum düşünce panel uyarır) — kodu Gmail'den okuyup herkese açık web adresinden veren tasarım güvenlik nedeniyle bırakıldı (07.10) | ☐ bekleyen: Mac'te Drive uygulaması var mı, rapor oluşturucu ekranının görüntüsü |
 
 ## P · Paneller
 
