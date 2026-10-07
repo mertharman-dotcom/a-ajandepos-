@@ -133,6 +133,16 @@ Tablolarda yapılan her değişikliğin eski ve yeni değeri **STOK › Fiyat_Du
 | YK4 | Taşınan Pluxee zamanları tarih olarak saklanıyor; sütun 'dd.MM.yyyy HH:mm' biçimine alındı, açık hesap kontrolü tarih değerini de okur | ◐ sahip `pluxeeSekmeKur` çalıştıracak |
 | YK5 | Paye 'Cihaz Sicil Numarası' telefon numarasına benziyor → kurye eşlemesi yapılırsa Paye farkı kurye bazında görülebilir | ☐ |
 
+## YS · Yemeksepeti raporları
+
+| | İş | Durum |
+|---|---|---|
+| YS1 | Yemeksepeti raporları spama düşmüyordu: Hotmail/Outlook adresine geliyordu, Gmail'de hiç yoktu. Mailde dosya değil partner paneline link var; panel girişi istediği için betik linki açamaz | ◐ 07.10 sahip Outlook → Gmail yönlendirmesi kuracak |
+| YS2 | `apps-script/yemeksepeti-veri`: Drive › "Yemeksepeti Raporları" klasörüne bırakılan CSV'leri türünü başlıklardan tanıyıp YS_Odemeler / YS_Menu_Satis / YS_Puanlar / YS_Performans'a yazar, dosyayı "İşlendi"ye taşır; tekrarı yazmaz, değişeni günceller. Sahibin 5 örnek dosyasıyla yerelde denendi | ◐ 07.10 yazıldı. Sahip: script.google.com'da boş proje → kimlik; sonra çekim + yayın, `ysKurulum`, `ysKuru`, onay, `ysYaz`, `ysTetikleyiciKur` |
+| YS3 | Gmail'e yönlendirilen Yemeksepeti maillerinden "indirilmeyi bekleyen rapor" listesi + dosya bırakılmamışsa hatırlatma | ☐ ilk yönlendirilen mail görülünce (gönderen / konu biçimi bilinmiyor) |
+| YS4 | Panelde Yemeksepeti: komisyon (ödeme ↔ brüt satış), puan, yeni/eski müşteri, iptal, online/nakit grafikleri | ☐ birkaç günlük veri birikince |
+| YS5 | Tam otomatik çekim (MacBook köprüsüyle partner paneline giriş, Pluxee/Metropol gibi) — klasöre elle bırakma gerekmez | ☐ sahip isterse |
+
 ## P · Paneller
 
 | | Sorun | Durum |
