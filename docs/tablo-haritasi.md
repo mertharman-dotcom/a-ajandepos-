@@ -17,7 +17,7 @@
 | Klasör | İçinde | Kim dokunur |
 |---|---|---|
 | `BAP/1 Ana Veriler` | Stok Takip, GENEL BİLGİLER, AI HUB, İş Kaydı, Panel Cevapları, Günlük Fiş, Müşteri Veritabanı, Platform Hakediş, Tedarikçi Fiyat Kıyaslama, Yemek Kartı Mutabakat, Kesinti & Fiyat Motoru | Sen + sistem |
-| `BAP/2 Otomatik Gelen Veri` | Adisyo Sipariş Datası, BAP veri tablosu, Kolaybi Fatura Ham Veri, Kurye Net Çalışma Süresi, Trendyol Yorumlar, Günlük Satış ve İndirim Raporu (elle değiştirilmez) | Sadece sistem |
+| `BAP/2 Otomatik Gelen Veri` | Adisyo Sipariş Datası, BAP veri tablosu, Kolaybi Fatura Ham Veri, Kurye Net Çalışma Süresi, Trendyol Yorumlar, BAP Yemek Kartı Tahsilatları, Günlük Satış ve İndirim Raporu (elle değiştirilmez) | Sadece sistem |
 | `BAP/9 Arşiv ve Yedekler` | `BAP Önemli Günlük Yedekleme` (hizliYedek), `BAP Yedek — Kurye Tablosu` (her gece kurye yedeği, 30 gün saklanır), 10 "Başlıksız e-tablo" | Kimse |
 | `Departmanlar/…` (kökte kalır) | Ajanların çalışma dosyaları, departman başına klasör. Hazırlık ve Reçete ajanı bu yolu kökten adıyla aradığı için **taşınmaz** | Ajanlar |
 

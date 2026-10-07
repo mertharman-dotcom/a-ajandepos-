@@ -240,38 +240,6 @@ function _panelVeri(o) {
   };
 }
 
-/* ==================== KESINTI ISTISNASI EKLE ==================== */
-/**
- * Panelden cagrilir: bir gun-kurye kesintisini "isletme sahibi yok saydi"
- * olarak isaretler. Kural katmani bir sonraki calismada sifirlar.
- */
-function istisnaEkle(tarih, kurye, aciklama) {
-  try {
-    var ss = SpreadsheetApp.openById(WEB_SS_ID);
-    var sh = ss.getSheetByName('Kesinti İstisnaları');
-    if (!sh) {
-      sh = ss.insertSheet('Kesinti İstisnaları');
-      sh.getRange(1, 1, 1, 3).setValues([['Tarih', 'Kurye', 'Açıklama']])
-        .setBackground('#0c343d').setFontColor('#ffffff').setFontWeight('bold');
-      sh.getRange(1, 1, sh.getMaxRows(), 1).setNumberFormat('@');
-      sh.setFrozenRows(1);
-    }
-    // zaten varsa tekrar ekleme
-    if (sh.getLastRow() > 1) {
-      var v = sh.getRange(2, 1, sh.getLastRow() - 1, 2).getDisplayValues();
-      for (var i = 0; i < v.length; i++) {
-        if (String(v[i][0]).trim() === tarih && String(v[i][1]).trim() === kurye) {
-          return { ok: true, mesaj: 'Zaten çıkarılmış.' };
-        }
-      }
-    }
-    sh.appendRow([tarih, kurye, aciklama || 'Panelden çıkarıldı']);
-    return { ok: true, mesaj: tarih + ' · ' + kurye + ' çıkarıldı.' };
-  } catch (e) {
-    return { ok: false, mesaj: String(e && e.message ? e.message : e) };
-  }
-}
-
 /* ==================== TARIH ARALIGI ==================== */
 function _wAralik(o) {
   var bugun = _wGunBasi(new Date());

@@ -1,6 +1,6 @@
 /**
  * Pluxee.gs — v2.1 (04.10.2026)
- * 1) Gün sonu hareketlerini "Pluxee" sekmesine yazar (rrn ile mükerrer ayıklama).
+ * 1) Gün sonu hareketlerini "BAP Yemek Kartı Tahsilatları" › "Pluxee" sekmesine yazar (rrn ile mükerrer ayıklama).
  *    v2.1: 7. sütun "Terminal No". Eski satırlarda boşsa sonraki çekimlerde doldurulur.
  * 2) Yedek kod sayfası (?pluxee=1&k=...). Asıl kullanılan link: PluxeeKodSayfa (?sayfa=pluxee).
  */
@@ -15,7 +15,7 @@ var PLUXEE_SAYFA_ANAHTAR = 'DU0HVwX0K-xgyCjnudnUYOeB';
 /* ======================= 1) GÜN SONU VERİSİ ======================= */
 
 function _pluxeeSekme() {
-  var ss = SpreadsheetApp.openById(PLUXEE_SS_ID);
+  var ss = ykTablo_();   // 05.10.2026: çekimler "BAP Yemek Kartı Tahsilatları"nda (Yemek Karti.gs); kod kutusu kurye tablosunda kaldı
   var sh = ss.getSheetByName(PLUXEE_SEKME);
   if (!sh) {
     sh = ss.insertSheet(PLUXEE_SEKME);
@@ -32,6 +32,8 @@ function _pluxeeSekme() {
       .setFontWeight('bold').setBackground('#1f3864').setFontColor('#ffffff');
   }
   sh.getRange(2, 7, Math.max(1, sh.getMaxRows() - 1), 1).setNumberFormat('@');
+  // 05.10.2026: yeni tabloda zaman tarih olarak saklanıyor; saat görünsün (panel açık hesap kontrolü saatle eşler)
+  sh.getRange(2, 1, Math.max(1, sh.getMaxRows() - 1), 1).setNumberFormat('dd.MM.yyyy HH:mm');
   return sh;
 }
 
