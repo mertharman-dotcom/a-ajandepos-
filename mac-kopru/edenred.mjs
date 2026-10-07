@@ -74,7 +74,11 @@ async function girisYap(page) {
   await page.locator('#onetrust-reject-all-handler').click({ timeout: 3000 }).catch(() => {});
   // Sayfa (04.10.2026): VKN = input[name=vkn]; telefon = #phoneNumber (maskeli, "(5__) ___ __ __"),
   // gönderilen değer gizli input[name=phoneNumber]; "Beni hatırla" = #remindMe; düğme "GİRİŞ YAP".
-  await page.locator('input[name="vkn"]').first().fill(ED.vkn);
+  // Sitede görünmez reCAPTCHA (puanlı) var: 08.10 "ReCaptcha Doğrulama Başarısız" verdi. Sayfada biraz durup fareyi gezdirmek,
+  // alanları insan gibi yazmak puanı yükseltir (Chrome da "otomatik test" izi olmadan açılıyor).
+  await bekle(2500 + Math.random() * 2000);
+  for (let i = 0; i < 6; i++) { await page.mouse.move(200 + Math.random() * 700, 200 + Math.random() * 500, { steps: 12 }); await bekle(250 + Math.random() * 400); }
+  const vkn = page.locator('input[name="vkn"]').first(); await vkn.click(); await vkn.fill(''); await vkn.pressSequentially(ED.vkn, { delay: 90 });
   const tel = page.locator('#phoneNumber').first();
   await tel.click(); await tel.fill(''); await tel.pressSequentially(ED.telefon, { delay: 60 });
   await page.evaluate(t => { document.querySelectorAll('input[type="hidden"][name="phoneNumber"]').forEach(i => { i.value = t; }); }, ED.telefon);
@@ -83,7 +87,10 @@ async function girisYap(page) {
   if (!TERMINAL) { const r = await kopru({ tur: 'kodIste', kaynak: 'edenred' }); if (r.hata) throw new Error('kod kutusu: ' + r.hata); }
   if (await dugme.count()) await dugme.click().catch(() => {});
   else log('giriş düğmesi bulunamadı — açılan Chrome penceresinde elle bas');
-  await page.waitForURL(/\/login\/confirm/, { timeout: 120000 });   // elle basılırsa da yakalar
+  await page.waitForURL(/\/login\/confirm/, { timeout: 120000 }).catch(async e => {   // elle basılırsa da yakalar
+    if (await page.getByText(/ReCaptcha Doğrulama Başarısız/i).count()) throw new Error('Edenred robot doğrulamasını geçemedi (ReCaptcha) — Chrome penceresinde bilgileri girip GİRİŞ YAP\'a elle basabilirsin');
+    throw e;
+  });
   log('Edenred SMS gönderildi');
 
   const kod = TERMINAL ? await terminaldenSor() : await kodBekle();
@@ -156,7 +163,7 @@ async function islemler(page, sube, terminal, bas, bit) {
     if (t.length === 2) { [bas, bit] = t.map(x => x.replace(/\./g, '/')); }
     else { const b = new Date(), g = new Date(); g.setDate(g.getDate() - GERI_GUN); bas = tarih(g, '/'); bit = tarih(b, '/'); }
 
-    tarayici = await chromium.launchPersistentContext(PROFIL, { executablePath: CHROME, headless: false, locale: 'tr-TR', viewport: { width: 1280, height: 900 } });
+    tarayici = await chromium.launchPersistentContext(PROFIL, { executablePath: CHROME, headless: false, ignoreDefaultArgs: ['--enable-automation', '--no-sandbox'], args: ['--disable-blink-features=AutomationControlled'], locale: 'tr-TR', viewport: { width: 1280, height: 900 } });
     const page = tarayici.pages()[0] || await tarayici.newPage();
     if (await oturumAcik(page)) log('oturum zaten açık'); else await girisYap(page);
 
