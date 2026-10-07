@@ -15,7 +15,13 @@
     "panelDagitim": "AKfycbzczj4XzNQTIJu5NadZTDl6btT-7pOIOV3XNj4ZlsGxYJn7xlW0ks_f7AV-dx3vTi6X"
   },
   "projeler": {
-    "stok": { "scriptId": "", "deploymentId": "" },
-    "panel": { "scriptId": "", "deploymentId": "" }
+    "stok": {
+      "scriptId": "12E-p0WvpIl5y1yguZtSf42rDLCTmGYVeTtIowSQkwyophCBKZnv6ZyJX",
+      "deploymentId": "AKfycbwQM-9WurQD3aU_jJ_zMY1biR5EnZwUEflicsdmlasvtHysVTKfyz5O2dLPca83t-0SnQ"
+    },
+    "panel": {
+      "scriptId": "1CGt7O8tFk_IKw4JyFUkjRTY68r45tQw0oz9wo-ti9sAZJr47D8kjZ3DI",
+      "deploymentId": "AKfycbyQueFaQRk-52K8wHWsqnAJ8FBJIPQQqTROnYkD6sdeiInEULT9IGiA6X5T29dSeXLR"
+    }
   }
 }
