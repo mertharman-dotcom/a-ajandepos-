@@ -177,6 +177,11 @@ Tablolarda yapılan her değişikliğin eski ve yeni değeri **STOK › Fiyat_Du
 | P36 | Toplayıcı (`Toplayıcı.gs:441`) Ödenmez siparişlere tahsil tipi 'Yemek Kartı' yazıyor | Plan G6 | ☐ |
 | P37 | Personel yemeği yalnız Müşteri Adı 'Personel Yemek' ile ayırt ediliyor (385 Ödenmez'in 145'i); 'hatalı teslimat' hiç yok. Ekstralar (2.106 satır) ana ürüne bağlı değil, müşteri notları hiç toplanmıyor | Plan Faz 2: Adisyo sebep kodu (K7), Toplayıcı'nın not + ekstra bağını alması | ☐ |
 | P38 | Sube_Stok konumları: Merkez 121 satır (içecek stoku hayali, ambalaj sayılmalı), #N/A 33 satır (hepsi 0), 4 'Ü' tipli çift satır | Plan K5: kanıta dayalı eşleştirme, #N/A pasif, silme yok | ☐ |
+| P39 | Olası çift tedarikçi siparişi: 11 sipariş (114 satır) aynı kişi, aynı tedarikçi, aynı ürünlerle 10 dk içinde ikinci kez kaydedilmiş (ör. SP261005151139/151225) | G4 tablosunda işaretli; sahibi kontrol edecek, silme yok | ☐ |
+| P40 | Satış dosyası › Dashboard › Ciro, KAPALI olan bütün siparişleri topluyor; Ödenmez siparişlerin menü tutarı da ciroya giriyor (2026'da 1,21 milyon ₺) | G6 tablosu; formül düzeltmesi önerisi | ☐ |
+| P41 | Satış Motoru Stok_Hareketleri'ne düşümü işlenme saatiyle yazıyor (sipariş saatiyle değil); paket siparişi teslimattan sonra kapandığı için sayımdan önce hazırlanan sipariş sayımın üstünden ikinci kez düşülebilir | Tek yazıcı kuyruğu sayımı sipariş saatine göre uygular (test/tek-yazici) | ☐ |
+| P42 | Alış Motoru Sube_Stok'u hücre hücre yazıyor (setValue); yarıda kesilirse iz bırakmadan yarım stok kalabilir | Tek yazıcı geçişinden sonra toplu yazıma çevrilecek | ☐ |
+| P43 | Veritabanında stok bakiyesi hareket toplanarak okunursa bütün tablo taranıyor (8.000 harekette 12.000 okuma); bakiye tablosu gerekli | Faz 1 şemasına eklenecek | ☐ |
 | P-KILIT | Veri kapısı: panel kaydı 'Zeitüberschreitung … Exklusivbearbeitung' (kilit 20 sn'de alınamadı) hatası veriyordu; panel bunu "kayıt yazılmış olabilir" diye gösteriyordu | Kayıtlar sık sık düşüyor, sahip yazılıp yazılmadığını bilemiyor | ◐ 06.10 doPost kilidi 28 sn `tryLock`, alınamazsa açık "YAZILMADI, tekrar deneyin" cevabı; saatlik işler (puantaj taraması, kart ajanı kuru çalışma, kurye boşları) okumayı kilit dışında yapıyor, gereksizse kilit almıyor · ☐ yayın |
 
 ## Y · Yapı
