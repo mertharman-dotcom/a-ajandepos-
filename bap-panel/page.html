@@ -808,9 +808,31 @@ function urunTablosu(a,D){
   var sec=el("select",{class:"cevap-alan",style:"max-width:240px","aria-label":"Kategori"},[el("option",{value:"",text:"Bütün kategoriler"})].concat(kats.map(function(x){return el("option",{value:x,text:x});})));sec.value=TUK.kat;
   sec.addEventListener("change",function(){TUK.kat=sec.value;ciz();});
   a.appendChild(el("div",{class:"hafta-sec"},[sec]));
-  var sat=D.urunler.filter(function(u){return !TUK.kat||(u.kategori||"Kategorisiz")===TUK.kat;}).map(function(u){var o=[0,0,0];Object.keys(u.subeler).forEach(function(s){if(TUK.sube==="Tümü"||s===TUK.sube){var z=u.subeler[s];o[0]+=z[0];o[1]+=z[1];o[2]+=z[2];}});return {u:u,adet:o[0],ciro:o[1],maliyet:o[2]};})
-    .filter(function(r){return r.adet>0;}).sort(function(x,y){return y.adet-x.adet;});
-  a.appendChild(blok("Satılan ürünler","Seçili tarihlerde ve şubede; maliyet reçete + paket siparişlerde ambalaj.",sat.length?tablo([["Ürün"],["Kategori"],["Adet",1],["Ciro",1],["Maliyet",1],["Maliyet oranı",1]],sat.map(function(r){return [r.u.ad,r.u.kategori||"—",TL.format(r.adet),para(r.ciro),para(r.maliyet),r.ciro?yuzde(r.maliyet,r.ciro):"—"];})):bos("Bu tarihlerde satış yok.")));}
+  // Reçetesi bulunamayan satışlar: maliyetlerinde yalnız ambalaj var, oranları yanıltıcı düşük görünür.
+  var recetesiz={};(D.eslesmeyen||[]).forEach(function(e){recetesiz[normAd(e.ad)]=1;});
+  var sat=D.urunler.filter(function(u){return !TUK.kat||(u.kategori||"Kategorisiz")===TUK.kat;}).map(function(u){var o=[0,0,0];Object.keys(u.subeler).forEach(function(s){if(TUK.sube==="Tümü"||s===TUK.sube){var z=u.subeler[s];o[0]+=z[0];o[1]+=z[1];o[2]+=z[2];}});return {u:u,kat:u.kategori||"Kategorisiz",adet:o[0],ciro:o[1],maliyet:o[2],eksik:!!recetesiz[normAd(u.ad)]};})
+    .filter(function(r){return r.adet>0;});
+  if(!sat.length){a.appendChild(blok("Satılan ürünler",null,bos("Bu tarihlerde satış yok.")));return;}
+  var adetBasi=function(t,n){return n?para(t/n):"—";};
+  var top={adet:0,ciro:0,maliyet:0,eksikCiro:0},kt={};
+  sat.forEach(function(r){top.adet+=r.adet;top.ciro+=r.ciro;top.maliyet+=r.maliyet;if(r.eksik)top.eksikCiro+=r.ciro;
+    var k=kt[r.kat]=kt[r.kat]||{kat:r.kat,adet:0,ciro:0,maliyet:0,urun:0};k.adet+=r.adet;k.ciro+=r.ciro;k.maliyet+=r.maliyet;k.urun++;});
+  // Özet: satılan ürünlerin cirosu ve maliyeti (içecek dahil; seçili kategori ve şube)
+  a.appendChild(el("div",{class:"rakamlar"},[
+    rakam("Satılan ürün cirosu",para(top.ciro),TL.format(top.adet)+" adet · "+sat.length+" ürün"),
+    rakam("Satılan ürün maliyeti",para(top.maliyet),"reçete + paket ambalajı"),
+    rakam("Maliyet oranı",yuzde(top.maliyet,top.ciro),top.eksikCiro?para(top.eksikCiro)+" cironun reçetesi yok (oran gerçekte daha yüksek)":"Bütün ürünlerin reçetesi var",top.eksikCiro?"asagi":""),
+    rakam("Ürün başı ortalama",adetBasi(top.maliyet,top.adet),"satış "+adetBasi(top.ciro,top.adet)+" / adet")]));
+  // Kategori özeti
+  var kl=Object.keys(kt).map(function(k){return kt[k];}).sort(function(x,y){return y.ciro-x.ciro;});
+  if(!TUK.kat)a.appendChild(blok("Kategoriye göre","Her kategoride satılan ürünlerin toplamı; adet başı rakamlar kategorinin ortalamasıdır.",
+    tablo([["Kategori"],["Ürün",1],["Adet",1],["Ciro",1],["Maliyet",1],["Satış / adet",1],["Maliyet / adet",1],["Maliyet oranı",1]],
+      kl.map(function(k){return [k.kat,String(k.urun),TL.format(k.adet),para(k.ciro),para(k.maliyet),adetBasi(k.ciro,k.adet),adetBasi(k.maliyet,k.adet),yuzde(k.maliyet,k.ciro)];}))));
+  // Ürünler: kategori sırasıyla, kategori içinde ciroya göre
+  sat.sort(function(x,y){return (kt[y.kat].ciro-kt[x.kat].ciro)||(y.ciro-x.ciro);});
+  a.appendChild(blok("Ürün başı maliyet","Satış / adet = ortalama satış fiyatı (indirimler dahil). Maliyet / adet = bir porsiyonun reçete maliyeti + paket siparişlerde ambalaj. \"Reçete yok\" yazanların maliyetinde yalnız ambalaj var.",
+    tablo([["Ürün"],["Kategori"],["Adet",1],["Ciro",1],["Maliyet",1],["Satış / adet",1],["Maliyet / adet",1],["Maliyet oranı",1]],sat.map(function(r){
+      return [r.u.ad,r.kat,TL.format(r.adet),para(r.ciro),para(r.maliyet),adetBasi(r.ciro,r.adet),adetBasi(r.maliyet,r.adet),r.eksik?"reçete yok":(r.ciro?yuzde(r.maliyet,r.ciro):"—")];}))));}
 
 var AY_AD=["Ocak","Şubat","Mart","Nisan","Mayıs","Haziran","Temmuz","Ağustos","Eylül","Ekim","Kasım","Aralık"];
 function ayAd(a){var m=+String(a).slice(5,7);return m?AY_AD[m-1]:a;}
