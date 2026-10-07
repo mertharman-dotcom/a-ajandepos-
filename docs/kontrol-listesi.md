@@ -138,9 +138,10 @@ Tablolarda yapılan her değişikliğin eski ve yeni değeri **STOK › Fiyat_Du
 | | İş | Durum |
 |---|---|---|
 | YS1 | Yemeksepeti raporları spama düşmüyordu: Hotmail/Outlook adresine geliyordu, Gmail'de hiç yoktu. Mailde dosya değil partner paneline link var; panel girişi istediği için betik linki açamaz | ◐ 07.10 sahip Outlook → Gmail yönlendirmesi kuracak |
-| YS2 | `apps-script/yemeksepeti-veri`: Drive › "Yemeksepeti Raporları" klasörüne bırakılan CSV'leri türünü başlıklardan tanıyıp YS_Odemeler / YS_Menu_Satis / YS_Puanlar / YS_Performans'a yazar, dosyayı "İşlendi"ye taşır; tekrarı yazmaz, değişeni günceller. Sahibin 5 örnek dosyasıyla yerelde denendi | ◐ 07.10 yazıldı. Sahip: script.google.com'da boş proje → kimlik; sonra çekim + yayın, `ysKurulum`, `ysKuru`, onay, `ysYaz`, `ysTetikleyiciKur` |
+| YS2 | `apps-script/yemeksepeti-veri`: Drive › "Yemeksepeti Raporları" klasörüne bırakılan CSV'leri türünü başlıklardan tanıyıp YS_Odemeler / YS_Menu_Satis / YS_Puanlar / YS_Performans'a yazar, dosyayı "İşlendi"ye taşır; tekrarı yazmaz, değişeni günceller. Sahibin 6 örnek dosyasıyla yerelde denendi. Performans raporunun 55 sütunluk tam hali (görüntülenme, menü görüntüleme, sepet, çevrimdışı süre, hazırlık süresi, yeni/eski müşteri) aynı sekmeye; gün kapanmadan çekilen yarım satırı daha geç tarihe uzanan rapor düzeltir ('Rapor Son Gün'), tersi olmaz | ◐ 07.10 yazıldı. Sahip: script.google.com'da boş proje → kimlik; sonra çekim + yayın, `ysKurulum`, `ysKuru`, onay, `ysYaz`, `ysTetikleyiciKur` |
 | YS3 | Gmail'e yönlendirilen Yemeksepeti maillerinden "indirilmeyi bekleyen rapor" listesi + dosya bırakılmamışsa hatırlatma | ☐ ilk yönlendirilen mail görülünce (gönderen / konu biçimi bilinmiyor) |
-| YS4 | Panelde Yemeksepeti: komisyon (ödeme ↔ brüt satış), puan, yeni/eski müşteri, iptal, online/nakit grafikleri | ☐ birkaç günlük veri birikince |
+| YS4 | Panelde Yemeksepeti: görüntülenme → menü → sipariş hunisi, komisyon (ödeme ↔ brüt satış), puan, yeni/eski müşteri, iptal, çevrimdışı süre, hazırlık süresi, online/nakit | ◐ 07.10 örnek pano (artifact) sahibe gösterildi; panele taşınacak |
+| YS6 | 04.10'da 4 mağaza aynı anda 96 dk çevrimdışı (neden OTHER) — tablet / internet / Adisyo bağlantısı? Günlük 15 dk'yı geçince uyarı | ☐ |
 | YS5 | Tam otomatik çekim (MacBook köprüsüyle partner paneline giriş, Pluxee/Metropol gibi) — klasöre elle bırakma gerekmez | ☐ sahip isterse |
 
 ## P · Paneller

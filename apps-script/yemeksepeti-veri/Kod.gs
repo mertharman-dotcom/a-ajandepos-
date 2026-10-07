@@ -11,7 +11,8 @@
  *   Finansal Rapor - Ödemeler           → YS_Odemeler    (anahtar: Ödeme No)
  *   Menü raporu                         → YS_Menu_Satis  (Tarih + Mağaza + Menü öğesi ID'si + adı)
  *   Puanlar ve değerlendirmeler raporu  → YS_Puanlar     (Sipariş Kimliği)
- *   Performans Raporu                   → YS_Performans  (Tarih + Restoran No)
+ *   Performans Raporu                   → YS_Performans  (Tarih + Restoran No) — kısa ya da 55 sütunluk tam hali
+ *                                         (görüntülenme, menü görüntüleme, sepet, çevrimdışı süre, hazırlık süresi…)
  *
  * Kurulum (sırayla, Apps Script editöründen):
  *   ysKurulum()          — klasörü ve "BAP Yemeksepeti Raporları" tablosunu açar (veri yazmaz)
@@ -34,7 +35,7 @@ var YS = {
     { ad: 'Puanlar', sekme: 'YS_Puanlar', imza: ['Sipariş Kimliği', 'Derecelendirme'], anahtar: ['Sipariş Kimliği'], magaza: 'Vendor ID' },
     { ad: 'Performans', sekme: 'YS_Performans', imza: ['Brüt Satışlar', 'Başarılı Siparişler'], anahtar: ['Tarih', 'Restoran No'], magaza: 'Restoran No' }
   ],
-  EK: ['Şube', 'Dosya', 'Alındı']   // her sekmenin sonuna eklenen sütunlar
+  EK: ['Şube', 'Dosya', 'Alındı', 'Rapor Son Gün']   // her sekmenin sonuna eklenen sütunlar; son gün = dosyadaki en geç Tarih
 };
 
 /* ================== KURULUM ================== */
@@ -100,7 +101,9 @@ function ysSekmeDurum_(ss, tur, bellek) {
   var sh = ss.getSheetByName(tur.sekme);
   var bas = sh ? sh.getRange(1, 1, 1, sh.getLastColumn()).getValues()[0].map(function (x) { return String(x).trim(); }) : YS.EK.slice();
   var satir = sh && sh.getLastRow() > 1 ? sh.getRange(2, 1, sh.getLastRow() - 1, bas.length).getValues() : [];
-  return (bellek[tur.sekme] = { sh: sh, bas: bas, satir: satir, yer: null });
+  var eksik = YS.EK.filter(function (b) { return bas.indexOf(b) < 0; });   // sonradan eklenen ek sütun
+  if (eksik.length) { bas = bas.concat(eksik); satir = satir.map(function (r) { return r.concat(eksik.map(function () { return ''; })); }); }
+  return (bellek[tur.sekme] = { sh: sh, bas: bas, satir: satir, yer: null, tumunuYaz: eksik.length > 0 && satir.length > 0 });
 }
 
 /* Raporu sekmesine yazar: anahtar varsa ve değer değiştiyse yerinde günceller, yoksa sona ekler. */
@@ -117,6 +120,8 @@ function ysSekmeyeYaz_(ss, tur, tablo, dosyaAd, kuru, bellek) {
   var bas = d.bas, anahtarSira = tur.anahtar.map(function (a) { return bas.indexOf(a); });
   if (!d.yer) { d.yer = {}; d.satir.forEach(function (r, i) { d.yer[ysAnahtar_(r, anahtarSira)] = i; }); }
 
+  var tc = basl.indexOf('Tarih'), sonGun = '';
+  if (tc >= 0) for (var t = 1; t < tablo.length; t++) { var tv = ysDeger_('Tarih', tablo[t][tc]); if (tv instanceof Date && (!sonGun || tv > sonGun)) sonGun = tv; }
   var simdi = new Date(), ilkYeni = d.satir.length, sayi = { yeni: 0, guncel: 0, ayni: 0 }, guncellenen = false;
   for (var i = 1; i < tablo.length; i++) {
     var r = tablo[i];
@@ -127,12 +132,19 @@ function ysSekmeyeYaz_(ss, tur, tablo, dosyaAd, kuru, bellek) {
     s[bas.indexOf('Şube')] = YS.SUBE[mag] || mag;
     s[bas.indexOf('Dosya')] = dosyaAd;
     s[bas.indexOf('Alındı')] = simdi;
+    s[bas.indexOf('Rapor Son Gün')] = sonGun;
 
     var k = ysAnahtar_(s, anahtarSira), j = d.yer[k];
     if (j === undefined) { d.yer[k] = d.satir.length; d.satir.push(s); sayi.yeni++; continue; }
     var eski = d.satir[j];
     var fark = basl.some(function (b) { var c = bas.indexOf(b); return ysKarsilastir_(eski[c]) !== ysKarsilastir_(s[c]); });
     if (!fark) { sayi.ayni++; continue; }
+    // Gün kapanmadan çekilen rapor o günü yarım verir (görüntülenme boş, herkes "yeni müşteri"). Dosyalar sırasız
+    // işlendiği için: daha eski tarihe kadar uzanan rapor, daha yenisinin yazdığı satırın üstüne yazmaz.
+    var sg = bas.indexOf('Rapor Son Gün');
+    if (ysKarsilastir_(s[sg]) < ysKarsilastir_(eski[sg])) { sayi.ayni++; continue; }
+    // bu raporda olmayan sütunlar (kısa Performans raporu ↔ 55 sütunluk tam hali) eski değerini korur
+    s = s.map(function (v, c) { return basl.indexOf(bas[c]) < 0 && YS.EK.indexOf(bas[c]) < 0 ? eski[c] : v; });
     d.satir[j] = s; sayi.guncel++;
     if (j < ilkYeni) guncellenen = true;
   }
@@ -148,7 +160,7 @@ function ysSekmeyeYaz_(ss, tur, tablo, dosyaAd, kuru, bellek) {
     var rng = sh.getRange(2, c + 1, n, 1);
     if (ysKimlikMi_(b)) rng.setNumberFormat('@');          // değerlerden önce: kimlik sayıya dönmesin
     else if (b === 'Alındı') rng.setNumberFormat('dd.MM.yyyy HH:mm');
-    else if (/tarih/i.test(b)) rng.setNumberFormat('dd.MM.yyyy');
+    else if (/tarih|son gün/i.test(b)) rng.setNumberFormat('dd.MM.yyyy');
   });
   var bas0 = (d.tumunuYaz || guncellenen) ? 0 : ilkYeni;   // değişen eski satır yoksa yalnız yeniler yazılır
   if (n > bas0) sh.getRange(2 + bas0, 1, n - bas0, bas.length).setValues(d.satir.slice(bas0));
