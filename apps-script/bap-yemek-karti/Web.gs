@@ -18,6 +18,17 @@ function doPost(e) {
   try { g = JSON.parse(e.postData.contents); } catch (err) { return jsonYanit_({ hata: 'Geçersiz JSON.' }); }
   if (!g || g.anahtar !== KOPRU_ANAHTAR) return jsonYanit_({ hata: 'Anahtar hatalı.' });
 
+  // Zamanlı çekimi elle çalıştır / son sonuçlarına bak (çekim kendi kilidini alır, bu yüzden aşağıdaki kilitten önce)
+  if (g.tur === 'cek') {
+    var cek = { setcard: setcardCek, tokenflex: tokenflexCek }[g.kaynak];
+    if (!cek) return jsonYanit_({ hata: 'kaynak: setcard | tokenflex' });
+    try { return jsonYanit_(cek(Number(g.gun) || 3)); } catch (err) { return jsonYanit_({ hata: String(err && err.message || err) }); }
+  }
+  if (g.tur === 'cekDurum') {
+    var pr = PropertiesService.getScriptProperties().getProperties(), d = {};
+    Object.keys(pr).filter(function (k) { return /^SON_CALISMA_/.test(k); }).forEach(function (k) { d[k.slice(12)] = JSON.parse(pr[k]); });
+    return jsonYanit_({ ok: true, son: d });
+  }
   var kilit = LockService.getScriptLock();
   if (!kilit.tryLock(30000)) return jsonYanit_({ hata: 'Meşgul, tekrar dene.' });
   try {

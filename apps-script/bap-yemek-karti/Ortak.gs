@@ -28,3 +28,11 @@ function ykTablo_() { return SpreadsheetApp.openById(YK_SS_ID); }
 function jsonYanit_(o) {
   return ContentService.createTextOutput(JSON.stringify(o)).setMimeType(ContentService.MimeType.JSON);
 }
+
+/** Zamanlı çekimlerin son sonucu (tetikleyici hataları başka yerde görünmüyor; 06–07.10 Tokenflex/SetCard sessizce durdu).
+ *  Web › tur 'cekDurum' hepsini döndürür. */
+function sonCalisma_(kaynak, sonuc) {
+  try { PropertiesService.getScriptProperties().setProperty('SON_CALISMA_' + kaynak,
+    JSON.stringify({ zaman: Utilities.formatDate(new Date(), TZ, 'dd.MM.yyyy HH:mm:ss'), sonuc: sonuc }).slice(0, 8000)); } catch (e) { }
+  return sonuc;
+}

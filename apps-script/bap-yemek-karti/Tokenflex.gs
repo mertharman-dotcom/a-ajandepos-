@@ -35,7 +35,7 @@ function tfGiris_() {
 function tokenflexCek(gunSayisi) {
   // Saatlik tetikleyici ilk değişken olarak olay nesnesi verir; sayı değilse varsayılan 3 gün (06–07.10 bu yüzden hiç çalışmadı).
   gunSayisi = typeof gunSayisi === 'number' && gunSayisi > 0 ? gunSayisi : 3;
-  var kilit = LockService.getScriptLock(); if (!kilit.tryLock(30000)) return { atlandi: 'meşgul' };
+  var kilit = LockService.getScriptLock(); if (!kilit.tryLock(120000)) return sonCalisma_('tokenflex', { atlandi: 'meşgul' });
   try {
     var token = tfGiris_(), isyeri = Number(PropertiesService.getScriptProperties().getProperty('TOKENFLEX_ISYERI') || 320096);
     var f = function (d) { return Utilities.formatDate(d, TZ, 'yyyy-MM-dd'); }, bugun = new Date();
@@ -70,8 +70,9 @@ function tokenflexCek(gunSayisi) {
     });
     if (yeni.length) sh.getRange(sh.getLastRow() + 1, 1, yeni.length, TF_BASLIK.length).setValues(yeni);
     var fatura = null; try { fatura = tokenflexFaturaTazele_(token, isyeri); } catch (e) { fatura = 'HATA: ' + e.message; }
-    return { gelen: liste.length, eklenen: yeni.length, durumGuncel: guncel, terminal: Object.keys(kisi).length, fatura: fatura };
-  } finally { kilit.releaseLock(); }
+    return sonCalisma_('tokenflex', { gelen: liste.length, eklenen: yeni.length, durumGuncel: guncel, terminal: Object.keys(kisi).length, fatura: fatura });
+  } catch (e) { sonCalisma_('tokenflex', { hata: String(e && e.message || e) }); throw e; }
+  finally { kilit.releaseLock(); }
 }
 
 function tokenflexFaturaTazele_(token, isyeri) {

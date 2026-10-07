@@ -50,7 +50,7 @@ function setcardGecmisCek() { var r = setcardCek(31); Logger.log(JSON.stringify(
 function setcardCek(gunSayisi) {
   // Saatlik tetikleyici ilk değişken olarak olay nesnesi verir; sayı değilse varsayılan 3 gün (06–07.10 bu yüzden hiç çalışmadı).
   gunSayisi = typeof gunSayisi === 'number' && gunSayisi > 0 ? gunSayisi : 3;
-  var kilit = LockService.getScriptLock(); if (!kilit.tryLock(30000)) return { atlandi: 'meşgul' };
+  var kilit = LockService.getScriptLock(); if (!kilit.tryLock(120000)) return sonCalisma_('setcard', { atlandi: 'meşgul' });
   try {
     var token = setcardGiris_();
     var isyeri = (setcardIstek_('Merchant/SelectMerchantList', undefined, token).merchantList || []);
@@ -80,8 +80,9 @@ function setcardCek(gunSayisi) {
     });
     if (yeni.length) sh.getRange(sh.getLastRow() + 1, 1, yeni.length, SETCARD_BASLIK.length).setValues(yeni);
     var fatura = null; try { fatura = setcardFaturaTazele_(token); } catch (e) { fatura = 'HATA: ' + e.message; }
-    return { isyeri: isyeri.length, gelen: liste.length, eklenen: yeni.length, fatura: fatura };
-  } finally { kilit.releaseLock(); }
+    return sonCalisma_('setcard', { isyeri: isyeri.length, gelen: liste.length, eklenen: yeni.length, fatura: fatura });
+  } catch (e) { sonCalisma_('setcard', { hata: String(e && e.message || e) }); throw e; }
+  finally { kilit.releaseLock(); }
 }
 
 /* ---------------- 2) FATURA ---------------- */
