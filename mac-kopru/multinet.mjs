@@ -172,7 +172,7 @@ async function girisYap(page) {
     if (!fs.existsSync(CHROME)) throw new Error('Google Chrome bulunamadı: ' + CHROME);
     const a = process.argv.filter(x => /^\d{2}\.\d{2}\.\d{4}$/.test(x)), tr = s => { const [g, m, y] = s.split('.'); return new Date(+y, +m - 1, +g); };
     const bit = a[1] ? tr(a[1]) : new Date(), bas = a[0] ? tr(a[0]) : new Date(Date.now() - GERI_GUN * 86400000);
-    ctx = await chromium.launchPersistentContext(PROFIL, { executablePath: CHROME, headless: false, locale: 'tr-TR', viewport: { width: 1280, height: 900 } });
+    ctx = await chromium.launchPersistentContext(PROFIL, { executablePath: CHROME, headless: false, ignoreDefaultArgs: ['--enable-automation', '--no-sandbox'], args: ['--disable-blink-features=AutomationControlled'], locale: 'tr-TR', viewport: { width: 1280, height: 900 } });
     const page = ctx.pages()[0] || await ctx.newPage(); dinle(page);
     await page.goto(KOK + '/transactions', { waitUntil: 'networkidle' });
     if (/\/auth\/login/.test(page.url())) { await girisYap(page); await page.goto(KOK + '/transactions', { waitUntil: 'networkidle' }); }

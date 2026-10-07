@@ -167,7 +167,7 @@ async function main() {
   const bitis = a[1] ? tr(a[1]) : new Date(Date.now() + 86400000), bas = a[0] ? tr(a[0]) : new Date(Date.now() - GERI_GUN * 86400000);
   log(`başladı: ${gaa(bas)} – ${gaa(bitis)}`);
 
-  const ctx = await chromium.launchPersistentContext(PROFIL, { executablePath: CHROME, headless: false, viewport: { width: 1280, height: 860 } });
+  const ctx = await chromium.launchPersistentContext(PROFIL, { executablePath: CHROME, headless: false, ignoreDefaultArgs: ['--enable-automation', '--no-sandbox'], args: ['--disable-blink-features=AutomationControlled'], viewport: { width: 1280, height: 860 } });
   const page = ctx.pages()[0] || await ctx.newPage();
   try {
     if (!(await oturumAcik(page))) { try { await girisYap(page); } catch (e) { await oturumBildir(false); throw e; } }
