@@ -195,7 +195,8 @@ async function main() {
       const tel = String((posBilgi[no] || {})['Pos Seri No'] || '').replace(/\D/g, '').slice(0, 10), ad = kisi.terminal[no] || kisi.telefon[tel] || '';
       let say = 0;
       for (const [b, e] of parcalar) {
-        const islem = tablo(await ac(q(no, b, e)), 'example23');
+        // İşlem No'suz satır = tablonun "kayıt yok" satırı (her boş tarih parçasında bir tane) → işlem değil
+        const islem = tablo(await ac(q(no, b, e)), 'example23').filter(x => String(x['İşlem No'] || '').trim());
         for (const x of islem) satirlar.push({ zaman: x['Tarih'], tutar: tl(x['Tutar']), islemNo: x['İşlem No'],
           tip: x['İşlem Tipi'], mod: x['Giriş Modu'], urun: x['Ürün Tipi'], terminal: no, telefon: tel, kisi: ad,
           kart: x['Kart Numarası'], gunsonu: x['Gün Sonu Tarihi'], fatura: x['Fatura Id'] });
