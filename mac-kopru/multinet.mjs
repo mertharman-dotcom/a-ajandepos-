@@ -119,11 +119,13 @@ async function siteIstegi(page, yol, adres, degistir) {
   const desen = KOK + '/api/' + yol;
   await page.route(desen, async route => {
     let b = {}; try { b = JSON.parse(route.request().postData() || '{}'); } catch (_) {}
-    await route.continue({ postData: JSON.stringify(degistir(b)) });
+    const yeni = degistir(b); log(`  ${yol}: sitenin isteği ${JSON.stringify(b).slice(0, 160)} → ${JSON.stringify(yeni).slice(0, 160)}`);
+    await route.continue({ postData: JSON.stringify(yeni) });
   });
   try {
-    const bekleyen = page.waitForResponse(r => r.url().startsWith(desen) && r.request().method() === 'POST', { timeout: 60000 });
-    await page.goto(KOK + adres, { waitUntil: 'networkidle' });
+    const bekleyen = page.waitForResponse(r => r.url().startsWith(desen) && r.request().method() === 'POST', { timeout: 90000 });
+    // networkidle beklenmez: sayfa arka planda istek atmayı sürdürebiliyor (07.10 zaman aşımı)
+    await page.goto(KOK + adres, { waitUntil: 'domcontentloaded', timeout: 60000 }).catch(e => log(`  ${adres} açılırken: ${e.message.split('\n')[0]}`));
     const r = await bekleyen.catch(() => null);
     if (!r) throw new Error(`${yol}: ${adres} sayfası bu isteği atmadı`);
     const t = await r.text(); let j = null; try { j = JSON.parse(t); } catch (_) {}
