@@ -33,12 +33,21 @@ jobs:
           printf '%s' "$CLASPRC_JSON" > ~/.clasprc.json
       - name: Yayınlanacak projeleri belirle
         id: liste
+        env: { GH_TOKEN: "${{ github.token }}" }
         run: |
           if [ -n "${{ github.event.inputs.proje }}" ]; then
             liste="${{ github.event.inputs.proje }}"
           else
             once="${{ github.event.before }}"
+            # Elle başlatmada (workflow_dispatch) "before" boş gelir; yalnız son commit'e bakılınca iki yayın arasındaki
+            # önceki birleştirmeler atlanıyordu. Taban: main'deki son başarılı yayının commit'i.
+            if [ -z "$once" ]; then
+              once=$(gh api "repos/$GITHUB_REPOSITORY/actions/workflows/apps-script-yayinla.yml/runs?status=success&branch=main&per_page=1" \
+                       --jq '.workflow_runs[0].head_sha // ""' 2>/dev/null || true)
+              git merge-base --is-ancestor "$once" HEAD 2>/dev/null || once=""
+            fi
             if [ -z "$once" ] || ! git cat-file -e "$once" 2>/dev/null; then once=HEAD~1; fi
+            echo "Karşılaştırma tabanı: $once"
             liste=$(git diff --no-renames --name-only "$once" HEAD -- apps-script | grep -vE '/\.clasp(-cekim|\.json)$' | awk -F/ 'NF>2{print $2}' | sort -u | tr '\n' ' ')
           fi
           echo "liste=$liste" >> "$GITHUB_OUTPUT"; echo "Projeler: $liste"
@@ -53,6 +62,18 @@ jobs:
             echo "::group::$klasor"
             ( cd "apps-script/$klasor"
               printf '{"scriptId":"%s","rootDir":".","fileExtension":"gs"}' "$id" > .clasp.json
+              # clasp push, canlıda olup depoda olmayan dosyaları SİLER. 04.10'da Apps Script editöründe eklenmiş
+              # Pluxee.gs böyle silindi, kurye bağlantısı bozuldu. Canlıda fazladan dosya varsa yayın durur.
+              burasi=$PWD; gecici=$(mktemp -d)
+              printf '{"scriptId":"%s","rootDir":"%s","fileExtension":"gs"}' "$id" "$gecici" > "$gecici/.clasp.json"
+              ( cd "$gecici" && clasp pull >/dev/null )
+              fazla=$( cd "$gecici" && find . -type f ! -name '.clasp.json' | sed 's|^\./||' | while read -r f; do [ -f "$burasi/$f" ] || echo "$f"; done )
+              rm -rf "$gecici"
+              if [ -n "$fazla" ]; then
+                echo "::error::$klasor: canlıda depoda olmayan dosya var, yayın durduruldu (silinirdi): $(echo $fazla)."
+                echo "::error::Önce 'Apps Script'i Depoya Çek' çalıştırın ve çıkan kod-cekimi dalını main'e birleştirin."
+                exit 1
+              fi
               clasp push -f
               # Web uygulaması olan projede adresi değiştirmeden yeni sürümü canlıya al.
               # deploymentId yazılı değilse projedeki tek sürümlü dağıtım kullanılır; birden fazlaysa durur.
