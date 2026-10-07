@@ -48,6 +48,8 @@ function setcardGiris_() {
 function setcardGecmisCek() { var r = setcardCek(31); Logger.log(JSON.stringify(r)); return r; }
 
 function setcardCek(gunSayisi) {
+  // Saatlik tetikleyici ilk değişken olarak olay nesnesi verir; sayı değilse varsayılan 3 gün (06–07.10 bu yüzden hiç çalışmadı).
+  gunSayisi = typeof gunSayisi === 'number' && gunSayisi > 0 ? gunSayisi : 3;
   var kilit = LockService.getScriptLock(); if (!kilit.tryLock(30000)) return { atlandi: 'meşgul' };
   try {
     var token = setcardGiris_();

@@ -33,6 +33,8 @@ function tfGiris_() {
 }
 
 function tokenflexCek(gunSayisi) {
+  // Saatlik tetikleyici ilk değişken olarak olay nesnesi verir; sayı değilse varsayılan 3 gün (06–07.10 bu yüzden hiç çalışmadı).
+  gunSayisi = typeof gunSayisi === 'number' && gunSayisi > 0 ? gunSayisi : 3;
   var kilit = LockService.getScriptLock(); if (!kilit.tryLock(30000)) return { atlandi: 'meşgul' };
   try {
     var token = tfGiris_(), isyeri = Number(PropertiesService.getScriptProperties().getProperty('TOKENFLEX_ISYERI') || 320096);
