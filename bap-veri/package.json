@@ -1,0 +1,6 @@
+{
+  "name": "bap-veri",
+  "private": true,
+  "description": "BAP veritabanı çekirdeği (Faz 1 taslağı) ve testleri. Canlıya kurulmadı.",
+  "scripts": { "test": "node --test --no-warnings test/*.test.mjs" }
+}
