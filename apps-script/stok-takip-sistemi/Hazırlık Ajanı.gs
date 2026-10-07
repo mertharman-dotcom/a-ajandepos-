@@ -1,5 +1,5 @@
 /**
- * BAP OPERASYON — MUTFAK HAZIRLIK PLANLAMA AJANI  (hp_hazirlik.gs  v1.3)
+ * BAP OPERASYON — MUTFAK HAZIRLIK PLANLAMA AJANI  (hp_hazirlik.gs  v1.4)
  * --------------------------------------------------------------------
  * Nereye: "BAP Stok Takip Sistemi" → Uzantılar → Apps Script (mevcut "Hazırlık Ajanı" dosyasının yerine)
  * Her gece 23:30:
@@ -12,6 +12,7 @@
  *   4) Üretim, reçetenin standart partisinin katı olarak istenir: 0,5 · 1 · 1,5 · 2 … (yukarı yuvarlanır)
  *      Yarım parti bile raf ömrü içinde tüketilemiyorsa tahmini fireyi not düşer.
  *   5) "BAP Mutfak Hazırlık Planı" dosyasına yazar + e-posta; dünkü plan ↔ gerçek karşılaştırması
+ * v1.4: e-postanın sonuna dünkü plan ↔ gerçek satış karşılaştırması eklendi (eksik / fazla / satılmadı).
  * v1.3: eldeki hesabına Zayi_Girisleri (yarı mamul zayi) ve Transferler (şubeler arası) eklendi;
  *       gram girilmiş adet takipli sayımlar porsiyona çevrilir. Kaynak dosyalar yalnızca OKUNUR —
  *       mutfak paneli (bap-sistem.pages.dev) ve Uretim_Girisleri'ne dokunulmaz.
@@ -81,8 +82,9 @@ function hp_kurulum() {
 }
 
 function hp_gunluk() {
-  try { hp_dogrulukKontrol(); } catch (e) { Logger.log('Doğruluk hatası: ' + e); }
-  hp_planOlustur();
+  var dog = null;
+  try { dog = hp_dogrulukKontrol(); } catch (e) { Logger.log('Doğruluk hatası: ' + e); }
+  hp_planOlustur(null, false, dog);
 }
 
 /** Belirli bir tarih için elle deneme: hp_testTarih('18.09.2026') */
@@ -92,7 +94,8 @@ function hp_testTarih(tarihStr) {
 
 /* ============================ PLAN ============================ */
 
-function hp_planOlustur(hedef, mailYok) {
+/** dog: hp_dogrulukKontrol() çıktısı — verilirse mailin sonuna "dünkü plan ↔ gerçek satış" eklenir */
+function hp_planOlustur(hedef, mailYok, dog) {
   var ss = hp_cikti_();
   if (!hedef) hedef = new Date(Date.now() + 864e5);
   var D = hp_gunKey_(hedef);
@@ -193,7 +196,7 @@ function hp_planOlustur(hedef, mailYok) {
   hp_eslesmeYaz_(ss, ctx);
   hp_rafDoldur_(ss, ctx);
 
-  if (!mailYok) hp_mail_(D, mailVeri, ctx, takvim[D]);
+  if (!mailYok) hp_mail_(D, mailVeri, ctx, takvim[D], dog);
   var uretSay = 0;
   Object.keys(mailVeri).forEach(function (sb) { mailVeri[sb].forEach(function (x) { if (x.uretKat > 0) uretSay++; }); });
   Logger.log('Plan ' + hp_gosterTarih_(D) + ': ' + satirlar.length + ' kalem, üretim istenen ' + uretSay + ' · eşleşmeyen ürün: ' + Object.keys(ctx.eslesmeyen).length);
@@ -584,7 +587,7 @@ function hp_eslesmeYaz_(ss, ctx) {
   if (yeni.length) e.getRange(e.getLastRow() + 1, 1, yeni.length, 6).setValues(yeni);
 }
 
-function hp_mail_(D, veri, ctx, takvim) {
+function hp_mail_(D, veri, ctx, takvim, dog) {
   var gun = ['Pazar', 'Pazartesi', 'Salı', 'Çarşamba', 'Perşembe', 'Cuma', 'Cumartesi'][new Date(D + 'T12:00:00Z').getUTCDay()];
   var h = '<div style="font-family:Arial,sans-serif;font-size:13px;color:#222">';
   h += '<h2 style="margin:0 0 4px">Mutfak Hazırlık Planı · ' + hp_gosterTarih_(D) + ' ' + gun + '</h2>';
@@ -611,8 +614,54 @@ function hp_mail_(D, veri, ctx, takvim) {
   });
   var esl = Object.keys(ctx.eslesmeyen).length;
   if (esl) h += '<p style="color:#b00;margin-top:14px">' + esl + ' satış ürünü reçeteyle eşleşmedi → "' + HP.ESLESME + '" sekmesi.</p>';
+  if (dog && dog.length) h += hp_dogrulukHtml_(dog);
   h += '</div>';
   MailApp.sendEmail({ to: HP.MAIL, subject: 'BAP Hazırlık Planı · ' + hp_gosterTarih_(D) + ' ' + gun, htmlBody: h });
+}
+
+/** Dünkü plan ↔ gerçek satış bölümü (hp_dogrulukKontrol satırlarından) */
+function hp_dogrulukHtml_(dog) {
+  var gTarih = dog[0][0];
+  var p = gTarih.split('.');
+  var gun = ['Pazar', 'Pazartesi', 'Salı', 'Çarşamba', 'Perşembe', 'Cuma', 'Cumartesi'][new Date(p[2] + '-' + p[1] + '-' + p[0] + 'T12:00:00Z').getUTCDay()];
+  var h = '<h2 style="margin:28px 0 4px;border-top:2px solid #222;padding-top:12px">Dünkü plan ↔ gerçek satış · ' + gTarih + ' ' + gun + '</h2>';
+  h += '<p style="margin:0 0 8px;color:#666">Plan = o gün için tahmin edilen ihtiyaç (%' + Math.round(HP.GUVENLIK * 100) +
+    ' güvenlik payı dahil). Gerçek = o günün kapanan siparişlerinin reçeteye göre harcadığı yarı mamul. ' +
+    'Sapma %5\'ten fazla eksikse "EKSİK", %35\'ten fazla fazlaysa "Fazla" sayılır. Tüm satırlar "' + HP.DOGRULUK + '" sekmesinde.</p>';
+  var renk = { 'EKSİK planlandı': '#b00', 'Plan yok': '#b00', 'Fazla planlandı': '#a15c00', 'Satılmadı': '#a15c00' };
+  var sira = { 'EKSİK planlandı': 0, 'Plan yok': 1, 'Fazla planlandı': 2, 'Satılmadı': 3 };
+  HP.SUBELER.forEach(function (sube) {
+    var say = { uygun: 0, eksik: 0, fazla: 0 }, liste = [];
+    dog.forEach(function (r) {
+      if (r[1] !== sube) return;
+      var pl = hp_sayi_(r[4]) || 0, ger = hp_sayi_(r[5]) || 0;
+      if (!pl && !ger) return;
+      var deg = r[8] || (pl > 0 && !ger ? 'Satılmadı' : '');
+      if (deg === 'Uygun') { say.uygun++; return; }
+      if (deg === 'EKSİK planlandı' || deg === 'Plan yok') say.eksik++; else say.fazla++;
+      liste.push({ ym: r[2], birim: r[3], pl: pl, ger: ger, ur: r[6], sap: r[7], deg: deg });
+    });
+    if (!say.uygun && !liste.length) return;
+    h += '<h3 style="margin:14px 0 4px">' + sube + '</h3><p style="margin:0 0 6px">' +
+      '<span style="color:#2e7d32"><b>' + say.uygun + '</b> uygun</span> · ' +
+      '<span style="color:#b00"><b>' + say.eksik + '</b> eksik</span> · ' +
+      '<span style="color:#a15c00"><b>' + say.fazla + '</b> fazla</span></p>';
+    if (!liste.length) return;
+    liste.sort(function (a, b) {
+      return sira[a.deg] !== sira[b.deg] ? sira[a.deg] - sira[b.deg] : Math.abs(b.pl - b.ger) / (b.ger || b.pl || 1) - Math.abs(a.pl - a.ger) / (a.ger || a.pl || 1);
+    });
+    h += '<table cellpadding="5" style="border-collapse:collapse;font-size:13px"><tr style="background:#222;color:#fff"><th align="left">Yarı mamul</th><th align="right">Plan</th><th align="right">Gerçek</th><th align="right">Fark</th><th align="right">Üretilen</th><th align="left">Durum</th></tr>';
+    liste.forEach(function (x) {
+      var fark = x.pl - x.ger;
+      h += '<tr style="border-bottom:1px solid #eee"><td>' + x.ym + '</td><td align="right">' + hp_fmt_(x.pl, x.birim) + '</td><td align="right">' + hp_fmt_(x.ger, x.birim) +
+        '</td><td align="right" style="color:' + (fark < 0 ? '#b00' : '#a15c00') + '">' + (fark > 0 ? '+' : '−') + hp_fmt_(Math.abs(fark), x.birim) +
+        (x.sap !== '' && x.sap != null ? ' (' + (x.sap > 0 ? '+' : '') + x.sap + '%)' : '') +
+        '</td><td align="right">' + (x.ur !== '' && x.ur != null ? hp_fmt_(hp_sayi_(x.ur), x.birim) : '–') +
+        '</td><td style="color:' + (renk[x.deg] || '#222') + '">' + x.deg + '</td></tr>';
+    });
+    h += '</table>';
+  });
+  return h;
 }
 
 function hp_takvim_(ss, key) {
