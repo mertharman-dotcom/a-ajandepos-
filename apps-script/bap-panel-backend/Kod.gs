@@ -13,6 +13,22 @@ const SUBE_STOK_SEKME = 'Sube_Stok';
 const SUBELER_SEKME   = 'Subeler';
 const TRANSFER_SEKME  = 'Transferler';
 
+// FAZ 0 (08.10.2026) HIZ: dosya bir istekte bir kez açılır (ss_), Sube_Stok bir kez okunur (subeStokVerisi),
+// stok hareketleri toplanıp istek sonunda tek seferde yazılır (hareketYaz → hareketlerYaz_), kayıtlar sıraya girer (kilit).
+function ss_() {
+  if (!ss_._) ss_._ = SpreadsheetApp.openById(SHEET_ID);
+  return ss_._;
+}
+
+// Az değişen listeler: 10 dakika sunucu önbelleği (her açılışta tabloyu baştan okumaz).
+function onbellekli_(anahtar, fn) {
+  const c = CacheService.getScriptCache();
+  try { const v = c.get(anahtar); if (v) return JSON.parse(v); } catch (e) {}
+  const sonuc = fn();
+  try { const m = JSON.stringify(sonuc); if (m.length < 95000) c.put(anahtar, m, 600); } catch (e) {}
+  return sonuc;
+}
+
 function doOptions(e) {
   return ContentService.createTextOutput('').setMimeType(ContentService.MimeType.TEXT);
 }
@@ -23,8 +39,8 @@ function doGet(e) {
   const sube = p.sube || '';
 
   try {
-    if (action === 'getSubeler')          return jsonRes(getSubeler());
-    if (action === 'getYariMamuller')     return jsonRes(getYariMamuller());
+    if (action === 'getSubeler')          return jsonRes(onbellekli_('subeler', getSubeler));
+    if (action === 'getYariMamuller')     return jsonRes(onbellekli_('yariMamuller', getYariMamuller));
     if (action === 'getRecete')          return jsonRes(getRecete(p.adi, sube));
     if (action === 'getHammaddeler')      return jsonRes(getHammaddeler(p.sadeceTakip === 'true', sube));
     if (action === 'getCalisanlar')       return jsonRes(getCalisanlar());
@@ -38,7 +54,7 @@ function doGet(e) {
     if (action === 'getSiparisEkrani')    return jsonRes(getSiparisEkrani(sube));
     if (action === 'getYariMamulStok')    return jsonRes(getYariMamulStok(sube));
     if (action === 'getYariMamulRapor')   return jsonRes(getYariMamulRapor(sube));
-    if (action === 'getUrunler')          return jsonRes(getUrunler());
+    if (action === 'getUrunler')          return jsonRes(onbellekli_('urunler', getUrunler));
     if (action === 'getZayiUrunler')      return jsonRes(getZayiUrunler(sube));
     if (action === 'getTransferler')      return jsonRes(getTransferler(sube));
     if (action === 'getAcikSiparisler')   return jsonRes(getAcikSiparisler(sube));
@@ -51,7 +67,23 @@ function doGet(e) {
 }
 
 function doPost(e) {
+  // Kayıtlar sıraya girer: iki şubeden aynı anda gelen kayıt Sube_Stok'ta birbirinin üstüne yazmaz.
+  const kilit = LockService.getScriptLock();
+  if (!kilit.tryLock(28000)) return jsonRes({ basari: false, hata: 'Sistem meşgul, kayıt YAZILMADI. Birkaç saniye sonra tekrar deneyin.' });
   try {
+    const sonuc = doPostIsle_(e);
+    hareketlerYaz_();
+    return sonuc;
+  } catch (err) {
+    try { hareketlerYaz_(); } catch (e2) {}
+    return jsonRes({ hata: err.toString() });
+  } finally {
+    kilit.releaseLock();
+  }
+}
+
+function doPostIsle_(e) {
+  {
     const data = JSON.parse(e.postData.contents);
     if (data.action === 'uretimKaydet')       return jsonRes(uretimKaydet(data));
     if (data.action === 'tekrarYenile')       return jsonRes(tekrarYenile(data));
@@ -68,8 +100,6 @@ function doPost(e) {
     if (data.action === 'transferReddet')     return jsonRes(transferReddet(data));
     if (data.action === 'transferDirektCikis')return jsonRes(transferDirektCikis(data));
     return jsonRes({ hata: 'Bilinmeyen action' });
-  } catch(err) {
-    return jsonRes({ hata: err.toString() });
   }
 }
 
@@ -78,7 +108,7 @@ function doPost(e) {
 // ============================================================
 
 function subeStokSheet() {
-  const ss = SpreadsheetApp.openById(SHEET_ID);
+  const ss = ss_();
   let sh = sekmeBul(ss, SUBE_STOK_SEKME);
   if (!sh) {
     sh = ss.insertSheet(SUBE_STOK_SEKME);
@@ -89,7 +119,9 @@ function subeStokSheet() {
   return sh;
 }
 
+var _stokV = null;
 function subeStokVerisi() {
+  if (_stokV) return _stokV;
   const sh = subeStokSheet();
   const rows = sh.getDataRange().getValues();
   const idx = {};
@@ -98,7 +130,8 @@ function subeStokVerisi() {
     const k = stokKey(rows[i][0], rows[i][1], rows[i][2]);
     idx[k] = i + 1;
   }
-  return { sh, rows, idx };
+  _stokV = { sh, rows, idx };
+  return _stokV;
 }
 
 function stokKey(urun, tip, sube) {
@@ -109,8 +142,11 @@ function stokSatirBul(urunAdi, tip, sube) {
   const v = subeStokVerisi();
   const k = stokKey(urunAdi, tip, sube);
   if (v.idx[k]) return { sh: v.sh, satir: v.idx[k], rows: v.rows };
-  v.sh.appendRow([urunAdi, (tip||'').toUpperCase(), sube, 0, 0, '', '', 0, new Date()]);
-  return { sh: v.sh, satir: v.sh.getLastRow(), rows: null };
+  const yeni = [urunAdi, (tip||'').toUpperCase(), sube, 0, 0, '', '', 0, new Date()];
+  v.sh.appendRow(yeni);
+  const satir = v.sh.getLastRow();
+  v.idx[k] = satir; // aynı istekte ikinci kez aranırsa yeni satır bulunur, tekrar eklenmez
+  return { sh: v.sh, satir: satir, rows: null };
 }
 
 function stokHareket(urunAdi, tip, sube, delta, hareketTuru, detay, sorumlu) {
@@ -118,14 +154,14 @@ function stokHareket(urunAdi, tip, sube, delta, hareketTuru, detay, sorumlu) {
   const b = stokSatirBul(urunAdi, tip, sube);
   const sh = b.sh, satir = b.satir;
 
-  const eskiMevcut = Number(sh.getRange(satir, 4).getValue()) || 0;
-  const eskiTeorik = Number(sh.getRange(satir, 5).getValue()) || 0;
+  const eskiler = sh.getRange(satir, 4, 1, 2).getValues()[0];
+  const eskiMevcut = Number(eskiler[0]) || 0;
+  const eskiTeorik = Number(eskiler[1]) || 0;
 
   const yeniMevcut = yuvarla(eskiMevcut + delta);
   const yeniTeorik = yuvarla(eskiTeorik + delta);
 
-  sh.getRange(satir, 4).setValue(yeniMevcut);
-  sh.getRange(satir, 5).setValue(yeniTeorik);
+  sh.getRange(satir, 4, 1, 2).setValues([[yeniMevcut, yeniTeorik]]);
   sh.getRange(satir, 9).setValue(new Date());
 
   hareketYaz(sube, urunAdi, hareketTuru, eskiMevcut, yeniMevcut, detay, sorumlu, tip);
@@ -135,7 +171,7 @@ function stokHareket(urunAdi, tip, sube, delta, hareketTuru, detay, sorumlu) {
 function yuvarla(n) { return Math.round(Number(n) * 1000) / 1000; }
 
 function hareketYaz(sube, malzeme, tur, eski, yeni, detay, sorumlu, tip) {
-  const ss = SpreadsheetApp.openById(SHEET_ID);
+  const ss = ss_();
   let sh = sekmeBul(ss, 'Stok_Hareketleri');
   if (!sh) {
     sh = ss.insertSheet('Stok_Hareketleri');
@@ -145,7 +181,17 @@ function hareketYaz(sube, malzeme, tur, eski, yeni, detay, sorumlu, tip) {
   }
   const b = birimKarsilik(malzeme, tip, yeni);
   const karsiligi = (tur === 'Zayi') ? '' : b.karsilik;
-  sh.appendRow([new Date(), sube || '', malzeme, tur, eski, yeni, b.birim, karsiligi, detay || '', sorumlu || '']);
+  _hareketler.push({ sh: sh, satir: [new Date(), sube || '', malzeme, tur, eski, yeni, b.birim, karsiligi, detay || '', sorumlu || ''] });
+}
+
+// Toplanan stok hareketlerini tek seferde yazar (doPost sonunda çağrılır).
+var _hareketler = [];
+function hareketlerYaz_() {
+  if (!_hareketler.length) return;
+  const sh = _hareketler[0].sh;
+  const satirlar = _hareketler.map(h => h.satir);
+  _hareketler = [];
+  sh.getRange(sh.getLastRow() + 1, 1, satirlar.length, satirlar[0].length).setValues(satirlar);
 }
 
 var _ymHarita = null, _hmHarita = null;
@@ -167,7 +213,7 @@ function ymBirimHaritasi() {
 function hmBirimHaritasi() {
   if (_hmHarita) return _hmHarita;
   _hmHarita = {};
-  const ss = SpreadsheetApp.openById(SHEET_ID);
+  const ss = ss_();
   const sh = sekmeBul(ss, 'Tbl_Hammaddeler');
   if (!sh) return _hmHarita;
   const rows = sh.getDataRange().getValues();
@@ -237,7 +283,7 @@ function subeStokHaritasi(sube) {
 // ============================================================
 
 function getSubeler() {
-  const ss = SpreadsheetApp.openById(SHEET_ID);
+  const ss = ss_();
   let sh = sekmeBul(ss, SUBELER_SEKME);
   if (!sh) {
     sh = ss.insertSheet(SUBELER_SEKME);
@@ -307,7 +353,7 @@ function sifreKontrol(data) {
 // ============================================================
 
 function getYariMamuller() {
-  const ss = SpreadsheetApp.openById(SHEET_ID);
+  const ss = ss_();
   const sh = sekmeBul(ss, 'Tbl_YariMamul tablosuna Cikti_Tipi');
   if (!sh) return [];
   const rows = sh.getDataRange().getValues();
@@ -361,7 +407,7 @@ function getYariMamulRapor(sube) {
 }
 
 function getRecete(adi, sube) {
-  const ss = SpreadsheetApp.openById(SHEET_ID);
+  const ss = ss_();
   const sh = sekmeBul(ss, 'Tbl_YariMamulRecete');
   if (!sh) return { hata: 'Sekme bulunamadi' };
   const rows = sh.getDataRange().getValues();
@@ -455,13 +501,13 @@ function tekrarLogYaz_(ss, sube, ym, malzeme, sebep, calisan) {
 function tekrarYenile(data) {
   const { yariMamulAdi, malzeme, sube, sebep, calisanAdi } = data;
   if (!sube || !yariMamulAdi || !malzeme) return { basari: false, hata: 'Eksik bilgi' };
-  const ss = SpreadsheetApp.openById(SHEET_ID);
+  const ss = ss_();
   tekrarLogYaz_(ss, sube, yariMamulAdi, malzeme, sebep || 'Elle', calisanAdi);
   return { basari: true, mesaj: malzeme + ' yenilendi, sayaç sıfırlandı (' + sube + ')' };
 }
 
 function getHammaddeler(sadeceTakip, sube) {
-  const ss = SpreadsheetApp.openById(SHEET_ID);
+  const ss = ss_();
   const sh = sekmeBul(ss, 'Tbl_Hammaddeler');
   if (!sh) return [];
   
@@ -510,7 +556,7 @@ function getHammaddeler(sadeceTakip, sube) {
 }
 
 function getUrunler() {
-  const ss = SpreadsheetApp.openById(SHEET_ID);
+  const ss = ss_();
   const sh = sekmeBul(ss, 'Urun_Listesi');
   if (!sh) return [];
   const rows = sh.getDataRange().getValues();
@@ -589,7 +635,7 @@ function getStokDurum(sube) {
 
 function getPlanEkrani(sube) {
   try {
-    const ss = SpreadsheetApp.openById(SHEET_ID);
+    const ss = ss_();
     sube = sube ? sube.toString().trim() : '';
 
     const bugun = new Date();
@@ -722,7 +768,7 @@ function getPlanEkrani(sube) {
 // ============================================================
 
 function getDirektSatisUrunler(sube) {
-  const ss = SpreadsheetApp.openById(SHEET_ID);
+  const ss = ss_();
   const sh = sekmeBul(ss, 'Direktsatisurunler');
   if (!sh) return [];
   const rows = sh.getDataRange().getValues();
@@ -798,7 +844,7 @@ function getZayiUrunler(sube) {
 
 function getSiparisEkrani(secilenSube) {
   try {
-    const ss = SpreadsheetApp.openById(SHEET_ID);
+    const ss = ss_();
     secilenSube = secilenSube ? secilenSube.toString().trim() : '';
 
     const yarin = new Date();
@@ -967,7 +1013,7 @@ function getSiparisEkrani(secilenSube) {
 }
 
 function siparisSheet() {
-  const ss = SpreadsheetApp.openById(SHEET_ID);
+  const ss = ss_();
   let sh = sekmeBul(ss, 'Siparis_Kayitlari');
   if (!sh) {
     sh = ss.insertSheet('Siparis_Kayitlari');
@@ -979,7 +1025,7 @@ function siparisSheet() {
 }
 
 function tahminiTeslimGunu(tedarikciAdi, sube, baslangic) {
-  const ss = SpreadsheetApp.openById(SHEET_ID);
+  const ss = ss_();
   const tevSh = sekmeBul(ss, 'Tedarikçi Sevkiyat günleri');
   if (!tevSh) return null;
   const rows = tevSh.getDataRange().getValues();
@@ -1086,8 +1132,8 @@ function siparisDuzelt(data) {
   for(let j=found.length-1;j>=0;j--) sh.deleteRow(found[j]);
   urunler.forEach((u,i)=>sh.appendRow([base+'-'+(i+1),tarih,saat,eskiCalisan,ted,sube,u.adi,u.miktar,u.birim||'',Number(u.adetKarsiligi)||Number(u.miktar)||0,teslim,'Bekliyor','','','',wp]));
 
-  let log=sekmeBul(SpreadsheetApp.openById(SHEET_ID),'Siparis_Duzeltme_Log');
-  if(!log){ log=SpreadsheetApp.openById(SHEET_ID).insertSheet('Siparis_Duzeltme_Log'); log.appendRow(['Tarih','Siparis_ID','Sube','Tedarikci','Duzenleyen','Eski','Yeni']); }
+  let log=sekmeBul(ss_(),'Siparis_Duzeltme_Log');
+  if(!log){ log=ss_().insertSheet('Siparis_Duzeltme_Log'); log.appendRow(['Tarih','Siparis_ID','Sube','Tedarikci','Duzenleyen','Eski','Yeni']); }
   const yeniOzet=urunler.map(u=>u.adi+':'+u.miktar+' '+(u.birim||'')).join(' | ');
   log.appendRow([new Date(),base,sube,ted,duzelten,eskiOzet,yeniOzet]);
   return { basari:true, siparisId:base, mesaj:'Siparis duzeltildi' };
@@ -1210,7 +1256,7 @@ function malKabul(data) {
 // ============================================================
 
 function transferSheet() {
-  const ss = SpreadsheetApp.openById(SHEET_ID);
+  const ss = ss_();
   let sh = sekmeBul(ss, TRANSFER_SEKME);
   if (!sh) {
     sh = ss.insertSheet(TRANSFER_SEKME);
@@ -1421,7 +1467,7 @@ function transferDirektCikis(data) {
 // ============================================================
 
 function uretimKaydet(data) {
-  const ss = SpreadsheetApp.openById(SHEET_ID);
+  const ss = ss_();
   const { yariMamulAdi, kat, calisanAdi, not, tarih, sube } = data;
   if (!sube) return { basari: false, hata: 'Sube secili degil' };
 
@@ -1698,7 +1744,7 @@ function zayiDSStokBul_(ss, urun) {
 }
 
 function zayiKaydetSartli(data) {
-  const ss = SpreadsheetApp.openById(SHEET_ID);
+  const ss = ss_();
   const { tip, urun, miktar, birim, sebep, calisanAdi, sube } = data;
   if (!sube) return { basari: false, hata: 'Sube secili degil' };
   if (!urun) return { basari: false, hata: 'Urun secili degil' };
@@ -1771,7 +1817,7 @@ function zayiKaydetSartli(data) {
 }
 
 function sayimKaydet(data) {
-  const ss = SpreadsheetApp.openById(SHEET_ID);
+  const ss = ss_();
   const { yariMamulAdi, sayimMiktar, calisanAdi, tarih, sube } = data;
   const tip = (data.tip === 'hm') ? 'HM' : (data.tip === 'ds') ? 'DS' : 'YM';
   if (!sube) return { basari: false, hata: 'Sube secili degil' };
@@ -1779,18 +1825,15 @@ function sayimKaydet(data) {
   const b = stokSatirBul(yariMamulAdi, tip, sube);
   const sh = b.sh, satir = b.satir;
 
-  const teorik = Number(sh.getRange(satir, 5).getValue()) || 0;
+  const mevcutTeorik = sh.getRange(satir, 4, 1, 2).getValues()[0];
+  const eskiMevcut = Number(mevcutTeorik[0]) || 0;
+  const teorik = Number(mevcutTeorik[1]) || 0;
   // 14.09.2026: secilen birim artik gercekten uygulaniyor (once gormezden geliniyordu)
   const sayim = yuvarla(sayimBirimCevir(yariMamulAdi, tip, Number(sayimMiktar) || 0, data.sayimBirim));
   const fark = yuvarla(sayim - teorik);
-  const eskiMevcut = Number(sh.getRange(satir, 4).getValue()) || 0;
 
-  sh.getRange(satir, 4).setValue(sayim);
-  sh.getRange(satir, 5).setValue(sayim);
-  sh.getRange(satir, 6).setValue(sayim);
-  sh.getRange(satir, 7).setValue(new Date());
-  sh.getRange(satir, 8).setValue(fark);
-  sh.getRange(satir, 9).setValue(new Date());
+  // D:I -> Mevcut, Teorik, Son_Sayim, Son_Sayim_Tarihi, Fark, Guncelleme
+  sh.getRange(satir, 4, 1, 6).setValues([[sayim, sayim, sayim, new Date(), fark, new Date()]]);
 
   hareketYaz(sube, yariMamulAdi, 'Sayim', eskiMevcut, sayim, 'Teorik: ' + teorik + ' · Fark: ' + fark, calisanAdi || '', tip);
 
@@ -1816,8 +1859,7 @@ function stokDuzelt(data) {
   const b = stokSatirBul(hammaddeAdi, tip, sube);
   const eski = Number(b.sh.getRange(b.satir, 4).getValue()) || 0;
   const yeni = Number(yeniMiktar) || 0;
-  b.sh.getRange(b.satir, 4).setValue(yeni);
-  b.sh.getRange(b.satir, 5).setValue(yeni);
+  b.sh.getRange(b.satir, 4, 1, 2).setValues([[yeni, yeni]]);
   b.sh.getRange(b.satir, 9).setValue(new Date());
   hareketYaz(sube, hammaddeAdi, 'Duzeltme', eski, yeni, neden || '', calisanAdi || '', tip);
   return { basari: true, mesaj: hammaddeAdi + ' guncellendi (' + sube + ').' };
@@ -1899,7 +1941,7 @@ function evetMi(v) {
 }
 
 function getAmbalajUrunler(sube) {
-  const ss = SpreadsheetApp.openById(SHEET_ID);
+  const ss = ss_();
   const sh = sekmeBul(ss, 'Ambalaj_Hammadde');
   if (!sh) return [];
   const rows = sh.getDataRange().getValues();
@@ -1992,7 +2034,7 @@ function sayimBirimCevir(adi, tip, miktar, birim) {
   }
 
   if (t === 'HM') {
-    const ss = SpreadsheetApp.openById(SHEET_ID);
+    const ss = ss_();
     const h = hmBul_(ss, adi);
     if (!h) return yuvarla(m);
     const sb = trKucuk(h.stokBirimi || '').replace(/\./g, '').trim();
@@ -2039,7 +2081,7 @@ function sayimBirimCevir(adi, tip, miktar, birim) {
 // data.kayitlar = [{adi, miktar, birim, tip}], data.calisanAdi, data.tarih, data.sube
 // ============================================================
 function sayimTopluKaydet(data) {
-  const ss = SpreadsheetApp.openById(SHEET_ID);
+  const ss = ss_();
   const sube = data.sube;
   if (!sube) return { basari: false, hata: 'Sube secili degil' };
   const kayitlar = data.kayitlar || [];
