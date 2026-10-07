@@ -34,6 +34,14 @@ function doOptions(e) {
 }
 
 function doGet(e) {
+  const t0 = Date.now();
+  const p = e.parameter || {};
+  const action = p.action || '';
+  if (action === 'getPerformans') return jsonRes(performansOku_(p.gun));
+  try { return doGetIsle_(e); } finally { performansYaz_('G', action, p.sube, Date.now() - t0, 0); }
+}
+
+function doGetIsle_(e) {
   const p = e.parameter || {};
   const action = p.action || '';
   const sube = p.sube || '';
@@ -67,19 +75,51 @@ function doGet(e) {
 }
 
 function doPost(e) {
+  const t0 = Date.now();
+  let action = '', sube = '', ok = 0;
+  try { const d = JSON.parse(e.postData.contents); action = d.action || ''; sube = d.sube || ''; } catch (e0) {}
   // Kayıtlar sıraya girer: iki şubeden aynı anda gelen kayıt Sube_Stok'ta birbirinin üstüne yazmaz.
   const kilit = LockService.getScriptLock();
-  if (!kilit.tryLock(28000)) return jsonRes({ basari: false, hata: 'Sistem meşgul, kayıt YAZILMADI. Birkaç saniye sonra tekrar deneyin.' });
+  if (!kilit.tryLock(28000)) {
+    performansYaz_('P', action, sube, Date.now() - t0, Date.now() - t0, 'K');
+    return jsonRes({ basari: false, hata: 'Sistem meşgul, kayıt YAZILMADI. Birkaç saniye sonra tekrar deneyin.' });
+  }
+  const bekleme = Date.now() - t0;
   try {
     const sonuc = doPostIsle_(e);
     hareketlerYaz_();
+    ok = 1;
     return sonuc;
   } catch (err) {
     try { hareketlerYaz_(); } catch (e2) {}
     return jsonRes({ hata: err.toString() });
   } finally {
+    performansYaz_('P', action, sube, Date.now() - t0, bekleme, ok ? '' : 'H');
     kilit.releaseLock();
   }
+}
+
+// ÖLÇÜM (08.10.2026): her isteğin sunucudaki süresi. Tabloya değil Script Properties'e yazılır (gün ve tür başına anahtar,
+// en çok 200 kayıt). Okuma: ?action=getPerformans&gun=yyyyMMdd. Hata ölçümü asla isteği bozmaz.
+function performansYaz_(tur, action, sube, ms, beklemeMs, durum) {
+  try {
+    const simdi = new Date();
+    const anahtar = 'PERF_' + tur + '_' + Utilities.formatDate(simdi, 'Europe/Istanbul', 'yyyyMMdd');
+    const props = PropertiesService.getScriptProperties();
+    const liste = JSON.parse(props.getProperty(anahtar) || '[]');
+    if (liste.length >= 200) return; // tek değer en çok 9 KB
+    liste.push([Utilities.formatDate(simdi, 'Europe/Istanbul', 'HHmmss'), tur, String(action).slice(0, 22),
+      String(sube || '').slice(0, 1), Math.round(ms), Math.round(beklemeMs), durum || '']);
+    props.setProperty(anahtar, JSON.stringify(liste));
+  } catch (e) {}
+}
+
+function performansOku_(gun) {
+  const g = /^\d{8}$/.test(String(gun || '')) ? gun : Utilities.formatDate(new Date(), 'Europe/Istanbul', 'yyyyMMdd');
+  const props = PropertiesService.getScriptProperties();
+  const oku = t => JSON.parse(props.getProperty('PERF_' + t + '_' + g) || '[]');
+  return { gun: g, alanlar: ['saat', 'tur(G/P)', 'islem', 'sube', 'ms', 'kilitBekleme_ms', 'durum(H=hata,K=kilit)'],
+    kayit: oku('P'), okuma: oku('G') };
 }
 
 function doPostIsle_(e) {
