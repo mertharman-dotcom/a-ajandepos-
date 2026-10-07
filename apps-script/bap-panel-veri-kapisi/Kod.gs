@@ -655,7 +655,7 @@ function urunAc_(T, satisAdi, kategori) {
     var rc = T.recete[rk]; m.ad = rc.ad; m.kategori = T.urunKategori[rk] || ''; m.bulundu = true;
     rc.bilesenler.forEach(function (b) { var s = bilesen_(T, b.ad, b.miktar, b.birim, b.tip, 0, rc.ad); if (s) m.kalemler.push(s); });
   } else {
-    var dk = T.ds[anahtar] ? anahtar : benzer_(T, anahtar, 'd'), ds = dk ? T.ds[dk] : null;
+    var dk = dsBul_(T, anahtar), ds = dk ? T.ds[dk] : null;
     if (ds) {
       m.ad = ds.ad; m.bulundu = true;
       m.kalemler.push({ mk: malKaydet_(T, 'direkt', ds), miktar: 1, tutar: ds.birimFiyat });
@@ -672,6 +672,17 @@ function urunAc_(T, satisAdi, kategori) {
   });
   T.urunMemo[memo] = m;
   return m;
+}
+
+// Satış adı → direkt satış anahtarı. Sıra: birebir, Maliyet_Eslestirme hedefi, satış adının başındaki en uzun kısa ad
+// ("Susurluk Ayranı 24.5 cl." → "Susurluk Ayran", "Coca-Cola 33 cl." → "Coca Cola"), son olarak benzerlik.
+function dsBul_(T, anahtar) {
+  if (T.ds[anahtar]) return anahtar;
+  var h = T.eslestir[anahtar];
+  if (h && T.ds[h]) return h;
+  var en = null;
+  T.dsAnahtar.forEach(function (k) { if (k.length >= 5 && anahtar.indexOf(k) === 0 && (!en || k.length > en.length)) en = k; });
+  return en || benzer_(T, anahtar, 'd');
 }
 
 // Reçetedeki bir satır: hangi malzeme, malzemenin biriminde ne kadar, kaç lira.
@@ -749,7 +760,9 @@ function maliyetTanimlari_() {
   var dv = sekme_(ss, ['Direktsatisurunler']), dn = 0;
   if (dv.length > 1) {
     var db = dv[0].map(String);
-    var cU = tamKolon_(db, ['Urun_adi'], 1), cK = tamKolon_(db, ['Hammadde_Adi', 'Hammadde_Adı'], 2), cA = tamKolon_(db, ['Tedarikçi Sipariş Aktif'], 4),
+    // B = toptancının fatura adı (tam), C = içeride kullanılan kısa ad ("Coca Cola"). Eskiden kısa ad yerine de
+    // B okunuyordu; satış adları ("Coca-Cola 33 cl.") fatura adına benzemediği için içecekler hiç eşleşmiyordu (M16).
+    var cU = tamKolon_(db, ['Urun_adi', 'Hammadde_Adı', 'Hammadde_Adi'], 1), cK = tamKolon_(db, ['Hammadde'], 2), cA = tamKolon_(db, ['Tedarikçi Sipariş Aktif'], 4),
         cG = tamKolon_(db, ['Kategori'], 6), cF = tamKolon_(db, ['Son Alış Fiyatı', 'Son_Alis_Fiyati'], 9), cO = tamKolon_(db, ['Ölçü_Birimi', 'Olcu_Birimi'], 8),
         cKi = tamKolon_(db, ['Koli_Icerik', 'Koli_İçerik'], 15);
     dv.slice(1).forEach(function (r) {
