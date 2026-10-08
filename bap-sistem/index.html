@@ -1146,7 +1146,7 @@ async function siparisYukle(){
           <div class="wp-title">💬 WhatsApp'ta Gönder</div>
           <div class="wp-prev" id="wp-siparis-text"></div>
           <button class="btn-wp" id="wp-gonder-btn" onclick="siparisKaydetVeWhatsApp()">✅ Kaydet ve WhatsApp'ta Gönder</button>
-          <a class="btn-wp" id="wp-yedek-link" href="#" target="_blank" rel="noopener" style="display:none;text-decoration:none;background:#128c7e">📲 WhatsApp'ı Aç</a>
+          <a class="btn-wp" id="wp-yedek-link" href="#" target="_blank" rel="noopener" onclick="wpIsaretle(S_sonSiparis&&S_sonSiparis.siparisId)" style="display:none;text-decoration:none;background:#128c7e">📲 WhatsApp'ı Aç</a>
         </div>
         <button id="siparis-duzelt-btn" class="btn btn-ghost" style="display:none;width:100%;padding:13px;font-size:14px;border-radius:var(--radius);margin-top:8px" onclick="sonSiparisiDuzelt()">✏️ Son Siparişi Düzelt</button>
       </div>`;
@@ -1282,12 +1282,18 @@ function hepsiniSifirla(idx){
   });
 }
 
+// Siparişin şubesi: tedarikçi tek şubeye bağlıysa o, 'Hepsi' ise girişte seçilen şube.
+// 'Hepsi' kayda yazılırsa Mal Kabul siparişi hiçbir şubede göstermez (kontrol listesi P53).
+function siparisSubesi(ted){
+  return (ted.sube && ted.sube.toLocaleLowerCase('tr-TR')!=='hepsi') ? ted.sube : (S_seciliSube || S.sube || '');
+}
+
 function siparisListesiHazirla(idx){
   const ted = S_takvim[idx];
   const urunler = S_ted_urunler[ted.adi] || [];
   const yarin = new Date(); yarin.setDate(yarin.getDate()+1);
   const yarinStr = yarin.toLocaleDateString('tr-TR');
-  const mesajSube = (ted.sube && ted.sube.toLowerCase()!=='hepsi') ? ted.sube : (S_seciliSube || S.sube || '');
+  const mesajSube = siparisSubesi(ted);
   let lines = ['🍕 *BAP PIZZA' + (mesajSube ? ' ' + mesajSube.toUpperCase() : '') + '*', '🛒 ' + ted.adi + ' Siparişi · Teslim: ' + yarinStr, ''];
   let girilenler = [];
 
@@ -1364,6 +1370,9 @@ function whatsappYonlendir(w){
   }
   return false;
 }
+function wpIsaretle(siparisId){
+  if(siparisId) apiPost({action:'siparisWpIsaretle',siparisId:siparisId}).catch(()=>{});
+}
 function whatsappPencereKapat(w){
   try{ if(w && !w.closed) w.close(); }catch(e){}
 }
@@ -1377,12 +1386,13 @@ async function siparisKaydetVeWhatsApp(){
   const ted=S_takvim[S_aktifTed];
   let kaydedildi=false;
   try{
-    const r=await apiPost({action:'siparisKaydet',calisanAdi:S.girisYapan?.adi||'Bilinmiyor',tedarikci:ted.adi,sube:ted.sube||S_seciliSube||'',urunler:girilenler,wpGonderildi:false,tarih:new Date().toLocaleDateString('tr-TR')});
+    const r=await apiPost({action:'siparisKaydet',calisanAdi:S.girisYapan?.adi||'Bilinmiyor',tedarikci:ted.adi,sube:siparisSubesi(ted),urunler:girilenler,wpGonderildi:false,tarih:new Date().toLocaleDateString('tr-TR')});
     if(!r.basari){whatsappPencereKapat(pencere);toast2('⚠️ '+(r.hata||'Kayıt başarısız'));btn.textContent="✅ Kaydet ve WhatsApp'ta Gönder";return;}
     kaydedildi=true;
     S_sonSiparis={siparisId:r.siparisId,tedIdx:S_aktifTed,urunler:girilenler.slice(),calisanAdi:S.girisYapan?.adi||'Bilinmiyor'};
     const acildi=whatsappYonlendir(pencere);
-    apiPost({action:'siparisWpIsaretle',siparisId:r.siparisId}).catch(()=>{});
+    // WP_Gonderildi = EVET yalnızca WhatsApp gerçekten açıldıysa; açılmadıysa yeşil butona basınca yazılır.
+    if(acildi) wpIsaretle(r.siparisId);
     document.getElementById('siparis-duzelt-btn').style.display='block';
     hepsiniSifirla(S_aktifTed);
     if(acildi){
