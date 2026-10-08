@@ -209,19 +209,22 @@ function hizTesti() {
 /* ---------------- Satış ---------------- */
 
 // Sipariş tablosu sondan okunur. enEski (yyyy-MM-dd) verilirse o güne ulaşana kadar geriye doğru parça parça okunur.
-function siparisVerisi_(enEski) {
-  // Bellekteki okuma istenen günü kapsıyorsa yeniden okunmaz (satış ve yemek kartı kontrolü aynı tabloyu okur).
+// enAz: en az bu kadar satır (açık hesap kanıtı ve kurye eşleştirmesi için).
+function siparisVerisi_(enEski, enAz) {
+  // Bellekteki okuma istenen günü / satır sayısını kapsıyorsa yeniden okunmaz (satış, yemek kartı kontrolü, açık hesap
+  // kanıtı ve kurye eşleştirmesi aynı tabloyu okur); kapsamıyorsa kaldığı yerden geriye doğru devam edilir.
   var m = OKUMA_BELLEK && OKUMA_BELLEK.siparis;
-  if (m && enEski && (m.hepsi || m.rows.length >= 60000 || (m.ilkGun && m.ilkGun < enEski))) { OKUMA_BELLEK.bellekten++; return m; }
-  var t0 = Date.now(), sv = siparisVerisiOku_(enEski); olcEkle_('okuma › Adisyo Satıs Verileri (tüm sütunlar)', Date.now() - t0);
+  if (m && (enEski || enAz) && (m.hepsi || m.rows.length >= 60000 ||
+      ((!enEski || (m.ilkGun && m.ilkGun < enEski)) && (!enAz || m.rows.length >= enAz)))) { OKUMA_BELLEK.bellekten++; return m; }
+  var t0 = Date.now(), sv = siparisVerisiOku_(enEski, enAz, m); olcEkle_('okuma › Adisyo Satıs Verileri (tüm sütunlar)', Date.now() - t0);
   if (OKUMA_BELLEK) { OKUMA_BELLEK.okunan++; OKUMA_BELLEK.siparis = sv; }
   return sv;
 }
-function siparisVerisiOku_(enEski) {
+function siparisVerisiOku_(enEski, enAz, onceki) {
   var sh = tabloAc_(KAYNAK.siparis.id).getSheetByName('Satıs Verileri');
   if (!sh) throw new Error("Sipariş dosyasında 'Satıs Verileri' sekmesi bulunamadı");
-  var son = sh.getLastRow(), gen = sh.getLastColumn();
-  var b = sh.getRange(1, 1, 1, gen).getValues()[0];
+  var son = onceki ? onceki.son : sh.getLastRow(), gen = onceki ? onceki.gen : sh.getLastColumn();
+  var b = onceki ? onceki.b : sh.getRange(1, 1, 1, gen).getValues()[0];
   var c = {
     tarih: kolon_(b, ['Sipariş Tarihi']), sube: kolon_(b, ['Şube']), kanal: kolon_(b, ['Sipariş Kanalı']),
     marka: kolon_(b, ['Marka']), tutar: kolon_(b, ['Toplam Tutar']), durum: kolon_(b, ['Durum']),
@@ -230,14 +233,33 @@ function siparisVerisiOku_(enEski) {
     odeme: kolon_(b, ['Ödeme Yöntemi']), tahsil: kolon_(b, ['Tahsil Tipi'])
   };
   if (c.tarih < 0 || c.tutar < 0 || c.durum < 0) throw new Error('Sipariş tablosunda tarih, tutar ya da durum sütunu bulunamadı');
-  var rows = [], alt = son, ilkGun = null;
+  var rows = onceki ? onceki.rows : [], alt = onceki ? onceki.alt : son, ilkGun = onceki ? onceki.ilkGun : null;
   while (alt > 1) {
     var n = Math.min(5000, alt - 1), ust = alt - n + 1, v = sh.getRange(ust, 1, n, gen).getValues();
     rows = v.concat(rows); alt = ust - 1;
     for (var i = 0; i < v.length; i++) { var ms = zaman_(v[i][c.tarih]); if (ms !== null) { ilkGun = isGunu_(ms); break; } }
-    if (!enEski || (ilkGun && ilkGun < enEski) || rows.length >= 60000) break;
+    if (((!enEski || (ilkGun && ilkGun < enEski)) && (!enAz || rows.length >= enAz)) || rows.length >= 60000) break;
   }
-  return { c: c, rows: rows, ilkGun: ilkGun, hepsi: alt <= 1 };
+  return { c: c, b: b, rows: rows, ilkGun: ilkGun, hepsi: alt <= 1, son: son, gen: gen, alt: alt };
+}
+
+// Adisyo 'Satıs Verileri'nin son n satırı { b, v, ilk }. Değerler hızlı okumadan gelir (getValues, satışla ortak bellek;
+// görünen metin okuması ~8 kat yavaş). Biçimi önemli sütunlar (ör. '46.847.362' görünen Sipariş ID) ayrıca görünen haliyle
+// okunup üzerine yazılır. ilk: v[0]'ın tablodaki satır numarası (aynı okumanın son satırına göre).
+function adisyoSatirlari_(n, gorunen) {
+  var sv = siparisVerisi_(null, n), k = Math.min(n, sv.rows.length), sh = tabloAc_(KAYNAK.siparis.id).getSheetByName('Satıs Verileri');
+  var b = sv.b.map(function (h) { return String(h); }), v = sv.rows.slice(sv.rows.length - k).map(function (r) { return r.slice(); });
+  (gorunen || []).forEach(function (h) { var j = kolon_(b, [h]); if (j < 0) return;
+    var g = gorunenSutun_(sh, sv.son, j, k); for (var i = 0; i < k; i++) v[i][j] = g[i]; });
+  return { b: b, v: v, ilk: sv.son - k + 1 };
+}
+function gorunenSutun_(sh, son, j, k) {
+  var a = OKUMA_BELLEK && (OKUMA_BELLEK.gorunen = OKUMA_BELLEK.gorunen || {}), m = a && a[j];
+  if (m && m.son === son && m.k >= k) { OKUMA_BELLEK.bellekten++; return m.v.slice(m.k - k); }
+  var t0 = Date.now(), v = k > 0 ? sh.getRange(son - k + 1, j + 1, k, 1).getDisplayValues().map(function (r) { return r[0]; }) : [];
+  olcEkle_('okuma › Satıs Verileri görünen sütun (' + k + ' satır)', Date.now() - t0);
+  if (a) { OKUMA_BELLEK.okunan++; a[j] = { son: son, k: k, v: v }; }
+  return v;
 }
 
 function satis_() {
@@ -3157,9 +3179,8 @@ function acikKanit_(ks, liste) {
       kmap[id] = { no: String(r[cs.no] || '').trim(), ms: ms, teslim: teslim };
       if (cs.od >= 0 && cs.tu >= 0) { var rf = kartRef_(gunStr_(r[cs.t]), teslim, ms);
         tum.push({ id: id, no: String(r[cs.no] || '').trim(), odeme: String(r[cs.od] || ''), tutar: sayi_(r[cs.tu]), ms: rf ? rf.ms : null, gun: gunStr_(r[cs.t]) }); } }); }
-  var as = tabloAc_(KAYNAK.siparis.id);
-  var a = sonSatirlar_(as, 'Satıs Verileri', 12000, ['Sipariş ID', 'Sipariş No', 'Sipariş Tarihi', 'Ödeme Alındı']);
-  if (a) {
+  var a = adisyoSatirlari_(12000, ['Sipariş ID', 'Sipariş No']);
+  if (a.v.length) {
     var c = { no: kolon_(a.b, ['Sipariş No']), t: kolon_(a.b, ['Sipariş Tarihi']), od: kolon_(a.b, ['Ödeme Alındı']) }, ano = {}, enEski = null;
     if (c.od < 0) throw new Error("Adisyo'da 'Ödeme Alındı' sütunu bulunamadı");
     a.v.forEach(function (r) { var no = String(r[c.no] || '').trim(), ms = zaman_(r[c.t]); if (!no || ms === null) return; if (enEski === null || ms < enEski) enEski = ms;
@@ -3927,15 +3948,13 @@ function kuryeEslestirme_() {
       if (iptalMi_(r[ck.durum])) return; var ad = String(r[ck.kurye] || '').trim(); if (ad) kAdlar[ad] = 1;
       (kno[no] = kno[no] || []).push({ ms: ms, kurye: ad, platform: r[ck.plat] || '' }); }); }
   // Adisyo
-  var ss = tabloAc_(KAYNAK.siparis.id), sh = ss.getSheetByName('Satıs Verileri'); if (!sh) throw new Error("Adisyo dosyasında 'Satıs Verileri' yok");
-  var son = sh.getLastRow(), k = Math.min(6000, son - 1);
-  var ok = sonSatirlar_(ss, 'Satıs Verileri', 6000, ['Sipariş ID', 'Sipariş No', 'Sipariş Tarihi', 'Sipariş Tipi', 'Masa Siparişi', 'Sipariş Kanalı', 'Şube', 'Kurye', 'Durum']);
-  if (!ok) return { bos: [], farkli: [], eslesmeyen: [], ozet: { paket: 0, eslesen: 0, bos: 0, farkli: 0, eslesmeyen: 0 }, kuryeler: [] };
+  var ok = adisyoSatirlari_(6000, ['Sipariş ID', 'Sipariş No']);
+  if (!ok.v.length) return { bos: [], farkli: [], eslesmeyen: [], ozet: { paket: 0, eslesen: 0, bos: 0, farkli: 0, eslesmeyen: 0 }, kuryeler: [] };
   var b = ok.b;
   var c = { id: kolon_(b, ['Sipariş ID']), no: kolon_(b, ['Sipariş No']), tarih: kolon_(b, ['Sipariş Tarihi']), tip: kolon_(b, ['Sipariş Tipi', 'Masa Siparişi']), kanal: kolon_(b, ['Sipariş Kanalı']),
             sube: kolon_(b, ['Şube']), kurye: kolon_(b, ['Kurye']), durum: kolon_(b, ['Durum']) };
   if (c.id < 0 || c.no < 0 || c.tarih < 0 || c.kurye < 0) throw new Error("Adisyo'da Sipariş ID, Sipariş No, Sipariş Tarihi ya da Kurye sütunu bulunamadı");
-  var ilk = son - k + 1, v = ok.v; // satır kaysa bile yazarken Sipariş ID ile doğrulanır
+  var ilk = ok.ilk, v = ok.v; // satır kaysa bile yazarken Sipariş ID ile doğrulanır
   var karar = eslestirmeKararlari_(), adisyoYazim = {}, out = { bos: [], farkli: [], eslesmeyen: [], ozet: { paket: 0, eslesen: 0 }, kuryeler: [] };
   v.forEach(function (r) { var a = String(r[c.kurye] || '').trim(); if (a) { var f = norm_(a.split(/\s+/)[0]); adisyoYazim[f] = adisyoYazim[f] || {}; adisyoYazim[f][a] = (adisyoYazim[f][a] || 0) + 1; } });
   function yazim(ad) { var f = adisyoYazim[norm_(String(ad).split(/\s+/)[0])]; if (f) return Object.keys(f).sort(function (x, y) { return f[y] - f[x]; })[0];
@@ -4022,27 +4041,36 @@ function gunStr_(v) { var ms = zaman_(v); return ms === null ? null : new Date(m
 // Satırlar yine tam genişlikte döner, okunmayan hücreler boş kalır; kolon_ ile bulunan sıra numaraları değişmez.
 function sonSatirlar_(ss, ad, n, basliklar) {
   if (!OKUMA_BELLEK) return sonSatirlarOku_(ss, ad, n, basliklar);
-  var istenen = n, anahtar = ss.getId() + '|' + ad, m = OKUMA_BELLEK.sekme[anahtar];
-  if (m === null) return null;
-  if (m) {
-    var k = Math.min(n, m.son - 1);
-    var sutunVar = m.hepsi || (basliklar && basliklar.every(function (h) { var i = kolon_(m.b, [h]); return i < 0 || m.sutun[i]; }));
-    if (k <= m.k && sutunVar) { OKUMA_BELLEK.bellekten++; return { b: m.b, v: k === m.k ? m.v : m.v.slice(m.k - k) }; }
+  var anahtar = ss.getId() + '|' + ad, liste = OKUMA_BELLEK.sekme[anahtar];
+  if (liste === null) return null;
+  liste = liste || (OKUMA_BELLEK.sekme[anahtar] = []);
+  var etiket = function (k) { return 'okuma › ' + ad + ' (' + k + ' satır, ' + (basliklar ? basliklar.length + ' sütun' : 'tüm sütunlar') + ')'; };
+  var sutunlar = function (b) { var o = {}; if (basliklar) basliklar.forEach(function (h) { var i = kolon_(b, [h]); if (i >= 0) o[i] = 1; }); return o; };
+  // Bu sütunları içeren, en çok satırlı önceki okuma
+  var aday = liste.filter(function (m) { return m.hepsi || (basliklar && basliklar.every(function (h) { var i = kolon_(m.b, [h]); return i < 0 || m.sutun[i]; })); })
+    .sort(function (x, y) { return y.k - x.k; })[0];
+  var t0 = Date.now(), m;
+  if (aday) {
+    var k = Math.min(n, aday.son - 1);
+    if (k <= aday.k) { OKUMA_BELLEK.bellekten++; return { b: aday.b, v: k === aday.k ? aday.v : aday.v.slice(aday.k - k) }; }
+    // Yeni satırlar bellekte: yalnız eksik kalan eski satırlar okunur.
+    var ek = sonSatirlarOku_(ss, ad, k - aday.k, basliklar, aday.son - aday.k);
+    olcEkle_(etiket(k - aday.k) + ' — eksik eski satırlar', Date.now() - t0); OKUMA_BELLEK.okunan++;
+    if (ek) m = { b: aday.b, v: ek.v.concat(aday.v), son: aday.son, hepsi: !basliklar, sutun: sutunlar(aday.b) };
   }
-  // Kapsamıyorsa istenen kadar okunur (birleşik okuma 08.10'da kuryeyi yavaşlattı); bellekte büyük olan kalır.
-  var t0 = Date.now(), t = sonSatirlarOku_(ss, ad, n, basliklar);
-  olcEkle_('okuma › ' + ad + ' (' + n + ' satır, ' + (basliklar ? basliklar.length + ' sütun' : 'tüm sütunlar') + ')', Date.now() - t0);
-  OKUMA_BELLEK.okunan++;
-  if (!t) { OKUMA_BELLEK.sekme[anahtar] = null; return null; }
-  if (m && m.k > t.v.length) return t;
-  var sutun = {}; if (basliklar) basliklar.forEach(function (h) { var i = kolon_(t.b, [h]); if (i >= 0) sutun[i] = 1; });
-  OKUMA_BELLEK.sekme[anahtar] = { b: t.b, v: t.v, k: t.v.length, son: t.son, hepsi: !basliklar, sutun: sutun };
-  var kk = Math.min(istenen, t.v.length);
-  return { b: t.b, v: kk === t.v.length ? t.v : t.v.slice(t.v.length - kk) };
+  if (!m) {
+    var t = sonSatirlarOku_(ss, ad, n, basliklar);
+    olcEkle_(etiket(n), Date.now() - t0); OKUMA_BELLEK.okunan++;
+    if (!t) { if (!liste.length) OKUMA_BELLEK.sekme[anahtar] = null; return null; }
+    m = { b: t.b, v: t.v, son: t.son, hepsi: !basliklar, sutun: sutunlar(t.b) };
+  }
+  m.k = m.v.length; liste.push(m);
+  return { b: m.b, v: m.v };
 }
-function sonSatirlarOku_(ss, ad, n, basliklar) {
+// sonSatir verilirse o satırda biten n satır okunur (bellekteki okumanın üstündeki eski satırlar için).
+function sonSatirlarOku_(ss, ad, n, basliklar, sonSatir) {
   var sh = ss.getSheetByName(ad); if (!sh) return null;
-  var son = sh.getLastRow(), gen = sh.getLastColumn(); if (son < 2) return null;
+  var son = sonSatir || sh.getLastRow(), gen = sh.getLastColumn(); if (son < 2) return null;
   var k = Math.min(n, son - 1), b = sh.getRange(1, 1, 1, gen).getDisplayValues()[0];
   if (!basliklar) return { b: b, v: sh.getRange(son - k + 1, 1, k, gen).getDisplayValues(), son: son };
   var idx = []; basliklar.forEach(function (h) { var i = kolon_(b, [h]); if (i >= 0 && idx.indexOf(i) < 0) idx.push(i); });
@@ -4318,6 +4346,8 @@ function sayi_(v) {
 
 // İstanbul saatiyle yazılmış zamanı saat diliminden bağımsız milisaniyeye çevirir (karşılaştırma için).
 function zaman_(v) {
+  // İstanbul 2016'dan beri sabit UTC+3: tarih hücresi Utilities.formatDate'e gitmeden aynı sonucu verir (satır başına hızlı).
+  if (v instanceof Date) { var t = v.getTime(); if (t > 1475280000000) return Math.floor((t + 10800000) / 1000) * 1000; }
   var s = (v instanceof Date) ? Utilities.formatDate(v, TZ, 'dd.MM.yyyy HH:mm:ss') : String(v || '').trim();
   var m = s.match(/^(\d{1,2})[.\/](\d{1,2})[.\/](\d{4})(?:[ T](\d{1,2}):(\d{2})(?::(\d{2}))?)?/);
   if (m) return Date.UTC(+m[3], +m[2] - 1, +m[1], +(m[4] || 0), +(m[5] || 0), +(m[6] || 0));
