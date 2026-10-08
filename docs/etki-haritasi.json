@@ -4342,6 +4342,12 @@
    ],
    "okuyan": [
     {
+     "ad": "bap-gunluk-yedek › nabizKontrol",
+     "yer": [
+      "apps-script/bap-gunluk-yedek/Kod.gs:126"
+     ]
+    },
+    {
      "ad": "bap-panel-veri-kapisi › finans_",
      "yer": [
       "apps-script/bap-panel-veri-kapisi/Kod.gs:1273"
@@ -4576,6 +4582,12 @@
    ],
    "girisler": [
     {
+     "proje": "bap-gunluk-yedek",
+     "tur": "zamanlayici",
+     "aciklama": "her gün",
+     "fn": "nabizKontrol"
+    },
+    {
      "proje": "kolaybi-fatura-ham-veri",
      "tur": "zamanlayici",
      "aciklama": "haftada bir 03:00",
@@ -4628,6 +4640,7 @@
    ],
    "arayuzler": [],
    "projeler": [
+    "bap-gunluk-yedek",
     "bap-panel-veri-kapisi",
     "kolaybi-fatura-ham-veri"
    ]
@@ -9275,6 +9288,12 @@
      ]
     },
     {
+     "ad": "bap-gunluk-yedek › nabizKontrol",
+     "yer": [
+      "apps-script/bap-gunluk-yedek/Kod.gs:100"
+     ]
+    },
+    {
      "ad": "bap-panel-veri-kapisi › acikKanit_",
      "yer": [
       "apps-script/bap-panel-veri-kapisi/Kod.gs:3216"
@@ -9949,6 +9968,12 @@
      "fn": "tahsilSenkron"
     },
     {
+     "proje": "bap-gunluk-yedek",
+     "tur": "zamanlayici",
+     "aciklama": "her gün",
+     "fn": "nabizKontrol"
+    },
+    {
      "proje": "bap-panel-veri-kapisi",
      "tur": "zamanlayici",
      "aciklama": "her saat",
@@ -10153,6 +10178,7 @@
    ],
    "projeler": [
     "adisyo-siparis-toplayici",
+    "bap-gunluk-yedek",
     "bap-panel-veri-kapisi",
     "bap-rapor-ajani",
     "kurye-net-calisma-suresi"
@@ -10686,6 +10712,12 @@
      "yer": [
       "apps-script/adisyo-siparis-toplayici/Adisyon Sipariş Toplayıcı.gs:1271"
      ]
+    },
+    {
+     "ad": "bap-gunluk-yedek › nabizKontrol",
+     "yer": [
+      "apps-script/bap-gunluk-yedek/Kod.gs:142"
+     ]
     }
    ],
    "olusturan": [],
@@ -10711,6 +10743,12 @@
      "fn": "musteriTazele"
     },
     {
+     "proje": "bap-gunluk-yedek",
+     "tur": "zamanlayici",
+     "aciklama": "her gün",
+     "fn": "nabizKontrol"
+    },
+    {
      "proje": "trendyol-veri-cekme",
      "tur": "zamanlayici",
      "aciklama": "her gün",
@@ -10720,6 +10758,7 @@
    "arayuzler": [],
    "projeler": [
     "adisyo-siparis-toplayici",
+    "bap-gunluk-yedek",
     "trendyol-veri-cekme"
    ]
   },
@@ -10736,7 +10775,14 @@
      ]
     }
    ],
-   "okuyan": [],
+   "okuyan": [
+    {
+     "ad": "bap-gunluk-yedek › nabizKontrol",
+     "yer": [
+      "apps-script/bap-gunluk-yedek/Kod.gs:132"
+     ]
+    }
+   ],
    "olusturan": [],
    "dolayli": [],
    "sutunlar": [],
@@ -10746,11 +10792,18 @@
      "tur": "zamanlayici",
      "aciklama": "her 15 dk",
      "fn": "etiketleriUygula"
+    },
+    {
+     "proje": "bap-gunluk-yedek",
+     "tur": "zamanlayici",
+     "aciklama": "her gün",
+     "fn": "nabizKontrol"
     }
    ],
    "arayuzler": [],
    "projeler": [
-    "adisyo-siparis-toplayici"
+    "adisyo-siparis-toplayici",
+    "bap-gunluk-yedek"
    ]
   },
   {
@@ -11114,6 +11167,12 @@
      ]
     },
     {
+     "ad": "bap-gunluk-yedek › nabizKontrol",
+     "yer": [
+      "apps-script/bap-gunluk-yedek/Kod.gs:143"
+     ]
+    },
+    {
      "ad": "trendyol-veri-cekme › sorunluMu",
      "yer": [
       "apps-script/trendyol-veri-cekme/Trendyol.gs:517"
@@ -11137,6 +11196,12 @@
      "fn": "musteriTazele"
     },
     {
+     "proje": "bap-gunluk-yedek",
+     "tur": "zamanlayici",
+     "aciklama": "her gün",
+     "fn": "nabizKontrol"
+    },
+    {
      "proje": "trendyol-veri-cekme",
      "tur": "zamanlayici",
      "aciklama": "her gün",
@@ -11146,6 +11211,7 @@
    "arayuzler": [],
    "projeler": [
     "adisyo-siparis-toplayici",
+    "bap-gunluk-yedek",
     "trendyol-veri-cekme"
    ]
   },
@@ -13851,6 +13917,12 @@
      ]
     },
     {
+     "ad": "bap-gunluk-yedek › nabizKontrol",
+     "yer": [
+      "apps-script/bap-gunluk-yedek/Kod.gs:88"
+     ]
+    },
+    {
      "ad": "bap-panel-veri-kapisi › acikKanit_",
      "yer": [
       "apps-script/bap-panel-veri-kapisi/Kod.gs:3226"
@@ -14503,6 +14575,12 @@
      "fn": "tahsilSenkron"
     },
     {
+     "proje": "bap-gunluk-yedek",
+     "tur": "zamanlayici",
+     "aciklama": "her gün",
+     "fn": "nabizKontrol"
+    },
+    {
      "proje": "bap-panel-veri-kapisi",
      "tur": "zamanlayici",
      "aciklama": "her saat",
@@ -14649,6 +14727,7 @@
    ],
    "projeler": [
     "adisyo-siparis-toplayici",
+    "bap-gunluk-yedek",
     "bap-panel-veri-kapisi",
     "bap-rapor-ajani",
     "stok-takip-sistemi",
@@ -14660,7 +14739,14 @@
    "dosya": "SATIS",
    "dosyaAdi": "BAP Adisyo Sipariş Datası (Make.com doldurur)",
    "sekme": "Sistem_Nabzi",
-   "yazan": [],
+   "yazan": [
+    {
+     "ad": "bap-gunluk-yedek › nabizYaz_",
+     "yer": [
+      "apps-script/bap-gunluk-yedek/Kod.gs:226"
+     ]
+    }
+   ],
    "okuyan": [
     {
      "ad": "bap-panel-veri-kapisi › nabiz_",
@@ -14669,12 +14755,22 @@
      ]
     }
    ],
-   "olusturan": [],
+   "olusturan": [
+    "bap-gunluk-yedek › nabizYaz_"
+   ],
    "dolayli": [],
    "sutunlar": [],
-   "girisler": [],
+   "girisler": [
+    {
+     "proje": "bap-gunluk-yedek",
+     "tur": "zamanlayici",
+     "aciklama": "her gün",
+     "fn": "nabizKontrol"
+    }
+   ],
    "arayuzler": [],
    "projeler": [
+    "bap-gunluk-yedek",
     "bap-panel-veri-kapisi"
    ]
   },
@@ -19879,6 +19975,12 @@
    ],
    "okuyan": [
     {
+     "ad": "bap-gunluk-yedek › nabizKontrol",
+     "yer": [
+      "apps-script/bap-gunluk-yedek/Kod.gs:119"
+     ]
+    },
+    {
      "ad": "bap-panel-veri-kapisi › musteri_",
      "yer": [
       "apps-script/bap-panel-veri-kapisi/Kod.gs:1424"
@@ -20333,6 +20435,12 @@
    ],
    "girisler": [
     {
+     "proje": "bap-gunluk-yedek",
+     "tur": "zamanlayici",
+     "aciklama": "her gün",
+     "fn": "nabizKontrol"
+    },
+    {
      "proje": "trendyol-veri-cekme",
      "tur": "zamanlayici",
      "aciklama": "her gün",
@@ -20359,6 +20467,7 @@
    ],
    "arayuzler": [],
    "projeler": [
+    "bap-gunluk-yedek",
     "bap-panel-veri-kapisi",
     "trendyol-veri-cekme"
    ]
@@ -38444,6 +38553,150 @@
      "ifade": "ad"
     }
    ]
+  },
+  {
+   "klasor": "bap-gunluk-yedek",
+   "ad": "BAP Günlük Yedek",
+   "bagliDosya": null,
+   "fonksiyonSayisi": 16,
+   "girisler": [
+    "her gün → nabizKontrol",
+    "her gün 03:00 → yedekZipAl"
+   ],
+   "sekmeler": [
+    "FATURA › Sayfa1",
+    "KURYE › Siparişler",
+    "MUSTERI › Ana Musteri Listesi",
+    "MUSTERI › Etiket_Girisi",
+    "MUSTERI › Telefonsuz (Getir-Trendyol)",
+    "SATIS › Satıs Verileri",
+    "SATIS › Sistem_Nabzi",
+    "TRENDYOL › Degerlendirmeler"
+   ],
+   "fonksiyonlar": {
+    "_zipCanonicalDogrula_": {
+     "dosya": "apps-script/bap-gunluk-yedek/Kod.gs",
+     "satir": 395,
+     "cagirir": [],
+     "sekmeler": []
+    },
+    "_zipManifestOlustur_": {
+     "dosya": "apps-script/bap-gunluk-yedek/Kod.gs",
+     "satir": 324,
+     "cagirir": [],
+     "sekmeler": []
+    },
+    "_zipXlsxAktar_": {
+     "dosya": "apps-script/bap-gunluk-yedek/Kod.gs",
+     "satir": 287,
+     "cagirir": [],
+     "sekmeler": []
+    },
+    "_zipYaz_": {
+     "dosya": "apps-script/bap-gunluk-yedek/Kod.gs",
+     "satir": 347,
+     "cagirir": [],
+     "sekmeler": []
+    },
+    "_zipYedekTemizle_": {
+     "dosya": "apps-script/bap-gunluk-yedek/Kod.gs",
+     "satir": 363,
+     "cagirir": [],
+     "sekmeler": []
+    },
+    "_zipYedekTopla_": {
+     "dosya": "apps-script/bap-gunluk-yedek/Kod.gs",
+     "satir": 303,
+     "cagirir": [
+      "_zipXlsxAktar_",
+      "bulDosya_"
+     ],
+     "sekmeler": []
+    },
+    "bildirNabiz_": {
+     "dosya": "apps-script/bap-gunluk-yedek/Kod.gs",
+     "satir": 244,
+     "cagirir": [],
+     "sekmeler": []
+    },
+    "bulDosya_": {
+     "dosya": "apps-script/bap-gunluk-yedek/Kod.gs",
+     "satir": 265,
+     "cagirir": [],
+     "sekmeler": []
+    },
+    "kontrolEt_": {
+     "dosya": "apps-script/bap-gunluk-yedek/Kod.gs",
+     "satir": 214,
+     "cagirir": [],
+     "sekmeler": []
+    },
+    "nabizKontrol": {
+     "dosya": "apps-script/bap-gunluk-yedek/Kod.gs",
+     "satir": 81,
+     "cagirir": [
+      "bildirNabiz_",
+      "kontrolEt_",
+      "nabizYaz_"
+     ],
+     "sekmeler": [
+      "FATURA › Sayfa1",
+      "KURYE › Siparişler",
+      "MUSTERI › Ana Musteri Listesi",
+      "MUSTERI › Etiket_Girisi",
+      "MUSTERI › Telefonsuz (Getir-Trendyol)",
+      "SATIS › Satıs Verileri",
+      "TRENDYOL › Degerlendirmeler"
+     ]
+    },
+    "nabizTetikleyiciKaldir": {
+     "dosya": "apps-script/bap-gunluk-yedek/Kod.gs",
+     "satir": 545,
+     "cagirir": [],
+     "sekmeler": []
+    },
+    "nabizTetikleyiciKur": {
+     "dosya": "apps-script/bap-gunluk-yedek/Kod.gs",
+     "satir": 517,
+     "cagirir": [],
+     "sekmeler": []
+    },
+    "nabizYaz_": {
+     "dosya": "apps-script/bap-gunluk-yedek/Kod.gs",
+     "satir": 223,
+     "cagirir": [],
+     "sekmeler": [
+      "✎ SATIS › Sistem_Nabzi",
+      "SATIS › Sistem_Nabzi"
+     ]
+    },
+    "yedekTetikleyiciKaldir": {
+     "dosya": "apps-script/bap-gunluk-yedek/Kod.gs",
+     "satir": 556,
+     "cagirir": [],
+     "sekmeler": []
+    },
+    "yedekTetikleyiciKur": {
+     "dosya": "apps-script/bap-gunluk-yedek/Kod.gs",
+     "satir": 533,
+     "cagirir": [],
+     "sekmeler": []
+    },
+    "yedekZipAl": {
+     "dosya": "apps-script/bap-gunluk-yedek/Kod.gs",
+     "satir": 422,
+     "cagirir": [
+      "_zipCanonicalDogrula_",
+      "_zipManifestOlustur_",
+      "_zipYaz_",
+      "_zipYedekTemizle_",
+      "_zipYedekTopla_",
+      "bildirNabiz_"
+     ],
+     "sekmeler": []
+    }
+   },
+   "cozulemeyen": []
   },
   {
    "klasor": "bap-sistem-bekcisi",
