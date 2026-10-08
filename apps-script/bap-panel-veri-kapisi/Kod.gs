@@ -1749,11 +1749,28 @@ function kartOdenenFaturalar_() {
     if (mf && mf.getLastRow() > 1) { var b = mf.getRange(1, 1, 1, mf.getLastColumn()).getDisplayValues()[0], c = { no: kolon_(b, ['Fatura No']), d: kolon_(b, ['Durum']), o: kolon_(b, ['Ödeme Tarihi']) };
       mf.getRange(2, 1, mf.getLastRow() - 1, mf.getLastColumn()).getDisplayValues().forEach(function (r) {
         var no = String(r[c.no] || '').replace(/^'/, '').trim(); if (no && /tamamland/i.test(norm_(r[c.d]))) out[no] = { kaynak: 'Multinet', odeme: c.o >= 0 ? String(r[c.o] || '').replace(/^'/, '') : '' }; }); } } catch (err) { }
+  // Metropol › Fatura Ödeme Bilgileri: Fatura Seri + Seri No = KolayBi fatura no; Ödeme Durumu 'Odendi' olanlar ödenmiştir.
+  try { var mo = metropolOdemeleri_(); Object.keys(mo).forEach(function (no) { if (mo[no].odendi) out[no] = { kaynak: 'Metropol', odeme: mo[no].odeme }; }); } catch (err) { }
   // Tokenflex faturasında da KolayBi fatura no yazıyor; 'Ödendi' olanlar ödenmiştir.
   try { var tf = tabloAc_(KAYNAK.yemekKarti.id).getSheetByName('Tokenflex Fatura');
     if (tf && tf.getLastRow() > 1) { var tb = tf.getRange(1, 1, 1, tf.getLastColumn()).getDisplayValues()[0], tc = { no: kolon_(tb, ['Fatura No']), d: kolon_(tb, ['Durum']), o: kolon_(tb, ['Ödeme Tarihi']) };
       tf.getRange(2, 1, tf.getLastRow() - 1, tf.getLastColumn()).getDisplayValues().forEach(function (r) {
         var no = String(r[tc.no] || '').replace(/^'/, '').trim(); if (no && /^odendi$/.test(norm_(r[tc.d]))) out[no] = { kaynak: 'Tokenflex', odeme: String(r[tc.o] || '').replace(/^'/, '') }; }); } } catch (err) { }
+  return out;
+}
+// YEMEKKARTI › Metropol Ödeme (mac-kopru/metropol.mjs, sitedeki başlıklarla): { 'EFA…': { durum, odeme: 'yyyy-MM-dd', odendi } }.
+// Aynı fatura durumu değişince yeni satır olarak gelir → sondaki satır geçerli.
+function metropolOdemeleri_() {
+  var sh = tabloAc_(KAYNAK.yemekKarti.id).getSheetByName('Metropol Ödeme'), out = {}; if (!sh || sh.getLastRow() < 2) return out;
+  var b = sh.getRange(1, 1, 1, sh.getLastColumn()).getDisplayValues()[0];
+  var c = { seri: kolon_(b, ['Fatura Seri']), no: kolon_(b, ['Fatura Seri No']), od: kolon_(b, ['Ödeme Durumu']), fd: kolon_(b, ['Fatura Durumu']), t: kolon_(b, ['Ödeme Tarihi']) };
+  if (c.seri < 0 || c.no < 0 || c.od < 0) return out;
+  var al = function (r, j) { return j >= 0 ? String(r[j] || '').replace(/^'/, '').trim() : ''; };
+  sh.getRange(2, 1, sh.getLastRow() - 1, sh.getLastColumn()).getDisplayValues().forEach(function (r) {
+    var no = al(r, c.seri) + al(r, c.no); if (no.length < 10) return;
+    var od = al(r, c.od), odendi = /^odendi$/.test(norm_(od)), m = al(r, c.t).match(/^(\d{2})\/(\d{2})\/(\d{4})/);
+    out[no] = { durum: odendi ? 'Ödendi' : (od || al(r, c.fd)), odeme: odendi && m ? m[3] + '-' + m[2] + '-' + m[1] : '', odendi: odendi };
+  });
   return out;
 }
 // Panel satırının tahsilatı: { kaynak, tarih } | null. KolayBi'de ödendi işaretliyse o da sayılır.
@@ -1794,9 +1811,12 @@ function metropolFatura_() {
   try { var v = metropolCekimleri_(tabloAc_(KAYNAK.kurye.id));
     if (v && v.cekim && v.cekim.length) biriken = Math.round(v.cekim.filter(function (y) { return son === null || y.ms > son + GUN / 2; }).reduce(function (t, y) { return t + y.tutar; }, 0)); } catch (err) { }
   var takvim = [], g = bugun; for (var i = 0; i < 70 && takvim.length < 3; i++) { if (metropolFaturaGunuMu_(g)) takvim.push(g); g = gunEkle_(g, 1); }
+  var mo = {}; try { mo = metropolOdemeleri_(); } catch (err) { }
   return { bugun: bugun, faturaGunu: metropolFaturaGunuMu_(bugun), sonGun: bugun === new Date(Date.UTC(+bugun.slice(0, 4), +bugun.slice(5, 7), 0)).toISOString().slice(0, 10),
     bugunKesildi: bugunKesildi, buAy: buAy, hak: 2, takvim: takvim, biriken: biriken, kolaybiOkundu: kb.length > 0,
-    liste: kb.slice(0, 8).map(function (f) { return { no: f.no, tarih: kartTam_(f.ms).slice(0, 5) + '.' + new Date(f.ms).getUTCFullYear(), tutar: f.tutar, kb: kbDurum_(f), tahsil: tahsil_(f.no, f) }; }) };
+    liste: kb.slice(0, 8).map(function (f) { var m = mo[f.no];
+      return { no: f.no, tarih: kartTam_(f.ms).slice(0, 5) + '.' + new Date(f.ms).getUTCFullYear(), tutar: f.tutar, kb: kbDurum_(f), tahsil: tahsil_(f.no, f),
+        durum: m ? m.durum : '', odeme: m ? m.odeme : '' }; }) };
 }
 
 // BAP Yemek Kartı › 'Fatura Kesimleri' (Mac programlarının kesim kayıtları): bu kartın bugünkü son kaydı { zaman, sonuc, mesaj } | null
