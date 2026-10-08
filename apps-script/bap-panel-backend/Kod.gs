@@ -1096,6 +1096,9 @@ function tahminiTeslimGunu(tedarikciAdi, sube, baslangic) {
 function siparisKaydet(data) {
   const sh = siparisSheet();
   const { calisanAdi, tedarikci, sube, urunler, wpGonderildi, tarih } = data;
+  // 'Hepsi' ya da boş şube yazılırsa sipariş Mal Kabul'de hiçbir şubede görünmez, hep 'Bekliyor' kalır (P51).
+  const subeK = trKucuk(sube).trim();
+  if (!subeK || subeK === 'hepsi') return { basari: false, hata: 'Şube seçili değil. Çıkış yapıp şubeni seçerek tekrar gir.' };
   const simdi = new Date();
   const saat = simdi.getHours() + ':' + String(simdi.getMinutes()).padStart(2,'0');
   const sipId = 'SP' + Utilities.formatDate(simdi, 'Europe/Istanbul', 'yyMMddHHmmss');
@@ -1182,6 +1185,67 @@ function siparisDuzelt(data) {
 // ============================================================
 // MAL KABUL & AÇIK SİPARİŞLER
 // ============================================================
+
+// ── P51: Sube = 'Hepsi' yazılmış eski sipariş satırlarına gerçek şubeyi önerir / yazar ──
+// Editörden çalıştır: hepsiSubeDuzelt()  → KURU = true: hiçbir şey yazmaz, 'Sube_Duzeltme_Raporu' sekmesine öneri yazar.
+// Sahibi raporu onaylayınca KURU = false yapılıp tekrar çalıştırılır: yalnız F (Sube) hücresi değişir, satır silinmez.
+// Öneri: siparişi veren çalışanın 'Hepsi' olmayan siparişlerinde en çok kullandığı şube (en az %80 ve 3 sipariş).
+// Bu koşulu sağlamayanlar 'SOR' olarak kalır, yazılmaz.
+const HEPSI_SUBE_KURU = true;
+
+function hepsiSubeDuzelt() {
+  const KURU = HEPSI_SUBE_KURU;
+  const sh = siparisSheet();
+  const rows = sh.getDataRange().getValues();
+  const bas = rows[0].map(nrm);
+  const kol = (adlar, yedek) => { for (const a of adlar) { const i = bas.indexOf(nrm(a)); if (i >= 0) return i; } return yedek; };
+  const cId = kol(['Siparis_ID', 'Sipariş Numarası'], 0), cTarih = kol(['Tarih'], 1), cCal = kol(['Calisan'], 3);
+  const cTed = kol(['Tedarikci'], 4), cSube = kol(['Sube'], 5), cDurum = kol(['Teslim_Durumu'], 11);
+  const hepsiMi = v => trKucuk(v).trim() === 'hepsi';
+
+  // Çalışan → { şube: sipariş sayısı } (sipariş başına bir kez sayılır)
+  const say = {}, gorulen = {};
+  for (let i = 1; i < rows.length; i++) {
+    const sube = String(rows[i][cSube] || '').trim(), cal = nrm(rows[i][cCal]);
+    if (!sube || hepsiMi(sube) || !cal) continue;
+    const base = siparisBaseId_(rows[i][cId]);
+    if (gorulen[base]) continue; gorulen[base] = true;
+    (say[cal] = say[cal] || {})[sube] = (say[cal][sube] || 0) + 1;
+  }
+  const oneri = cal => {
+    const m = say[cal]; if (!m) return { sube: '', neden: 'bu çalışanın şubeli siparişi yok' };
+    const top = Object.keys(m).reduce((t, k) => t + m[k], 0);
+    const en = Object.keys(m).sort((a, b) => m[b] - m[a])[0];
+    const pay = m[en] / top;
+    const neden = Object.keys(m).map(k => k + ' ' + m[k]).join(', ');
+    return (pay >= 0.8 && m[en] >= 3) ? { sube: en, neden: neden } : { sube: '', neden: neden + ' (net değil)' };
+  };
+
+  const rapor = [['Satir', 'Siparis_ID', 'Tarih', 'Calisan', 'Tedarikci', 'Teslim_Durumu', 'Onerilen_Sube', 'Dayanak', 'Islem']];
+  let yazilan = 0, sor = 0;
+  for (let i = 1; i < rows.length; i++) {
+    if (!hepsiMi(rows[i][cSube])) continue;
+    const o = oneri(nrm(rows[i][cCal]));
+    let islem;
+    if (!o.sube) { islem = 'SOR'; sor++; }
+    else if (KURU) islem = 'yazılacak';
+    else { sh.getRange(i + 1, cSube + 1).setValue(o.sube); islem = 'yazıldı'; yazilan++; }
+    const t = rows[i][cTarih];
+    rapor.push([i + 1, rows[i][cId], t instanceof Date ? Utilities.formatDate(t, 'Europe/Istanbul', 'dd.MM.yyyy') : t,
+      rows[i][cCal], rows[i][cTed], rows[i][cDurum], o.sube || 'SOR', o.neden, islem]);
+  }
+
+  const ss = ss_();
+  let r = sekmeBul(ss, 'Sube_Duzeltme_Raporu');
+  if (!r) r = ss.insertSheet('Sube_Duzeltme_Raporu'); else r.clear();
+  r.getRange(1, 1, rapor.length, rapor[0].length).setValues(rapor);
+  r.getRange(1, 1, 1, rapor[0].length).setFontWeight('bold');
+  r.setFrozenRows(1);
+  const ozet = (KURU ? 'KURU çalışma: ' : 'Uygulandı: ') + (rapor.length - 1) + " 'Hepsi' satırı, " +
+    (KURU ? (rapor.length - 1 - sor) + ' önerildi' : yazilan + ' yazıldı') + ', ' + sor + ' SOR';
+  Logger.log(ozet);
+  return ozet;
+}
 
 const SIPARIS_ZAMAN_ASIMI_GUN = 7;
 
