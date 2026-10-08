@@ -3006,10 +3006,14 @@ function sipHesapOku_(ss) {
 //       x.kartKarar = 'soru' → aday var ama bu şartlardan biri tutmuyor, ya da çekim verisi o saati kapsıyor ama çekim yok.
 //       x.kartNeden: neden (panelde sahibine sorulur). x.kartKaynak: 'Pluxee' | 'Paye'. x.kartZaman: çekim saati (SS:dd).
 var TR_AY = { oca: 0, sub: 1, şub: 1, mar: 2, nis: 3, may: 4, haz: 5, tem: 6, agu: 7, ağu: 7, eyl: 8, eki: 9, kas: 10, ara: 11 };
+// Portalın online (platform) ödemelerini aldığı terminaller (08.10, siparişlerle doğrulandı: Edenred 362765 Trendyol / 375586 Yemeksepeti
+// "Edenred Online"; Pluxee 592123 "Sodexo Online"). Kart ajanı (kapıda açık hesap) bunları kullanmaz; iki taraflı kontrol online siparişle eşler.
+var ONLINE_TERMINAL = { Edenred: { '362765': 1, '375586': 1 }, Pluxee: { '592123': 1 } };
+function yalnizKapida_(v) { if (v && v.cekim && !v.hata) v.cekim = v.cekim.filter(function (y) { return !y.online; }); return v; }
 var KART_KAYNAKLARI = [
-  { ad: 'Pluxee', odeme: /pluxee|sodexo/i, oku: function (ks) { return pluxeeCekimleri_(ks); } },
+  { ad: 'Pluxee', odeme: /pluxee|sodexo/i, oku: function (ks) { return yalnizKapida_(pluxeeCekimleri_(ks)); }, tumu: function (ks) { return pluxeeCekimleri_(ks); } },
   { ad: 'Paye',   odeme: /paye/i,          oku: function (ks) { return payeCekimleri_(ks); } },
-  { ad: 'Edenred', odeme: /edenred|ticket/i,   /* "SmarTicket" da Edenred (08.10) */ oku: function (ks) { return edenredCekimleri_(ks); } },
+  { ad: 'Edenred', odeme: /edenred|ticket/i,   /* "SmarTicket" da Edenred (08.10) */ oku: function (ks) { return yalnizKapida_(edenredCekimleri_(ks)); }, tumu: function (ks) { return edenredCekimleri_(ks); } },
   { ad: 'Multinet', odeme: /multinet/i,   oku: function (ks) { var v = multinetCekimleri_(ks); if (v && v.cekim && !v.hata) v.cekim = v.cekim.filter(function (y) { return !y.online; }); return v; }, tumu: function (ks) { return multinetCekimleri_(ks); } },
   { ad: 'Tokenflex', odeme: /token\s*flex/i,   /* Adisyo: "Token Flex" (08.10) */ oku: function (ks) { return tokenflexCekimleri_(ks); } },
   { ad: 'Metropol', odeme: /metropol/i,   oku: function (ks) { return metropolCekimleri_(ks); } },
@@ -3126,7 +3130,7 @@ function kartSekmesi_(ks, ad, n) {
 // Pluxee çekimleri: Yemek Kartı Tahsilatları › 'Pluxee' (MacBook pluxee.mjs yazar). İşlem Zamanı "4 Eki 2026 21:14" ya da tarih.
 function pluxeeCekimleri_(ks) {
   var px = kartSekmesi_(ks, 'Pluxee', 3000); if (!px) return null;
-  var cz = kolon_(px.b, ['İşlem Zamanı']), ct = kolon_(px.b, ['Tutar (TL)', 'Tutar']), cekim = [], son = null;
+  var cz = kolon_(px.b, ['İşlem Zamanı']), ct = kolon_(px.b, ['Tutar (TL)', 'Tutar']), cter = kolon_(px.b, ['Terminal No']), cekim = [], son = null;
   if (cz < 0 || ct < 0) return { hata: "Pluxee sekmesinde 'İşlem Zamanı' ya da 'Tutar' sütunu yok" };
   px.v.forEach(function (r) { var ham = String(r[cz] || '').trim(), m = ham.match(/^(\d{1,2})\s+(\S+)\s+(\d{4})\s+(\d{1,2}):(\d{2})/), ms = null;
     if (m) { var ay = TR_AY[m[2].toLocaleLowerCase('tr-TR').slice(0, 3)]; if (ay === undefined) ay = TR_AY[norm_(m[2]).slice(0, 3)];
@@ -3134,7 +3138,8 @@ function pluxeeCekimleri_(ks) {
     else if (/\d:\d\d/.test(ham)) ms = zaman_(ham);   // yeni tabloda tarih hücresi ("01.10.2026 13:17:00")
     if (ms === null) return;
     m = [0, 0, 0, 0, new Date(ms).toISOString().slice(11, 13), new Date(ms).toISOString().slice(14, 16)];
-    cekim.push({ ms: ms, tutar: sayi_(r[ct]), zaman: ('0' + m[4]).slice(-2) + ':' + m[5], tam: kartTam_(ms) });
+    var ter = cter >= 0 ? String(r[cter] || '').replace(/^'/, '').trim() : '';
+    cekim.push({ ms: ms, tutar: sayi_(r[ct]), zaman: ('0' + m[4]).slice(-2) + ':' + m[5], tam: kartTam_(ms), terminal: ter, online: !!ONLINE_TERMINAL.Pluxee[ter] });
     if (son === null || ms > son) son = ms; });
   return { cekim: cekim, son: son };
 }
@@ -3178,11 +3183,12 @@ function payeCekimleri_(ks) {
 // İşlem listesi terminal gün sonundan sonra dolduğu için "çekim yok" yalnız son çekim anından en az 3 saat önceki siparişler için söylenir.
 function edenredCekimleri_(ks) {
   var e = kartSekmesi_(ks, 'Edenred', 6000); if (!e) return null;
-  var cz = kolon_(e.b, ['İşlem Zamanı']), ct = kolon_(e.b, ['Tutar (TL)', 'Tutar']), cekim = [], son = null;
+  var cz = kolon_(e.b, ['İşlem Zamanı']), ct = kolon_(e.b, ['Tutar (TL)', 'Tutar']), cter = kolon_(e.b, ['Terminal No']), cekim = [], son = null;
   if (cz < 0 || ct < 0) return { hata: "Edenred sekmesinde 'İşlem Zamanı' ya da 'Tutar' sütunu yok" };
   e.v.forEach(function (r) {
     var ms = zaman_(r[cz]), t = sayi_(r[ct]); if (ms === null || !(t > 0)) return;
-    var tam = kartTam_(ms); cekim.push({ ms: ms, tutar: t, zaman: tam.slice(6), tam: tam });
+    var ter = cter >= 0 ? String(r[cter] || '').replace(/^'/, '').trim() : '';
+    var tam = kartTam_(ms); cekim.push({ ms: ms, tutar: t, zaman: tam.slice(6), tam: tam, terminal: ter, online: !!ONLINE_TERMINAL.Edenred[ter] });
     if (son === null || ms > son) son = ms;
   });
   return { cekim: cekim, son: son };
