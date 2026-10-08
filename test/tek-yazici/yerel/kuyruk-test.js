@@ -194,6 +194,25 @@ t('Hazırlanıp çıkmadan iptal: sipariş düşülmez ama mutfağın zayi kayd�
   k.ekle('s:1', 'Sayim', 'Mozzarella', 'HM', null, 30, T('12:00'), T('12:01'), 'HAZIRDA:YOK');
   k.isle(T('12:02')); assert.equal(k.stok('Mozzarella'), 30);
 });
+t('Satış dosyası okuma: başlık adıyla; aynı sipariş ID iki satırda (biri iptal) → iptal satır çıkış saatini EZMEZ; masa/ödenmez türü tanınır', () => {
+  const k = kur();
+  const bas = ['Sipariş ID', 'Sipariş No (Gün İçi Sıra)', 'Sipariş Tarihi', 'Hazırlanma (Şube Çıkış)', 'Teslim Zamanı', 'Şube', 'Ürün Çıkan Şube', 'Masa Siparişi', 'Kanal', 'Marka', 'Ödeme Yöntemi', 'Durum', 'Motor_Islendi'];
+  const satirlar = [bas,
+    ['S2', '9002', T('11:50'), T('12:05'), T('12:10'), 'BAP Fikirtepe', 'Fikirtepe', 'Paket Siparişi', '', '', 'Nakit', 'Kapandı', ''],
+    ['S2', '9002', T('11:50'), '', '', 'BAP Fikirtepe', 'Fikirtepe', 'Paket Siparişi', '', '', 'Nakit', 'İptal', ''],
+    ['M1', '0012', T('11:00'), '', T('13:00'), '', 'Fikirtepe', 'Masa Siparişi', '', '', 'Kredi Kartı', 'Açık', ''],
+    ['P1', '0013', T('11:10'), '', T('11:30'), 'BAP Erenköy', 'Erenköy', 'Paket Siparişi', '', '', 'Ödenmez', 'Kapandı', '✓']];
+  const sh = { getLastRow: () => satirlar.length, getLastColumn: () => bas.length,
+    getRange: (r, c, nr = 1, nc = 1) => ({ getValues: () => satirlar.slice(r - 1, r - 1 + nr).map(x => x.slice(c - 1, c - 1 + nc)) }) };
+  const sade = x => String(x || '').replace(/[İIı]/g, 'i').replace(/[Ğğ]/g, 'g').replace(/[Üü]/g, 'u').replace(/[Şş]/g, 's').replace(/[Öö]/g, 'o').replace(/[Çç]/g, 'c').toLowerCase().replace(/[\s._\-]/g, '');
+  Object.assign(k.ctx, { kaynakSayfa: () => sh, sade, ISARET_BASLIK: 'Motor_Islendi', baslangicTarihi: () => T('00:00'),
+    sm_islendiMi: v => v === '✓', subeCoz: v => String(v).replace('BAP ', '') });
+  const b = k.ctx.sk_satisBilgisi_();
+  assert.equal(b.tuketim.S2.kaynak, 'cikis'); assert.equal(b.tuketim.S2.nokta, T('12:05').getTime()); assert.equal(b.tuketim.S2.no, '9002');
+  assert.equal(b.tuketim.M1.kaynak, 'kural-masa'); assert.equal(b.tuketim.M1.no, '12');
+  assert.equal(b.tuketim.P1.kaynak, 'kural-odenmez');
+  assert.equal(b.bekleyen['fikirtepe'].length, 2);   // S2 (kapalı, düşülmemiş) + M1 (açık); iptal satır ve işlenmiş P1 yok
+});
 t('Sayım: sayımdan sonra işlenen üretim/zayi (olay zamanına göre) sayılanın üstüne eklenir; önceki eklenmez', () => {
   const k = kur();
   k.sh.Stok_Hareketleri._data.push([T('10:30'), 'Erenköy', 'Narenciye Sos', 'Uretim', 0, 500, '', '', 'eski', 'x']);   // sayımdan önce

@@ -389,10 +389,13 @@ function sk_satisBilgisi_() {
       : (cOdeme >= 0 && sade(r[cOdeme]).indexOf('odenmez') === 0) ? 'odenmez' : 'paket';
     var z = sk_tuketimZamani_(t, cCikis >= 0 ? sk_zaman_(r[cCikis]) : NaN, cKapanis >= 0 ? sk_zaman_(r[cKapanis]) : NaN, tur);
     z.id = String(r[cId]); z.no = cNo >= 0 ? String(r[cNo]).replace(/\.0+$/, '').replace(/^0+/, '') : z.id;
-    sonuc.tuketim[z.id] = z;
+    var iptal = cDurum >= 0 && sade(r[cDurum]).indexOf('iptal') !== -1;
+    // Aynı sipariş ID'si birden çok satırda olabilir (ör. iptal edilmiş tekrar kayıt): iptal satır, çıkışı olan satırı ezmez
+    var onceki = sonuc.tuketim[z.id];
+    if (!onceki || (!iptal && (onceki.iptal || (onceki.kaynak === 'eksik' && z.kaynak !== 'eksik')))) { z.iptal = iptal; sonuc.tuketim[z.id] = z; }
     if (t < basla) return;
     if (sm_islendiMi(cIs >= 0 ? r[cIs] : '')) return;
-    if (cDurum >= 0 && sade(r[cDurum]).indexOf('iptal') !== -1) return;
+    if (iptal) return;
     var sube = subeCoz(cSube >= 0 ? r[cSube] : '');
     if (!sube || sube.charAt(0) === '#') sube = subeCoz(cSube2 >= 0 ? r[cSube2] : '');
     var s = sk_n_(sube);
