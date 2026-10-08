@@ -50,6 +50,11 @@ Başlıklar: `Tarih | Kurye Adı | Kesinti Tipi | Kesilen Süre (Dk) | Kesilen T
 3. **P59 — Haftalık kurye farkları:** her kurye için o haftanın siparişle tutmayan çekimleri gösterilir (600 TL sipariş / 60 TL çekim gibi),
    siparişsiz çekim ve çekimsiz sipariş de. Kaynak `ykKontrol_` mantığı; kurye × hafta görünümü.
 Uygulama sırası her hafta: kart ajanı → Adisyo kanıtı → (kalanlar) otomatik kesinti. Her biri önce KURU rapor, sahibi onaylayınca canlı.
+Ayrıntı kararları (08.10, sahibinin cevapları):
+- Otomatik kesinti **Pazartesi sabahı** yazılır, biten haftanın bordrosuna girer (kesinti satırının tarihi o haftanın Pazar'ı).
+- Kart ajanının **'soru'** dediği (olası kart ödemesi olan) hesap **kesilmez**; panelde "kart ödemesi olabilir" listesinde bekler.
+- Kesildikten sonra kart çekimi bulunursa kuryeye **otomatik geri ödenir**: aynı tutarda `Ek Ödeme`, açıklama "Açık hesap iadesi: …".
+- Kesinti hakedişten büyükse bordro **eksi görünür** (panel bugün böyle; tablo `bordroCiz` de eksi gösterecek şekilde düzeltilecek — P60).
 
 ## Panel ve dosyalar
 PG `kuryeBordro` (bordro), `kuryeKesinti` (form + listeler), `kuryeAcik` (açık hesap; yaş rozeti >3 gün dikkat, >30 kötü), `kartAjanBlok`.
