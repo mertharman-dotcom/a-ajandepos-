@@ -280,7 +280,7 @@ export default {
       let govde;
       try { govde = await request.json(); } catch (e) { return json({ hata: 'Geçersiz istek.' }, 400); }
       const ileti = JSON.stringify({ key: env.GAS_KEY, tur: 'kesinti', istekNo: String(govde.istekNo || '').slice(0, 64),
-        kurye: String(govde.kurye || '').slice(0, 60), tarih: String(govde.tarih || '').slice(0, 10), tip: govde.tip === 'Saat' ? 'Saat' : 'TL',
+        kurye: String(govde.kurye || '').slice(0, 60), tarih: String(govde.tarih || '').slice(0, 10), tip: ['TL', 'Saat', 'Avans', 'Bahşiş', 'Eksik Ödeme', 'Ek Ödeme'].indexOf(govde.tip) >= 0 ? govde.tip : 'TL',
         miktar: String(govde.miktar || '').slice(0, 20), aciklama: String(govde.aciklama || '').slice(0, 200), onay: govde.onay === '1' ? '1' : '' });
       try {
         const r = await fetch(env.GAS_URL, { method: 'POST', headers: { 'content-type': 'application/json' }, body: ileti, redirect: 'follow' });

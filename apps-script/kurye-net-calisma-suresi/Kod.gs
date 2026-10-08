@@ -327,12 +327,27 @@ function kesintiOku(hafta) {
     var dk = sayiyaCevir(v[i][3]);
     var tl = sayiyaCevir(v[i][4]);
     var aciklama = String(v[i][5] || '').trim();
-    if (!harita[kurye]) harita[kurye] = { saatDk: 0, tl: 0, detay: [] };
-    if (tip.indexOf('SAAT') >= 0 || dk > 0) harita[kurye].saatDk += dk;
-    if (tip.indexOf('TL') >= 0 || tl > 0) harita[kurye].tl += tl;
-    harita[kurye].detay.push(tarihAnahtari(d) + ': ' + (dk ? dk + ' dk ' : '') + (tl ? tl + ' TL ' : '') + aciklama);
+    if (!harita[kurye]) harita[kurye] = { saatDk: 0, tl: 0, arti: 0, avans: 0, detay: [] };
+    var yon = kesintiYonu(v[i][2]); // ham metin: toUpperCase 'Bahşiş'i 'BAHŞIŞ' yapıp eşleşmeyi bozar
+    if (yon === 'arti') harita[kurye].arti += tl;          // bahşiş, eksik ödeme, ek ödeme → bordroya +
+    else if (yon === 'avans') harita[kurye].avans += tl;   // avans → ödenecekten −
+    else {
+      if (tip.indexOf('SAAT') >= 0 || dk > 0) harita[kurye].saatDk += dk;
+      if (tip.indexOf('TL') >= 0 || tl > 0) harita[kurye].tl += tl;
+    }
+    harita[kurye].detay.push(tarihAnahtari(d) + ': ' + (dk ? dk + ' dk ' : '') + (tl ? (yon === 'arti' ? '+' : '−') + tl + ' TL ' : '') + aciklama);
   }
   return harita;
+}
+
+// 'Kesintiler' sekmesindeki tür: TL / Saat → kesinti; Avans → ödenecekten düşer;
+// Bahşiş / Eksik Ödeme / Ek Ödeme → ödenecek tutara eklenir (tutar hep artı yazılır, yönü türden gelir).
+// Aynı kural bap-panel-veri-kapisi/Kod.gs › kesintiYonu_ içinde de var.
+function kesintiYonu(tip) {
+  var t = String(tip || '').toLocaleLowerCase('tr-TR');
+  if (/avans/.test(t)) return 'avans';
+  if (/bahşiş|bahsis|eksik ödeme|eksik odeme|ek ödeme|ek odeme/.test(t)) return 'arti';
+  return 'kesinti';
 }
 
 /* ====================== ANA KURULUM ====================== */
@@ -421,7 +436,7 @@ function bordroCiz(sheet, hafta) {
   Object.keys(toplu).forEach(function (ad) {
     var t = toplu[ad];
     var tf = kuryeTarife(ad, tarife);
-    var ek = kesintiler[ad] || { saatDk: 0, tl: 0 };
+    var ek = kesintiler[ad] || { saatDk: 0, tl: 0, arti: 0, avans: 0 };
     var odenenDk = Math.max(0, t.netDk - ek.saatDk);
     var saatHak = (odenenDk / 60) * tf.saatUcret;
     var paketHak = t.paket * tf.paketUcret;
@@ -437,7 +452,9 @@ function bordroCiz(sheet, hafta) {
       paket: t.paket, saatUcret: tf.saatUcret, paketUcret: tf.paketUcret,
       saatHak: saatHak, paketHak: paketHak,
       ekKesintiDk: ek.saatDk, ekKesintiTl: ek.tl,
-      netHaric: netHaric, kdv: bapMi ? '-' : kdv, toplam: netHaric + kdv,
+      // Bahşiş / eksik ödeme / ek ödeme ve avans KDV'ye girmez: KDV'den sonra eklenir / düşülür.
+      arti: ek.arti || 0, avans: ek.avans || 0,
+      netHaric: netHaric, kdv: bapMi ? '-' : kdv, toplam: netHaric + kdv + (ek.arti || 0) - (ek.avans || 0),
       _hamDk: t.hamDk, _netDk: t.netDk, _odenenDk: odenenDk, _kdv: kdv, _bap: bapMi
     };
     (bapMi ? bap : haddy).push(kayit);
@@ -446,25 +463,25 @@ function bordroCiz(sheet, hafta) {
   var trSort = function (a, b) { return a.ad.localeCompare(b.ad, 'tr'); };
   bap.sort(trSort); haddy.sort(trSort);
 
-  sheet.getRange('A3:R200').clear();
+  sheet.getRange('A3:T200').clear();
 
   var basliklar = ['Hafta', 'Kurye Adı', 'Bordro', 'Gün', 'Ham Süre', 'Mesai Kesintisi (dk)',
     'Net Süre', 'Ek Kesinti (dk)', 'Ödenen Süre', 'Paket', 'Saat Ücreti', 'Paket Ücreti',
     'Saat Hakediş', 'Paket Hakediş', 'Para Kesintisi (TL)', 'Net Hakediş (KDV Hariç)',
-    'Haddy %20 KDV', 'Toplam Ödenecek'];
+    'Haddy %20 KDV', 'Ek Ödeme / Bahşiş (+TL)', 'Avans (−TL)', 'Toplam Ödenecek'];
 
   var satirlar = [basliklar], tipler = [];
   var sat = function (k) {
     return [k.hafta, k.ad, k.bordro, k.gunSayisi, k.hamStr, k.mesaiKesintiDk, k.netStr,
       k.ekKesintiDk, k.odenenStr, k.paket, k.saatUcret, k.paketUcret, k.saatHak, k.paketHak,
-      k.ekKesintiTl, k.netHaric, k.kdv, k.toplam];
+      k.ekKesintiTl, k.netHaric, k.kdv, k.arti, k.avans, k.toplam];
   };
   var topla = function (liste) {
-    var t = { ham: 0, net: 0, odenen: 0, mk: 0, ek: 0, paket: 0, sh: 0, ph: 0, tl: 0, nh: 0, kdv: 0, top: 0, gun: 0 };
+    var t = { ham: 0, net: 0, odenen: 0, mk: 0, ek: 0, paket: 0, sh: 0, ph: 0, tl: 0, nh: 0, kdv: 0, arti: 0, avans: 0, top: 0, gun: 0 };
     liste.forEach(function (k) {
       t.ham += k._hamDk; t.net += k._netDk; t.odenen += k._odenenDk; t.mk += k.mesaiKesintiDk;
       t.ek += k.ekKesintiDk; t.paket += k.paket; t.sh += k.saatHak; t.ph += k.paketHak;
-      t.tl += k.ekKesintiTl; t.nh += k.netHaric; t.kdv += k._kdv; t.top += k.toplam; t.gun += k.gunSayisi;
+      t.tl += k.ekKesintiTl; t.nh += k.netHaric; t.kdv += k._kdv; t.arti += k.arti; t.avans += k.avans; t.top += k.toplam; t.gun += k.gunSayisi;
     });
     return t;
   };
@@ -476,14 +493,14 @@ function bordroCiz(sheet, hafta) {
 
   var tb = topla(bap), th = topla(haddy);
   satirlar.push([hafta, 'BAP TOPLAMI', 'BAP', tb.gun, dkMetin(tb.ham), tb.mk, dkMetin(tb.net), tb.ek,
-    dkMetin(tb.odenen), tb.paket, '-', '-', tb.sh, tb.ph, tb.tl, tb.nh, '-', tb.top]);
+    dkMetin(tb.odenen), tb.paket, '-', '-', tb.sh, tb.ph, tb.tl, tb.nh, '-', tb.arti, tb.avans, tb.top]);
   tipler.push('bapTop');
   satirlar.push([hafta, 'HADDY TOPLAMI', 'Haddy Kurye', th.gun, dkMetin(th.ham), th.mk, dkMetin(th.net), th.ek,
-    dkMetin(th.odenen), th.paket, '-', '-', th.sh, th.ph, th.tl, th.nh, th.kdv, th.top]);
+    dkMetin(th.odenen), th.paket, '-', '-', th.sh, th.ph, th.tl, th.nh, th.kdv, th.arti, th.avans, th.top]);
   tipler.push('haddyTop');
   satirlar.push([hafta, 'GENEL TOPLAM', 'TÜMÜ', tb.gun + th.gun, dkMetin(tb.ham + th.ham), tb.mk + th.mk,
     dkMetin(tb.net + th.net), tb.ek + th.ek, dkMetin(tb.odenen + th.odenen), tb.paket + th.paket, '-', '-',
-    tb.sh + th.sh, tb.ph + th.ph, tb.tl + th.tl, tb.nh + th.nh, th.kdv, tb.top + th.top]);
+    tb.sh + th.sh, tb.ph + th.ph, tb.tl + th.tl, tb.nh + th.nh, th.kdv, tb.arti + th.arti, tb.avans + th.avans, tb.top + th.top]);
   tipler.push('genelTop');
 
   sheet.getRange(3, 1, satirlar.length, basliklar.length).setValues(satirlar);
@@ -497,7 +514,7 @@ function bordroCiz(sheet, hafta) {
     if (renk) sheet.getRange(r, 1, 1, basliklar.length).setBackground(renk).setFontWeight('bold');
   }
 
-  sheet.getRange(4, 11, satirlar.length - 1, 8).setNumberFormat('#,##0.00');
+  sheet.getRange(4, 11, satirlar.length - 1, 10).setNumberFormat('#,##0.00');
   sheet.setFrozenRows(3);
   sheet.autoResizeColumns(1, basliklar.length);
 }
