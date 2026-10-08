@@ -292,6 +292,12 @@ function istekVarMi_(istekId) {
   const son = sh.getLastRow(), bas = Math.max(2, son - 1999), on = String(istekId).replace(/:/g, '') + ':';
   return sh.getRange(bas, 1, son - bas + 1, 1).getValues().some(r => String(r[0]).indexOf(on) === 0);
 }
+// Sayım anında hazırlanmış ama şubeden çıkmamış siparişler (gün içi no). Soru cevaplanmadıysa boş döner.
+function hazirdaMetni_(data) {
+  if (data.hazirda === undefined || data.hazirda === null) return '';
+  const liste = String(data.hazirda).split(/[,\s]+/).map(x => x.replace(/[^0-9A-Za-z]/g, '')).filter(Boolean);
+  return ' · HAZIRDA:' + (liste.length ? liste.join(',') : 'YOK');
+}
 function sonraYaz_() {
   const liste = _sonraYaz; _sonraYaz = [];
   liste.forEach(x => x[0].appendRow(x[1]));
@@ -1972,7 +1978,7 @@ function sayimKaydet(data) {
 
   // Sayım kuyruğa mutlak değer olarak girer; işleyici sayım anından sonraki hareketleri üstüne ekler.
   kuyrugaEkle_({ sube: sube, urun: yariMamulAdi, tip: tip, tur: 'Sayim', mutlak: sayim,
-    detay: 'Teorik: ' + teorik + ' · Fark: ' + fark, sorumlu: calisanAdi || '' });
+    detay: 'Teorik: ' + teorik + ' · Fark: ' + fark + hazirdaMetni_(data), sorumlu: calisanAdi || '' });
 
   let sayimSh = sekmeBul(ss, 'Sayim_Girisleri');
   if (!sayimSh) {
@@ -2254,7 +2260,7 @@ function sayimTopluKaydet(data) {
       const fark = yuvarla(sayim - teorik);
 
       kuyrugaEkle_({ sube: sube, urun: adi, tip: tip, tur: 'Sayim', mutlak: sayim,
-        detay: 'Teorik: ' + teorik + ' · Fark: ' + fark + ' (toplu) · önceki ' + eskiMevcut, sorumlu: calisan });
+        detay: 'Teorik: ' + teorik + ' · Fark: ' + fark + ' (toplu) · önceki ' + eskiMevcut + hazirdaMetni_(data), sorumlu: calisan });
       sayimSatirlari.push([tarih, sube, adi,
                            tip === 'HM' ? 'Hammadde' : (tip === 'DS' ? 'Direkt Satis' : (tip === 'AMB' ? 'Ambalaj' : 'Yari Mamul')),
                            sayim, teorik, fark, calisan]);

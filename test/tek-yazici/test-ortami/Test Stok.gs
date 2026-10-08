@@ -72,21 +72,28 @@ var TS_ISLEMLER = {
   tetikSil: function () { ScriptApp.getProjectTriggers().forEach(function (t) { ScriptApp.deleteTrigger(t); }); return []; },
   // ---- sahte veri (yalnız TEST dosyalarına) ----
   siparisEkle: function (p) {
-    var liste = JSON.parse(p.json);   // [{id, zaman:'2026-10-08T12:00:00+03:00', sube, urunler:[..], adetler:[..], durum}]
+    var liste = JSON.parse(p.json);   // [{id, no, zaman:'2026-10-08T12:00:00+03:00', cikis, kapanis, tur:'paket'|'masa', odeme, sube, urunler:[..], adetler:[..], durum}]
     var sh = SpreadsheetApp.openById(SATIS_KAYNAK_ID).getSheetByName(SATIS_SEKME);
     var satirlar = liste.map(function (s) {
       var z = new Date(s.zaman);
-      return [s.id, '', z, '', '', 'BAP ' + s.sube, s.sube, 'Paket', 'Test', 'BAP', 'Nakit', 'TEST', '', '', '',
+      var tarih = function (x) { return x ? new Date(x) : ''; };
+      return [s.id, s.no || '', z, tarih(s.cikis), tarih(s.kapanis), 'BAP ' + s.sube, s.sube, s.tur === 'masa' ? 'Masa Siparişi' : 'Paket Siparişi',
+        'Test', 'BAP', s.odeme || 'Nakit', 'TEST', '', '', '',
         s.urunler.map(function () { return 'Pizza'; }).join('|'), s.urunler.join('|'), s.adetler.join('|'), s.urunler.map(function () { return 0; }).join('|'),
         0, '', '', '', s.durum || 'Kapandı', '', z.toISOString(), 'TEST'];
     });
     sh.getRange(sh.getLastRow() + 1, 1, satirlar.length, satirlar[0].length).setValues(satirlar);
     return { eklenen: satirlar.length };
   },
-  siparisDurum: function (p) {   // ?id=..&durum=Kapandı
+  siparisDurum: function (p) {   // ?id=..&durum=Kapandı&cikis=..&kapanis=..
     var sh = SpreadsheetApp.openById(SATIS_KAYNAK_ID).getSheetByName(SATIS_SEKME);
     var v = sh.getRange(2, 1, sh.getLastRow() - 1, 1).getValues();
-    for (var i = 0; i < v.length; i++) if (String(v[i][0]) === p.id) { sh.getRange(i + 2, 24).setValue(p.durum); return { satir: i + 2 }; }
+    for (var i = 0; i < v.length; i++) if (String(v[i][0]) === p.id) {
+      if (p.durum) sh.getRange(i + 2, 24).setValue(p.durum);
+      if (p.cikis) sh.getRange(i + 2, 4).setValue(new Date(p.cikis));       // Hazırlanma (Şube Çıkış)
+      if (p.kapanis) sh.getRange(i + 2, 5).setValue(new Date(p.kapanis));   // Teslim Zamanı
+      return { satir: i + 2 };
+    }
     return { bulunamadi: p.id };
   },
   faturaEkle: function (p) {
