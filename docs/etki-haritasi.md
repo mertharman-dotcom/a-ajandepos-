@@ -14,7 +14,7 @@ Ajan için: `node araclar/etki-haritasi.mjs ara "<sekme / sütun / fonksiyon ad�
 
 | | Adet |
 |---|---|
-| Apps Script projesi | 15 |
+| Apps Script projesi | 16 |
 | Kodun dokunduğu sekme | 174 |
 | Birden fazla projenin **yazdığı** sekme (risk) | 20 |
 | Arayüz dosyası (panel, köprü) | 11 |
@@ -259,9 +259,9 @@ Aynı sekmeye iki ayrı proje yazıyorsa birinin yaptığı değişiklik diğeri
 #### Sayfa1
 
 - **Yazan:** `ap_subeAta_` (Kolaybi Fatura Ham Veri), `geriDonukTaramaDuzelt` (Kolaybi Fatura Ham Veri), `kolaybiFaturalariCek` (Kolaybi Fatura Ham Veri), `sayfa1Tekillestir` (Kolaybi Fatura Ham Veri), `subeDoldur` (Kolaybi Fatura Ham Veri), `vadeTarihleriniDoldur` (Kolaybi Fatura Ham Veri)
-- **Okuyan:** `finans_` (BAP Panel Veri Kapısı), `ap_veri_` (Kolaybi Fatura Ham Veri), `kalemleriAyir` (Kolaybi Fatura Ham Veri), `kolaybiGiderFaturalariCek` (Kolaybi Fatura Ham Veri), `veriKontrol` (Kolaybi Fatura Ham Veri)
+- **Okuyan:** `nabizKontrol` (BAP Günlük Yedek), `finans_` (BAP Panel Veri Kapısı), `ap_veri_` (Kolaybi Fatura Ham Veri), `kalemleriAyir` (Kolaybi Fatura Ham Veri), `kolaybiGiderFaturalariCek` (Kolaybi Fatura Ham Veri), `veriKontrol` (Kolaybi Fatura Ham Veri)
 - Olası başka sütunlar: 27 (aynı fonksiyon birden fazla sekme açtığı için kesin değil; ayrıntı .html / `ara`)
-- **Zamanla çalışan:** haftada bir 03:00 (`kolaybiAlisTamTarama`), her gün 00:10 (`kalemleriAyir`), her gün 14:10 (`kalemleriAyir`)
+- **Zamanla çalışan:** her gün (`nabizKontrol`), haftada bir 03:00 (`kolaybiAlisTamTarama`), her gün 00:10 (`kalemleriAyir`), her gün 14:10 (`kalemleriAyir`)
 - **Elle çalıştırılan:** menü: Yeni faturaları kalemlere ayır (`kalemleriAyir`)
 
 #### Tedarikciler
@@ -518,11 +518,11 @@ Aynı sekmeye iki ayrı proje yazıyorsa birinin yaptığı değişiklik diğeri
 #### Siparişler
 
 - **Yazan:** `_kopruGunYaz` (Kurye Net Çalışma Süresi), `_sheet` (Kurye Net Çalışma Süresi), `guncelle` (Kurye Net Çalışma Süresi), `siparisleriCek` (Kurye Net Çalışma Süresi)
-- **Okuyan:** `tahsilSenkron` (Adisyo Sipariş Toplayıcı), `acikKanit_` (BAP Panel Veri Kapısı), `kurye_` (BAP Panel Veri Kapısı), `kuryeEslestirme_` (BAP Panel Veri Kapısı), `musteriDetay_` (BAP Panel Veri Kapısı), `rotaHesapla_` (BAP Panel Veri Kapısı), `seferler_` (BAP Panel Veri Kapısı), `sipHesapOku_` (BAP Panel Veri Kapısı), `tahsilatlariAdisyoyaIsle_` (BAP Panel Veri Kapısı), `kuryeMaliyeti_` (BAP Rapor Ajanı), `_acikHesapGunleri` (Kurye Net Çalışma Süresi), `_ozetTablodan` (Kurye Net Çalışma Süresi), `_siparisliGunler` (Kurye Net Çalışma Süresi), `_siparisOzeti` (Kurye Net Çalışma Süresi), `_wSiparisOku` (Kurye Net Çalışma Süresi), `acikHesaplar` (Kurye Net Çalışma Süresi), `gecikmeDokumu` (Kurye Net Çalışma Süresi)
+- **Okuyan:** `tahsilSenkron` (Adisyo Sipariş Toplayıcı), `nabizKontrol` (BAP Günlük Yedek), `acikKanit_` (BAP Panel Veri Kapısı), `kurye_` (BAP Panel Veri Kapısı), `kuryeEslestirme_` (BAP Panel Veri Kapısı), `musteriDetay_` (BAP Panel Veri Kapısı), `rotaHesapla_` (BAP Panel Veri Kapısı), `seferler_` (BAP Panel Veri Kapısı), `sipHesapOku_` (BAP Panel Veri Kapısı), `tahsilatlariAdisyoyaIsle_` (BAP Panel Veri Kapısı), `kuryeMaliyeti_` (BAP Rapor Ajanı), `_acikHesapGunleri` (Kurye Net Çalışma Süresi), `_ozetTablodan` (Kurye Net Çalışma Süresi), `_siparisliGunler` (Kurye Net Çalışma Süresi), `_siparisOzeti` (Kurye Net Çalışma Süresi), `_wSiparisOku` (Kurye Net Çalışma Süresi), `acikHesaplar` (Kurye Net Çalışma Süresi), `gecikmeDokumu` (Kurye Net Çalışma Süresi)
 - **Yoksa oluşturan:** `_sheet`
 - **Adıyla aranan sütunlar:** `Adisyon No`, `Adres`, `Atama (dk)`, `Atandı`, `Durum`, `Hazırlık (dk)`, `Hesap`, `Kurye`, `Masa Siparişi`, `Mesafe (km)`, `Müşteri`, `Not`, `Ödeme Yöntemi`, `Platform`, `Restorandan Çıktı`, `Sipariş ID`, `Sipariş İçeriği`, `Sipariş Kanalı`, `Sipariş No`, `Sipariş Saati`, `Sipariş Tarihi`, `Sipariş Tipi`, `Şube`, `Tarih`, `Telefon`, `Teslim Saati`, `Toplam (dk)`, `Tutar (TL)`, `Ürün Adedi`, `Yol (dk)`, `Yolda`
 - Olası başka sütunlar: 38 (aynı fonksiyon birden fazla sekme açtığı için kesin değil; ayrıntı .html / `ara`)
-- **Zamanla çalışan:** her saat (`tahsilSenkron`), her saat (`puantajTaramasi`), haftada bir 09:00 (`haftalikRapor`), her 15 dk (`guncelle`)
+- **Zamanla çalışan:** her saat (`tahsilSenkron`), her gün (`nabizKontrol`), her saat (`puantajTaramasi`), haftada bir 09:00 (`haftalikRapor`), her 15 dk (`guncelle`)
 - **Elle çalıştırılan:** ekran: Panel.html (`panelVeri`), menü: ⏱️ Teslimat Gecikme Dökümü (`gecikmeDokumu`), menü: ⚙️ Kesinti Kuralını Uygula (`kuraliUygula`), menü: 🌉 Köprü Durumu (`kopruDurum`), menü: 📥 HemenYolda'dan Mesai Çek (`mesaiCek`), menü: 🔄 VERİYİ ÇEK ve TÜMÜNÜ YENİLE (`hepsiniYenile`)
 - **Etkilenen arayüz:** MacBook köprüsü (mac-kopru), Yönetim paneli (bap-panel Worker)
 
@@ -561,13 +561,14 @@ Aynı sekmeye iki ayrı proje yazıyorsa birinin yaptığı değişiklik diğeri
 #### Ana Musteri Listesi
 
 - **Yazan:** `etiketleriUygula` (Adisyo Sipariş Toplayıcı), `musteriTazele` (Adisyo Sipariş Toplayıcı), `musteriUpsert_` (Adisyo Sipariş Toplayıcı), `dusukPuanlariIsle` (Trendyol Veri Çekme)
-- **Okuyan:** `hangiTablo` (Adisyo Sipariş Toplayıcı), `listelenenSenkron` (Adisyo Sipariş Toplayıcı), `musteriEtiketleri_` (Adisyo Sipariş Toplayıcı), `tySutunlariniAc` (Adisyo Sipariş Toplayıcı)
-- **Zamanla çalışan:** her 15 dk (`etiketleriUygula`), her 5 dk (`siparisDongusu`), her gün (`musteriTazele`), her gün (`yorumlariCek`)
+- **Okuyan:** `hangiTablo` (Adisyo Sipariş Toplayıcı), `listelenenSenkron` (Adisyo Sipariş Toplayıcı), `musteriEtiketleri_` (Adisyo Sipariş Toplayıcı), `tySutunlariniAc` (Adisyo Sipariş Toplayıcı), `nabizKontrol` (BAP Günlük Yedek)
+- **Zamanla çalışan:** her 15 dk (`etiketleriUygula`), her 5 dk (`siparisDongusu`), her gün (`musteriTazele`), her gün (`nabizKontrol`), her gün (`yorumlariCek`)
 
 #### Etiket_Girisi
 
 - **Yazan:** `etiketleriUygula` (Adisyo Sipariş Toplayıcı)
-- **Zamanla çalışan:** her 15 dk (`etiketleriUygula`)
+- **Okuyan:** `nabizKontrol` (BAP Günlük Yedek)
+- **Zamanla çalışan:** her 15 dk (`etiketleriUygula`), her gün (`nabizKontrol`)
 
 #### Kontrol Edilecek Eşleşmeler
 
@@ -585,8 +586,8 @@ Aynı sekmeye iki ayrı proje yazıyorsa birinin yaptığı değişiklik diğeri
 #### Telefonsuz (Getir-Trendyol)
 
 - **Yazan:** `musteriTazele` (Adisyo Sipariş Toplayıcı), `anahtarlariYenidenUret` (Trendyol Veri Çekme), `dusukPuanlariIsle` (Trendyol Veri Çekme)
-- **Okuyan:** `tyHarita_` (Adisyo Sipariş Toplayıcı), `sorunluMu` (Trendyol Veri Çekme)
-- **Zamanla çalışan:** her 5 dk (`siparisDongusu`), her gün (`musteriTazele`), her gün (`yorumlariCek`)
+- **Okuyan:** `tyHarita_` (Adisyo Sipariş Toplayıcı), `nabizKontrol` (BAP Günlük Yedek), `sorunluMu` (Trendyol Veri Çekme)
+- **Zamanla çalışan:** her 5 dk (`siparisDongusu`), her gün (`musteriTazele`), her gün (`nabizKontrol`), her gün (`yorumlariCek`)
 
 ### PERSONEL — BAP Personel (BAP_Personel projesi bağlı; puantaj, vardiya, izin)
 
@@ -678,16 +679,19 @@ Aynı sekmeye iki ayrı proje yazıyorsa birinin yaptığı değişiklik diğeri
 #### Satıs Verileri
 
 - **Yazan:** `acikSiparisleriGuncelle_` (Adisyo Sipariş Toplayıcı), `etiketNotlariniDoldur` (Adisyo Sipariş Toplayıcı), `hazirlanmaOnar` (Adisyo Sipariş Toplayıcı), `hazirlanmaOnar2` (Adisyo Sipariş Toplayıcı), `ilkKurulum` (Adisyo Sipariş Toplayıcı), `kanallariDuzelt` (Adisyo Sipariş Toplayıcı), `mahalleleriDoldur` (Adisyo Sipariş Toplayıcı), `saGuncelle_` (Adisyo Sipariş Toplayıcı), `saRapor_` (Adisyo Sipariş Toplayıcı), `subeAtamaKurulum` (Adisyo Sipariş Toplayıcı), `subeAtamaTest` (Adisyo Sipariş Toplayıcı), `tahsilSenkron` (Adisyo Sipariş Toplayıcı), `tamamlananlariIsle_` (Adisyo Sipariş Toplayıcı), `yeniSiparisleriIsle_` (Adisyo Sipariş Toplayıcı), `eskileriIsaretle` (Stok Takip Sistemi), `satislariIsle` (Stok Takip Sistemi)
-- **Okuyan:** `dataSheet_` (Adisyo Sipariş Toplayıcı), `eskiVeriyiDonustur` (Adisyo Sipariş Toplayıcı), `musteriTazele` (Adisyo Sipariş Toplayıcı), `saSekme_` (Adisyo Sipariş Toplayıcı), `tazelemeBaslangicAyarla` (Adisyo Sipariş Toplayıcı), `tazelemeDurum` (Adisyo Sipariş Toplayıcı), `acikKanit_` (BAP Panel Veri Kapısı), `adisyoSatirlari_` (BAP Panel Veri Kapısı), `kuryeEslestirIslem_` (BAP Panel Veri Kapısı), `siparisVerisiOku_` (BAP Panel Veri Kapısı), `subeSozlugu_` (BAP Panel Veri Kapısı), `tahsilatlariAdisyoyaIsle_` (BAP Panel Veri Kapısı), `maliyetBolumu_` (BAP Rapor Ajanı), `satisBolumu_` (BAP Rapor Ajanı), `adetKontrol` (Stok Takip Sistemi), `hp_talep_` (Stok Takip Sistemi), `kaynakBasliklar` (Stok Takip Sistemi), `kaynakSayfa` (Stok Takip Sistemi), `rc_satisAdetleri_` (Stok Takip Sistemi), `siparisHaritasi_` (Trendyol Veri Çekme), `tyrSatisOku_` (Trendyol Veri Çekme)
+- **Okuyan:** `dataSheet_` (Adisyo Sipariş Toplayıcı), `eskiVeriyiDonustur` (Adisyo Sipariş Toplayıcı), `musteriTazele` (Adisyo Sipariş Toplayıcı), `saSekme_` (Adisyo Sipariş Toplayıcı), `tazelemeBaslangicAyarla` (Adisyo Sipariş Toplayıcı), `tazelemeDurum` (Adisyo Sipariş Toplayıcı), `nabizKontrol` (BAP Günlük Yedek), `acikKanit_` (BAP Panel Veri Kapısı), `adisyoSatirlari_` (BAP Panel Veri Kapısı), `kuryeEslestirIslem_` (BAP Panel Veri Kapısı), `siparisVerisiOku_` (BAP Panel Veri Kapısı), `subeSozlugu_` (BAP Panel Veri Kapısı), `tahsilatlariAdisyoyaIsle_` (BAP Panel Veri Kapısı), `maliyetBolumu_` (BAP Rapor Ajanı), `satisBolumu_` (BAP Rapor Ajanı), `adetKontrol` (Stok Takip Sistemi), `hp_talep_` (Stok Takip Sistemi), `kaynakBasliklar` (Stok Takip Sistemi), `kaynakSayfa` (Stok Takip Sistemi), `rc_satisAdetleri_` (Stok Takip Sistemi), `siparisHaritasi_` (Trendyol Veri Çekme), `tyrSatisOku_` (Trendyol Veri Çekme)
 - **Adıyla aranan sütunlar:** `Durum`, `Hazırlanma (Şube Çıkış)`, `Kurye`, `Mahalle`, `Marka`, `Masa Siparişi`, `Motor_Islendi`, `Müşteri Adı`, `Müşteri Adres`, `Müşteri Telefon`, `Not`, `Ödeme Alındı`, `Ödeme Yöntemi`, `Sipariş ID`, `Sipariş Kanalı`, `Sipariş No (Gün İçi Sıra)`, `Sipariş Tarihi`, `Sipariş Tipi`, `Şube`, `Tahsil Tipi`, `Tarih_ISO`, `Teslim Zamanı`, `Toplam Tutar`, `Ürün Adetleri`, `Ürün Çıkan Şube`, `Ürün Fiyatları`, `Ürün Kategorileri`, `Ürünler`
 - Olası başka sütunlar: 30 (aynı fonksiyon birden fazla sekme açtığı için kesin değil; ayrıntı .html / `ara`)
-- **Zamanla çalışan:** her 5 dk (`siparisDongusu`), her gün (`musteriTazele`), her gün 04:30 (`gunlukSubeRaporu`), her saat (`subeAtamaGuncelle`), her saat (`tahsilSenkron`), her saat (`puantajTaramasi`), haftada bir 09:00 (`haftalikRapor`), haftada bir 09:00 (`rc_kontrolEt`), her 5 dk (`stokMotoru`), her gün 23:30 (`hp_gunluk`), her 10 dk (`iadeleriCek`), her 15 dk (`yorumCevapCalistir`), her gün (`yorumlariCek`), her gün 10:45 (`sabahOzeti`), her gün 23:50 (`gunlukPuanRaporu`)
+- **Zamanla çalışan:** her 5 dk (`siparisDongusu`), her gün (`musteriTazele`), her gün 04:30 (`gunlukSubeRaporu`), her saat (`subeAtamaGuncelle`), her saat (`tahsilSenkron`), her gün (`nabizKontrol`), her saat (`puantajTaramasi`), haftada bir 09:00 (`haftalikRapor`), haftada bir 09:00 (`rc_kontrolEt`), her 5 dk (`stokMotoru`), her gün 23:30 (`hp_gunluk`), her 10 dk (`iadeleriCek`), her 15 dk (`yorumCevapCalistir`), her gün (`yorumlariCek`), her gün 10:45 (`sabahOzeti`), her gün 23:50 (`gunlukPuanRaporu`)
 - **Elle çalıştırılan:** menü: Manuel Satış İşle (`stokMotoru`)
 - **Etkilenen arayüz:** Yönetim paneli (bap-panel Worker)
 
 #### Sistem_Nabzi
 
+- **Yazan:** `nabizYaz_` (BAP Günlük Yedek)
 - **Okuyan:** `nabiz_` (BAP Panel Veri Kapısı)
+- **Yoksa oluşturan:** `nabizYaz_`
+- **Zamanla çalışan:** her gün (`nabizKontrol`)
 
 ### SATIS2 — BAP veri tablosu (Detay sekmesi)
 
@@ -995,11 +999,11 @@ Aynı sekmeye iki ayrı proje yazıyorsa birinin yaptığı değişiklik diğeri
 #### Degerlendirmeler
 
 - **Yazan:** `gecmisiCek` (Trendyol Veri Çekme), `yorumlariCek` (Trendyol Veri Çekme), `yorumlariSirala_` (Trendyol Veri Çekme)
-- **Okuyan:** `musteri_` (BAP Panel Veri Kapısı), `dusukPuanlariIsle` (Trendyol Veri Çekme), `ozetiYenile_` (Trendyol Veri Çekme), `puanTablosuYenile` (Trendyol Veri Çekme), `tyrYorumKovasi_` (Trendyol Veri Çekme)
+- **Okuyan:** `nabizKontrol` (BAP Günlük Yedek), `musteri_` (BAP Panel Veri Kapısı), `dusukPuanlariIsle` (Trendyol Veri Çekme), `ozetiYenile_` (Trendyol Veri Çekme), `puanTablosuYenile` (Trendyol Veri Çekme), `tyrYorumKovasi_` (Trendyol Veri Çekme)
 - **Yoksa oluşturan:** `gecmisiCek`, `yorumlariCek`
 - **Adıyla aranan sütunlar:** `Adisyo Sipariş ID`, `Değerlendirme Tarihi`, `Eşleşti`, `Kurye`, `Lezzet`, `Mağaza`, `Mahalle`, `Ortalama`, `Platform Sipariş No`, `Review ID`, `Servis`, `Sipariş Tarihi`, `Şube`, `Teslimat`, `Tutar`, `Ürünler`, `Yorum`
 - Olası başka sütunlar: 38 (aynı fonksiyon birden fazla sekme açtığı için kesin değil; ayrıntı .html / `ara`)
-- **Zamanla çalışan:** her gün (`yorumlariCek`), her gün 10:45 (`sabahOzeti`), her gün 23:45 (`puanTablosuYenile`), her gün 23:50 (`gunlukPuanRaporu`)
+- **Zamanla çalışan:** her gün (`nabizKontrol`), her gün (`yorumlariCek`), her gün 10:45 (`sabahOzeti`), her gün 23:45 (`puanTablosuYenile`), her gün 23:50 (`gunlukPuanRaporu`)
 
 #### Fiyat_Guncelle
 
@@ -1422,6 +1426,13 @@ Bağlı dosya: YEMEKKARTI · 41 fonksiyon · 13 sekme
 - her saat → setcardCek
 - her saat → tokenflexCek
 - Web eylemleri (25): `sayfa=cek → doGet`, `sayfa=kod → kodKutusu_`, `sayfa=kodgir → doGet`, `sayfa=pluxee → doGet`, `sayfa=pluxee → kodKutusu_`, `tur=cek → doPost`, `tur=cekDurum → doPost`, `tur=edenred → edenredYaz`, `tur=faturaKesim → faturaKesimYaz`, `tur=kodDurum → kodKutusu_`, `tur=kodIste → kodKutusu_`, `tur=kodSil → kodKutusu_`, `tur=kodYaz → kodKutusu_`, `tur=metropol → metropolYaz`, `tur=metropolOdeme → metropolOdemeYaz`, `tur=multinet → multinetYaz`, `tur=multinetBekleyen → multinetBekleyenYaz`, `tur=multinetFatura → multinetFaturaYaz`, `tur=oturumDurumu → oturumDurumuYaz`, `tur=pluxee → pluxeeYaz`, `tur=pluxeeKodIste → doPost`, `tur=pluxeeKodOku → kodKutusu_`, `tur=pluxeeKodSil → kodKutusu_`, `tur=setcardFaturaKes → setcardFaturaKesTek_`, `tur=tokenflexTani → tfIstek_`
+
+### BAP Günlük Yedek (`apps-script/bap-gunluk-yedek`)
+
+Bağlı dosya: — (tabloları kimlikle açar) · 16 fonksiyon · 8 sekme
+
+- her gün → nabizKontrol
+- her gün 03:00 → yedekZipAl
 
 ### BAP Sistem Bekçisi (`apps-script/bap-sistem-bekcisi`)
 
