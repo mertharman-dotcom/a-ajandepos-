@@ -3179,16 +3179,18 @@ function acikKanit_(ks, liste) {
       kmap[id] = { no: String(r[cs.no] || '').trim(), ms: ms, teslim: teslim };
       if (cs.od >= 0 && cs.tu >= 0) { var rf = kartRef_(gunStr_(r[cs.t]), teslim, ms);
         tum.push({ id: id, no: String(r[cs.no] || '').trim(), odeme: String(r[cs.od] || ''), tutar: sayi_(r[cs.tu]), ms: rf ? rf.ms : null, gun: gunStr_(r[cs.t]) }); } }); }
-  var a = adisyoSatirlari_(12000, ['Sipariş ID', 'Sipariş No']);
-  if (a.v.length) {
+  // Yalnız gereken üç sütun, ham değer olarak (görünen metin okuması bu tabloda 5–19 sn sürüyordu; 08.10).
+  // Sipariş No iki tarafta da yalnız rakamlarıyla karşılaştırılır ("1.234" ile 1234 aynı).
+  var a = sonSatirlar_(tabloAc_(KAYNAK.siparis.id), 'Satıs Verileri', 12000, ['Sipariş No', 'Sipariş Tarihi', 'Ödeme Alındı'], true);
+  if (a && a.v.length) {
     var c = { no: kolon_(a.b, ['Sipariş No']), t: kolon_(a.b, ['Sipariş Tarihi']), od: kolon_(a.b, ['Ödeme Alındı']) }, ano = {}, enEski = null;
     if (c.od < 0) throw new Error("Adisyo'da 'Ödeme Alındı' sütunu bulunamadı");
-    a.v.forEach(function (r) { var no = String(r[c.no] || '').trim(), ms = zaman_(r[c.t]); if (!no || ms === null) return; if (enEski === null || ms < enEski) enEski = ms;
+    a.v.forEach(function (r) { var no = siparisNo_(r[c.no]), ms = zaman_(r[c.t]); if (!no || ms === null) return; if (enEski === null || ms < enEski) enEski = ms;
       (ano[no] = ano[no] || []).push({ ms: ms, od: /^true$/i.test(String(r[c.od] || '').trim()) }); });
     liste.forEach(function (x) {
       var k = kmap[x.id]; x.adisyo = '';
       if (!k || k.ms === null) return;
-      var aday = (ano[k.no] || []).map(function (y) { return { y: y, f: Math.abs(y.ms - k.ms) }; }).filter(function (z) { return z.f <= 20 * 60000; }).sort(function (p, q) { return p.f - q.f; })[0];
+      var aday = (ano[siparisNo_(k.no)] || []).map(function (y) { return { y: y, f: Math.abs(y.ms - k.ms) }; }).filter(function (z) { return z.f <= 20 * 60000; }).sort(function (p, q) { return p.f - q.f; })[0];
       if (aday) x.adisyo = aday.y.od ? 'odendi' : 'acik';
       else if (enEski !== null && k.ms < enEski) x.adisyo = 'eski';
     });
@@ -4043,12 +4045,13 @@ function gunStr_(v) { var ms = zaman_(v); return ms === null ? null : new Date(m
 // Sekmenin başlığı ve son n satırı (görünen değerlerle). Sekme yoksa ya da boşsa null.
 // basliklar verilirse yalnız o sütunlar okunur (uzun metin sütunları atlanır; büyük sekmede çok daha hızlı).
 // Satırlar yine tam genişlikte döner, okunmayan hücreler boş kalır; kolon_ ile bulunan sıra numaraları değişmez.
-function sonSatirlar_(ss, ad, n, basliklar) {
-  if (!OKUMA_BELLEK) return sonSatirlarOku_(ss, ad, n, basliklar);
-  var anahtar = ss.getId() + '|' + ad, liste = OKUMA_BELLEK.sekme[anahtar];
+// degerler: görünen metin yerine ham değer (getValues; tarih Date, sayı number, kutu true/false) — çok daha hızlı.
+function sonSatirlar_(ss, ad, n, basliklar, degerler) {
+  if (!OKUMA_BELLEK) return sonSatirlarOku_(ss, ad, n, basliklar, null, degerler);
+  var anahtar = ss.getId() + '|' + ad + (degerler ? '|deger' : ''), liste = OKUMA_BELLEK.sekme[anahtar];
   if (liste === null) return null;
   liste = liste || (OKUMA_BELLEK.sekme[anahtar] = []);
-  var etiket = function (k) { return 'okuma › ' + ad + ' (' + k + ' satır, ' + (basliklar ? basliklar.length + ' sütun' : 'tüm sütunlar') + ')'; };
+  var etiket = function (k) { return 'okuma › ' + ad + ' (' + k + ' satır, ' + (basliklar ? basliklar.length + ' sütun' : 'tüm sütunlar') + (degerler ? ', ham değer' : '') + ')'; };
   var sutunlar = function (b) { var o = {}; if (basliklar) basliklar.forEach(function (h) { var i = kolon_(b, [h]); if (i >= 0) o[i] = 1; }); return o; };
   // Bu sütunları içeren, en çok satırlı önceki okuma
   var aday = liste.filter(function (m) { return m.hepsi || (basliklar && basliklar.every(function (h) { var i = kolon_(m.b, [h]); return i < 0 || m.sutun[i]; })); })
@@ -4058,12 +4061,12 @@ function sonSatirlar_(ss, ad, n, basliklar) {
     var k = Math.min(n, aday.son - 1);
     if (k <= aday.k) { OKUMA_BELLEK.bellekten++; return { b: aday.b, v: k === aday.k ? aday.v : aday.v.slice(aday.k - k) }; }
     // Yeni satırlar bellekte: yalnız eksik kalan eski satırlar okunur.
-    var ek = sonSatirlarOku_(ss, ad, k - aday.k, basliklar, aday.son - aday.k);
+    var ek = sonSatirlarOku_(ss, ad, k - aday.k, basliklar, aday.son - aday.k, degerler);
     olcEkle_(etiket(k - aday.k) + ' — eksik eski satırlar', Date.now() - t0); OKUMA_BELLEK.okunan++;
     if (ek) m = { b: aday.b, v: ek.v.concat(aday.v), son: aday.son, hepsi: !basliklar, sutun: sutunlar(aday.b) };
   }
   if (!m) {
-    var t = sonSatirlarOku_(ss, ad, n, basliklar);
+    var t = sonSatirlarOku_(ss, ad, n, basliklar, null, degerler);
     olcEkle_(etiket(n), Date.now() - t0); OKUMA_BELLEK.okunan++;
     if (!t) { if (!liste.length) OKUMA_BELLEK.sekme[anahtar] = null; return null; }
     m = { b: t.b, v: t.v, son: t.son, hepsi: !basliklar, sutun: sutunlar(t.b) };
@@ -4072,18 +4075,19 @@ function sonSatirlar_(ss, ad, n, basliklar) {
   return { b: m.b, v: m.v };
 }
 // sonSatir verilirse o satırda biten n satır okunur (bellekteki okumanın üstündeki eski satırlar için).
-function sonSatirlarOku_(ss, ad, n, basliklar, sonSatir) {
+function sonSatirlarOku_(ss, ad, n, basliklar, sonSatir, degerler) {
   var sh = ss.getSheetByName(ad); if (!sh) return null;
   var son = sonSatir || sh.getLastRow(), gen = sh.getLastColumn(); if (son < 2) return null;
   var k = Math.min(n, son - 1), b = sh.getRange(1, 1, 1, gen).getDisplayValues()[0];
-  if (!basliklar) return { b: b, v: sh.getRange(son - k + 1, 1, k, gen).getDisplayValues(), son: son };
+  var oku = function (rg) { return degerler ? rg.getValues() : rg.getDisplayValues(); };
+  if (!basliklar) return { b: b, v: oku(sh.getRange(son - k + 1, 1, k, gen)), son: son };
   var idx = []; basliklar.forEach(function (h) { var i = kolon_(b, [h]); if (i >= 0 && idx.indexOf(i) < 0) idx.push(i); });
   idx.sort(function (x, y) { return x - y; });
   var v = []; for (var r = 0; r < k; r++) { var bos = []; bos.length = gen; v.push(bos); }
   // Yan yana sütunları tek seferde oku
   for (var j = 0; j < idx.length;) {
     var bas = idx[j], bit = bas; while (j + 1 < idx.length && idx[j + 1] === bit + 1) { j++; bit++; } j++;
-    var blok = sh.getRange(son - k + 1, bas + 1, k, bit - bas + 1).getDisplayValues();
+    var blok = oku(sh.getRange(son - k + 1, bas + 1, k, bit - bas + 1));
     for (r = 0; r < k; r++) for (var c = bas; c <= bit; c++) v[r][c] = blok[r][c - bas];
   }
   return { b: b, v: v, son: son };
