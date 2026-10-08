@@ -966,6 +966,10 @@ function personelSayfa(a){var p=VERI.personel;a.appendChild(ust("Personel","Giri
 var GD_TARIH="";
 // Vardiya planı: istenen gün seçilir. Bugün canlı (p.plan); diğer günler vardiya çizelgesinden (4 hafta geri, 2 hafta ileri),
 // geçmiş günlerde fiili giriş-çıkışla birlikte.
+// İşten çıkmış mı (Personel sekmesi): çıkış tarihi geçmişse, ya da tarih yazılmamış ama 'Aktif' işaretli değilse.
+// İşten çıkanın vardiya satırı kalsa bile planda / 'gelmedi'de gösterilmez (o gün QR girişi varsa yine gösterilir).
+function ayrildi(p,ad,t){var U=p.ucret,u=U&&U.kisi&&U.kisi[normAd(ad)];if(!u)return false;if(u.cikis)return t>u.cikis;return u.aktif===false;}
+function calisanPlan(p){return (p.plan||[]).filter(function(x){return x.geldi||!ayrildi(p,x.ad,p.bugun);});}
 function gunPlanBlok(p){var V=p.vardiya,bugun=p.bugun;if(!GD_TARIH)GD_TARIH=bugun;
   var enAz=V&&V.haftalar.length?V.haftalar[0].hafta:bugun,enCok=V&&V.haftalar.length?new Date(Date.parse(V.haftalar[V.haftalar.length-1].hafta+"T00:00:00Z")+6*864e5).toISOString().slice(0,10):bugun;
   function git(k){var t=new Date(Date.parse(GD_TARIH+"T00:00:00Z")+k*864e5).toISOString().slice(0,10);if(t<enAz||t>enCok)return;GD_TARIH=t;ciz();}
@@ -976,10 +980,11 @@ function gunPlanBlok(p){var V=p.vardiya,bugun=p.bugun;if(!GD_TARIH)GD_TARIH=bugu
   var sec=el("div",{class:"hafta-sec",style:"margin:0 0 10px"},[geri,giris,ileri,GD_TARIH!==bugun?el("button",{type:"button",class:"dugme",onclick:function(){GD_TARIH=bugun;ciz();}},["Bugün"]):null]);
   var d=new Date(GD_TARIH+"T00:00:00Z"),baslik=(GD_TARIH===bugun?"Bugünün":GUNLER[d.getUTCDay()]+" "+d.getUTCDate()+" "+AYLAR[d.getUTCMonth()])+" vardiya planı";
   var icerik;
-  if(GD_TARIH===bugun){icerik=p.plan.length?tablo([["Personel"],["Plan"],["Durum"]],p.plan.map(function(x){return [x.ad,x.plan,x.calisacak?(x.geldi?el("span",{class:"etiket e-iyi",text:"geldi "+x.giris}):el("span",{class:"etiket e-kotu",text:"henüz girmedi"})):el("span",{class:"etiket e-notr",text:"çalışmıyor"})];})):bos("Bu haftanın vardiya planı bulunamadı.");}
+  if(GD_TARIH===bugun){var bp=calisanPlan(p);icerik=bp.length?tablo([["Personel"],["Plan"],["Durum"]],bp.map(function(x){return [x.ad,x.plan,x.calisacak?(x.geldi?el("span",{class:"etiket e-iyi",text:"geldi "+x.giris}):el("span",{class:"etiket e-kotu",text:"henüz girmedi"})):el("span",{class:"etiket e-notr",text:"çalışmıyor"})];})):bos("Bu haftanın vardiya planı bulunamadı.");}
   else{var dow=(d.getUTCDay()+6)%7,hafta=new Date(Date.parse(GD_TARIH+"T00:00:00Z")-dow*864e5).toISOString().slice(0,10),H=V?V.haftalar.filter(function(h){return h.hafta===hafta;})[0]:null;
     var gecmis=GD_TARIH<bugun;
-    icerik=H&&H.satirlar.length?tablo([["Personel"],["Şube"],["Plan"],[gecmis?"Gerçekleşen":"Durum"]],H.satirlar.filter(function(x){return String(x.gunler[dow]||"").trim();}).map(function(x){
+    icerik=H&&H.satirlar.length?tablo([["Personel"],["Şube"],["Plan"],[gecmis?"Gerçekleşen":"Durum"]],H.satirlar.filter(function(x){if(!String(x.gunler[dow]||"").trim())return false;
+      var r0=V.gercek[normAd(x.ad)+"|"+GD_TARIH];return (r0&&r0.g)||!ayrildi(p,x.ad,GD_TARIH);}).map(function(x){
       var plan=String(x.gunler[dow]||"").trim(),saat=/^\d{1,2}:\d{2}\s*-/.test(plan),r=V.gercek[normAd(x.ad)+"|"+GD_TARIH],durum;
       if(!gecmis)durum=el("span",{class:"etiket e-notr",text:saat?"planlandı":"çalışmıyor"});
       else if(r&&r.g)durum=el("span",{class:"etiket "+(r.gec?"e-dikkat":"e-iyi"),title:r.t?"toplam "+r.t:null,text:(saat?"":"planda yok, ")+r.g+(r.c?"–"+r.c:" (çıkış yok)")+(r.gec?" · geç":"")});
@@ -998,9 +1003,9 @@ function maasGrafik(seri){var W=760,H=230,ust=26,alt=44,pd=16,bw=(W-pd*2)/seri.l
     yaz(cx,H-alt+16,ayAd(x.ay).slice(0,3)+" "+x.ay.slice(2,4));yaz(cx,H-alt+31,x.tutar?x.kisi+" kişi":"kayıt yok","adet-yazi");});
   return el("div",{class:"grafik"},[svg]);}
 function personelGenel(a,p){
-  var icerde=p.bugunKayit.filter(function(x){return x.giris&&!x.cikis;}).length;var calisacak=p.plan.filter(function(x){return x.calisacak;});var gelmeyen=calisacak.filter(function(x){return !x.geldi;});
+  var icerde=p.bugunKayit.filter(function(x){return x.giris&&!x.cikis;}).length;var bPlan=calisanPlan(p),calisacak=bPlan.filter(function(x){return x.calisacak;});var gelmeyen=calisacak.filter(function(x){return !x.geldi;});
   var sonOd=(p.odemeler||[]).filter(function(x){return x.tutar>0;}).pop()||null;
-  a.appendChild(el("div",{class:"rakamlar"},[rakam("Şu an içeride",String(icerde),p.bugunKayit.length+" kişi bugün giriş yaptı"),rakam("Bugün vardiyası olan",String(calisacak.length),p.plan.length-calisacak.length?(p.plan.length-calisacak.length)+" kişi off ya da izinli":null),
+  a.appendChild(el("div",{class:"rakamlar"},[rakam("Şu an içeride",String(icerde),p.bugunKayit.length+" kişi bugün giriş yaptı"),rakam("Bugün vardiyası olan",String(calisacak.length),bPlan.length-calisacak.length?(bPlan.length-calisacak.length)+" kişi off ya da izinli":null),
     rakam("Henüz girmeyen",String(gelmeyen.length),gelmeyen.length?gelmeyen.slice(0,3).map(function(x){return x.ad;}).join(", ")+(gelmeyen.length>3?"…":""):"Herkes giriş yaptı",gelmeyen.length?"asagi":""),
     rakam("Aktif personel",String(p.aktif.sayi),p.aktif.subeler.map(function(x){return x.ad+" "+x.deger;}).join(", ")),rakam("Aylık maaş toplamı",para(p.aktif.maasToplam),sonOd?ayAd(sonOd.ay)+" ödenen "+para(sonOd.tutar):"Tanımlı brüt maaşlar")]));
   a.appendChild(el("p",null,[el("a",{href:p.yoneticiLink,target:"_blank",rel:"noopener",class:"dugme",style:"display:inline-block;text-decoration:none;color:inherit;margin-bottom:22px",text:"Yönetici paneli (bordro, giriş-çıkış düzeltme)"})]));
