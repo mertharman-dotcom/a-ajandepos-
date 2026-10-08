@@ -4,6 +4,11 @@ BAP Pizza (Erenköy + Fikirtepe; pizza, makarna, salata; satışın ~%80'i paket
 stok, maliyet, satın alma, personel ve panel kodları. Sahibi teknik değil: açıklamalar Türkçe,
 sade ve "senin yapman gereken" adımlarıyla yazılır.
 
+## Beceriler (`.claude/skills/`)
+
+Konuya girince ilgili beceri okunur: `yemek-karti`, `kurye-bordro`, `panel-ozelligi`; her işin sonunda `is-teslim`.
+Beceriler yol haritasıdır; bilginin sahibi yine `docs/` ve koddur (kural 3).
+
 ## Temel kurallar
 
 1. **Bu depo tek doğru kaynaktır.** Kod yalnızca burada değiştirilir. Apps Script editöründe veya
