@@ -1874,7 +1874,10 @@ function kuryeKesinti(a,K){
 // --- Mesai düzenleme: seçilen hafta (ve kurye) için kontrol listesi, gün gün giriş/çıkış ve ödenen aralık, düzeltmeler ---
 var MESAI_KURYE="";
 function kuryeMesai(a,K){var D=MESAI_DUZ,G=K.mesaiGunleri||[];
-  var adlar={};G.forEach(function(x){adlar[x.ad]=1;});
+  // Kurye listesi: yalnız seçilen haftada mesaisi olanlar; seçili kurye o hafta çalışmadıysa "Tüm kuryeler"e döner.
+  var B0=K.bordro||[],H0=B0[KURYE_HAFTA<B0.length?KURYE_HAFTA:0],adlar={};
+  G.forEach(function(x){if(!H0||(x.gun>=H0.hafta&&x.gun<=H0.bitis))adlar[x.ad]=1;});
+  if(MESAI_KURYE&&!adlar[MESAI_KURYE])MESAI_KURYE="";
   var ks=el("select",{class:"cevap-alan",style:"max-width:220px","aria-label":"Kurye",onchange:function(e){MESAI_KURYE=e.target.value;ciz();}},[el("option",{value:"",text:"Tüm kuryeler"})].concat(Object.keys(adlar).sort(function(x,y){return x.localeCompare(y,"tr");}).map(function(n){var o=el("option",{value:n,text:n});if(n===MESAI_KURYE)o.selected=true;return o;})));
   var H=kuryeHaftaSec(a,K,[el("strong",{text:"Kurye",style:"margin-left:12px"}),ks]);if(!H)return a.appendChild(bos("Mesai kaydı yok."));
   var icinde=function(x){return x.gun>=H.hafta&&x.gun<=H.bitis&&(!MESAI_KURYE||x.ad===MESAI_KURYE);};
