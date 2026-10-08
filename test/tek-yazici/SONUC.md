@@ -39,7 +39,7 @@ Soru boş geçilirse açık siparişler sonuç notunda "bildirilmedi" diye liste
 | 8 | Geri dönüş provası (eski panel yeniden kuruldu) | ✅ GEÇTİ — eski panel doğrudan yazdı (100 → 98), kuyruğa yazmadı |
 | 9 | Son sürümle tekrar (dakikalık tetikleyici açık, HAZIRDA:9003) | ✅ GEÇTİ — tetikleyici kendiliğinden işledi; 97 → 90; not: "1 hazırda bildirilen sipariş sayımdan önce tüketilmiş sayıldı" |
 | — | Yerel testler (sahte tablo) | ✅ 24/24 kuyruk testi; eşzamanlılık: eski yöntem 5 senaryonun 4'ünde kayıp, yeni 0 |
-| — | Telefon testi | ⏳ Sahipte (adımlar: `TELEFON-TESTI.md`) |
+| 10 | Telefon testi (sahip, 08.10 12:40 ve 12:53) | ✅ GEÇTİ — iki zayi (Ürün › Tiramisu: Tiramisu + 3 ambalaj; Yarı mamul › Tiramisu) önce "1 kayıt stoka işlenmeyi bekliyor" göründü, sonra işlendi: 90 → 89 → 88; kuyrukta ve hareket izinde her kayıt tek. Test işleyicisi sonra kapatıldı |
 
 **Denenmeyen / kalan**
 - Alış Motoru'nun (fatura) gerçek kopyada kuyrukla birlikte çalışması — yalnız yerel ve kod incelemesi.
@@ -60,7 +60,6 @@ Soru boş geçilirse açık siparişler sonuç notunda "bildirilmedi" diye liste
 1. **Sahip onayı:** masa / gel-al / personel / telafi için "sipariş saati" kuralı (P44).
 2. **Mutfak alışkanlığı:** sayımda "hazırda sipariş no" sorusu (P45) ve hazırlanıp iptal edilen ürün için zayi girişi (P47) anlatılmalı.
 3. **Alış Motoru** gerçek kopyada kuyrukla denenmeli (yukarıda "kalan").
-4. **Telefon testi** sonucu.
 5. **Yayın hattı:** `stok-takip-sistemi` yayını "birden fazla web dağıtımı" diye kırmızı bitiyor (Y10). Kod yükleniyor ama bu düzeltilmeden geçiş yapılmamalı.
 6. Yedekten dönüş yöntemi canlı boyutta 6 dk sınırına yakın → canlıda Drive sürüm geçmişi + yalnız `Sube_Stok` geri alma yöntemi seçilmeli; ayrıca yedekten sonra işlenmiş faturalar için işaret kaldırma eklenmeli. (Geçişin kendisini değil, olası bir felaket dönüşünü etkiler.)
 
