@@ -39,6 +39,7 @@ Soru boş geçilirse açık siparişler sonuç notunda "bildirilmedi" diye liste
 | 7 | Yedekten dönüş (yedek 01:10:31) | ✅ GEÇTİ — geri yükleme + yeniden işleme sonrası yine 100; geçmişte her olay tam bir kez. ⚠️ Geri yükleme 236 sn sürdü (Apps Script sınırı 360 sn) |
 | 8 | Geri dönüş provası (eski panel yeniden kuruldu) | ✅ GEÇTİ — eski panel doğrudan yazdı (100 → 98), kuyruğa yazmadı |
 | 9 | Son sürümle tekrar (dakikalık tetikleyici açık, HAZIRDA:9003) | ✅ GEÇTİ — tetikleyici kendiliğinden işledi; 97 → 90; not: "1 hazırda bildirilen sipariş sayımdan önce tüketilmiş sayıldı" |
+| 11 | Masa kuralı (sürüm 757b62b): masa 10:28'de açıldı, sayım 10:48, masa 10:49'da kapandı | ✅ GEÇTİ — tüketim 10:43 (girişten 15 dk) → sayımdan önce; sayım masa düşülene kadar bekledi, sonra 87 → 80 (sayılan aynen); notta "Sayım anında açık masa: no 9101 … ilave olabilir — kontrol edin". ⚠️ Bilgi notu "1 masa/personel siparişi kurala göre sayıldı" gerçek çalışmada görünmedi (yerelde aynı verilerle görünüyor); stok sonucunu etkilemiyor, incelenecek (P49) |
 | — | Yerel testler (sahte tablo) | ✅ 24/24 kuyruk testi; eşzamanlılık: eski yöntem 5 senaryonun 4'ünde kayıp, yeni 0 |
 | 10 | Telefon testi (sahip, 08.10 12:40 ve 12:53) | ✅ GEÇTİ — iki zayi (Ürün › Tiramisu: Tiramisu + 3 ambalaj; Yarı mamul › Tiramisu) önce "1 kayıt stoka işlenmeyi bekliyor" göründü, sonra işlendi: 90 → 89 → 88; kuyrukta ve hareket izinde her kayıt tek. Test işleyicisi sonra kapatıldı |
 
