@@ -2999,11 +2999,15 @@ function kurye_() {
                tl: kolon_(ks.b, ['Kesilen Tutar']), not: kolon_(ks.b, ['Açıklama']) };
     ks.v.forEach(function (r) {
       var gun = gunStr_(r[ck.tarih]), ad = String(r[ck.ad] || '').trim(); if (!gun || !ad) return;
-      if (gun >= gunEkle_(bugun, -59)) elle.push({ gun: gun, ad: ad, tip: /saat/i.test(r[ck.tip] || '') ? 'Saat' : 'TL', dk: sayi_(r[ck.dk]), tl: sayi_(r[ck.tl]), not: String(r[ck.not] || '').slice(0, 120) });
+      var yon = kesintiYonu_(r[ck.tip]);
+      if (gun >= gunEkle_(bugun, -59)) elle.push({ gun: gun, ad: ad, tip: yon === 'kesinti' ? (/saat/i.test(r[ck.tip] || '') ? 'Saat' : 'TL') : String(r[ck.tip] || '').trim(), yon: yon,
+        dk: sayi_(r[ck.dk]), tl: sayi_(r[ck.tl]), not: String(r[ck.not] || '').slice(0, 120) });
       var hf = gunEkle_(gun, -((new Date(gun + 'T00:00:00Z').getUTCDay() + 6) % 7)); if (hf < ilkHafta || gun > bugun) return;
       var hk = haftalar[hf] = haftalar[hf] || {}, anahtar = kuryeEsle_(Object.keys(hk), ad) || ad;
       var b = hk[anahtar] = hk[anahtar] || { ad: ad, grup: kuryeUcret_(ad).grup, gun: 0, netDk: 0, paket: 0, kesintiDk: 0, saat: 0, paketTl: 0, kdv: 0, toplam: 0, acik: false };
       var tl = sayi_(r[ck.tl]), dk = sayi_(r[ck.dk]), tip = String(r[ck.tip] || '');
+      if (yon === 'arti') { if (tl > 0) { b.ekOdeme = (b.ekOdeme || 0) + tl; (b.ekNot = b.ekNot || []).push(gun.slice(8) + '.' + gun.slice(5, 7) + ' +' + Math.round(tl) + ' ₺ ' + tip + (r[ck.not] ? ' — ' + String(r[ck.not]).slice(0, 60) : '')); } return; }
+      if (yon === 'avans') { if (tl > 0) { b.avans = (b.avans || 0) + tl; (b.avansNot = b.avansNot || []).push(gun.slice(8) + '.' + gun.slice(5, 7) + ' −' + Math.round(tl) + ' ₺' + (r[ck.not] ? ' — ' + String(r[ck.not]).slice(0, 60) : '')); } return; }
       if (/saat/i.test(tip) && dk > 0) { b.ekDk = (b.ekDk || 0) + dk; b.saat -= dk / 60 * kuryeUcret_(b.ad).saat; }
       if (tl > 0) b.paraKesinti = (b.paraKesinti || 0) + tl;
       if (tl > 0 || dk > 0) (b.kesintiNot = b.kesintiNot || []).push(gun.slice(8) + '.' + gun.slice(5, 7) + ' ' + (tl > 0 ? Math.round(tl) + ' ₺' : dk + ' dk') + (r[ck.not] ? ' — ' + String(r[ck.not]).slice(0, 60) : ''));
@@ -3015,11 +3019,13 @@ function kurye_() {
   Object.keys(KURYE_UCRET.kisiler || {}).forEach(function (k) { if (!kuryeEsle_(Object.keys(adlar), k)) adlar[k] = 1; });
   out.kuryeAdlari = Object.keys(adlar).sort(function (a, b) { return a.localeCompare(b, 'tr'); });
   // Kuryeye ödenecek: saat + paket − para kesintisi; Haddy'de KDV bu net tutar üzerinden (kurye panelindeki bordroyla aynı).
+  // Bahşiş / eksik ödeme / ek ödeme KDV'den sonra eklenir, avans KDV'den sonra düşülür (kurye tablosundaki bordroCiz ile aynı).
   out.bordro = Object.keys(haftalar).sort().reverse().map(function (hf) {
     return { hafta: hf, bitis: gunEkle_(hf, 6), kisiler: Object.keys(haftalar[hf]).map(function (k) { var b = haftalar[hf][k];
-      var para = b.paraKesinti || 0, net = b.saat + b.paketTl - para, kdv = net * kuryeUcret_(b.ad).kdv;
+      var para = b.paraKesinti || 0, net = b.saat + b.paketTl - para, kdv = net * kuryeUcret_(b.ad).kdv, ekO = b.ekOdeme || 0, av = b.avans || 0;
       return { ad: b.ad, grup: b.grup, gun: b.gun, netDk: b.netDk, paket: b.paket, kesintiDk: b.kesintiDk, ekDk: b.ekDk || 0, saat: yuv(b.saat), paketTl: yuv(b.paketTl),
-               paraKesinti: yuv(para), kdv: yuv(kdv), toplam: yuv(net + kdv), acik: b.acik, kesintiNot: (b.kesintiNot || []).join(' · ') };
+               paraKesinti: yuv(para), kdv: yuv(kdv), ekOdeme: yuv(ekO), avans: yuv(av), toplam: yuv(net + kdv + ekO - av), acik: b.acik, kesintiNot: (b.kesintiNot || []).join(' · '),
+               ekNot: (b.ekNot || []).join(' · '), avansNot: (b.avansNot || []).join(' · ') };
     }).sort(function (a, b) { return a.grup.localeCompare(b.grup) || b.toplam - a.toplam; }) };
   });
 
@@ -3645,22 +3651,33 @@ function kuralYenile_() {
   }
 }
 
+// 'Kesintiler' sekmesi kuryenin bordrosundaki tüm elle girilen kalemlerin sahibidir (docs/veri-sozlugu.md).
+// TL / Saat → kesinti; Avans → ödenecekten düşer; Bahşiş / Eksik Ödeme / Ek Ödeme → ödenecek tutara eklenir.
+// Tutar hep artı yazılır, yönü 'Kesinti Tipi' sütunundaki türden gelir. Aynı kural kurye-net-calisma-suresi/Kod.gs › kesintiYonu.
+var KESINTI_TURLERI = ['TL', 'Saat', 'Avans', 'Bahşiş', 'Eksik Ödeme', 'Ek Ödeme'];
+function kesintiYonu_(tip) {
+  var t = String(tip || '').toLocaleLowerCase('tr-TR');
+  if (/avans/.test(t)) return 'avans';
+  if (/bahşiş|bahsis|eksik ödeme|eksik odeme|ek ödeme|ek odeme/.test(t)) return 'arti';
+  return 'kesinti';
+}
+
 function kesintiGir_(d) {
   var cache = CacheService.getScriptCache(), istek = String(d.istekNo || '').slice(0, 64);
   var onceki = istek ? cache.get('kesinti_' + istek) : null;
   if (onceki) { try { var o = JSON.parse(onceki); o.zatenKayitli = true; return o; } catch (err) { return { tamam: true, zatenKayitli: true }; } }
   var ad = String(d.kurye || '').replace(/\s+/g, ' ').trim().slice(0, 60);
   if (!ad) return { hata: 'Kuryeyi seçin.' };
-  var tip = d.tip === 'Saat' ? 'Saat' : d.tip === 'TL' ? 'TL' : '';
-  if (!tip) return { hata: 'Kesinti türünü seçin (saat ya da TL).' };
-  var miktar = Math.round(sayi_(d.miktar) * 100) / 100;
+  var tip = KESINTI_TURLERI.indexOf(String(d.tip || '')) >= 0 ? String(d.tip) : '';
+  if (!tip) return { hata: 'Türü seçin.' };
+  var miktar = Math.round(Math.abs(sayi_(d.miktar)) * 100) / 100; // yönü türden gelir; "-6000" yazılsa da 6000 alınır
   if (!(miktar > 0)) return { hata: tip === 'Saat' ? 'Kaç dakika kesileceğini yazın.' : 'Geçerli bir tutar yazın.' };
   if (tip === 'Saat' && miktar > 720) return { hata: 'Bir seferde en fazla 720 dk (12 saat) kesilebilir.' };
-  if (tip === 'TL' && miktar > 50000) return { hata: 'Tutar çok yüksek görünüyor; kontrol edin.' };
+  if (tip !== 'Saat' && miktar > 50000) return { hata: 'Tutar çok yüksek görünüyor; kontrol edin.' };
   if (tip === 'Saat') miktar = Math.round(miktar);
   var m = String(d.tarih || '').match(/^(\d{4})-(\d{2})-(\d{2})$/); if (!m) return { hata: 'Tarihi seçin.' };
   var tarih = new Date(+m[1], +m[2] - 1, +m[3], 12, 0, 0), gun = (tarih.getTime() - Date.now()) / 86400000;
-  if (gun > 1) return { hata: 'İleri tarihli kesinti girilemez.' };
+  if (gun > 1) return { hata: 'İleri tarihli kayıt girilemez.' };
   if (gun < -62) return { hata: 'İki aydan eski kesinti panelden girilemez; tabloya elle yazın.' };
   var tarihYazi = Utilities.formatDate(tarih, TZ, 'dd.MM.yyyy');
   var aciklama = String(d.aciklama || '').replace(/\s+/g, ' ').trim().slice(0, 200);
@@ -3677,8 +3694,8 @@ function kesintiGir_(d) {
   if (d.onay !== '1' && sh.getLastRow() >= 2) {
     var v = sh.getRange(2, 1, sh.getLastRow() - 1, lc).getDisplayValues();
     for (var i = v.length - 1; i >= 0; i--) {
-      if (gunStr_(v[i][c.tarih]) === gunStr_(tarihYazi) && norm_(v[i][c.ad]) === norm_(ad) && Math.abs(sayi_(v[i][tip === 'Saat' ? c.dk : c.tl]) - miktar) < 0.01)
-        return { tekrarMi: true, hata: tarihYazi + ' tarihinde ' + ad + ' için aynı kesinti zaten var. Yine de eklemek istiyorsan onayla.' };
+      if (gunStr_(v[i][c.tarih]) === gunStr_(tarihYazi) && norm_(v[i][c.ad]) === norm_(ad) && norm_(v[i][c.tip]) === norm_(tip) && Math.abs(sayi_(v[i][tip === 'Saat' ? c.dk : c.tl]) - miktar) < 0.01)
+        return { tekrarMi: true, hata: tarihYazi + ' tarihinde ' + ad + ' için aynı kayıt (' + tip + ', ' + miktar + ') zaten var. Yine de eklemek istiyorsan onayla.' };
     }
   }
   var satir = []; for (var j = 0; j < lc; j++) satir.push('');
@@ -3686,10 +3703,10 @@ function kesintiGir_(d) {
   satir[tip === 'Saat' ? c.dk : c.tl] = miktar; if (c.not >= 0) satir[c.not] = aciklama + ' (panel)';
   var no = sh.getLastRow() + 1;
   sh.getRange(no, 1, 1, lc).setValues([satir]);
-  var sonuc = { tamam: true, kurye: ad, tip: tip, miktar: miktar, tarih: tarihYazi };
+  var sonuc = { tamam: true, kurye: ad, tip: tip, yon: kesintiYonu_(tip), miktar: miktar, tarih: tarihYazi };
   if (istek) cache.put('kesinti_' + istek, JSON.stringify(sonuc), 600);
   var damga = Utilities.formatDate(new Date(), TZ, 'dd.MM.yyyy HH:mm:ss');
-  try { cevapKaydet_('Operasyon', 'Kurye Net Çalışma Süresi › Kesintiler', no, 'Kurye kesintisi ' + tarihYazi, ad + ' — ' + (tip === 'Saat' ? miktar + ' dk' : miktar + ' TL') + ': ' + aciklama, damga.slice(0, 16)); } catch (err) { }
+  try { cevapKaydet_('Operasyon', 'Kurye Net Çalışma Süresi › Kesintiler', no, 'Kurye ' + (tip === 'TL' || tip === 'Saat' ? 'kesintisi' : tip.toLocaleLowerCase('tr-TR')) + ' ' + tarihYazi, ad + ' — ' + (tip === 'Saat' ? miktar + ' dk' : miktar + ' TL') + ': ' + aciklama, damga.slice(0, 16)); } catch (err) { }
   return sonuc;
 }
 
