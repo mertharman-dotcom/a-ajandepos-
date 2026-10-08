@@ -26,12 +26,12 @@ const manifest = scopes => JSON.stringify({ timeZone: 'Europe/Istanbul', runtime
 
 // ---------- stok projesi: canlı Satış/Alış Motoru + önerilen kuyruk + test kapısı ----------
 const SS = path.join(KOK, 'apps-script/stok-takip-sistemi');
-let sm = kimlikCevir(oku(path.join(SS, 'Satıs Motoru.gs')));
+let sm = oku(path.join(SS, 'Satıs Motoru.gs'));
 // ÖNERİLEN CANLI DEĞİŞİKLİK 1: Satış Motoru kendi kilidi altında ÖNCE kuyruğu işler. Kuyruk hata verirse bu tur satış
 // düşülmez (sipariş kaybolmaz, sonraki turda düşülür) — böylece yarım kalan kuyruk turunu ilk yine kuyruk tamamlar.
 sm = degistir(sm, 'try { satislariIsle(); } finally { lock.releaseLock(); }',
   'try { stokKuyruguOnce_(stokDosyasi()); satislariIsle(); } finally { lock.releaseLock(); }', 'Satış Motoru');
-let am = kimlikCevir(oku(path.join(SS, 'Alıs Motoru v2.gs')));
+let am = oku(path.join(SS, 'Alıs Motoru v2.gs'));
 // ÖNERİLEN CANLI DEĞİŞİKLİK 2: Alış Motoru da önce kuyruğu işler.
 am = degistir(am, "try { return alisIsle_(); } finally { lock.releaseLock(); }",
   "try { stokKuyruguOnce_(SpreadsheetApp.openById(SHEET_ID)); return alisIsle_(); } finally { lock.releaseLock(); }", 'Alış Motoru');
@@ -42,28 +42,32 @@ function stokKuyruguOnce_(ss) {
   catch (e) { sk_uyar_('motor', 'Stok kuyruğu işlenemedi, motor bu tur atlandı (kayıtlar kaybolmadı, sonraki turda denenecek): ' + e); throw e; }
 }
 `;
-yaz(path.join(DIST, 'stok/Satıs Motoru.gs'), sm);
-yaz(path.join(DIST, 'stok/Alıs Motoru v2.gs'), am);
-yaz(path.join(DIST, 'stok/Stok Kuyrugu.gs'), kuyruk);
+// CANLI ADAY: canlıya önerilecek dosyaların kendisi (canlı kimliklerle). Test dosyaları bunlardan YALNIZ kimlik çevrilerek üretilir.
+const ADAY = path.join(DIST, 'canli-aday');
+yaz(path.join(ADAY, 'stok-takip-sistemi/Satıs Motoru.gs'), sm);
+yaz(path.join(ADAY, 'stok-takip-sistemi/Alıs Motoru v2.gs'), am);
+yaz(path.join(ADAY, 'stok-takip-sistemi/Stok Kuyrugu.gs'), kuyruk);
+yaz(path.join(ADAY, 'stok-takip-sistemi/Stok Kuyrugu Uyari.gs'), oku(path.join(BURA, 'oneri/Stok Kuyrugu Uyari.gs')));
+yaz(path.join(DIST, 'stok/Satıs Motoru.gs'), kimlikCevir(sm));
+yaz(path.join(DIST, 'stok/Alıs Motoru v2.gs'), kimlikCevir(am));
+yaz(path.join(DIST, 'stok/Stok Kuyrugu.gs'), kimlikCevir(kuyruk));
 yaz(path.join(DIST, 'stok/Test Uyari.gs'), oku(path.join(BURA, 'test-ortami/Test Uyari.gs')));
 yaz(path.join(DIST, 'stok/Test Stok.gs'), oku(path.join(BURA, 'test-ortami/Test Stok.gs')));
 yaz(path.join(DIST, 'stok/appsscript.json'), manifest(['https://www.googleapis.com/auth/spreadsheets', 'https://www.googleapis.com/auth/script.scriptapp']));
 
 // ---------- panel projesi ----------
 let panel = panelKaynak === 'eski' ? oku(path.join(KOK, 'apps-script/bap-panel-backend/Kod.gs')) : oku(path.join(BURA, 'oneri/panel-Kod.gs'));
+if (panelKaynak === 'oneri') yaz(path.join(ADAY, 'bap-panel-backend/Kod.gs'), panel);
 panel = kimlikCevir(panel);
+// TEST KAPISI: doPost, Test Panel.gs'teki sarmalayıcıya devredilir (sipariş/WhatsApp/mal kabul kapalı)
 panel = degistir(panel, 'function doPost(e) {', 'function doPost_asil(e) {', 'panel doPost');
 yaz(path.join(DIST, 'panel/Kod.gs'), panel);
 yaz(path.join(DIST, 'panel/Test Panel.gs'), oku(path.join(BURA, 'test-ortami/Test Panel.gs')));
 yaz(path.join(DIST, 'panel/appsscript.json'), manifest(['https://www.googleapis.com/auth/spreadsheets']));
 
-// ---------- ön yüz (Cloudflare Pages önizleme dalı) ----------
+// ---------- ön yüz ----------
+// 1) ÖNERİ yamaları (canlıya önerilecek): istekId, bekleyen çubuğu, stok hücresinde bekleyen satırı, sayımda "hazırda" sorusu.
 let on = oku(path.join(KOK, 'bap-sistem/index.html'));
-const panelUrl = K.projeler.panel.deploymentId ? `https://script.google.com/macros/s/${K.projeler.panel.deploymentId}/exec` : 'about:blank#panel-henuz-kurulmadi';
-on = degistir(on, `https://script.google.com/macros/s/${K.canli.panelDagitim}/exec`, panelUrl, 'ön yüz API');
-on = degistir(on, '<body>', `<body>
-<div id="test-serit" style="position:sticky;top:0;z-index:9999;background:#b91c1c;color:#fff;font:800 12px system-ui;padding:6px 10px;text-align:center">
-  TEST ORTAMI — canlı stoka yazmaz · tedarikçi siparişi / WhatsApp kapalı</div>`, 'ön yüz şerit');
 on = degistir(on, `  const sonuc=await apiFetchJson(API,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify(d)});`,
 `  // Aynı kayıt (aynı içerik) cevap alınamadan tekrar gönderilirse AYNI istekId gider; sunucu ikinci kez yazmaz.
   const icerik=JSON.stringify(d);
@@ -78,7 +82,7 @@ on = degistir(on, `        <div style="font-size:12px"><b>Mevcut Stok:</b> \${me
 `        <div style="font-size:12px"><b>Mevcut Stok:</b> \${mevcut} \${h.birim}</div>\${bekleyenSatiri(sube,h,mevcut)}`, 'ön yüz stok hücresi');
 on = degistir(on, '</body>', `<div id="bekleyen-bar" style="display:none;position:fixed;left:0;right:0;bottom:0;z-index:9998;background:#fef3c7;color:#78350f;font:700 12px system-ui;padding:8px 12px;border-top:2px solid #f59e0b"></div>
 <script>
-// TEST: stoka henüz işlenmemiş kayıtlar ayrı gösterilir
+// Stoka henüz işlenmemiş (kuyrukta bekleyen) kayıtlar ayrı gösterilir
 const ISTEK_KIMLIK={}; let BEKLEYEN={kayitlar:[],ozet:{}};
 async function bekleyenYukle(){
   try{ BEKLEYEN=await apiFetchJson(API+'?action=getBekleyenler'); }catch(e){ return; }
@@ -102,10 +106,27 @@ function bekleyenSatiri(sube,h,mevcut){
   return '<div style="font-size:11px;color:#b45309;font-weight:700;margin-top:3px">⏳ '+(r?(r>0?'+':'')+r+' '+h.birim+' stoka işlenmeyi bekliyor → '+(Math.round((mevcut+r)*1000)/1000)+' '+h.birim:'')+
     (sayim!==null?' · sayım ('+sayim+') uygulanmayı bekliyor':'')+'</div>';
 }
-siparisKaydetVeWhatsApp=async function(){ alert('TEST ortamında tedarikçi siparişi ve WhatsApp kapalı.'); };
 setInterval(bekleyenYukle,30000); bekleyenYukle();
 </script>
 </body>`, 'ön yüz bekleyen çubuğu');
+on = degistir(on, `      action:'sayimTopluKaydet',
+      sube:aktif,`, `      action:'sayimTopluKaydet',
+      sube:aktif,
+      hazirda,`, 'ön yüz sayım hazırda alanı');
+on = degistir(on, `  const btn=document.getElementById('stok-toplu-kaydet'); btn.disabled=true; btn.textContent='Kaydediliyor...';`,
+`  // Sayım anında hazırlanmış ama şubeden çıkmamış sipariş: malzemesi raftan alınmıştır, sayılan miktarda yoktur.
+  const hazirda=prompt('Şu an HAZIRLANMIŞ ama henüz ŞUBEDEN ÇIKMAMIŞ sipariş var mı?\\n\\nVarsa fişteki sipariş numaralarını virgülle yazın (ör. 41, 43).\\nYoksa boş bırakıp Tamam\\'a basın.\\n\\n(Mümkünse sayımı bekleyen hazırlık yokken yapın.)','');
+  if(hazirda===null){ toast2('Sayım kaydedilmedi'); return; }
+  const btn=document.getElementById('stok-toplu-kaydet'); btn.disabled=true; btn.textContent='Kaydediliyor...';`, 'ön yüz sayım hazırda sorusu');
+yaz(path.join(ADAY, 'bap-sistem/index.html'), on);
+// 2) TEST yamaları (yalnız test): test API adresi, kırmızı şerit, tedarikçi siparişi/WhatsApp kapalı.
+const panelUrl = K.projeler.panel.deploymentId ? `https://script.google.com/macros/s/${K.projeler.panel.deploymentId}/exec` : 'about:blank#panel-henuz-kurulmadi';
+on = degistir(on, `https://script.google.com/macros/s/${K.canli.panelDagitim}/exec`, panelUrl, 'ön yüz API');
+on = degistir(on, '<body>', `<body>
+<div id="test-serit" style="position:sticky;top:0;z-index:9999;background:#b91c1c;color:#fff;font:800 12px system-ui;padding:6px 10px;text-align:center">
+  TEST ORTAMI — canlı stoka yazmaz · tedarikçi siparişi / WhatsApp kapalı</div>`, 'ön yüz şerit');
+on = degistir(on, '</body>', `<script>siparisKaydetVeWhatsApp=async function(){ alert('TEST ortamında tedarikçi siparişi ve WhatsApp kapalı.'); };</script>
+</body>`, 'ön yüz WhatsApp kapalı');
 yaz(path.join(DIST, 'on-yuz/index.html'), on);
 
 // ---------- DENETİM ----------
@@ -169,8 +190,26 @@ if (panelKaynak === 'oneri') {
     else yazanlar.push(`  (panel/Kod.gs › ${fn}: tanımlı ama HİÇBİR yerden çağrılmıyor → panel Sube_Stok'a yazmaz)`);
   }
 }
+// SÜRÜM: test edilen dosya = canlı aday, tek fark kimlikler ve test kapısı. Değilse denetim KALIR.
+const crypto = await import('node:crypto');
+const ozet = x => crypto.createHash('sha256').update(x).digest('hex').slice(0, 12);
+const surum = [];
+const esle = (adayYol, testYol, testCevir) => {
+  const a = oku(path.join(ADAY, adayYol)), t = oku(path.join(DIST, testYol));
+  const ayni = testCevir(a) === t;
+  if (!ayni) hatalar.push(`sürüm: ${testYol} canlı adaydan (${adayYol}) farklı`);
+  surum.push(`  ${adayYol}  sha256:${ozet(a)}  →  test ${testYol}: ${ayni ? 'AYNI (yalnız kimlik/test kapısı farkı)' : 'FARKLI'}`);
+};
+esle('stok-takip-sistemi/Satıs Motoru.gs', 'stok/Satıs Motoru.gs', kimlikCevir);
+esle('stok-takip-sistemi/Alıs Motoru v2.gs', 'stok/Alıs Motoru v2.gs', kimlikCevir);
+esle('stok-takip-sistemi/Stok Kuyrugu.gs', 'stok/Stok Kuyrugu.gs', kimlikCevir);
+if (panelKaynak === 'oneri') esle('bap-panel-backend/Kod.gs', 'panel/Kod.gs', x => kimlikCevir(x).replace('function doPost(e) {', 'function doPost_asil(e) {'));
+surum.push(`  bap-sistem/index.html  sha256:${ozet(oku(path.join(ADAY, 'bap-sistem/index.html')))}  →  test ön yüz: + test adresi, kırmızı şerit, WhatsApp kapalı`);
+let gitSurum = process.env.GITHUB_SHA || '';
+try { if (!gitSurum) gitSurum = (await import('node:child_process')).execSync('git rev-parse HEAD', { cwd: KOK }).toString().trim(); } catch (e) {}
 const metin = [
   `TEST derlemesi ${new Date().toISOString()} · panel kaynağı: ${panelKaynak}`, '',
+  `SÜRÜM (depo ${gitSurum.slice(0, 7) || '?'}): canlı aday dosyaları dist/canli-aday/ altında`, ...surum, '',
   'KİMLİK SABİTLERİ (derlenmiş):', ...sabitler.map(x => '  ' + x), '',
   'OKUNAN/YAZILAN DOSYALAR (openById):', ...rapor.map(x => '  ' + x), '',
   "Sube_Stok'a yazabilen fonksiyonlar (sekme adını kullanıp hücreye yazanlar):", ...yazanlar.map(x => '  ' + x), '',
