@@ -27,7 +27,9 @@
 var NABIZ_ID   = '1Zcvs58MkIX_D2GZZv8q2p6LpFj6_BS42TBMKuU1oNpY';   // BAP Sistem Nabzı (bu proje buna bağlı)
 var SAHIP_MAIL = 'mertharman@gmail.com';
 var TZ_B       = 'Europe/Istanbul';
-var ACILIS_SAAT = 10, KAPANIS_SAAT = 3;          // işletme 10:00'da açılır, gece 03:00'te kapanır
+// Sipariş gelen saatler (08.10 ilk raporda gece 02:51'de 'Adisyo 4 saattir sessiz' yanlış alarmı → son sipariş ~23:00).
+// Muhasebe günü 03:00'te kapansa da sipariş akışı gece yarısı biter. Sahip farklı derse buradan değişir.
+var ACILIS_SAAT = 11, KAPANIS_SAAT = 0;          // 11:00–24:00 arası sipariş beklenir
 var MAKE_API   = 'https://eu1.make.com/api/v2';
 var MAKE_TAKIM = 1385730, MAKE_ORG = 7150039;
 
@@ -48,7 +50,7 @@ var DOSYA_B = {
  * dk aşılırsa UYARI, 2 katı aşılırsa SORUN. acik:true → yalnız işletme açıkken beklenir (gece sessizlik normal).
  * Süreler ilk hafta gözlenip ayarlanacak (Olaylar sekmesinde gereksiz uyarı görülürse buradan büyütülür). */
 var AKISLAR = [
-  { ad: 'Adisyo siparişleri', grup: 'Satış ve sipariş', dosya: 'SATIS', sekme: 'Satıs Verileri', dk: 60, acik: true,
+  { ad: 'Adisyo siparişleri', grup: 'Satış ve sipariş', dosya: 'SATIS', sekme: 'Satıs Verileri', dk: 90, acik: true,
     nerede: 'Apps Script › Adisyo Sipariş Toplayıcı (birkaç dakikada bir Adisyo\'dan çeker)',
     cozum: 'Apps Script › Adisyo Sipariş Toplayıcı › Yürütmeler ekranında kırmızı satır var mı bak. Adisyo API anahtarı değiştiyse güncellenmeli.' },
   { ad: 'Satıştan stok düşümü', grup: 'Stok ve mutfak', dosya: 'STOK', sekme: 'Satis_Hareketleri', dk: 180, acik: true,
@@ -83,7 +85,9 @@ var AKISLAR = [
     nerede: 'Apps Script › Trendyol Veri Çekme › yorumlariCek (04:15)', cozum: 'Trendyol Veri Çekme › Yürütmeler. Trendyol API anahtarı süresi dolmuş olabilir.' },
   { ad: 'Trendyol puan raporu', grup: 'Trendyol', dosya: 'TRENDYOL', sekme: 'Puan_Siparis', dk: 1560, acik: false,
     nerede: 'Apps Script › Trendyol Veri Çekme › gunlukPuanRaporu (23:50)', cozum: 'Trendyol Veri Çekme › Yürütmeler.' },
-  { ad: 'KolayBi faturaları', grup: 'Finans ve alım', dosya: 'FATURA', sekme: 'Fatura_Kalemleri', dk: 4320, acik: false,
+  { ad: 'KolayBi çekimi', grup: 'Finans ve alım', dosya: 'FATURA', sekme: 'Cekim_Log', dk: 240, acik: false,
+    nerede: 'Apps Script › Kolaybi Fatura Ham Veri › kolaybiTumunuCek (2 saatte bir)', cozum: 'Kolaybi Fatura Ham Veri › Yürütmeler. Çekim çalışıyor ama aşağıdaki "yeni fatura" eskiyse KolayBi\'ye fatura girilmiyordur.' },
+  { ad: 'KolayBi yeni fatura', grup: 'Finans ve alım', dosya: 'FATURA', sekme: 'Fatura_Kalemleri', dk: 4320, acik: false,
     nerede: 'Apps Script › Kolaybi Fatura Ham Veri (saatlik)', cozum: 'Kolaybi Fatura Ham Veri › Yürütmeler. KolayBi API anahtarı değişmiş olabilir.' },
   { ad: 'Personel giriş-çıkış', grup: 'Personel', dosya: 'PERSONEL', sekme: 'Personel_Giris_Cikis', dk: 1440, acik: true,
     nerede: 'BAP_Personel (QR / web giriş)', cozum: 'Personel giriş ekranı açılıyor mu? BAP_Personel › Yürütmeler.' },
@@ -245,7 +249,7 @@ function zipYedegi_(simdi) {
   var en = null, ad = '', it = DriveApp.getFolderById(ZIP_YEDEK_KLASOR).getFiles();
   while (it.hasNext()) {
     var f = it.next(), m = f.getName().match(/^BAP_YEDEK_\d{4}-\d{2}-\d{2}\.zip$/);
-    if (m && !f.isTrashed() && (!en || f.getDateCreated() > en)) { en = f.getDateCreated(); ad = f.getName() + ' · ' + gb_(f.getSize()).replace(' GB', '') + ' GB'; }
+    if (m && !f.isTrashed() && (!en || f.getDateCreated() > en)) { en = f.getDateCreated(); ad = f.getName() + ' · ' + Math.round(f.getSize() / 1048576) + ' MB'; }
   }
   if (!en) { r.durum = 'SORUN'; r.detay = 'Klasörde hiç tam yedek (BAP_YEDEK_….zip) yok.'; return r; }
   var saat = (simdi - en) / 3600000;
