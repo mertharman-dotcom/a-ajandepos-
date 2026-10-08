@@ -186,6 +186,15 @@ h1{font-size:34px;line-height:1.12;margin:0;font-weight:700;letter-spacing:-.015
 .hafta-sec strong{font-size:16px}
 .uyari{background:var(--dikkat-z);border:1px solid var(--dikkat);color:var(--murekkep);border-radius:var(--r);padding:14px 18px;margin-bottom:24px;font-size:14px}
 .uyari.kotu{background:var(--kotu-z);border-color:var(--kotu)}
+.saglik-grup{border-top:1px solid var(--cizgi)} .saglik-grup:first-child{border-top:0}
+.saglik-grup summary{display:flex;justify-content:flex-start;gap:8px;align-items:center;padding:12px 18px;cursor:pointer;list-style:none;font-weight:600;font-size:14.5px}
+.saglik-grup summary::-webkit-details-marker{display:none}
+.saglik-grup summary::before{content:"▸";color:var(--gri);margin-right:6px} .saglik-grup[open] summary::before{content:"▾"}
+.saglik-grup summary .sayac{display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end;margin-left:auto}
+.saglik-grup .satir{padding:10px 18px 10px 34px}
+.saglik-grup .satir h3{font-size:14px;display:flex;gap:8px;align-items:baseline;flex-wrap:wrap}
+.saglik-grup .satir p{font-size:13.5px;color:var(--gri)}
+.cozum{margin-top:6px;font-size:13.5px;background:var(--mavi-acik);border-radius:var(--r-kucuk);padding:6px 10px;max-width:75ch}
 .uyari b{display:block;margin-bottom:2px}
 .bilgi{background:var(--mavi-acik);border-radius:var(--r);padding:14px 18px;font-size:14px;margin-bottom:24px;max-width:80ch}
 
@@ -281,7 +290,7 @@ h1{font-size:34px;line-height:1.12;margin:0;font-weight:700;letter-spacing:-.015
 <script>
 (function(){
 "use strict";
-var BOLUMLER=[["merkez","Yönetim Merkezi"],["ozet","İşletme Özeti"],["fis","Günlük Fiş"],["satis","Satışlar"],["maliyet","Satış Maliyeti"],["finans","Finans"],["yemekkart","Yemek Kartları"],["odeme","Toptancı Ödemeleri"],["alim","Alımlar & Giderler"],["stok","Ürün, Stok & Hazırlık"],["kurye","Kurye & Teslimat"],["personel","Personel"],["musteri","Müşteri İlişkileri"],["genel","Genel Bilgiler"],["kararlar","Kararlarım"],["panolar","Departman Panoları"],["ai","AI Ekibi"]];
+var BOLUMLER=[["merkez","Yönetim Merkezi"],["saglik","Sistem Sağlığı"],["ozet","İşletme Özeti"],["fis","Günlük Fiş"],["satis","Satışlar"],["maliyet","Satış Maliyeti"],["finans","Finans"],["yemekkart","Yemek Kartları"],["odeme","Toptancı Ödemeleri"],["alim","Alımlar & Giderler"],["stok","Ürün, Stok & Hazırlık"],["kurye","Kurye & Teslimat"],["personel","Personel"],["musteri","Müşteri İlişkileri"],["genel","Genel Bilgiler"],["kararlar","Kararlarım"],["panolar","Departman Panoları"],["ai","AI Ekibi"]];
 var YETKI={L0:"Yalnız inceleme",L1:"Öneri ve taslak",L2:"Önceden izinli küçük işlem",L3:"Direktör yetkisinde",L4:"Senin onayın gerekiyor",L5:"Yapay zeka uygulayamaz"};
 var DURUM={COMPLETED:"Tamamlandı",WAITING_MERT:"Senin onayını bekliyor",WAITING_REVIEW:"İkinci kontrol bekliyor",ROUTED:"Sıraya alındı",IN_ANALYSIS:"Analizde",NEW:"Yeni",BLOCKED:"Durduruldu",ERROR_FINAL:"Hatayla kapandı",APPROVED:"Onaylandı",REJECTED:"Reddedildi",IN_IMPLEMENTATION:"Uygulanıyor",EXECUTED:"Uygulandı",VERIFYING:"Doğrulanıyor",VERIFIED:"Doğrulandı","BOŞ":"Durumu yazılmamış"};
 var VERI=null, AKTIF=(location.hash||"#merkez").slice(1), YUKLENIYOR=false;
@@ -306,6 +315,7 @@ function bekleyenSayi(){return VERI&&VERI.hub?VERI.hub.bekleyen.length+kokpitBek
 
 function nav(){var n=document.getElementById("nav");n.textContent="";
   BOLUMLER.forEach(function(b){var rozet=null;if(b[0]==="kararlar"&&bekleyenSayi()>0)rozet=el("span",{class:"rozet",text:String(bekleyenSayi()),"aria-label":bekleyenSayi()+" bekleyen karar"});
+    if(b[0]==="saglik"&&saglikSorun().length)rozet=el("span",{class:"rozet",text:String(saglikSorun().length),"aria-label":saglikSorun().length+" sistemde sorun"});
     n.appendChild(el("button",{type:"button","aria-current":AKTIF===b[0]?"page":null,onclick:function(){git(b[0]);}},[el("span",{text:b[1]}),rozet]));});}
 function git(id){AKTIF=id;history.replaceState(null,"","#"+id);ciz();window.scrollTo(0,0);}
 
@@ -375,7 +385,30 @@ function departmanTablosu(){var ik=VERI.isKaydi;if(!ik)return bos("İş kaydı o
   return el("div",{class:"liste kaydir"},[el("table",{class:"tablo"},[el("thead",null,[el("tr",null,[el("th",{text:"Departman"}),el("th",{text:"Durum"}),el("th",{class:"sag",text:"Son 24 saat"}),el("th",{class:"sag",text:"Son 7 gün"})])]),tb])]);}
 
 function nabizListesi(){var n=VERI.nabiz;if(!n||!n.satirlar.length)return bos("Sistem nabzı okunamadı.");
-  return el("div",{class:"liste"},n.satirlar.map(function(r){var ok=/^ok$/i.test(r.durum);return el("div",{class:"satir"},[el("h3",null,[r.sistem+" ",el("span",{class:"etiket "+(ok?"e-iyi":"e-kotu"),text:ok?"çalışıyor":r.durum||"sorun"})]),r.detay?el("p",{text:r.detay}):null]);}));}
+  var kotu=n.satirlar.filter(function(r){return !/^ok$/i.test(r.durum);}),ac=el("button",{type:"button",class:"dugme",onclick:function(){git("saglik");}},["Sistem sağlığını aç"]);
+  if(!kotu.length)return el("div",{class:"liste"},[el("div",{class:"satir"},[el("h3",null,[n.satirlar.length+" sistem ",el("span",{class:"etiket e-iyi",text:"hepsi çalışıyor"})]),el("div",{class:"meta"},[ac])])]);
+  return el("div",{class:"liste"},kotu.slice(0,6).map(function(r){return el("div",{class:"satir"},[el("h3",null,[r.sistem+" ",durumEtiketi(r.durum)]),r.detay?el("p",{text:r.detay}):null]);}).concat([el("div",{class:"satir"},[kotu.length>6?el("p",{text:"ve "+(kotu.length-6)+" sistem daha."}):null,ac])]));}
+function durumEtiketi(d){var u=String(d||"").toUpperCase();return el("span",{class:"etiket "+(u==="OK"?"e-iyi":u==="UYARI"?"e-dikkat":"e-kotu"),text:u==="OK"?"çalışıyor":u==="UYARI"?"uyarı":u==="SORUN"?"durdu / sorun":d||"sorun"});}
+function saglikSorun(){var n=VERI&&VERI.nabiz;return n&&n.satirlar?n.satirlar.filter(function(r){return String(r.durum).toUpperCase()==="SORUN";}):[];}
+
+/* ---- Sistem Sağlığı: BAP Sistem Bekçisi'nin (BAP Sistem Nabzı › Durum) 15 dakikalık kontrolü ---- */
+function saglikSayfa(a){var n=VERI.nabiz;
+  if(!n||!n.satirlar){a.appendChild(ust("Sistem sağlığı","Bekçinin raporu okunamadı."));var h0=hatalarKutusu(["nabiz"]);if(h0)a.appendChild(h0);return;}
+  var S=n.satirlar,sor=S.filter(function(r){return String(r.durum).toUpperCase()==="SORUN";}),uy=S.filter(function(r){return String(r.durum).toUpperCase()==="UYARI";}),ok=S.length-sor.length-uy.length;
+  a.appendChild(ust("Sistem sağlığı",(n.sonKontrol?"Son kontrol: "+n.sonKontrol+". ":"")+(sor.length?sor.length+" sistem durmuş ya da sorunlu.":uy.length?"Durmuş sistem yok; "+uy.length+" uyarı var.":"Her şey çalışıyor.")));
+  a.appendChild(nabizSeridi("saglik"));
+  if(n.surum!==2)a.appendChild(el("div",{class:"uyari"},[el("b",{text:"Sistem bekçisi henüz kurulmadı."}),el("div",{text:"Aşağıdaki liste eski nabız sekmesinden geliyor. Bekçi kurulunca Make, Apps Script, MacBook köprüsü, web adresleri ve abonelikler burada görünecek."})]));
+  a.appendChild(el("div",{class:"rakamlar"},[rakam("Durmuş / sorunlu",String(sor.length),sor.length?"Hemen bakılmalı":"Yok",sor.length?"asagi":""),rakam("Uyarı",String(uy.length),uy.length?"Gecikiyor ya da yaklaşıyor":"Yok"),rakam("Çalışıyor",String(ok),S.length+" kontrolün")]));
+  var sat=function(r,uzun){return el("div",{class:"satir"},[el("h3",null,[r.sistem+" ",durumEtiketi(r.durum)]),r.detay?el("p",{text:r.detay}):null,
+    uzun&&r.cozum?el("div",{class:"cozum",text:"Ne yapmalı: "+r.cozum}):null,
+    el("div",{class:"meta"},[r.nerede?el("span",{text:"Nerede: "+r.nerede}):null,r.beri&&String(r.durum).toUpperCase()!=="OK"?el("span",{text:"Ne zamandan beri: "+r.beri}):null,r.sonVeri?el("span",{text:"Son veri: "+r.sonVeri}):null])]);};
+  if(sor.length||uy.length)a.appendChild(blok("Bakılması gerekenler","Önce kırmızılar. Her birinde nerede durduğu ve ne yapılacağı yazıyor.",el("div",{class:"liste"},sor.concat(uy).map(function(r){return sat(r,true);}))));
+  var gr={},sira=[];S.forEach(function(r){var g=r.grup||"Diğer";if(!gr[g]){gr[g]=[];sira.push(g);}gr[g].push(r);});
+  sira.sort(function(x,y){var f=function(g){return gr[g].filter(function(r){return String(r.durum).toUpperCase()!=="OK";}).length;};return f(y)-f(x)||x.localeCompare(y,"tr");});
+  a.appendChild(blok("Bütün sistemler","Gruplara dokununca açılır.",el("div",{class:"liste"},sira.map(function(g){var l=gr[g],s1=l.filter(function(r){return String(r.durum).toUpperCase()==="SORUN";}).length,u1=l.filter(function(r){return String(r.durum).toUpperCase()==="UYARI";}).length;
+    return el("details",{class:"saglik-grup"},[el("summary",null,[el("span",{text:g}),el("span",{class:"sayac"},[s1?el("span",{class:"etiket e-kotu",text:s1+" sorun"}):null,u1?el("span",{class:"etiket e-dikkat",text:u1+" uyarı"}):null,el("span",{class:"etiket e-iyi",text:(l.length-s1-u1)+" çalışıyor"})])])].concat(l.map(function(r){return sat(r,false);})));}))));
+  if(n.olaylar&&n.olaylar.length)a.appendChild(blok("Son olaylar","Bir sistemin durumu her değiştiğinde yazılır: ne zaman durdu, ne zaman düzeldi.",el("div",{class:"liste kaydir"},[el("table",{class:"tablo"},[el("thead",null,[el("tr",null,[el("th",{text:"Zaman"}),el("th",{text:"Sistem"}),el("th",{text:"Önce → Şimdi"}),el("th",{text:"Detay"})])]),
+    el("tbody",null,n.olaylar.map(function(o){return el("tr",null,[el("td",{text:o.zaman}),el("td",{text:o.sistem}),el("td",null,[o.onceki+" → ",durumEtiketi(o.yeni)]),el("td",{text:o.detay})]);}))])])));}
 
 /* ---------------- Bölümler ---------------- */
 function merkez(a){var bek=VERI.hub?VERI.hub.bekleyen:[];var sessiz=VERI.isKaydi?VERI.isKaydi.departmanlar.filter(function(d){return d.saatOnce==null||d.saatOnce>26;}).length:0;
@@ -2529,7 +2562,7 @@ function ykMutabakat(a){var S=VERI.satis,Y=VERI.yemekKarti;if(!S||!S.yemekKartSa
   a.appendChild(blok("Yemek kartı mutabakatı — son 14 gün","Her hücre: terminale düşen (gün sonu) / Adisyo'da o kartla kapanan satış. Kırmızı fark: Adisyo'da satış var, terminalde eksik — kuryenin çekmediği ya da yanlış ödeme yöntemi girilmiş sipariş olabilir. Sarı: terminalde fazla (yanlış yöntem girilmiş olabilir). Gün = iş günü (10:00–03:00). Platformda online ödenen yemek kartları sayılmaz. Paye raporu ertesi gece, Pluxee/Edenred gün sonu MacBook'tan gelir; gelmeyen günler 'rapor bekleniyor'.",
     tablo([["Gün"]].concat(kartlar.map(function(k){return [k+(YK_TERMINAL[k]?" (terminal / Adisyo)":""),1];})),satir.concat([topSatir]))));}
 function gunEkleTr(g,k){return new Date(Date.parse(g+"T00:00:00Z")+k*86400000).toISOString().slice(0,10);}
-var CIZ={genel:genelSayfa,merkez:merkez,ozet:ozet,fis:fisSayfa,satis:satis,maliyet:maliyetSayfa,kararlar:kararlar,panolar:panolarSayfa,ai:ai,
+var CIZ={genel:genelSayfa,merkez:merkez,saglik:saglikSayfa,ozet:ozet,fis:fisSayfa,satis:satis,maliyet:maliyetSayfa,kararlar:kararlar,panolar:panolarSayfa,ai:ai,
   finans:finansSayfa,
   yemekkart:ykSayfa,
   odeme:toptanciOdemeSayfa,

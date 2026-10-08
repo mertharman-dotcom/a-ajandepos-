@@ -107,6 +107,11 @@ Tablolarda yapılan her değişikliğin eski ve yeni değeri **STOK › Fiyat_Du
 | T2 | Drive'da BAP klasör düzeni kurulup dosyalar taşınacak | ☑ 02.10 — 17 dosya + 2 yedek klasörü taşındı |
 | T3 | 10 "Başlıksız e-tablo" `9 Arşiv`de (3'ünde veri var, bakılacak); 15 eski dosya sahipte (dokunulmaz) | ⏸ |
 | T4 | Ajanlar dosyalarını `Departmanlar/<departman>` içine açıyor; kökte açanlar (ör. "Başlıksız") bulunup düzeltilecek | ☐ |
+| T5 | 08.10: 179 e-tablo kod + 28 Make senaryosu + ajan talimatlarıyla karşılaştırıldı (temizlik sayfası: https://claude.ai/artifact/EXgCpL17TYpkekZ8jHdxgT). 26'sını sistem kullanıyor; 84 ajan çalışma dosyası + 7 boş adsız arşive taşınabilir. 15 "eski" dosyadan `BAP Veri Ambarı` (satış ambarı projesi) ve `BAP_Veri_Arsivi_2025` (rapor ajanı) **kodda kullanılıyor**, taşınabilir ama silinmez | ⏸ sahip taşıyacak |
+| T6 | Drive'da **iki tane `BAP Reçete Kontrol`** var (ikisi de 05.10). Reçete ajanı dosyayı adıyla arıyor → hangisine yazdığı belirsiz. Biri arşive taşınmalı ya da ajan kimlikle açmalı | ☐ |
+| T7 | Make'te iki tane "BAP — AI ENGINE DISPATCHER" (7498901 açık, saatlik; 7642522 kapalı, 15 dk). Kapalı olan eski kopya gibi | ☐ |
+| T8 | `adisyo_webhook` Make senaryosu (5178087) **kapalı**; Satıs Verileri'ni artık Apps Script (Adisyo Sipariş Toplayıcı) dolduruyor. `veri-sozlugu.md` hâlâ "Make.com doldurur" diyor (K4 ile birlikte düzeltilecek) | ☐ |
+| T9 | 🔒 **Make senaryolarında açık anahtar**: 5178087 (Adisyo x-api-key, secret, consumer), 6376320 ve 6835756 (KolayBi api_key), 7363627 (Make API anahtarı; 6667782'nin planını okuyup üzerine yazıyor). Anahtarlar Make bağlantılarına / Keys bölümüne taşınmalı ve **yenilenmeli** (eski senaryo dışa aktarılırsa anahtar da gider) | ☐ |
 
 ## R · Trendyol (`docs/trendyol-api.md`)
 
@@ -217,4 +222,6 @@ Tablolarda yapılan her değişikliğin eski ve yeni değeri **STOK › Fiyat_Du
 | Y8 | 04.10: canlıda Apps Script editöründe eklenmiş `Pluxee.gs` / `PluxeeKodSayfa.gs`, depoda olmadığı için yayında silindi → kurye Pluxee bağlantısı 'Bilinmeyen tür' aldı (PR #8 ile geri getirildi) | ◐ yayın artık canlıda depoda olmayan dosya görünce duruyor; birleştirilmeyi bekliyor |
 | Y9 | Depoda ikinci bir yapay zekâ (ChatGPT) çalışmaya başladı → aynı kurallar `AGENTS.md`'de (Codex bu dosyayı okur) | ◐ birleştirilmeyi bekliyor |
 | Y4 | Ortak katman: `Ayarlar.gs` + `Ortak.gs` | ☐ |
+| Y11 | **Sistem Bekçisi (Nabız v2, TS-SS02)**: `apps-script/bap-sistem-bekcisi` 15 dk'da bir veri akışlarını (Adisyo, stok, kurye, yemek kartları, Trendyol, KolayBi, personel, ajanlar, WhatsApp), Apps Script hatalarını (Apps Script API), Make senaryolarını ve kotasını, web adreslerini, Drive alanını ve abonelik tarihlerini kontrol edip BAP Sistem Nabzı › Durum'a yazar; durunca e-posta atar. Panelde "Sistem Sağlığı" ekranı. Kurulum sahipte: proje açılacak, scriptId `projeler.json`'a yazılacak, `kuruCalistir` → `kurulumuTamamla`, MAKE_TOKEN, Apps Script API ayarı | ◐ kod hazır, kurulum bekliyor |
+| Y12 | Bekçi Claude zamanlanmış görevlerini (Routines) göremez; onları TS Sistem Sağlığı ajanı izliyor. Ajanın sonucu da BAP Sistem Nabzı'na ("Claude" satırları) yazılırsa tek ekranda görünür | ☐ |
 | Y10 | `Apps Script'i Yayınla`: stok-takip-sistemi kodu yükleniyor ama son adım 'birden fazla web dağıtımı; projeler.json'a deploymentId yazın' diye kırmızı bitiyor (07.10). Zamanlı işler (hazırlık ajanı vb.) yüklenen kodu kullandığı için etkilenmiyor; yalnız web adresi eski sürümde kalıyor. Ayrıca canlı kurye projesinde depoda olmayan `SetCard.gs` var → o projenin yayını durur (`kod-cekimi/20261007-2145`) | ☐ |
