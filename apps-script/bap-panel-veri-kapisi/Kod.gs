@@ -3009,9 +3009,9 @@ var TR_AY = { oca: 0, sub: 1, şub: 1, mar: 2, nis: 3, may: 4, haz: 5, tem: 6, a
 var KART_KAYNAKLARI = [
   { ad: 'Pluxee', odeme: /pluxee|sodexo/i, oku: function (ks) { return pluxeeCekimleri_(ks); } },
   { ad: 'Paye',   odeme: /paye/i,          oku: function (ks) { return payeCekimleri_(ks); } },
-  { ad: 'Edenred', odeme: /edenred|^\s*ticket/i, oku: function (ks) { return edenredCekimleri_(ks); } },
+  { ad: 'Edenred', odeme: /edenred|ticket/i,   /* "SmarTicket" da Edenred (08.10) */ oku: function (ks) { return edenredCekimleri_(ks); } },
   { ad: 'Multinet', odeme: /multinet/i,   oku: function (ks) { var v = multinetCekimleri_(ks); if (v && v.cekim && !v.hata) v.cekim = v.cekim.filter(function (y) { return !y.online; }); return v; }, tumu: function (ks) { return multinetCekimleri_(ks); } },
-  { ad: 'Tokenflex', odeme: /tokenflex/i, oku: function (ks) { return tokenflexCekimleri_(ks); } },
+  { ad: 'Tokenflex', odeme: /token\s*flex/i,   /* Adisyo: "Token Flex" (08.10) */ oku: function (ks) { return tokenflexCekimleri_(ks); } },
   { ad: 'Metropol', odeme: /metropol/i,   oku: function (ks) { return metropolCekimleri_(ks); } },
   { ad: 'SetCard', odeme: /set\s*card/i,  oku: function (ks) { var v = setcardCekimleri_(ks); if (v && v.cekim && !v.hata) v.cekim = v.cekim.filter(function (y) { return !y.online; }); return v; }, tumu: function (ks) { return setcardCekimleri_(ks); } }
 ];
@@ -3134,6 +3134,8 @@ function payeCekimleri_(ks) {
     var zs = String(r[c.z] || '').trim(), saat = zs.match(/\d{1,2}:\d{2}/) ? '' : (c.s >= 0 ? String(r[c.s] || '').trim() : '');
     var ms = zaman_(zs + (saat ? ' ' + saat : '')); if (ms === null) return;
     var saatYok = !/\d{1,2}:\d{2}/.test(zs + ' ' + saat);
+    // Saatsiz satır gece 00:00 okunur; iş günü 03:00'te döndüğü için önceki güne düşüyordu (08.10: 06.10 çekimleri "Paye çekimi yok"). Öğlene al.
+    if (saatYok) ms += 12 * 3600000;
     var y = { ms: ms, tutar: Math.abs(tutar), saatYok: saatYok, zaman: saatYok ? '—' : kartTam_(ms).slice(6), tam: saatYok ? kartTam_(ms).slice(0, 5) : kartTam_(ms) };
     if (tutar < 0 || (c.tip >= 0 && /iptal|iade|^ret|geri/.test(norm_(r[c.tip])))) iptal.push(y); else satis.push(y);
     if (!saatYok && (son === null || ms > son)) son = ms;
