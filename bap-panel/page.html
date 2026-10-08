@@ -833,7 +833,7 @@ function finansSayfa(a){var f=VERI.finans;a.appendChild(ust("Finans","Tedarikçi
   var ko=ac.kartOdendi&&ac.kartOdendi.liste.length?ac.kartOdendi:null;
   var sag=el("div",null,[blok("Kurum ve yemek kartı alacakları","Kesilmiş ama tahsil edilmemiş satış faturaları."+(ko?" Yemek kartı firmasının sisteminde ödendiği görünenler ("+para(ko.toplam)+") alacaktan düşüldü; aşağıda, KolayBi'ye tahsilat olarak işlenmeli.":""),
     el("div",null,[ac.liste.length?tablo([["Kurum"],["Fatura",1],["Kalan",1],["Vadesi geçen",1]],ac.liste.map(function(x){return [x.ad,String(x.adet),para(x.kalan),x.vadesiGecen?para(x.vadesiGecen):"—"];})):bos("Açık alacak yok."),
-      ko?el("div",{style:"margin-top:12px"},[el("h4",{style:"margin:0 0 6px",text:"Ödendi, KolayBi'ye işlenmedi ("+ko.liste.length+")"}),tablo([["Fatura"],["Kurum"],["Tutar",1],["Ödeyen sistem"],["Ödeme tarihi"]],ko.liste.map(function(x){return [x.no.slice(-6),x.ad,para(x.kalan),x.kaynak,x.odeme||"—"];}))]):null]))]);
+      ko?el("div",{style:"margin-top:12px"},[el("h4",{style:"margin:0 0 6px",text:"Tahsil edildi — kart sistemi ya da yönetici onayı ("+ko.liste.length+")"}),tablo([["Fatura"],["Kurum"],["Tutar",1],["Kaynak"],["Tarih"]],ko.liste.map(function(x){return [x.no.slice(-6),x.ad,para(x.kalan),x.kaynak==="Yönetici onayı"?"yönetici onayı":x.kaynak+" sistemi",x.odeme?trTarih(x.odeme):"—"];}))]):null]))]);
   a.appendChild(el("div",{class:"iki"},[sol,sag]));
   if(f.gider){var g=f.gider,son=Math.max(0,g.aylar.length-6),ay=g.aylar.slice(son);
     a.appendChild(blok("Aylık giderler","KDV dahil, kaleme göre. Son ay henüz kapanmadığı için eksik görünür; personel ve kurye kalemleri geç işlenir.",
@@ -2220,8 +2220,10 @@ function ykUyarilar(){var u=[],F=VERI&&VERI.setcardFatura,K=VERI&&VERI.ykKontrol
       if(R.faturaGunu&&R.buAy<R.hak)u.push({s:R.sonGun?"e-kotu":"e-dikkat",m:"Bugün SetCard fatura günü"+(R.sonGun?" — AYIN SON GÜNÜ, mutlaka kes":" (Cuma)")+": biriken "+para(x.tutar)+". Bu ay "+R.buAy+"/"+R.hak+" fatura kesildi. Yemek Kartları › SetCard faturası › Fatura Kes."});
       else if(R.faturaGunu&&R.sonGun)u.push({s:"e-kotu",m:"Bugün ayın son günü ama bu ayki "+R.hak+" SetCard fatura hakkı dolmuş görünüyor; biriken "+para(x.tutar)+". SetCard'a sor."});}
     else if(!/kesilmedi/i.test(x.durum)&&!x.kolaybi&&F.kolaybiOkundu&&!/gönderildi/i.test(x.durum))u.push({s:"e-kotu",m:"SetCard: "+para(x.tutar)+" fatura kesildi ("+x.tarih+") ama KolayBi'de karşılığı yok. KolayBi'den SETCARD'a mali faturayı kes."});
-    if(/gönderildi/i.test(x.durum)&&x.kolaybi&&!x.kolaybi.odendi){tah.n++;tah.t+=x.tutar;}});
-    if(tah.n)u.push({s:"e-notr",m:"SetCard "+tah.n+" faturayı ödedi ("+para(tah.t)+") ama KolayBi'de ‘tahsil edilmedi’ görünüyor; tahsilatı KolayBi'ye işle."});}
+    });}
+  // KolayBi'de reddedilen / iptal / hatalı e-fatura (yerine yenisi kesilmediyse): faturayı kontrol et
+  ykFaturaListeleri().forEach(function(L){L.liste.forEach(function(x){var d=x.kb||(x.kolaybi&&x.kolaybi.durum);var no=x.no||(x.kolaybi&&x.kolaybi.no);
+    if(d&&d.sorunlu&&!d.yenisi)u.push({s:"e-kotu",m:L.ad+" faturası "+String(no).slice(-6)+" ("+para(x.tutar)+") KolayBi'de "+ebelgeYazi(d)[1]+". Faturayı kontrol et; gerekirse yenisini kes."});});});
   var N=VERI&&VERI.multinetFatura;
   if(N&&N.faturaGunu){var k=N.kesim;
     if(!k)u.push({s:"e-notr",m:"Bugün Multinet fatura günü (Salı): "+N.saat+"'da "+N.vade+" vadeyle kesilecek"+(N.bekleyen?" — faturalanacak "+para(N.bekleyen.tutar):"")+"."});
@@ -2290,18 +2292,41 @@ function ykFaturaBlok(a){var S=[["SetCard",setcardFaturaBlok],["Metropol",metrop
   function ciz(){sek.textContent="";govde.textContent="";S.forEach(function(x){sek.appendChild(el("button",{type:"button","aria-pressed":x.ad===YK_FATURA?"true":"false",onclick:function(){YK_FATURA=x.ad;ciz();}},[x.ad]));if(x.ad===YK_FATURA)govde.appendChild(x.d);});}
   ciz();a.appendChild(bas);a.appendChild(sek);a.appendChild(govde);}
 
-// Tüm kartların fatura tablosu aynı sütunlarla: KolayBi faturası · Fatura tarihi · Tutar · Kart durumu · Kart ödemesi · KolayBi tahsilat (· İşlem)
-// satır: { no, kbYok, tarih, tutar, durum, durumRenk, odeme, tahsilat: 'edildi'|'islenmemis'|'bekliyor'|null, takipNo, islem }
+// Tüm kartların fatura tablosu aynı sütunlarla (sahibin isteği 08.10): KolayBi faturası · Fatura tarihi · Tutar · KolayBi e-fatura · Kart durumu · Kart ödemesi · Tahsilat (· İşlem)
+// KolayBi'ye tahsilat girilmez: tahsilat kart sisteminden (SetCard / Multinet / Tokenflex) ya da buradaki 'Tahsil edildi' onayından gelir.
+// satır: { no, kbYok, tarih, tutar, kb:{ebelge,fdurum,sorunlu,yenisi}, durum, durumRenk, odeme, tahsil:{kaynak,tarih}, kart, takipNo, islem }
 function trTarih(s){s=String(s||"").trim();var m=s.match(/^(\d{4})-(\d{2})-(\d{2})/);if(m)return m[3]+"."+m[2]+"."+m[1];m=s.match(/^(\d{1,2})\.(\d{1,2})\.(\d{4})/);if(m)return ("0"+m[1]).slice(-2)+"."+("0"+m[2]).slice(-2)+"."+m[3];return s||"—";}
-function ykFaturaTablo(satirlar,bosMetin){if(!satirlar.length)return bos(bosMetin);
+function ebelgeYazi(d){var e=String(d.ebelge||"").toLowerCase(),f=String(d.fdurum||"").toLowerCase();
+  if(d.sorunlu){var t=/cancel|iptal/.test(e+" "+f)?"iptal edildi":/error|fail|hata/.test(e)?"hata verdi":"reddedildi";return d.yenisi?["e-notr",t+" · yenisi kesildi"]:["e-kotu",t];}
+  if(/accept|kabul/.test(e))return ["e-iyi","kabul edildi"];
+  if(/sent|gonder|gönder|wait|pending|bekl/.test(e))return ["e-notr","alıcıya gönderildi"];
+  if(/draft|taslak/.test(e+" "+f))return ["e-dikkat","taslak"];
+  return e?["e-dikkat",d.ebelge]:["e-notr","—"];}
+function ykFaturaListeleri(){var V=VERI||{},L=[];if(V.setcardFatura)L.push({ad:"SetCard",liste:V.setcardFatura.liste||[]});if(V.metropolFatura)L.push({ad:"Metropol",liste:V.metropolFatura.liste||[]});
+  if(V.multinetFatura)L.push({ad:"Multinet",liste:V.multinetFatura.liste||[]});(V.mobilFatura||[]).forEach(function(m){L.push({ad:m.ad,liste:m.liste||[]});});return L;}
+function tahsilHucre(x){var kap=el("span",{style:"display:flex;gap:6px;flex-wrap:wrap;align-items:center"});
+  function gonder(islem,dug){dug.setAttribute("disabled","");var d=el("span",{class:"cevap-durum",text:"kaydediliyor…"});kap.appendChild(d);
+    fetch("/api/fatura-tahsil",{method:"POST",credentials:"same-origin",headers:{"content-type":"application/json","x-bap-panel":"1"},body:JSON.stringify({no:x.no,kart:x.kart||"",islem:islem})})
+      .then(function(r){return r.json();}).then(function(r){if(r&&r.tamam){x.tahsil=islem==="onay"?{kaynak:"Yönetici onayı",tarih:r.zaman||""}:null;ciz();}
+        else{d.textContent=(r&&r.hata)||"Yapılamadı.";d.className="cevap-durum kotu";if(!(r&&r.belirsiz))dug.removeAttribute("disabled");}})
+      .catch(function(){d.textContent="Bağlantı koptu; kaydedilmiş olabilir. Paneli yenile.";d.className="cevap-durum kotu";});}
+  function ciz(){kap.textContent="";var t=x.tahsil;
+    if(t){var ys=t.kaynak==="Yönetici onayı";kap.appendChild(el("span",{class:"etiket e-iyi",text:"tahsil edildi"}));
+      kap.appendChild(el("span",{class:"kucuk",style:"color:var(--gri);font-size:12px",text:(ys?"yönetici onayı":t.kaynak+" sistemi")+(t.tarih?" · "+trTarih(t.tarih):"")}));
+      if(ys)kap.appendChild(el("button",{type:"button",class:"dugme",style:"padding:2px 8px;font-size:12px",onclick:function(ev){if(confirm(String(x.no).slice(-6)+" faturasının tahsil onayı geri alınsın mı?"))gonder("geri",ev.target);}},["geri al"]));}
+    else if(x.no&&x.kb){kap.appendChild(el("span",{class:"etiket e-notr",text:"bekliyor"}));
+      kap.appendChild(el("button",{type:"button",class:"dugme",style:"padding:2px 8px;font-size:12px",onclick:function(ev){
+        if(confirm((x.kart?x.kart+" ":"")+"faturası "+String(x.no).slice(-6)+" ("+para(x.tutar)+") tahsil edildi olarak işaretlensin mi?\nYönetici onayı olarak kaydedilir; KolayBi'ye bir şey yazılmaz."))gonder("onay",ev.target);}},["Tahsil edildi"]));}
+    else kap.appendChild(document.createTextNode("—"));}
+  ciz();return kap;}
+function ykFaturaTablo(satirlar,bosMetin,kart){if(!satirlar.length)return bos(bosMetin);
   var islemli=satirlar.some(function(x){return x.islem;});
-  var TAH={edildi:["e-iyi","tahsil edildi"],islenmemis:["e-dikkat","işlenmemiş"],bekliyor:["e-notr","bekliyor"]};
-  var bas=[["KolayBi faturası"],["Fatura tarihi"],["Tutar",1],["Kart durumu"],["Kart ödemesi"],["KolayBi tahsilat"]];if(islemli)bas.push(["İşlem"]);
-  return tablo(bas,satirlar.map(function(x){
+  var bas=[["KolayBi faturası"],["Fatura tarihi"],["Tutar",1],["KolayBi e-fatura"],["Kart durumu"],["Kart ödemesi"],["Tahsilat"]];if(islemli)bas.push(["İşlem"]);
+  return tablo(bas,satirlar.map(function(x){if(kart&&!x.kart)x.kart=kart;
     var no=x.no?el("span",{title:x.no,text:String(x.no).slice(-6)}):x.kbYok?el("span",{class:"etiket "+x.kbYok[0],text:x.kbYok[1]}):"—";
+    var eb=x.kb?ebelgeYazi(x.kb):null,ebH=eb&&eb[1]!=="—"?el("span",{class:"etiket "+eb[0],title:x.kb.ebelge||null,text:eb[1]}):"—";
     var durum=x.durum?el("span",{class:"etiket "+(x.durumRenk||"e-notr"),title:x.takipNo?"Takip no "+x.takipNo:null,text:x.durum}):"—";
-    var t=x.tahsilat&&TAH[x.tahsilat],tah=t?el("span",{class:"etiket "+t[0],text:t[1]}):"—";
-    var r=[no,trTarih(x.tarih),para(x.tutar),durum,x.odeme||"—",tah];if(islemli)r.push(x.islem||"");return r;}));}
+    var r=[no,trTarih(x.tarih),para(x.tutar),ebH,durum,x.odeme||"—",tahsilHucre(x)];if(islemli)r.push(x.islem||"");return r;}));}
 
 function setcardFaturaBlok(a){var F=VERI.setcardFatura;if(!F)return;var kap=el("div");
   var RENK=function(d){return /kesilmedi/i.test(d)?"e-dikkat":/gönderildi/i.test(d)?"e-iyi":"e-notr";};
@@ -2311,16 +2336,17 @@ function setcardFaturaBlok(a){var F=VERI.setcardFatura;if(!F)return;var kap=el("
         else{durum.textContent=(r&&r.hata)||"Yapılamadı.";durum.className="cevap-durum kotu";if(!(r&&r.belirsiz))dug.removeAttribute("disabled");}})
       .catch(function(){durum.textContent="Bağlantı koptu; fatura kesilmiş olabilir. Paneli yenile.";durum.className="cevap-durum kotu";});}
   function ciz(){kap.textContent="";
-    kap.appendChild(ykFaturaTablo(F.liste.map(function(x){var durum=el("span",{class:"cevap-durum"}),is=null,kesilmedi=/kesilmedi/i.test(x.durum),odendi=/gönderildi/i.test(x.durum),k=x.kolaybi;
+    kap.appendChild(ykFaturaTablo(F.liste.map(function(x){var durum=el("span",{class:"cevap-durum"}),is=null,kesilmedi=/kesilmedi/i.test(x.durum),k=x.kolaybi;
       if(kesilmedi&&x.tutar>0)is=el("span",{style:"display:flex;gap:6px;flex-wrap:wrap"},[el("button",{type:"button",class:"dugme",style:"padding:4px 10px;font-size:13px",onclick:function(ev){
         if(!confirm("SetCard'da "+para(x.tutar)+" tutarındaki fatura kesilsin mi? (takip "+x.takipNo+")\nSonra KolayBi'den SETCARD'a mali faturayı kes; kestiğinde burada kendiliğinden görünür."))return;kes(x,ev.target,durum);}},["Fatura Kes"]),durum]);
-      return {no:k?k.no:"",kbYok:kesilmedi||k?null:(F.kolaybiOkundu?["e-kotu","yok — kesilmeli"]:["e-notr","okunamadı"]),tarih:x.tarih,tutar:x.tutar,durum:x.durum,durumRenk:RENK(x.durum),takipNo:x.takipNo,
-        odeme:x.odeme?trTarih(x.odeme):"",tahsilat:!k?null:k.odendi?"edildi":odendi?"islenmemis":"bekliyor",islem:is};}),"SetCard faturası yok."));}
+      // tahsilat nesnesi satırın kendisinde tutulur ki onay sonrası yeniden çizimde kaybolmasın
+      if(!x._s)x._s={no:k?k.no:"",kbYok:kesilmedi||k?null:(F.kolaybiOkundu?["e-kotu","yok — kesilmeli"]:["e-notr","okunamadı"]),kb:k?k.durum:null,tahsil:x.tahsil||null};
+      var r=x._s;r.tarih=x.tarih;r.tutar=x.tutar;r.durum=x.durum;r.durumRenk=RENK(x.durum);r.takipNo=x.takipNo;r.odeme=x.odeme?trTarih(x.odeme):"";r.islem=is;return r;}),"SetCard faturası yok.","SetCard"));}
   ciz();
   var R=F.kural;if(R)a.appendChild(el("div",{class:"rakamlar"},[rakam("Bugün",R.faturaGunu?(R.sonGun?"Fatura günü — ayın son günü":"Fatura günü (Cuma)"):"Fatura günü değil",R.faturaGunu?"biriken bakiyeyi kes":null,R.faturaGunu?"asagi":""),
     rakam("Bu ay kesilen",R.buAy+" / "+R.hak,"ayda en çok "+R.hak+" fatura",R.buAy>=R.hak?"asagi":""),
     rakam("Sonraki fatura günleri",R.takvim.filter(function(g){return g!==R.bugun;}).slice(0,3).map(function(g){return gunAd(g);}).join(", ")||"—","her Cuma (ayın "+R.ilkGun+"'inden itibaren) + ayın son günü")]));
-  a.appendChild(blok("SetCard faturası","Kural: her Cuma (ayın "+(R?R.ilkGun:11)+"'inden önce kesilemez), ayda en çok "+(R?R.hak:4)+" fatura, ayın son günü mutlaka. Fatura günü Yönetim Merkezi'nde uyarı çıkar; şimdilik sen kesiyorsun, sonra program kesecek. SetCard › Fatura Takibi saatte bir buraya gelir"+(F.kontrol?" (son kontrol "+F.kontrol+")":"")+". ‘Fatura Kes’ sitedeki düğmeyle aynı işi yapar. Mali fatura KolayBi satış faturalarından kendiliğinden bulunur (SETCARD, aynı tutar, birkaç gün içinde); bulunamazsa ‘yok — kesilmeli’ yazar. ‘KolayBi tahsilat’: SetCard ödediği halde KolayBi'de tahsil işlenmemişse ‘işlenmemiş’.",kap));}
+  a.appendChild(blok("SetCard faturası","Kural: her Cuma (ayın "+(R?R.ilkGun:11)+"'inden önce kesilemez), ayda en çok "+(R?R.hak:4)+" fatura, ayın son günü mutlaka. Fatura günü Yönetim Merkezi'nde uyarı çıkar; şimdilik sen kesiyorsun, sonra program kesecek. SetCard › Fatura Takibi saatte bir buraya gelir"+(F.kontrol?" (son kontrol "+F.kontrol+")":"")+". ‘Fatura Kes’ sitedeki düğmeyle aynı işi yapar. Mali fatura KolayBi satış faturalarından kendiliğinden bulunur (SETCARD, aynı tutar, birkaç gün içinde); bulunamazsa ‘yok — kesilmeli’ yazar. ‘KolayBi e-fatura’: KolayBi'deki e-fatura durumu (reddedilirse Yönetim Merkezi'nde uyarı çıkar). ‘Tahsilat’: SetCard ödediyse kendiliğinden ‘tahsil edildi · SetCard sistemi’; değilse ‘Tahsil edildi’ düğmesiyle sen onaylarsın (yönetici onayı). KolayBi'ye tahsilat girmen gerekmez.",kap));}
 
 function metropolFaturaBlok(a){var M=VERI.metropolFatura;if(!M)return;
   a.appendChild(el("div",{class:"rakamlar"},[rakam("Bugün",M.faturaGunu?(M.bugunKesildi?"Fatura günü — kesildi ✓":"Fatura günü — kesilmedi"):"Fatura günü değil",M.faturaGunu?(M.sonGun?"ayın son günü":"ayın 15'i"):null,M.faturaGunu?(M.bugunKesildi?"yukari":"asagi"):""),
@@ -2328,24 +2354,23 @@ function metropolFaturaBlok(a){var M=VERI.metropolFatura;if(!M)return;
     rakam("Sonraki fatura günleri",M.takvim.filter(function(g){return g!==M.bugun;}).slice(0,2).map(function(g){return gunAd(g);}).join(", ")||"—","ayın 15'i + ayın son günü"),
     M.biriken!=null?rakam("Biriken (son faturadan beri)",para(M.biriken),"Metropol çekimleri"):null]));
   a.appendChild(blok("Metropol faturası","Kural: ayda 2 fatura — ayın 15'i ve ayın son günü (site ayın 1–6'sında kestirmez). Şimdilik sen kesiyorsun (Metropol › Manuel Fatura Kesimi), sonra MacBook programı kesecek. Kesildiğini KolayBi'deki METROPAL faturasından anlarım; fatura günü kesilmemişse Yönetim Merkezi'nde uyarı çıkar.",
-    ykFaturaTablo(M.liste.map(function(x){return {no:x.no,tarih:x.tarih,tutar:x.tutar,tahsilat:x.odendi?"edildi":"bekliyor"};}),M.kolaybiOkundu?"KolayBi'de METROPAL faturası yok.":"KolayBi satış faturaları okunamadı.")));}
+    ykFaturaTablo(M.liste,M.kolaybiOkundu?"KolayBi'de METROPAL faturası yok.":"KolayBi satış faturaları okunamadı.","Metropol")));}
 
 function multinetFaturaBlok(a){var N=VERI.multinetFatura;if(!N)return;var k=N.kesim;
   a.appendChild(el("div",{class:"rakamlar"},[rakam("Bugün",N.faturaGunu?(k?(/^kesildi/i.test(k.sonuc)?"Kesildi "+k.zaman+" ✓":k.sonuc):"Fatura günü — "+N.saat+"'da kesilecek"):"Fatura günü değil",N.faturaGunu?"Salı, "+N.vade+" vade":null,N.faturaGunu&&k&&!/^kesildi/i.test(k.sonuc)?"asagi":""),
     N.bekleyen?rakam("Faturalanacak",para(N.bekleyen.tutar),N.bekleyen.adet+" işlem · "+(N.bekleyen.guncel||"")):null,
     rakam("Sonraki fatura günleri",N.takvim.filter(function(g){return g!==N.bugun;}).slice(0,2).map(function(g){return gunAd(g);}).join(", ")||"—","her Salı "+N.saat)]));
-  a.appendChild(blok("Multinet faturası","Kural: her Salı "+N.saat+", "+N.vade+" vade. Mac'teki Multinet programı keser (otomatik kesim açılana kadar yalnız dener ve buraya yazar); Multinet gün sonu alınmamışsa faturayı reddeder. Kesildikten sonra KolayBi'den MULTINET'e mali fatura kesilmeli. Ödendi bilgisi Multinet'ten gelir, Finans alacaktan düşer.",
-    ykFaturaTablo(N.liste.map(function(x){var odendi=/tamamland/i.test(x.durum);
-      return {no:x.no,tarih:x.tarih,tutar:x.tutar,durum:x.durum,durumRenk:odendi?"e-iyi":"e-notr",odeme:x.odeme?trTarih(x.odeme):x.vade?"vade "+trTarih(x.vade):"",
-        tahsilat:x.odendi?"edildi":odendi?"islenmemis":"bekliyor"};}),"Multinet faturası henüz gelmedi (Mac programı kurulunca gelir).")));}
+  a.appendChild(blok("Multinet faturası","Kural: her Salı "+N.saat+", "+N.vade+" vade. Mac'teki Multinet programı keser (otomatik kesim açılana kadar yalnız dener ve buraya yazar); Multinet gün sonu alınmamışsa faturayı reddeder. Kesildikten sonra KolayBi'den MULTINET'e mali fatura kesilmeli. Ödendi bilgisi Multinet'ten gelir (‘tahsil edildi · Multinet sistemi’), Finans alacaktan düşer.",
+    ykFaturaTablo(N.liste.map(function(x){x.durumRenk=/tamamland/i.test(x.durum)?"e-iyi":"e-notr";if(x.odemeHam==null)x.odemeHam=x.odeme||"";
+      x.odeme=x.odemeHam?trTarih(x.odemeHam):x.vade?"vade "+trTarih(x.vade):"";return x;}),"Multinet faturası henüz gelmedi (Mac programı kurulunca gelir).","Multinet")));}
 
 // Pluxee / Edenred: faturayı sahibi mobil uygulamadan keser; panel takvimi ve KolayBi'deki karşılığını gösterir.
 function mobilFaturaBlok(a,ad){var M=((VERI.mobilFatura)||[]).filter(function(x){return x.ad===ad;})[0];if(!M)return;
   a.appendChild(el("div",{class:"rakamlar"},[rakam("Bugün",M.faturaGunu?(M.bugunKesildi?"Fatura günü — kesildi ✓":"Fatura günü — kesilmedi"):"Fatura günü değil",M.faturaGunu&&M.sonGun?"ayın son günü":null,M.faturaGunu?(M.bugunKesildi?"yukari":"asagi"):""),
     M.biriken!=null?rakam("Faturalanacak",para(M.biriken),ad+"'te açık dönem"):null,
     rakam("Sonraki fatura günleri",M.takvim.filter(function(g){return g!==M.bugun;}).slice(0,2).map(function(g){return gunAd(g);}).join(", ")||"—",M.kural)]));
-  a.appendChild(blok(ad+" faturası","Kural: "+M.kural+". "+ad+" faturası yalnız mobil uygulamadan kesildiği için sen kesiyorsun; kesildiğini KolayBi'deki "+ad.toUpperCase()+" faturasından anlarım, fatura günü kesilmemişse Yönetim Merkezi'nde uyarı çıkar.",
-    ykFaturaTablo(M.liste.map(function(x){return {no:x.no,tarih:x.tarih,tutar:x.tutar,tahsilat:x.odendi?"edildi":"bekliyor"};}),M.kolaybiOkundu?"KolayBi'de "+ad+" faturası yok.":"KolayBi satış faturaları okunamadı.")));}
+  a.appendChild(blok(ad+" faturası","Kural: "+M.kural+". "+ad+" faturası yalnız mobil uygulamadan kesildiği için sen kesiyorsun; kesildiğini KolayBi'deki "+ad.toUpperCase()+" faturasından anlarım, fatura günü kesilmemişse Yönetim Merkezi'nde uyarı çıkar. "+(ad==="Tokenflex"?"Ödendi bilgisi Tokenflex'ten gelir; gelmezse ":"Ödeme hesaba geçince ")+"‘Tahsil edildi’ye bas (yönetici onayı).",
+    ykFaturaTablo(M.liste,M.kolaybiOkundu?"KolayBi'de "+ad+" faturası yok.":"KolayBi satış faturaları okunamadı.",ad)));}
 
 function ykKontrolBlok(a){var K=VERI.ykKontrol;if(!K)return;
   var kartlar=K.kartlar||[];if(!kartlar.length)return;
