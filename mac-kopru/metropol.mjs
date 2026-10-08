@@ -206,6 +206,16 @@ async function main() {
     const ekle = (islem, no, tel, ad) => { let n = 0; for (const x of islem) { const k = String(x['İşlem No']).trim(); if (gorulen.has(k)) continue; gorulen.add(k); n++;
       satirlar.push({ zaman: x['Tarih'], tutar: tl(x['Tutar']), islemNo: x['İşlem No'], tip: x['İşlem Tipi'], mod: x['Giriş Modu'], urun: x['Ürün Tipi'],
         terminal: no || String(x['Terminal No'] || x['Terminal'] || '').trim(), telefon: tel, kisi: ad, kart: x['Kart Numarası'], gunsonu: x['Gün Sonu Tarihi'], fatura: x['Fatura Id'] }); } return n; };
+    // Site bir sorguda en çok 10 işlem gösteriyor (sayfalı tablo; 08.10: 03.10'un 3 işlemi gelmemişti, terminal sayıları 10 + n idi).
+    // 10 gelirse aralık ikiye bölünüp yeniden sorulur; tek günde yine 10 gelirse uyarı yazılır.
+    const SAYFA = 10, gunMs = 86400000;
+    const getir = async (no, b, e, isy) => {
+      const l = tablo(await ac(q(no, b, e, isy)), 'example23').filter(x => String(x['İşlem No'] || '').trim()); await bekle(500);
+      if (l.length < SAYFA) return l;
+      if (e.getTime() - b.getTime() < gunMs) { log(`  uyarı: ${no} ${gaa(b)} tek günde ${SAYFA}+ işlem, fazlası kaçmış olabilir`); return l; }
+      const orta = new Date(b.getTime() + Math.floor((e.getTime() - b.getTime()) / gunMs / 2) * gunMs);
+      return (await getir(no, b, orta, isy)).concat(await getir(no, new Date(orta.getTime() + gunMs), e, isy));
+    };
     let toplamTerminal = 0;
     for (const isy of isyerleri) {
       const html0 = isy === ISYERI ? ilkHtml : await ac(q(0, parcalar[0][0], parcalar[0][1], isy));
@@ -218,13 +228,13 @@ async function main() {
         let say = 0;
         for (const [b, e] of parcalar) {
           // İşlem No'suz satır = tablonun "kayıt yok" satırı (her boş tarih parçasında bir tane) → işlem değil
-          say += ekle(tablo(await ac(q(no, b, e, isy)), 'example23').filter(x => String(x['İşlem No'] || '').trim()), no, tel, ad); await bekle(600);
+          say += ekle(await getir(no, b, e, isy), no, tel, ad);
         }
         log(`  ${no} (${ad || tel || '?'}): ${say} işlem`);
       }
       // Tüm terminaller: listede olmayan terminallerden geçen işlemler
       let fazla = 0;
-      for (const [b, e] of parcalar) { fazla += ekle(tablo(await ac(q(0, b, e, isy)), 'example23').filter(x => String(x['İşlem No'] || '').trim()), '', '', ''); await bekle(600); }
+      for (const [b, e] of parcalar) fazla += ekle(await getir(0, b, e, isy), '', '', '');
       log(`  ${isy} tüm terminaller: listede olmayan ${fazla} işlem daha`);
     }
     if (!toplamTerminal) { fs.writeFileSync(path.join(DIZIN, 'metropol_son.html'), ilkHtml); throw new Error('terminal listesi boş; sayfa metropol_son.html dosyasına kaydedildi'); }
