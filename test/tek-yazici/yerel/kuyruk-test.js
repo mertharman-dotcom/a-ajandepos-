@@ -37,7 +37,7 @@ function kur(secenek = {}) {
   const stok = ad => sh.Sube_Stok._data.find(r => r[0] === ad)[3];
   const satir = id => sh.Stok_Kuyrugu._data.find(r => r[0] === id);
   const izSayisi = id => sh.Stok_Hareketleri._data.filter(r => String(r[8]).indexOf('KUYRUK:' + id) === 0).length;
-  const satis = secenek.satis || { zaman: {}, bekleyenEnEski: {} };
+  const satis = secenek.satis || { tuketim: {}, bekleyen: {} };
   const isle = (simdi, kesinti) => { ctx.SK_TEST = kesinti ? { kesinti } : null; try { return ctx.stokKuyruguIsle_(ss, { simdi: simdi || T('12:05'), satis }); } finally { ctx.SK_TEST = null; } };
   return { ss, sh, hata, ekle, stok, satir, izSayisi, isle, props, uyarilar, ctx, satis };
 }
@@ -70,18 +70,71 @@ t('Yarım kayıt elle değiştirilmişse (stok ne eski ne yeni) → HATA, otomat
   const s = k.isle(T('12:06')); assert.equal(k.satir('a:1')[11], 'HATA'); assert.equal(k.stok('Mayonez'), 99);
   k.ctx.sk_uyarilar_(s); assert.ok(k.uyarilar.some(u => u.indexOf('Stok kuyruğu: hata') === 0));
 });
-t('Sayım: sayımdan önce verilmiş sipariş henüz düşülmediyse BEKLER; düşülünce sayımdan sonraki siparişlerin düşümü çıkarılarak uygulanır', () => {
-  const satis = { zaman: { SP1: T('10:50').getTime(), SP2: T('11:30').getTime() }, bekleyenEnEski: { 'erenköy': T('10:50').getTime() } };
-  const k = kur({ satis });
+// Satış senaryoları için yardımcı: sipariş, şube çıkışı, kapanış (Teslim Zamanı), masa mı
+function satisKur(k, siparisler) {
+  const s = k.satis; s.tuketim = {}; s.bekleyen = {};
+  siparisler.forEach(o => {
+    const z = k.ctx.sk_tuketimPenceresi_(T(o.siparis).getTime(), o.cikis ? T(o.cikis).getTime() : NaN, o.kapanis ? T(o.kapanis).getTime() : NaN, !!o.masa);
+    s.tuketim[o.id] = z;
+    if (!o.islendi) (s.bekleyen['erenköy'] = s.bekleyen['erenköy'] || []).push({ erken: z.erken, nokta: z.nokta, kesin: z.kaynak === 'cikis' });
+  });
+}
+// Satış Motoru siparişi düştü: stok azalır, Satis_Hareketleri'ne sipariş satırı, Stok_Hareketleri'ne toplu satır
+function motorDustu(k, id, miktar, saat) {
+  const r = k.sh.Sube_Stok._data.find(x => x[0] === 'Mozzarella'); const eski = r[3]; r[3] = Math.round((eski - miktar) * 1000) / 1000;
+  k.sh.Satis_Hareketleri._data.splice(1, 0, [T(saat), 'Erenköy', 'Mozzarella', 'HM', 'Satis', '', '', miktar, 'kg', '', id]);
+  k.sh.Stok_Hareketleri._data.push([T(saat), 'Erenköy', 'Mozzarella', 'Satis', eski, r[3], '', '', 'motor', 'Otomatik (satış)']);
+}
+t('Sayım: sayımdan önce hazırlanmış ama henüz düşülmemiş sipariş varsa BEKLER; düşülünce sonraki siparişin düşümü çıkarılır', () => {
+  const k = kur();
+  satisKur(k, [{ id: 'SP1', siparis: '10:40', cikis: '10:55' }, { id: 'SP2', siparis: '11:20', cikis: '11:35' }]);
   k.ekle('s:1', 'Sayim', 'Mozzarella', 'HM', null, 20, T('11:00'), T('11:02'));
-  let s = k.isle(T('11:10')); assert.equal(s.bekleyenSayim, 1); assert.equal(k.stok('Mozzarella'), 40); assert.equal(k.satir('s:1')[11], 'BEKLIYOR');
-  // Satış Motoru iki siparişi düştü: SP1 (10:50, sayımdan önce) 1,4 kg, SP2 (11:30, sayımdan sonra) 0,7 kg
-  k.sh.Sube_Stok._data[3][3] = 37.9;
-  k.sh.Satis_Hareketleri._data.splice(1, 0, [T('11:35'), 'Erenköy', 'Mozzarella', 'HM', 'Satis', '', '', 0.7, 'kg', '', 'SP2'], [T('11:35'), 'Erenköy', 'Mozzarella', 'HM', 'Satis', '', '', 1.4, 'kg', '', 'SP1']);
-  k.sh.Stok_Hareketleri._data.push([T('11:35'), 'Erenköy', 'Mozzarella', 'Satis', 40, 37.9, '', '', 'motor', 'Otomatik (satış)']);
-  satis.bekleyenEnEski = {};
-  s = k.isle(T('11:40')); assert.equal(s.islenen, 1);
-  assert.equal(k.stok('Mozzarella'), 19.3);   // 20 sayıldı − 0,7 (sayımdan sonraki sipariş); sayımdan önceki 1,4 tekrar düşülmedi
+  let s = k.isle(T('11:10')); assert.equal(s.bekleyenSayim, 1); assert.equal(k.stok('Mozzarella'), 40);
+  motorDustu(k, 'SP1', 1.4, '11:40'); motorDustu(k, 'SP2', 0.7, '11:40');
+  satisKur(k, [{ id: 'SP1', siparis: '10:40', cikis: '10:55', islendi: 1 }, { id: 'SP2', siparis: '11:20', cikis: '11:35', islendi: 1 }]);
+  s = k.isle(T('11:45')); assert.equal(s.islenen, 1);
+  assert.equal(k.stok('Mozzarella'), 19.3);   // 20 sayıldı − 0,7 (sayımdan sonra hazırlanan); önceki 1,4 tekrar düşülmedi
+});
+t('İleri saatli sipariş: 09:00\'da verilmiş, 13:10\'da çıkmış; 12:00 sayımından SONRA tüketilmiş sayılır (sipariş saatine göre olsaydı yanlış olurdu)', () => {
+  const k = kur();
+  satisKur(k, [{ id: 'IL1', siparis: '09:00', cikis: '13:10', islendi: 1 }]);
+  motorDustu(k, 'IL1', 2, '13:20');                    // motor 13:20'de düştü: 40 → 38
+  k.ekle('s:1', 'Sayim', 'Mozzarella', 'HM', null, 30, T('12:00'), T('13:30'));
+  k.isle(T('13:31')); assert.equal(k.stok('Mozzarella'), 28);   // 30 sayıldı − 2 (sayımdan sonra hazırlanan)
+});
+t('Geç kapanan sipariş: 10:30 sipariş, 10:50 çıkış, 13:00 kapanış; 12:00 sayımından ÖNCE tüketilmiş — sayım bekler, sonra ikinci kez düşülmez', () => {
+  const k = kur();
+  satisKur(k, [{ id: 'GK1', siparis: '10:30', cikis: '10:50', kapanis: '13:00' }]);
+  k.ekle('s:1', 'Sayim', 'Mozzarella', 'HM', null, 30, T('12:00'), T('12:05'));
+  let s = k.isle(T('12:10')); assert.equal(s.bekleyenSayim, 1);            // açık, tüketimi sayımdan önce → bekle
+  motorDustu(k, 'GK1', 1.5, '13:05');
+  satisKur(k, [{ id: 'GK1', siparis: '10:30', cikis: '10:50', kapanis: '13:00', islendi: 1 }]);
+  k.isle(T('13:10')); assert.equal(k.stok('Mozzarella'), 30);              // sayılan aynen: sipariş sayımın içinde
+});
+t('Sayım anı hazırlık penceresinin içinde: 11:52 sipariş, 12:04 çıkış, 12:00 sayım → tahmini noktaya göre ayrılır, belirsiz miktar rapora yazılır', () => {
+  const k = kur();
+  satisKur(k, [{ id: 'B1', siparis: '11:52', cikis: '12:04', islendi: 1 }]);
+  motorDustu(k, 'B1', 0.3, '12:10');
+  k.ekle('s:1', 'Sayim', 'Mozzarella', 'HM', null, 25, T('12:00'), T('12:15'));
+  k.isle(T('12:16'));
+  assert.equal(k.stok('Mozzarella'), 25);   // nokta = 12:04 − 10 dk = 11:54 < 12:00 → sayımdan önce
+  assert.ok(/1 siparişin tüketim penceresi sayım anını kapsıyor \(±0\.3\)/.test(k.satir('s:1')[13]), k.satir('s:1')[13]);
+});
+t('Pencere sayımı kapsıyor, tahmini hazırlık sayımdan SONRA: 11:40 sipariş, 12:20 çıkış, 12:00 sayım → düşüm sayılanın üstünden çıkarılır', () => {
+  const k = kur();
+  satisKur(k, [{ id: 'B2', siparis: '11:40', cikis: '12:20', islendi: 1 }]);
+  motorDustu(k, 'B2', 0.4, '12:25');
+  k.ekle('s:1', 'Sayim', 'Mozzarella', 'HM', null, 25, T('12:00'), T('12:30'));
+  k.isle(T('12:31')); assert.equal(k.stok('Mozzarella'), 24.6);   // nokta 12:10 > 12:00 → sonra
+});
+t('Masa siparişi, sonradan eklenen ürün olabilir: çıkış saati yok, kapanış geç → pencere kapanışa kadar uzar, tahmin olarak işaretlenir', () => {
+  const k = kur();
+  satisKur(k, [{ id: 'M1', siparis: '11:30', kapanis: '13:30', masa: 1, islendi: 1 }]);
+  motorDustu(k, 'M1', 0.5, '13:35');
+  k.ekle('s:1', 'Sayim', 'Mozzarella', 'HM', null, 25, T('12:00'), T('13:40'));
+  k.isle(T('13:41'));
+  assert.equal(k.stok('Mozzarella'), 25);   // nokta 11:48 → önce (tahmin)
+  const not = k.satir('s:1')[13]; assert.ok(/kapsıyor/.test(not) && /çıkış saati yok/.test(not), not);
 });
 t('Sayım: sayımdan sonra işlenen üretim/zayi (olay zamanına göre) sayılanın üstüne eklenir; önceki eklenmez', () => {
   const k = kur();

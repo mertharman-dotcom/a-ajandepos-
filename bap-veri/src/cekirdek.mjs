@@ -209,3 +209,27 @@ export async function suresiGecenPartiler(db, konum, simdiIso = new Date().toISO
      ORDER BY p.son_kullanma`
   ).bind(konum, simdiIso).all()).results;
 }
+
+/**
+ * Bakiyeyi hareketlerden yeniden hesaplar ve kayıtlı bakiyeyle karşılaştırır (yazmaz, rapor verir).
+ * Fark: tutar, hareket sayısı ya da son hareket kimliği tutmayan (kalem, konum) satırları.
+ * Okuma maliyeti hareket tablosu kadardır; günlük değil, haftalık / geçiş anında çalıştırılır.
+ */
+export async function bakiyeKontrol(db) {
+  const r = await db.prepare(`
+    WITH h AS (SELECT kalem_id, konum_id, round(SUM(miktar), 6) toplam, COUNT(*) n, MAX(id) son FROM hareket GROUP BY kalem_id, konum_id)
+    SELECT COALESCE(h.kalem_id, b.kalem_id) kalem_id, COALESCE(h.konum_id, b.konum_id) konum_id,
+           h.toplam hesaplanan, b.miktar kayitli, h.n hareket_sayisi_h, b.hareket_sayisi hareket_sayisi_b, h.son son_h, b.son_hareket_id son_b
+      FROM h LEFT JOIN bakiye b ON b.kalem_id = h.kalem_id AND b.konum_id = h.konum_id
+    UNION ALL
+    SELECT b.kalem_id, b.konum_id, NULL, b.miktar, NULL, b.hareket_sayisi, NULL, b.son_hareket_id
+      FROM bakiye b WHERE NOT EXISTS (SELECT 1 FROM hareket x WHERE x.kalem_id = b.kalem_id AND x.konum_id = b.konum_id)`).all();
+  const farklar = r.results.filter(x => x.hesaplanan === null || x.kayitli === null || Math.abs(x.hesaplanan - x.kayitli) > 0.000001
+    || x.hareket_sayisi_h !== x.hareket_sayisi_b || x.son_h !== x.son_b);
+  return { satir: r.results.length, farklar };
+}
+
+/** Şube stok ekranı: bakiye tablosundan okur (hareket taramaz). */
+export async function subeBakiyesi(db, konum) {
+  return (await db.prepare('SELECT kalem_id, miktar FROM bakiye WHERE konum_id = ? ORDER BY kalem_id').bind(konum).all()).results;
+}
