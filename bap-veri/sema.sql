@@ -94,6 +94,36 @@ CREATE TABLE IF NOT EXISTS sayim_satir (
   PRIMARY KEY (islem_id, kalem_id)
 );
 
+-- BAKİYE: her (kalem, konum) için güncel stok. Hareketleri her okumada toplamak bütün tabloyu tarar (ölçüm: 8.000 harekette
+-- tek bakiye sorgusu 12.000 satır okudu); bu yüzden bakiye ayrı tutulur. Bakiyeyi YALNIZ hareket tetiği değiştirir:
+--  * hareket eklenince aynı işlemin (transaction) içinde bakiye güncellenir → "hareket var, bakiye yok" ya da tersi olamaz;
+--  * mükerrer kayıt islem.id UNIQUE ile reddedilir → bütün toplu yazım geri alınır, bakiye iki kez değişmez;
+--  * elle güncelleme reddedilir: her bakiye değişikliği tam olarak bir yeni harekete (son_hareket_id) karşılık gelmeli;
+--  * hareket_sayisi + son_hareket_id ile bakiye hareketlerden yeniden hesaplanıp karşılaştırılabilir (bakiyeKontrol).
+CREATE TABLE IF NOT EXISTS bakiye (
+  kalem_id TEXT NOT NULL REFERENCES kalem(id),
+  konum_id TEXT NOT NULL REFERENCES konum(id),
+  miktar REAL NOT NULL DEFAULT 0,
+  hareket_sayisi INTEGER NOT NULL DEFAULT 0,
+  son_hareket_id INTEGER NOT NULL DEFAULT 0,
+  PRIMARY KEY (kalem_id, konum_id)
+);
+CREATE TRIGGER IF NOT EXISTS hareket_bakiye AFTER INSERT ON hareket BEGIN
+  INSERT OR IGNORE INTO bakiye (kalem_id, konum_id) VALUES (NEW.kalem_id, NEW.konum_id);
+  UPDATE bakiye SET miktar = round(miktar + NEW.miktar, 6), hareket_sayisi = hareket_sayisi + 1, son_hareket_id = NEW.id
+   WHERE kalem_id = NEW.kalem_id AND konum_id = NEW.konum_id;
+END;
+CREATE TRIGGER IF NOT EXISTS bakiye_elle_degismez BEFORE UPDATE ON bakiye
+WHEN NEW.hareket_sayisi <> OLD.hareket_sayisi + 1
+  OR NEW.son_hareket_id <= OLD.son_hareket_id
+  OR NEW.kalem_id <> OLD.kalem_id OR NEW.konum_id <> OLD.konum_id
+  OR (SELECT kalem_id || '|' || konum_id FROM hareket WHERE id = NEW.son_hareket_id) IS NOT NEW.kalem_id || '|' || NEW.konum_id
+  OR abs(NEW.miktar - round(OLD.miktar + (SELECT miktar FROM hareket WHERE id = NEW.son_hareket_id), 6)) > 0.000001
+BEGIN SELECT RAISE(ABORT, 'bakiye elle degistirilemez; hareket yazin'); END;
+CREATE TRIGGER IF NOT EXISTS bakiye_silinmez BEFORE DELETE ON bakiye BEGIN SELECT RAISE(ABORT, 'bakiye silinemez'); END;
+CREATE TRIGGER IF NOT EXISTS bakiye_elle_eklenmez BEFORE INSERT ON bakiye WHEN NEW.miktar <> 0 OR NEW.hareket_sayisi <> 0
+BEGIN SELECT RAISE(ABORT, 'bakiye elle eklenemez'); END;
+
 -- Sheets aktarımının durumu: Apps Script en son hangi sıraya kadar işledi.
 CREATE TABLE IF NOT EXISTS aktarim (
   hedef TEXT PRIMARY KEY,

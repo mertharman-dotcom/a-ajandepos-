@@ -24,6 +24,10 @@ var SK_AZAMI = 300;                 // bir çalışmada en çok işlenecek kayı
 var SK_SAYIM_BEKLEME_SAAT = 3;      // sayım öncesi açık sipariş kapanmazsa en çok bu kadar beklenir
 var SK_GECIKME_UYARI_DK = 10;       // bu kadar dakikadır bekleyen kayıt varsa uyarı
 var SK_HAREKET_PENCERE = 5000;      // sayım hesabında bakılan son Stok_Hareketleri satırı
+var SK_HAZIRLIK_DK = 10;            // şube çıkışından önceki hazırlık (pişirme + kutulama) varsayımı
+var SK_PENCERE_DK = 30;             // tüketim penceresi: şube çıkışından en çok bu kadar önce başlar
+var SK_TAHMIN_DK = 18;              // şube çıkışı yoksa: siparişten tüketime ortanca süre (Satış dosyası, son 5.160 kapalı sipariş)
+var SK_TAHMIN_UST_DK = 33;          // … ve %90'lık üst sınır
 var SK_TEST = null;                 // yalnız test ortamı doldurur: { kesinti: 'plan' | 'yeniSatir' | 'stok' | 'iz' }
 
 /** Zamanlı tetikleyici (her dakika). Satış/Alış Motoru çalışıyorsa kilidi alamaz; kayıt kuyrukta bekler, sonraki dakika işlenir. */
@@ -62,7 +66,7 @@ function sk_test_(nokta) { if (SK_TEST && SK_TEST.kesinti === nokta) { Spreadshe
 
 /**
  * Kilit ÇAĞIRANDA olmalı (stokKuyruguTetik, stokMotoru ya da alisIsle içinden).
- * secenek: { simdi, satis: {zaman:{id:ms}, bekleyenEnEski:{sube:ms}} (test için) }
+ * secenek: { simdi, satis: {tuketim:{id:{erken,gec,nokta,kaynak}}, bekleyen:{sube:[{erken,nokta,kesin}]}} (test için) }
  */
 function stokKuyruguIsle_(ss, secenek) {
   secenek = secenek || {};
@@ -123,8 +127,11 @@ function stokKuyruguIsle_(ss, secenek) {
     var i = adaylar[a], r = qv[i];
     if (secilen.length >= SK_AZAMI && sk_istek_(r[SK_K.ID]) !== sonIstek) break;
     if (sk_mutlakMi_(r) && r[SK_K.TUR] === 'Sayim') {
-      var tc = sk_zaman_(r[SK_K.ISLEM]), acik = satis_().bekleyenEnEski[sk_n_(r[SK_K.SUBE])];
-      if (acik && acik <= tc) {
+      var tc = sk_zaman_(r[SK_K.ISLEM]);
+      // Bekleme yalnız "sayımdan önce tüketilmiş olabilecek ama henüz düşülmemiş" sipariş varsa:
+      // şube çıkışı belliyse tüketim noktası sayımdan önce olanlar; çıkışı belli değilse sipariş saati sayımdan önce olanlar.
+      var acik = (satis_().bekleyen[sk_n_(r[SK_K.SUBE])] || []).some(function (b) { return b.kesin ? b.nokta <= tc : b.erken <= tc; });
+      if (acik) {
         var beklenen = (simdi.getTime() - tc) / 3600000;
         if (beklenen < SK_SAYIM_BEKLEME_SAAT) {
           r[SK_K.SONUC] = 'Sayım bekliyor: sayımdan önce verilmiş sipariş(ler) henüz stoktan düşülmedi'; sonuc.bekleyenSayim++; continue;
@@ -281,42 +288,65 @@ function sk_sayimSonrasi_(c, satis_, ad, tip, sube, t) {
     var sh = c.ss.getSheetByName('Satis_Hareketleri');
     if (sh && sh.getLastRow() > 1) c.satisH = sh.getRange(2, 1, Math.min(SK_HAREKET_PENCERE, sh.getLastRow() - 1), 11).getValues();
   }
-  var zaman = satis_().zaman, tipU = String(tip || '').toUpperCase();
+  // Her siparişin tüketim zamanı bir PENCEREDİR (sipariş saati değil): sayım pencerenin dışındaysa kesin, içindeyse belirsiz.
+  // Belirsizde karar tahmini noktaya göre verilir; belirsiz miktar ayrıca yazılır (sayım raporunda görünür).
+  var tuk = satis_().tuketim, tipU = String(tip || '').toUpperCase(), belirsiz = 0, belirsizMiktar = 0, tahmin = 0;
   c.satisH.forEach(function (r) {
     if (sk_adSube_(r[2], r[1]) !== as || String(r[3]).toUpperCase() !== tipU) return;
-    var st = zaman[String(r[10])];
-    if (st && st > t) toplam -= Number(r[7]) || 0;
+    var z = tuk[String(r[10])]; if (!z) return;
+    var m = Number(r[7]) || 0;
+    if (z.nokta > t) toplam -= m;
+    if (z.erken <= t && t < z.gec) { belirsiz++; belirsizMiktar += m; }
+    if (z.kaynak !== 'cikis' && z.erken <= t + SK_TAHMIN_UST_DK * 60000 && z.gec >= t - SK_TAHMIN_UST_DK * 60000) tahmin++;
   });
-  return { toplam: sk_yuv_(toplam), not: aynGunAlis ? 'Aynı gün alış faturası var (fatura saati yok) — sayımdan önce mi sonra mı geldiğini kontrol edin' : '' };
+  var notlar = [];
+  if (aynGunAlis) notlar.push('Aynı gün alış faturası var (fatura saati yok) — sayımdan önce mi sonra mı geldiğini kontrol edin');
+  if (belirsiz) notlar.push(belirsiz + ' siparişin tüketim penceresi sayım anını kapsıyor (±' + sk_yuv_(belirsizMiktar) + '); tahmini hazırlık anına göre ayrıldı');
+  if (tahmin) notlar.push(tahmin + ' siparişte şube çıkış saati yok, tüketim anı tahmini');
+  return { toplam: sk_yuv_(toplam), not: notlar.join(' · '), belirsizMiktar: sk_yuv_(belirsizMiktar) };
 }
 
 /**
- * Satış dosyasının son 3000 satırı: sipariş zamanı ve "sayımdan önce verilmiş, henüz düşülmemiş" en eski sipariş (şube başına).
- * Satış Motoru'nun yardımcıları (kaynakSayfa, subeCoz, sm_islendiMi, sade) aynı projededir.
+ * Satış dosyasının son 3000 satırından her siparişin TÜKETİM PENCERESİ (sipariş saati tüketim zamanı sayılmaz):
+ *  - Şube çıkış saati (Hazırlanma) varsa: [max(sipariş, çıkış − 30 dk), çıkış], tahmini nokta = çıkış − 10 dk. İleri saatli
+ *    siparişte de böyle (sipariş saati çok önce olsa da hazırlık çıkıştan hemen önce yapılır). Sonradan eklenen ürün ayrı saat
+ *    taşımadığı için siparişle aynı pencereye düşer; çıkıştan sonra eklenen ürün bu veriden anlaşılamaz (belirsizlik).
+ *  - Çıkış saati yoksa (masa, gel-al, eksik veri): [sipariş, sipariş + 33 dk], nokta = sipariş + 18 dk (tahmin). Masa siparişinde
+ *    kapanış saati daha geçse pencere kapanışa kadar uzar (sonradan eklenen ürün olabilir).
+ *  - Kapanış (Teslim Zamanı) tüketim zamanı olarak KULLANILMAZ: geç kapanan sipariş tüketimi geciktirmez.
+ * Ayrıca şube başına henüz düşülmemiş siparişler (sayım beklemesi için).
  */
+function sk_tuketimPenceresi_(siparis, cikis, kapanis, masa) {
+  var D = 60000;
+  if (cikis && !isNaN(cikis) && cikis >= siparis - D) {
+    return { erken: Math.max(siparis, cikis - SK_PENCERE_DK * D), gec: cikis, nokta: Math.max(siparis, cikis - SK_HAZIRLIK_DK * D), kaynak: 'cikis' };
+  }
+  var gec = siparis + SK_TAHMIN_UST_DK * D;
+  if (masa && kapanis && !isNaN(kapanis) && kapanis > gec) gec = kapanis;
+  return { erken: siparis, gec: gec, nokta: Math.min(gec, siparis + SK_TAHMIN_DK * D), kaynak: masa ? 'tahmin-masa' : 'tahmin' };
+}
 function sk_satisBilgisi_() {
-  var sonuc = { zaman: {}, bekleyenEnEski: {} };
+  var sonuc = { tuketim: {}, bekleyen: {} };
   var sh = kaynakSayfa(); if (!sh || sh.getLastRow() < 2) return sonuc;
   var bas = sh.getRange(1, 1, 1, sh.getLastColumn()).getValues()[0].map(function (x) { return sade(x); });
-  var kol = function (ad) { return bas.indexOf(ad); };
-  var cId = kol('siparisid'), cT = kol('siparistarihi'), cIso = kol('tarihiso'), cSube = kol('uruncikansube'), cSube2 = kol('sube'),
-      cDurum = kol('durum'), cIs = kol(sade(ISARET_BASLIK));
+  var kol = function (ad) { for (var i = 0; i < bas.length; i++) if (bas[i].indexOf(ad) === 0) return i; return -1; };
+  var cId = kol('siparisid'), cT = kol('siparistarihi'), cCikis = kol('hazirlanma'), cKapanis = kol('teslimzamani'), cMasa = kol('masasiparisi'),
+      cSube = kol('uruncikansube'), cSube2 = bas.indexOf('sube'), cDurum = bas.indexOf('durum'), cIs = bas.indexOf(sade(ISARET_BASLIK));
   var son = sh.getLastRow(), ilk = Math.max(2, son - 2999);
   var v = sh.getRange(ilk, 1, son - ilk + 1, bas.length).getValues();
   var basla = baslangicTarihi().getTime();
   v.forEach(function (r) {
-    var t = cIso >= 0 && r[cIso] ? sk_zaman_(r[cIso]) : NaN;
-    if (isNaN(t)) t = sk_zaman_(r[cT]);
-    if (isNaN(t)) return;
-    var id = String(r[cId]); sonuc.zaman[id] = t;
+    var t = sk_zaman_(r[cT]); if (isNaN(t)) return;
+    var masa = cMasa >= 0 && sade(r[cMasa]).indexOf('masa') === 0;
+    var z = sk_tuketimPenceresi_(t, cCikis >= 0 ? sk_zaman_(r[cCikis]) : NaN, cKapanis >= 0 ? sk_zaman_(r[cKapanis]) : NaN, masa);
+    var id = String(r[cId]); sonuc.tuketim[id] = z;
     if (t < basla) return;
-    var isaret = cIs >= 0 ? r[cIs] : '';
-    if (sm_islendiMi(isaret)) return;
+    if (sm_islendiMi(cIs >= 0 ? r[cIs] : '')) return;
     if (cDurum >= 0 && sade(r[cDurum]).indexOf('iptal') !== -1) return;
     var sube = subeCoz(cSube >= 0 ? r[cSube] : '');
     if (!sube || sube.charAt(0) === '#') sube = subeCoz(cSube2 >= 0 ? r[cSube2] : '');
     var s = sk_n_(sube);
-    if (!sonuc.bekleyenEnEski[s] || t < sonuc.bekleyenEnEski[s]) sonuc.bekleyenEnEski[s] = t;
+    (sonuc.bekleyen[s] = sonuc.bekleyen[s] || []).push({ erken: z.erken, nokta: z.nokta, kesin: z.kaynak === 'cikis' });
   });
   return sonuc;
 }
