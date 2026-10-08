@@ -14,8 +14,8 @@ Ajan için: `node araclar/etki-haritasi.mjs ara "<sekme / sütun / fonksiyon ad�
 
 | | Adet |
 |---|---|
-| Apps Script projesi | 14 |
-| Kodun dokunduğu sekme | 170 |
+| Apps Script projesi | 15 |
+| Kodun dokunduğu sekme | 174 |
 | Birden fazla projenin **yazdığı** sekme (risk) | 20 |
 | Arayüz dosyası (panel, köprü) | 11 |
 
@@ -1220,6 +1220,37 @@ Aynı sekmeye iki ayrı proje yazıyorsa birinin yaptığı değişiklik diğeri
 - **Adıyla aranan sütunlar:** `Dönem Başı`, `Dönem Sonu`, `Durum`, `Fatura No`, `Komisyon (TL)`, `Net Ödeme (TL)`, `Ödeme Tarihi`, `Son Kontrol`, `Talep No`, `Tutar (TL)`, `Vade`
 - **Zamanla çalışan:** her saat (`tokenflexCek`)
 
+### ID:1Zcvs58MkI… — veri sözlüğünde olmayan dosya
+
+#### Abonelikler
+
+- **Yazan:** `abonelikSekmesiKur` (BAP Sistem Bekçisi)
+- **Okuyan:** `abonelikKontrol_` (BAP Sistem Bekçisi)
+- **Yoksa oluşturan:** `abonelikSekmesiKur`
+- **Adıyla aranan sütunlar:** `Hizmet`, `Ne için`, `Nereden bakılır`, `Plan / ücret`, `Yenileme tarihi`
+- **Zamanla çalışan:** her 15 dk (`bekci`)
+
+#### Durum
+
+- **Yazan:** `durumYaz_` (BAP Sistem Bekçisi)
+- **Okuyan:** `nabizBekci_` (BAP Panel Veri Kapısı)
+- **Yoksa oluşturan:** `durumYaz_`
+- **Adıyla aranan sütunlar:** `Detay`, `Grup`, `Ne yapmalı`, `Ne zamandan beri`, `Nerede`, `Sistem`, `Son veri`
+- **Zamanla çalışan:** her 15 dk (`bekci`)
+
+#### Kalp
+
+- **Yazan:** `kalpYaz_` (BAP Sistem Bekçisi)
+- **Yoksa oluşturan:** `kalpYaz_`
+- **Zamanla çalışan:** her 15 dk (`bekci`)
+
+#### Olaylar
+
+- **Yazan:** `olaylarYaz_` (BAP Sistem Bekçisi)
+- **Okuyan:** `nabizBekci_` (BAP Panel Veri Kapısı)
+- **Yoksa oluşturan:** `olaylarYaz_`
+- **Zamanla çalışan:** her 15 dk (`bekci`)
+
 ### ? — dosyası bulunamayan sekmeler
 
 #### Cevaplar
@@ -1271,7 +1302,7 @@ Bağlı dosya: — (tabloları kimlikle açar) · 3 fonksiyon · 2 sekme
 
 ### BAP Panel Veri Kapısı (`apps-script/bap-panel-veri-kapisi`)
 
-Bağlı dosya: — (tabloları kimlikle açar) · 215 fonksiyon · 76 sekme
+Bağlı dosya: — (tabloları kimlikle açar) · 216 fonksiyon · 78 sekme
 
 - her saat → puantajTaramasi
 - tabloda düzenleme olunca → puantajTabloDegisti
@@ -1392,6 +1423,12 @@ Bağlı dosya: YEMEKKARTI · 41 fonksiyon · 13 sekme
 - her saat → tokenflexCek
 - Web eylemleri (25): `sayfa=cek → doGet`, `sayfa=kod → kodKutusu_`, `sayfa=kodgir → doGet`, `sayfa=pluxee → doGet`, `sayfa=pluxee → kodKutusu_`, `tur=cek → doPost`, `tur=cekDurum → doPost`, `tur=edenred → edenredYaz`, `tur=faturaKesim → faturaKesimYaz`, `tur=kodDurum → kodKutusu_`, `tur=kodIste → kodKutusu_`, `tur=kodSil → kodKutusu_`, `tur=kodYaz → kodKutusu_`, `tur=metropol → metropolYaz`, `tur=metropolOdeme → metropolOdemeYaz`, `tur=multinet → multinetYaz`, `tur=multinetBekleyen → multinetBekleyenYaz`, `tur=multinetFatura → multinetFaturaYaz`, `tur=oturumDurumu → oturumDurumuYaz`, `tur=pluxee → pluxeeYaz`, `tur=pluxeeKodIste → doPost`, `tur=pluxeeKodOku → kodKutusu_`, `tur=pluxeeKodSil → kodKutusu_`, `tur=setcardFaturaKes → setcardFaturaKesTek_`, `tur=tokenflexTani → tfIstek_`
 
+### BAP Sistem Bekçisi (`apps-script/bap-sistem-bekcisi`)
+
+Bağlı dosya: — (tabloları kimlikle açar) · 26 fonksiyon · 4 sekme
+
+- her 15 dk → bekci
+
 ## Arayüzler
 
 | Dosya | Konuştuğu proje | Kullandığı eylem sayısı |
@@ -1433,10 +1470,10 @@ Sekme adı koddan okunamadı (değişkenle ya da döngüyle açılıyor). Bu yer
 | stok-takip-sistemi | `eslestirmeDoldur` | `stok-takip-sistemi/fatura eşleştirme doldur.gs:43` | `k . tablo` |
 | stok-takip-sistemi | `oneriUret` | `stok-takip-sistemi/kısa ad onerıcı.gs:37` | `tablo` |
 | stok-takip-sistemi | `onerileriUygula` | `stok-takip-sistemi/kısa ad onerıcı.gs:107` | `tablo` |
-| bap-panel-veri-kapisi | `kokpitPanoKur` | `bap-panel-veri-kapisi/Kod.gs:1133` | `ad` |
-| bap-panel-veri-kapisi | `kokpitPanoKur` | `bap-panel-veri-kapisi/Kod.gs:1134` | `ad` |
-| bap-panel-veri-kapisi | `mobilFatura_` | `bap-panel-veri-kapisi/Kod.gs:1579` | `k . birikenSekme` |
-| bap-panel-veri-kapisi | `genel_` | `bap-panel-veri-kapisi/Kod.gs:1927` | `ad` |
+| bap-panel-veri-kapisi | `kokpitPanoKur` | `bap-panel-veri-kapisi/Kod.gs:1160` | `ad` |
+| bap-panel-veri-kapisi | `kokpitPanoKur` | `bap-panel-veri-kapisi/Kod.gs:1161` | `ad` |
+| bap-panel-veri-kapisi | `mobilFatura_` | `bap-panel-veri-kapisi/Kod.gs:1606` | `k . birikenSekme` |
+| bap-panel-veri-kapisi | `genel_` | `bap-panel-veri-kapisi/Kod.gs:1954` | `ad` |
 | kolaybi-fatura-ham-veri | `ap_hammaddeEkle_` | `kolaybi-fatura-ham-veri/Alım Paneli.gs:448` | `sekmeler [ s ]` |
 | kolaybi-fatura-ham-veri | `ap_hammaddeHaritasi_` | `kolaybi-fatura-ham-veri/Alım Paneli.gs:555` | `ad` |
 | adisyo-siparis-toplayici | `adresEslesmeUygula` | `adisyo-siparis-toplayici/Adres Eslesme.gs:34` | `AE_ANA_SEKME` |
@@ -1449,3 +1486,4 @@ Sekme adı koddan okunamadı (değişkenle ya da döngüyle açılıyor). Bu yer
 | indirim-orani | `kaynakSayfaBul` | `indirim-orani/Kod.gs:170` | `KAYNAK_SAYFA_ADI` |
 | bap-yemek-karti | `payeMailCek` | `bap-yemek-karti/Paye.gs:18` | `ad` |
 | bap-yemek-karti | `payeMailCek` | `bap-yemek-karti/Paye.gs:19` | `ad` |
+| bap-sistem-bekcisi | `kontrolEt_` | `bap-sistem-bekcisi/Bekci.gs:161` | `a . sekme` |
