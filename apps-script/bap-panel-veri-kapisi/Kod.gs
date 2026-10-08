@@ -1807,6 +1807,9 @@ function multinetFatura_() {
   var kb = []; try { kb = kolaybiSatis_(/multinet/); } catch (err) { }
   var gunu = function (ms) { return new Date(ms).toISOString().slice(0, 10); };
   var kbBugun = kb.some(function (f) { return gunu(f.ms) >= gunEkle_(bugun, -1); });
+  // KolayBi tahsilatı: Multinet faturasındaki no ile KolayBi satış faturası (panelde tüm kartlarda aynı 'KolayBi tahsilat' sütunu)
+  var kbNo = {}; kb.forEach(function (f) { if (f.no) kbNo[f.no] = f; });
+  liste.forEach(function (x) { var f = kbNo[x.no]; x.kolaybiVar = !!f; x.odendi = !!(f && f.odendi); });
   var takvim = [], g = bugun; for (var i = 0; i < 21 && takvim.length < 3; i++) { if (new Date(g + 'T00:00:00Z').getUTCDay() === 2) takvim.push(g); g = gunEkle_(g, 1); }
   return { bugun: bugun, faturaGunu: faturaGunu, saat: '23:30', vade: '3 gün', kesim: kesim, kolaybiBugun: kbBugun, bekleyen: bek, takvim: takvim, liste: liste.slice(0, 8) };
 }
