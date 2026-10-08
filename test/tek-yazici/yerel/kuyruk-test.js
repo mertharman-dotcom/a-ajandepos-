@@ -96,7 +96,8 @@ t('Tüketim kayıt zamanı: çıkış varsa TAM çıkış saati (−10 dk / penc
   r = f('11:00', '11:20', '', 'masa'); assert.equal(r.nokta, T('11:15').getTime());                                           // masada çıkış olsa da 15 dk kuralı
   r = f('11:00', '', '11:40', 'odenmez'); assert.equal(r.kaynak, 'kural-odenmez'); assert.equal(r.nokta, T('11:00').getTime());  // personel: hemen
   r = f('11:00', '11:25', '11:40', 'odenmez'); assert.equal(r.nokta, T('11:00').getTime());
-  r = f('11:00', '', '11:40', 'gelal'); assert.equal(r.kaynak, 'kural-gelal');
+  r = f('11:00', '', '11:40', 'gelal'); assert.equal(r.kaynak, 'kural-gelal'); assert.equal(r.nokta, T('11:15').getTime());   // gel-al: 15 dk
+  r = f('11:00', '11:05', '11:40', 'gelal'); assert.equal(r.nokta, T('11:15').getTime());
   r = f('11:00', '', '11:40', 'paket'); assert.equal(r.kaynak, 'eksik'); assert.equal(r.nokta, null);        // sessizce atanmaz
   const b = k0.ctx.sk_bildirim_('Teorik: 3 · HAZIRDA:012, 15 · x'); assert.ok(b.cevap && b.hazirda['12'] && b.hazirda['15']);
   assert.ok(k0.ctx.sk_bildirim_('HAZIRDA:YOK').cevap); assert.equal(Object.keys(k0.ctx.sk_bildirim_('HAZIRDA:YOK').hazirda).length, 0);

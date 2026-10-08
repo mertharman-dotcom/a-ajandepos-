@@ -15,8 +15,7 @@ Sürüm satırı ve dosya özetleri `dist/denetim.txt` başındadır (iş akış
 | Paket, şube çıkışı var | **Tam çıkış saati** (tahmin, pencere, ödeme/kapanış yok) |
 | Masa (sahip kararı 08.10) | **Sipariş girildikten 15 dk sonra** (`kural-masa`). Sayım anında açık masalar notta "ilave olabilir — kontrol edin" diye listelenir |
 | Ödenmez — personel yemeği, telafi (sahip kararı 08.10) | **Sipariş saati, hemen** (`kural-odenmez`) |
-| Gel-al, çıkış yok | Sipariş saati (`kural-gelal`) — sahibin onayı bekleniyor (ayda ~6 sipariş) |
-| Gel-al, çıkış var | Çıkış saati |
+| Gel-al (sahip kararı 08.10) | **Sipariş girildikten 15 dk sonra** (`kural-gelal`), çıkış olsa da |
 | Paket, çıkış **eksik** | Saat atanmaz. Yalnız kesin sınırlar: sipariş sayımdan sonraysa → sonra; kapanış sayımdan önceyse → önce (kapanış tüketim zamanı değil, "en geç" sınırı). İkisi de değilse sayım otomatik uygulanmaz: HATA + iki olası değer, karar Detay'a `HAZIRDA:<no>` / `SONRA:<no>` yazılarak verilir |
 | Hazırlanıp çıkmadan iptal | Tüketim korunur: otomatik iade yok; mutfak zayi girer ("İptal (hazırlanmıştı)" + sipariş no) |
 
@@ -59,7 +58,7 @@ Soru boş geçilirse açık siparişler sonuç notunda "bildirilmedi" diye liste
 → günde ≈ 10–14 dk ek tetikleyici süresi (Google ücretsiz hesap sınırı günde 90 dk; Satış Motoru da aynı sınırı kullanıyor — canlıda izlenmeli).
 
 ## Canlıya geçişi engelleyen açık konular
-1. ~~Masa / personel kuralı~~ 08.10'da karara bağlandı (masa +15 dk, personel hemen). Yalnız gel-al (çıkışsız, ayda ~6) için onay bekleniyor.
+1. ~~Masa / personel kuralı~~ 08.10'da karara bağlandı (masa +15 dk, personel hemen). Gel-al da karara bağlandı (15 dk).
 2. **Mutfak alışkanlığı:** sayımda "hazırda sipariş no" sorusu (P45) ve hazırlanıp iptal edilen ürün için zayi girişi (P47) anlatılmalı.
 3. **Alış Motoru** gerçek kopyada kuyrukla denenmeli (yukarıda "kalan").
 5. **Yayın hattı:** `stok-takip-sistemi` yayını "birden fazla web dağıtımı" diye kırmızı bitiyor (Y10). Kod yükleniyor ama bu düzeltilmeden geçiş yapılmamalı.

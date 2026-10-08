@@ -14,7 +14,7 @@
 // TÜKETİM KAYIT ZAMANI (sahibin 08.10 kararı): paket siparişte = ŞUBE ÇIKIŞ saati. Tahmin, pencere, ödeme/kapanış saati YOK.
 //  - MASA (sahibin 08.10 kararı): sipariş girildikten SK_MASA_DK (15) dk sonra. Sonradan eklenen ürün (ilave) ayrı saat taşımadığı
 //    için sayım anında açık masalar sonuç notunda ayrıca listelenir ("ilave olabilir — kontrol edin").
-//  - Ödenmez (personel yemeği / telafi): sipariş saati (hemen). Gel-al, çıkış yoksa: sipariş saati. Kaynak "kural-…" diye işaretli.
+//  - Ödenmez (personel yemeği / telafi): sipariş saati (hemen). Gel-al: masa gibi girişten 15 dk sonra. Kaynak "kural-…" diye işaretli.
 //  - Çıkış saati EKSİK paket sipariş: hiçbir saate atanmaz ("eksik"). Sayımla ilişkisi yalnız kesin sınırlarla çözülür
 //    (sipariş sayımdan sonraysa sonra; kapanış sayımdan önceyse önce — kapanış tüketim zamanı değil, en geç sınırdır).
 //    Çözülemezse sayım otomatik uygulanmaz: HATA + iki olası değer, elle karar (Detay'a HAZIRDA:/SONRA: yazılarak).
@@ -36,7 +36,7 @@ var SK_AZAMI = 300;                 // bir çalışmada en çok işlenecek kayı
 var SK_SAYIM_BEKLEME_SAAT = 3;      // sayım öncesi açık sipariş kapanmazsa en çok bu kadar beklenir
 var SK_GECIKME_UYARI_DK = 10;       // bu kadar dakikadır bekleyen kayıt varsa uyarı
 var SK_HAREKET_PENCERE = 5000;      // sayım hesabında bakılan son Stok_Hareketleri satırı
-var SK_MASA_DK = 15;                // masa siparişi: girildikten bu kadar dk sonra tüketilmiş sayılır (sahibin kararı)
+var SK_MASA_DK = 15;                // masa ve gel-al siparişi: girildikten bu kadar dk sonra tüketilmiş sayılır (sahibin kararı)
 var SK_TEST = null;                 // yalnız test ortamı doldurur: { kesinti: 'plan' | 'yeniSatir' | 'stok' | 'iz' }
 
 /** Zamanlı tetikleyici (her dakika). Satış/Alış Motoru çalışıyorsa kilidi alamaz; kayıt kuyrukta bekler, sonraki dakika işlenir. */
@@ -338,7 +338,7 @@ function sk_sayimSonrasi_(c, satis_, ad, tip, sube, t, bil) {
   if (aynGunAlis) notlar.push('Aynı gün alış faturası var (fatura saati yok) — sayımdan önce mi sonra mı geldiğini kontrol edin');
   if (hazirda) notlar.push(hazirda + ' hazırda bildirilen sipariş sayımdan önce tüketilmiş sayıldı');
   if (acik) notlar.push('Sayım anında ' + acik + ' sipariş hazırlıkta/çıkmamıştı (' + sk_yuv_(acikMiktar) + '); hazırda olan bildirilmedi, çıkışta tüketildi sayıldı');
-  if (kural) notlar.push(kural + ' masa/gel-al/personel siparişi kurala göre (masa: girişten ' + SK_MASA_DK + ' dk sonra, personel/gel-al: hemen) sayımdan önce sayıldı');
+  if (kural) notlar.push(kural + ' masa/gel-al/personel siparişi kurala göre (masa/gel-al: girişten ' + SK_MASA_DK + ' dk sonra, personel: hemen) sayımdan önce sayıldı');
   if (masaAcik.length) notlar.push('Sayım anında açık masa: no ' + masaAcik.join(', ') + ' (' + sk_yuv_(masaAcikMiktar) + '); sonradan ilave olduysa ilave sayımdan sonra hazırlanmış olabilir — kontrol edin');
   if (sinir) notlar.push(sinir + ' siparişte çıkış saati yok; sipariş/kapanış sınırına göre ayrıldı');
   return { toplam: sk_yuv_(toplam), not: notlar.join(' · '), belirsiz: belirsiz, belirsizMiktar: sk_yuv_(belirsizMiktar) };
@@ -349,7 +349,7 @@ function sk_sayimSonrasi_(c, satis_, ad, tip, sube, t, bil) {
  *  - Şube çıkış saati (Hazırlanma) varsa: tam çıkış saati (kaynak 'cikis'). İleri saatli siparişte de.
  *  - Ödenmez (personel yemeği, telafi): sipariş saati, çıkış olsa da (kaynak 'kural-odenmez').
  *  - Masa: sipariş + SK_MASA_DK dk, çıkış olsa da (kaynak 'kural-masa').
- *  - Gel-al, çıkış yoksa: sipariş saati (kaynak 'kural-gelal').
+ *  - Gel-al: sipariş + SK_MASA_DK dk, çıkış olsa da (kaynak 'kural-gelal').
  *  - Çıkış yoksa ve paket ise: zaman YOK (kaynak 'eksik'); sessizce başka saate atanmaz.
  *  - Kapanış (Teslim Zamanı) tüketim zamanı değildir; yalnız 'eksik' siparişte "en geç bu an" sınırı olarak kullanılır.
  */
@@ -357,8 +357,8 @@ function sk_tuketimZamani_(siparis, cikis, kapanis, tur) {
   var z = { siparis: siparis, kapanis: isNaN(kapanis) ? null : kapanis };
   if (tur === 'odenmez') { z.nokta = siparis; z.kaynak = 'kural-odenmez'; return z; }
   if (tur === 'masa') { z.nokta = siparis + SK_MASA_DK * 60000; z.kaynak = 'kural-masa'; return z; }
+  if (tur === 'gelal') { z.nokta = siparis + SK_MASA_DK * 60000; z.kaynak = 'kural-gelal'; return z; }
   if (cikis && !isNaN(cikis) && cikis >= siparis - 60000) { z.nokta = cikis; z.kaynak = 'cikis'; return z; }
-  if (tur === 'gelal') { z.nokta = siparis; z.kaynak = 'kural-gelal'; return z; }
   z.nokta = null; z.kaynak = 'eksik'; return z;
 }
 /** Sayım (t) karşısında: true = sayımdan önce tüketildi (sayılanda yok), false = sonra, null = bilinmiyor (elle karar). */
