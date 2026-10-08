@@ -3054,6 +3054,25 @@ function acikKanit_(ks, liste) {
 // Bir kart kaynağının çekimlerini açık hesaplarla karşılaştırır, x.kart* alanlarını doldurur.
 // veri: { cekim: [{ ms, tutar, tam: 'GG.AA SS:dd', zaman: 'SS:dd', saatYok }], son: ms | null, gunler: { 'yyyy-MM-dd': 1 } | undefined }
 // gunler verilirse (gün sonu raporu) "çekim yok" yalnız raporu gelmiş günler için söylenir; verilmezse son çekim anına bakılır.
+// Telefon (son 10 hane) → kişi adı: Tokenflex ve Metropol sekmelerindeki 'Cihaz / Kullanıcı' + 'Telefon' (kurye cihazları).
+// Saati olmayan kaynakta (Paye) çekimi yapan cihaz kuryeninse eşleşme kesinleşir (08.10).
+var KART_CIHAZ_KISI_ = null;
+function kartCihazKisi_() {
+  if (KART_CIHAZ_KISI_) return KART_CIHAZ_KISI_;
+  var m = {}; KART_CIHAZ_KISI_ = m;
+  try { var ss = SpreadsheetApp.openById(KAYNAK.yemekKarti.id);
+    ['Tokenflex', 'Metropol'].forEach(function (ad) { var t = sonSatirlar_(ss, ad, 3000); if (!t) return;
+      var ck = kolon_(t.b, ['Cihaz / Kullanıcı']), ct = kolon_(t.b, ['Telefon']); if (ck < 0 || ct < 0) return;
+      t.v.forEach(function (r) { var tel = String(r[ct] || '').replace(/\D/g, '').slice(-10), k = String(r[ck] || '').trim(); if (tel.length === 10 && k) m[tel] = k; }); });
+  } catch (err) { }
+  return m;
+}
+// Aynı kişi mi: ilk adlar biri ötekiyle başlıyor ("Feyzul" ~ "Feyzullah Feyz", "alp" ~ "Alp Alp")
+function kisiAyni_(a, b) {
+  var x = norm_(String(a || '').trim().split(/\s+/)[0]), y = norm_(String(b || '').trim().split(/\s+/)[0]);
+  return x.length >= 3 && y.length >= 3 && (x.indexOf(y) === 0 || y.indexOf(x) === 0);
+}
+
 function kartEslestir_(kk, veri, liste, tum, kmap) {
   var SAAT = 3600000, cekim = veri.cekim, ad = kk.ad;
   var ayniTutar = function (p, q) { return Math.abs(p - q) < 0.5; };
@@ -3082,11 +3101,18 @@ function kartEslestir_(kk, veri, liste, tum, kmap) {
     x.kartZaman = b.zaman; x.kartCekim = { zaman: b.tam, tutar: b.tutar, farkDk: fark };
     if (aday.length > 1) neden.push('aynı tutarda ' + aday.length + ' çekim var (' + aday.slice(0, 3).map(function (y) { return y.tam; }).join(', ') + ')');
     if (rk.length) neden.push('bu çekim ' + rk.slice(0, 3).map(function (o) { return 'adisyon ' + (o.no || o.id); }).join(', ') + ' siparişine de uyuyor');
-    if (b.saatYok) neden.push(ad + ' raporunda çekim saati yok');
-    if (!rf.saatVar) neden.push('teslim saati yok');
-    else if (fark !== null && fark > 90) neden.push('çekim teslimden ' + fark + ' dk uzak');
+    var kendi = b.kurye && x.kurye ? kisiAyni_(b.kurye, x.kurye) : null;   // çekim kuryenin kendi cihazından mı
+    if (b.saatYok) {
+      x.kartZaman = b.tam + (b.kurye ? ' · ' + b.kurye : '');
+      // Saat yoksa kanıt: aynı gün + aynı tutar + kuryenin kendi cihazı + başka aday yok
+      if (!(kendi && aday.length === 1 && !rk.length)) neden.push(ad + ' raporunda çekim saati yok' + (b.kurye && kendi === false ? '; çekim ' + b.kurye + ' cihazından' : (!b.kurye ? '; cihaz tanınmadı' : '')));
+    } else {
+      if (!rf.saatVar) neden.push('teslim saati yok');
+      else if (fark !== null && fark > 90) neden.push('çekim teslimden ' + fark + ' dk uzak');
+    }
     x.kartKarar = neden.length ? 'soru' : 'emin';
-    x.kartNeden = neden.length ? neden.join('; ') : 'tek ' + ad + ' çekimi, aynı tutar, teslimden ' + fark + ' dk fark';
+    x.kartNeden = neden.length ? neden.join('; ') : b.saatYok ? 'tek ' + ad + ' çekimi, aynı gün, aynı tutar, kuryenin cihazı (' + b.kurye + ')'
+      : 'tek ' + ad + ' çekimi, aynı tutar, teslimden ' + fark + ' dk fark' + (kendi === false ? ' (çekim ' + b.kurye + ' cihazından)' : '');
   });
 }
 
@@ -3126,6 +3152,8 @@ function payeCekimleri_(ks) {
   var p = null; try { p = sonSatirlar_(SpreadsheetApp.openById(KAYNAK.yemekKarti.id), 'Paye İşlemler', 6000); } catch (err) { }
   if (!p) return null;
   var c = { z: kolon_(p.b, PAYE_SUTUN.zaman), s: kolon_(p.b, PAYE_SUTUN.saat), t: kolon_(p.b, PAYE_SUTUN.tutar), tip: kolon_(p.b, PAYE_SUTUN.tip), g: kolon_(p.b, ['Rapor Günü']) };
+  // Cihaz Sicil Numarası = çekimi yapan telefon (90532…) → kişi (Tokenflex / Metropol kullanıcı listelerinden)
+  c.cihaz = p.b.map(function (h) { return norm_(h); }).findIndex(function (h) { return h.indexOf('cihazsicil') === 0; });
   if (c.z < 0 || c.t < 0) return { hata: "Paye sekmesinde zaman ya da tutar sütunu bulunamadı. Başlıklar: " + p.b.filter(String).join(' | ') };
   var satis = [], iptal = [], gunler = {}, son = null;
   p.v.forEach(function (r) {
@@ -3136,7 +3164,8 @@ function payeCekimleri_(ks) {
     var saatYok = !/\d{1,2}:\d{2}/.test(zs + ' ' + saat);
     // Saatsiz satır gece 00:00 okunur; iş günü 03:00'te döndüğü için önceki güne düşüyordu (08.10: 06.10 çekimleri "Paye çekimi yok"). Öğlene al.
     if (saatYok) ms += 12 * 3600000;
-    var y = { ms: ms, tutar: Math.abs(tutar), saatYok: saatYok, zaman: saatYok ? '—' : kartTam_(ms).slice(6), tam: saatYok ? kartTam_(ms).slice(0, 5) : kartTam_(ms) };
+    var y = { ms: ms, tutar: Math.abs(tutar), saatYok: saatYok, zaman: saatYok ? '—' : kartTam_(ms).slice(6), tam: saatYok ? kartTam_(ms).slice(0, 5) : kartTam_(ms),
+              kurye: c.cihaz >= 0 ? (kartCihazKisi_()[String(r[c.cihaz] || '').replace(/\D/g, '').slice(-10)] || '') : '' };
     if (tutar < 0 || (c.tip >= 0 && /iptal|iade|^ret|geri/.test(norm_(r[c.tip])))) iptal.push(y); else satis.push(y);
     if (!saatYok && (son === null || ms > son)) son = ms;
   });
