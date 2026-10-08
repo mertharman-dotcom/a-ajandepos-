@@ -47,13 +47,14 @@ const gunluk = [[new Date(2026, 9, 7), 'Pluxee', 100]];
 const sg = f('sonTarih_')(sekme(gunluk), simdi);
 k.push(['yalnız tarih günün sonu sayılır', sg.getDate() === 7 && sg.getHours() === 23]);
 
-// İşletme saatleri: 10:00 açılış, 03:00 kapanış
+// Sipariş saatleri: 11:00 – 24:00
 k.push(['21:00 açık', f('isletmeAcik_')(ist(2026, 10, 8, 21, 0)) === true]);
-k.push(['01:30 açık', f('isletmeAcik_')(ist(2026, 10, 9, 1, 30)) === true]);
-k.push(['05:00 kapalı', f('isletmeAcik_')(ist(2026, 10, 9, 5, 0)) === false]);
+k.push(['23:30 açık', f('isletmeAcik_')(ist(2026, 10, 8, 23, 30)) === true]);
+k.push(['02:51 kapalı (ilk raporda yanlış alarm)', f('isletmeAcik_')(ist(2026, 10, 9, 2, 51)) === false]);
+k.push(['10:30 kapalı', f('isletmeAcik_')(ist(2026, 10, 9, 10, 30)) === false]);
 const ac = f('sonAcilis_')(ist(2026, 10, 9, 1, 30));
-k.push(['gece 01:30\'da son açılış dün 10:00', ac.getTime() === ist(2026, 10, 8, 10, 0).getTime()]);
-k.push(['21:00\'de son açılış bugün 10:00', f('sonAcilis_')(simdi).getTime() === ist(2026, 10, 8, 10, 0).getTime()]);
+k.push(['gece 01:30\'da son açılış dün 11:00', ac.getTime() === ist(2026, 10, 8, 11, 0).getTime()]);
+k.push(['21:00\'de son açılış bugün 11:00', f('sonAcilis_')(simdi).getTime() === ist(2026, 10, 8, 11, 0).getTime()]);
 
 // Durum geçişleri: SORUN ilk kontrolde bildirilmez, ikincide bir kez bildirilir; düzelince bir kez daha
 const tur = durum => { const r = [{ grup: 'Satış', ad: 'Adisyo', durum, detay: '' }]; return { d: f('durumGuncelle_')(r), r: r[0] }; };
