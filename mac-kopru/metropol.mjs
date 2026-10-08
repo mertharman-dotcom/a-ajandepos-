@@ -146,14 +146,22 @@ async function oturumBildir(acik) {
   log('oturum durumu: ' + simdi + ' → ' + JSON.stringify(await yk({ tur: 'oturumDurumu', kart: 'Metropol', acik }).catch(e => ({ hata: e.message }))));
 }
 
+// Sitenin oturum çerezi "oturumluk": Chrome kapanınca silinir, kalıcı profil onu saklamaz (08.10: giriş 02:44, canlı tut 02:53'te "kapalı").
+// Bu yüzden çerezler her çalışmanın sonunda dosyaya yazılır, başında geri yüklenir; sunucudaki oturum 10 dakikalık canlı tutmayla açık kalır.
+const CEREZ = path.join(DIZIN, 'metropol-cerez.json');
+async function cerezYukle(ctx) { try { const c = JSON.parse(fs.readFileSync(CEREZ, 'utf8')); if (c.length) await ctx.addCookies(c); } catch (_) {} }
+async function cerezKaydet(ctx) { try { const c = (await ctx.cookies()).filter(x => /metropolcard/i.test(x.domain)); if (c.length) fs.writeFileSync(CEREZ, JSON.stringify(c)); } catch (_) {} }
+
 // --canli-tut (10 dakikada bir, com.bap.metropol-canli): görünmeden ana sayfayı açar → site oturumu kapatmaz.
 // Oturum düşmüşse giriş denemez (robot kutusu sahibini ister), yalnız bildirir.
 async function canliTut() {
   let ctx;
   try {
     ctx = await chromium.launchPersistentContext(PROFIL, { executablePath: CHROME, headless: true });
+    await cerezYukle(ctx);
     const page = ctx.pages()[0] || await ctx.newPage();
     const acik = await oturumAcik(page);
+    if (acik) await cerezKaydet(ctx);
     await oturumBildir(acik);
     if (!acik) log('canlı tut: oturum kapalı — "node metropol.mjs" ile bir kez giriş yapılmalı');
   } catch (e) { log('canlı tut atlandı: ' + e.message); }   // ör. ana çekim aynı anda çalışıyor (profil kilitli)
@@ -168,10 +176,11 @@ async function main() {
   log(`başladı: ${gaa(bas)} – ${gaa(bitis)}`);
 
   const ctx = await chromium.launchPersistentContext(PROFIL, { executablePath: CHROME, headless: false, ignoreDefaultArgs: ['--enable-automation', '--no-sandbox'], args: ['--disable-blink-features=AutomationControlled'], viewport: { width: 1280, height: 860 } });
+  await cerezYukle(ctx);
   const page = ctx.pages()[0] || await ctx.newPage();
   try {
     if (!(await oturumAcik(page))) { try { await girisYap(page); } catch (e) { await oturumBildir(false); throw e; } }
-    await oturumBildir(true);
+    await oturumBildir(true); await cerezKaydet(ctx);
     if (process.argv.includes('--fatura-kes') || process.argv.includes('--fatura-kuru')) {
       const r = await faturaKes(page, !process.argv.includes('--fatura-kes'));
       if (YAZMA) log('tabloya: ' + JSON.stringify(await yk({ tur: 'faturaKesim', kart: 'Metropol', sonuc: { kuru: !!r.kuru, kesildi: !r.kuru && !/kesilememektedir|hata|error/i.test(r.uyari || ''), tarih: r.tarih, mesaj: (r.uyari || '') + (r.liste && r.liste.length ? ' · ' + JSON.stringify(r.liste).slice(0, 200) : '') } })));
@@ -182,28 +191,43 @@ async function main() {
     // Sayfa sitenin kendi gezinmesiyle (page.goto) açılır; terminal listesi seçim kutusundan alınır (tablo yalnız sonuç varken dolu).
     const bugun = new Date(), son = bitis > bugun ? bugun : bitis, parcalar = [];
     for (let b = new Date(bas); b <= son; b = new Date(b.getTime() + 30 * 86400000)) parcalar.push([b, new Date(Math.min(b.getTime() + 29 * 86400000, son.getTime()))]);
-    const q = (t, b, e) => `/Home/PosIslemDetay?terminal=${t}&merchantCode=${ISYERI}&start=${gaa(b)}&end=${gaa(e)}`;
+    const q = (t, b, e, isy = ISYERI) => `/Home/PosIslemDetay?terminal=${t}&merchantCode=${isy}&start=${gaa(b)}&end=${gaa(e)}`;
     const ac = async yol => { await page.goto(KOK + yol, { waitUntil: 'domcontentloaded' }); if (/\/Auth\/Login/i.test(page.url())) throw new Error('oturum düştü'); return page.content(); };
     const ilkHtml = await ac(q(0, parcalar[0][0], parcalar[0][1]));
-    const secenek = await page.$$eval('#terminal option', o => o.map(x => x.value).filter(v => v && v !== '0')).catch(() => []);
-    const posBilgi = {}; tablo(ilkHtml, 'example24').forEach(t => { if (t['Terminal No']) posBilgi[t['Terminal No']] = t; });
-    const terminaller = [...new Set(secenek.concat(Object.keys(posBilgi)))];
-    log(`terminal: ${terminaller.length}, tarih parçası: ${parcalar.length} (${parcalar.map(p => gaa(p[0]) + '–' + gaa(p[1])).join(', ')})`);
-    if (!terminaller.length) { fs.writeFileSync(path.join(DIZIN, 'metropol_son.html'), ilkHtml); throw new Error('terminal listesi boş; sayfa metropol_son.html dosyasına kaydedildi'); }
-    const satirlar = [];
-    for (const no of terminaller) {
-      const tel = String((posBilgi[no] || {})['Pos Seri No'] || '').replace(/\D/g, '').slice(0, 10), ad = kisi.terminal[no] || kisi.telefon[tel] || '';
-      let say = 0;
-      for (const [b, e] of parcalar) {
-        // İşlem No'suz satır = tablonun "kayıt yok" satırı (her boş tarih parçasında bir tane) → işlem değil
-        const islem = tablo(await ac(q(no, b, e)), 'example23').filter(x => String(x['İşlem No'] || '').trim());
-        for (const x of islem) satirlar.push({ zaman: x['Tarih'], tutar: tl(x['Tutar']), islemNo: x['İşlem No'],
-          tip: x['İşlem Tipi'], mod: x['Giriş Modu'], urun: x['Ürün Tipi'], terminal: no, telefon: tel, kisi: ad,
-          kart: x['Kart Numarası'], gunsonu: x['Gün Sonu Tarihi'], fatura: x['Fatura Id'] });
-        say += islem.length; await bekle(600);
+    // 08.10: Metropol ödemeli siparişlerin bir kısmının çekimi tabloda yoktu (listede olmayan terminal / başka işyeri olabilir).
+    // Sayfadaki seçim kutuları günlüğe yazılır; işyeri kutusundaki her işyeri ve her parçada "tüm terminaller" (terminal=0) de çekilir.
+    const kutular = await page.$$eval('select', l => l.map(s => ({ id: s.id || s.name, n: s.options.length,
+      ornek: [...s.options].slice(0, 5).map(o => o.value + '=' + o.text.trim().slice(0, 30)) }))).catch(() => []);
+    log('sayfadaki seçim kutuları: ' + JSON.stringify(kutular));
+    const isyKutu = kutular.find(k => /merchant|isyeri|isYeri/i.test(k.id));
+    const isyerleri = [...new Set([ISYERI].concat(isyKutu ? await page.$$eval('#' + isyKutu.id + ' option', o => o.map(x => x.value).filter(v => /^\d{6,}$/.test(v))).catch(() => []) : []))];
+    if (isyerleri.length > 1) log('işyerleri: ' + isyerleri.join(', '));
+    const satirlar = [], gorulen = new Set();
+    const ekle = (islem, no, tel, ad) => { let n = 0; for (const x of islem) { const k = String(x['İşlem No']).trim(); if (gorulen.has(k)) continue; gorulen.add(k); n++;
+      satirlar.push({ zaman: x['Tarih'], tutar: tl(x['Tutar']), islemNo: x['İşlem No'], tip: x['İşlem Tipi'], mod: x['Giriş Modu'], urun: x['Ürün Tipi'],
+        terminal: no || String(x['Terminal No'] || x['Terminal'] || '').trim(), telefon: tel, kisi: ad, kart: x['Kart Numarası'], gunsonu: x['Gün Sonu Tarihi'], fatura: x['Fatura Id'] }); } return n; };
+    let toplamTerminal = 0;
+    for (const isy of isyerleri) {
+      const html0 = isy === ISYERI ? ilkHtml : await ac(q(0, parcalar[0][0], parcalar[0][1], isy));
+      const secenek = await page.$$eval('#terminal option', o => o.map(x => x.value).filter(v => v && v !== '0')).catch(() => []);
+      const posBilgi = {}; tablo(html0, 'example24').forEach(t => { if (t['Terminal No']) posBilgi[t['Terminal No']] = t; });
+      const terminaller = [...new Set(secenek.concat(Object.keys(posBilgi)))]; toplamTerminal += terminaller.length;
+      log(`${isy}: terminal ${terminaller.length}, tarih parçası: ${parcalar.length} (${parcalar.map(p => gaa(p[0]) + '–' + gaa(p[1])).join(', ')})`);
+      for (const no of terminaller) {
+        const tel = String((posBilgi[no] || {})['Pos Seri No'] || '').replace(/\D/g, '').slice(0, 10), ad = kisi.terminal[no] || kisi.telefon[tel] || '';
+        let say = 0;
+        for (const [b, e] of parcalar) {
+          // İşlem No'suz satır = tablonun "kayıt yok" satırı (her boş tarih parçasında bir tane) → işlem değil
+          say += ekle(tablo(await ac(q(no, b, e, isy)), 'example23').filter(x => String(x['İşlem No'] || '').trim()), no, tel, ad); await bekle(600);
+        }
+        log(`  ${no} (${ad || tel || '?'}): ${say} işlem`);
       }
-      log(`  ${no} (${ad || tel || '?'}): ${say} işlem`);
+      // Tüm terminaller: listede olmayan terminallerden geçen işlemler
+      let fazla = 0;
+      for (const [b, e] of parcalar) { fazla += ekle(tablo(await ac(q(0, b, e, isy)), 'example23').filter(x => String(x['İşlem No'] || '').trim()), '', '', ''); await bekle(600); }
+      log(`  ${isy} tüm terminaller: listede olmayan ${fazla} işlem daha`);
     }
+    if (!toplamTerminal) { fs.writeFileSync(path.join(DIZIN, 'metropol_son.html'), ilkHtml); throw new Error('terminal listesi boş; sayfa metropol_son.html dosyasına kaydedildi'); }
     if (!satirlar.length) fs.writeFileSync(path.join(DIZIN, 'metropol_son.html'), ilkHtml);
     // Aynı işlem birden çok terminalde görünüyorsa (site filtresi) kurye ataması şüphelidir: günlüğe yaz
     const gor = {}; satirlar.forEach(x => { (gor[x.islemNo] = gor[x.islemNo] || new Set()).add(x.terminal); });
@@ -224,6 +248,6 @@ async function main() {
       log('fatura ödeme bilgileri: ' + od.length + ' satır' + (od[0] ? ' · sütunlar: ' + Object.keys(od[0]).join(' | ') : ''));
       if (YAZMA && od.length) log('tabloya: ' + JSON.stringify(await yk({ tur: 'metropolOdeme', satirlar: od.slice(0, 500) })));
     } catch (e) { log('fatura ödeme bilgileri okunamadı: ' + e.message); }
-  } finally { await ctx.close().catch(() => {}); }
+  } finally { await cerezKaydet(ctx); await ctx.close().catch(() => {}); }
 }
 main().catch(e => { log('HATA: ' + (e && e.message || e)); process.exit(1); });
