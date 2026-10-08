@@ -24,6 +24,15 @@ function doPost(e) {
     if (!cek) return jsonYanit_({ hata: 'kaynak: setcard | tokenflex' });
     try { return jsonYanit_(cek(Number(g.gun) || 3)); } catch (err) { return jsonYanit_({ hata: String(err && err.message || err) }); }
   }
+  // Tokenflex teşhis (08.10 'Un_Authorized_User_For_This_Merchant'): giriş yanıtı (anahtar gizli) + kayıtlı işyeri no
+  if (g.tur === 'tokenflexTani') {
+    try {
+      var p = PropertiesService.getScriptProperties();
+      var d = tfIstek_('Authentication/Login', { username: p.getProperty('TOKENFLEX_KULLANICI'), password: p.getProperty('TOKENFLEX_SIFRE'), rememberMe: false }) || {};
+      var gizle = function (o) { return JSON.parse(JSON.stringify(o, function (k, v) { return /token/i.test(k) && typeof v === 'string' ? v.slice(0, 6) + '…' : v; })); };
+      return jsonYanit_({ ok: true, isyeriOzellik: p.getProperty('TOKENFLEX_ISYERI') || '(yok → 320096)', giris: gizle(d) });
+    } catch (err) { return jsonYanit_({ hata: String(err && err.message || err) }); }
+  }
   if (g.tur === 'cekDurum') {
     var pr = PropertiesService.getScriptProperties().getProperties(), d = {};
     Object.keys(pr).filter(function (k) { return /^SON_CALISMA_/.test(k); }).forEach(function (k) { d[k.slice(12)] = JSON.parse(pr[k]); });
