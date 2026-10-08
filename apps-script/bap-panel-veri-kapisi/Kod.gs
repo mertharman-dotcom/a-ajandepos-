@@ -3009,9 +3009,9 @@ var TR_AY = { oca: 0, sub: 1, şub: 1, mar: 2, nis: 3, may: 4, haz: 5, tem: 6, a
 var KART_KAYNAKLARI = [
   { ad: 'Pluxee', odeme: /pluxee|sodexo/i, oku: function (ks) { return pluxeeCekimleri_(ks); } },
   { ad: 'Paye',   odeme: /paye/i,          oku: function (ks) { return payeCekimleri_(ks); } },
-  { ad: 'Edenred', odeme: /edenred|^\s*ticket/i, oku: function (ks) { return edenredCekimleri_(ks); } },
+  { ad: 'Edenred', odeme: /edenred|ticket/i,   /* "SmarTicket" da Edenred (08.10) */ oku: function (ks) { return edenredCekimleri_(ks); } },
   { ad: 'Multinet', odeme: /multinet/i,   oku: function (ks) { var v = multinetCekimleri_(ks); if (v && v.cekim && !v.hata) v.cekim = v.cekim.filter(function (y) { return !y.online; }); return v; }, tumu: function (ks) { return multinetCekimleri_(ks); } },
-  { ad: 'Tokenflex', odeme: /tokenflex/i, oku: function (ks) { return tokenflexCekimleri_(ks); } },
+  { ad: 'Tokenflex', odeme: /token\s*flex/i,   /* Adisyo: "Token Flex" (08.10) */ oku: function (ks) { return tokenflexCekimleri_(ks); } },
   { ad: 'Metropol', odeme: /metropol/i,   oku: function (ks) { return metropolCekimleri_(ks); } },
   { ad: 'SetCard', odeme: /set\s*card/i,  oku: function (ks) { var v = setcardCekimleri_(ks); if (v && v.cekim && !v.hata) v.cekim = v.cekim.filter(function (y) { return !y.online; }); return v; }, tumu: function (ks) { return setcardCekimleri_(ks); } }
 ];
