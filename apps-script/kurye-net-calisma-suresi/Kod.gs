@@ -329,6 +329,7 @@ function kesintiOku(hafta) {
     var aciklama = String(v[i][5] || '').trim();
     if (!harita[kurye]) harita[kurye] = { saatDk: 0, tl: 0, arti: 0, avans: 0, detay: [] };
     var yon = kesintiYonu(v[i][2]); // ham metin: toUpperCase 'Bahşiş'i 'BAHŞIŞ' yapıp eşleşmeyi bozar
+    if (yon === 'iptal') continue;
     if (yon === 'arti') harita[kurye].arti += tl;          // bahşiş, eksik ödeme, ek ödeme → bordroya +
     else if (yon === 'avans') harita[kurye].avans += tl;   // avans → ödenecekten −
     else {
@@ -345,6 +346,7 @@ function kesintiOku(hafta) {
 // Aynı kural bap-panel-veri-kapisi/Kod.gs › kesintiYonu_ içinde de var.
 function kesintiYonu(tip) {
   var t = String(tip || '').toLocaleLowerCase('tr-TR');
+  if (/^iptal/.test(t)) return 'iptal'; // panelden iptal edilen satır: "İPTAL (eski tür)"
   if (/avans/.test(t)) return 'avans';
   if (/bahşiş|bahsis|eksik ödeme|eksik odeme|ek ödeme|ek odeme/.test(t)) return 'arti';
   return 'kesinti';
