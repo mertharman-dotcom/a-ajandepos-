@@ -168,6 +168,33 @@ async function canliTut() {
   finally { if (ctx) await ctx.close().catch(() => {}); }
 }
 
+// Fatura Ödeme Bilgileri (/Home/OdemeDetay): Metropol'ün hangi faturayı ne zaman ödediği → YEMEKKARTI › Metropol Ödeme.
+// Tarih verilmezse site yalnız son birkaç faturayı veriyor (08.10: 2 satır). Sahibin isteği (08.10): ilk çalışmada 2026'nın tamamı
+// ay ay çekilir (bitince metropol-odeme-tam.json yazılır), sonraki çalışmalarda son 120 gün (30 günlük parçalar).
+// '--odeme-tum' tamamını yeniden çeker. Tablo aynı satırı iki kez yazmaz; durumu değişen fatura yeni satır olarak eklenir.
+const ODEME_TAM = path.join(DIZIN, 'metropol-odeme-tam.json');
+async function odemeCek(page) {
+  const bugun = new Date(), tum = process.argv.includes('--odeme-tum') || !fs.existsSync(ODEME_TAM);
+  const parcalar = [];
+  if (tum) for (let b = new Date(2026, 0, 1); b <= bugun; b = new Date(b.getFullYear(), b.getMonth() + 1, 1))
+    parcalar.push([b, new Date(Math.min(new Date(b.getFullYear(), b.getMonth() + 1, 0).getTime(), bugun.getTime()))]);
+  else for (let b = new Date(bugun.getTime() - 120 * 86400000); b <= bugun; b = new Date(b.getTime() + 30 * 86400000))
+    parcalar.push([b, new Date(Math.min(b.getTime() + 29 * 86400000, bugun.getTime()))]);
+  log(`fatura ödeme bilgileri: ${tum ? '2026 tamamı, ay ay' : 'son 120 gün'} (${parcalar.length} parça)`);
+  let toplam = 0, hata = 0;
+  for (const [b, e] of parcalar) {
+    try {
+      const od = tablo((await sayfa(page, `/Home/OdemeDetay?&start=${gaa(b)}&end=${gaa(e)}`)).html)
+        .filter(x => /\d/.test(x['Toplam Tutar'] || ''));   // boş sonuçta DataTables'ın 'veri yok' satırı elenir
+      log(`  ${gaa(b)} – ${gaa(e)}: ${od.length} fatura` + (od.length ? ' (' + od.map(x => x['Toplam Tutar'] + ' ' + (x['Ödeme Durumu'] || '')).join(', ') + ')' : ''));
+      toplam += od.length;
+      for (let i = 0; YAZMA && i < od.length; i += 300) log('  tabloya: ' + JSON.stringify(await yk({ tur: 'metropolOdeme', satirlar: od.slice(i, i + 300) })));
+    } catch (er) { hata++; log(`  ${gaa(b)} – ${gaa(e)} okunamadı: ${er.message}`); }
+  }
+  log(`fatura ödeme bilgileri: toplam ${toplam} fatura` + (hata ? `, ${hata} parça okunamadı` : ''));
+  if (tum && !hata && YAZMA) fs.writeFileSync(ODEME_TAM, JSON.stringify({ zaman: new Date().toISOString(), fatura: toplam }));
+}
+
 async function main() {
   if (process.argv.includes('--canli-tut')) return canliTut();
   const a = process.argv.slice(2).filter(x => /^\d{2}\.\d{2}\.\d{4}$/.test(x));
@@ -186,6 +213,8 @@ async function main() {
       if (YAZMA) log('tabloya: ' + JSON.stringify(await yk({ tur: 'faturaKesim', kart: 'Metropol', sonuc: { kuru: !!r.kuru, kesildi: !r.kuru && !/kesilememektedir|hata|error/i.test(r.uyari || ''), tarih: r.tarih, mesaj: (r.uyari || '') + (r.liste && r.liste.length ? ' · ' + JSON.stringify(r.liste).slice(0, 200) : '') } })));
       return;
     }
+    // '--sadece-odeme': yalnız fatura ödeme bilgileri (işlem çekimi atlanır, birkaç dakika sürer)
+    if (process.argv.includes('--sadece-odeme')) { await odemeCek(page); return; }
     const kisi = await kullanicilar(page).catch(e => { log('kullanıcı listesi okunamadı: ' + e.message); return { terminal: {}, telefon: {} }; });
     // Site en çok 1 aylık aralık kabul ediyor ve ileri tarih istemiyor → bugüne kadar, 30 günlük parçalar.
     // Sayfa sitenin kendi gezinmesiyle (page.goto) açılır; terminal listesi seçim kutusundan alınır (tablo yalnız sonuç varken dolu).
@@ -252,14 +281,7 @@ async function main() {
         log('tabloya: ' + JSON.stringify(r));
       }
     }
-    // Fatura Ödeme Bilgileri: Metropol'ün hangi faturayı ne zaman ödediği (Finans'ta alacak kapatmak için). Sütun adları sayfadan alınır.
-    try {
-      // Tarih verilmezse site yalnız son birkaç faturayı veriyor (08.10: 2 satır) → son 120 gün istenir (sitedeki 'Listele' ile aynı adres)
-      const odBas = new Date(Date.now() - 120 * 86400000);
-      const od = tablo((await sayfa(page, `/Home/OdemeDetay?&start=${gaa(odBas)}&end=${gaa(new Date())}`)).html);
-      log('fatura ödeme bilgileri: ' + od.length + ' satır' + (od[0] ? ' · sütunlar: ' + Object.keys(od[0]).join(' | ') : ''));
-      if (YAZMA && od.length) log('tabloya: ' + JSON.stringify(await yk({ tur: 'metropolOdeme', satirlar: od.slice(0, 500) })));
-    } catch (e) { log('fatura ödeme bilgileri okunamadı: ' + e.message); }
+    await odemeCek(page);
   } finally { await cerezKaydet(ctx); await ctx.close().catch(() => {}); }
 }
 main().catch(e => { log('HATA: ' + (e && e.message || e)); process.exit(1); });

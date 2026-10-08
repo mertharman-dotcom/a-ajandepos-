@@ -15,6 +15,8 @@ Edenred kurulumu: `npm i playwright-core@1.54` (`~/bap-kopru` içinde), `ayar.js
 
 | `com.bap.uyanik.plist` | Mac fişteyken uyumasın (`caffeinate -s -i`, KeepAlive) — 04.10 duruşunun sebebi uykuydu (P12) | açılışta |
 
+Metropol fatura ödemeleri (YEMEKKARTI › Metropol Ödeme): ilk çalışmada 2026'nın tamamı ay ay, sonra her çalışmada son 120 gün. Hemen çekmek için: `cd ~/bap-kopru && node metropol.mjs --sadece-odeme` (tamamını yeniden: `--sadece-odeme --odeme-tum`).
+
 Metropol kurulumu: `ayar.json › ykWebapp` (BAP Yemek Kartı web adresi) ve `ayar.json › metropol { telefon, sifre, isyeri: "0000068645", geriGun: 7 }`. İlk çalıştırmada "robot değilim" çıkarsa Chrome penceresinde işaretlenir.
 
 Multinet kurulumu: `ayar.json › multinet { vkn: "45289231790", telefon, geriGun: 7 }`. iPhone Kestirmeler'de Multinet SMS'i için Edenred'deki gibi bir kural (kaynak `multinet`).
