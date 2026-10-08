@@ -3134,6 +3134,8 @@ function payeCekimleri_(ks) {
     var zs = String(r[c.z] || '').trim(), saat = zs.match(/\d{1,2}:\d{2}/) ? '' : (c.s >= 0 ? String(r[c.s] || '').trim() : '');
     var ms = zaman_(zs + (saat ? ' ' + saat : '')); if (ms === null) return;
     var saatYok = !/\d{1,2}:\d{2}/.test(zs + ' ' + saat);
+    // Saatsiz satır gece 00:00 okunur; iş günü 03:00'te döndüğü için önceki güne düşüyordu (08.10: 06.10 çekimleri "Paye çekimi yok"). Öğlene al.
+    if (saatYok) ms += 12 * 3600000;
     var y = { ms: ms, tutar: Math.abs(tutar), saatYok: saatYok, zaman: saatYok ? '—' : kartTam_(ms).slice(6), tam: saatYok ? kartTam_(ms).slice(0, 5) : kartTam_(ms) };
     if (tutar < 0 || (c.tip >= 0 && /iptal|iade|^ret|geri/.test(norm_(r[c.tip])))) iptal.push(y); else satis.push(y);
     if (!saatYok && (son === null || ms > son)) son = ms;
