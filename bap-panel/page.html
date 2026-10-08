@@ -1953,7 +1953,7 @@ function hesapKapat(x,islem,yenidenCiz){
     HESAP_ISLEM[x.id]={durum:"gidiyor",islem:islem};yenidenCiz();
     fetch("/api/hesap",{method:"POST",credentials:"same-origin",headers:{"content-type":"application/json","x-bap-panel":"1"},body:JSON.stringify({siparisId:x.id,islem:islem,bahsis:bahsis,odeme:odeme!==x.odeme?odeme:""})})
       .then(function(r){return r.json();}).then(function(r){
-        if(r&&r.tamam)HESAP_ISLEM[x.id]={durum:"tamam",islem:islem,mesaj:r.zatenKapali?"Zaten kapatılmıştı":(islem==="kes"?"Kuryeden kesildi":"Tahsil edildi"+(r.bahsis?" + "+para(r.bahsis)+" bahşiş":""))+(r.odemeDegisti?" · ödeme: "+r.odeme:"")};
+        if(r&&r.tamam)HESAP_ISLEM[x.id]={durum:"tamam",islem:islem,mesaj:r.zatenKapali?"Zaten kapatılmıştı":(islem==="kes"?"Kuryeden kesildi":"Tahsil edildi"+(r.bahsis?" + "+para(r.bahsis)+" bahşiş (kuryenin bu haftaki bordrosuna eklendi)":""))+(r.odemeDegisti?" · ödeme: "+r.odeme:"")};
         else HESAP_ISLEM[x.id]={durum:"hata",islem:islem,mesaj:(r&&r.hata)||"Kaydedilemedi."};
       }).catch(function(){HESAP_ISLEM[x.id]={durum:"hata",islem:islem,mesaj:"Bağlantı koptu; kayıt yazılmış olabilir. Paneli yenileyip kontrol et."};})
       .then(yenidenCiz);}},[islem==="kes"?"Kuryeden kes":"Tahsil edildi"]);
@@ -2054,7 +2054,7 @@ function kuryeAcik(a,K){var A=K.acik;
     if(v.hata){a.appendChild(el("div",{class:"uyari"},[el("b",{text:k+" çekimleri okunamadı"}),el("div",{text:v.hata})]));return;}
     if(v.son)a.appendChild(el("p",{class:"aciklama",style:"color:var(--gri);font-size:13px;margin:-14px 0 22px",text:k+" çekim verisi en son "+v.son.slice(8,10)+"."+v.son.slice(5,7)+" "+v.son.slice(11)+" tarihine kadar var; sonraki "+k+" siparişleri için kanıt aranamaz."}));});
   var BH=A.bahsis;
-  if(BH&&BH.adet)a.appendChild(blok("Bahşişler","Açık hesap kapatılırken girilen bahşişler; hesap tutarına eklenmez, Tahsilatlar › Bahşiş (TL) sütununda ayrı durur. Bu hafta: "+tarihTr(BH.haftaBasi)+"'den bugüne.",
+  if(BH&&BH.adet)a.appendChild(blok("Bahşişler","Açık hesap kapatılırken girilen bahşişler; hesap tutarına eklenmez, Tahsilatlar › Bahşiş (TL) sütununda ayrı durur ve kuryenin o haftaki bordrosuna ‘Bahşiş (+₺)’ olarak eklenir. Bu hafta: "+tarihTr(BH.haftaBasi)+"'den bugüne.",
     el("div",null,[el("div",{class:"rakamlar dortlu",style:"margin:0 0 12px"},[rakam("Bu hafta",para(BH.hafta)),rakam("Son 30 gün",para(BH.otuz),BH.adet+" siparişte")]),
       tablo([["Kurye"],["Bu hafta",1],["Son 30 gün",1],["Sipariş",1]],BH.kisi.map(function(x){return [x.ad,x.hafta?para(x.hafta):"—",para(x.otuz),String(x.adet)];}))])));
   a.appendChild(blok("Kimde ne kadar açık var","Dünden eski kayıtlar.",cubuklar(A.kisi)));
