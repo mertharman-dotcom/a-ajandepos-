@@ -15,7 +15,7 @@ const Utilities = {
 const props = {};
 const PropertiesService = { getScriptProperties: () => ({ getProperty: k => props[k] || null, setProperty: (k, v) => { props[k] = v; } }) };
 const ctx = vm.createContext({ console, Utilities, PropertiesService, Logger: { log() {} } });
-vm.runInContext(fs.readFileSync(path.join(__dirname, '../apps-script/bap-sistem-bekcisi/Bekci.gs'), 'utf8'), ctx);
+vm.runInContext(fs.readFileSync(path.join(__dirname, '../apps-script/bap-sistem-bekcisi/Kod.gs'), 'utf8'), ctx);
 const f = ad => ctx[ad];
 const ist = (y, a, g, s, d) => new Date(Date.UTC(y, a - 1, g, s, d) - TZ_FARK);   // İstanbul saatiyle tarih
 
