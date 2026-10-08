@@ -18,6 +18,7 @@ function doGet(e) {
     var kn = String(p.kaynak || '').toLowerCase().replace(/[^a-z]/g, '');
     if (p.sayfa === 'cek') {
       var f = { setcard: setcardCek, tokenflex: tokenflexCek }[kn]; if (!f) return ContentService.createTextOutput('kaynak: setcard | tokenflex');
+      if (kn === 'tokenflex') PropertiesService.getScriptProperties().deleteProperty('TOKENFLEX_2FA');
       try { var r = f(3); return ContentService.createTextOutput('✅ ' + kn + ': ' + JSON.stringify(r)); }
       catch (err) { return ContentService.createTextOutput('❌ ' + kn + ': ' + String(err && err.message || err)); }
     }
@@ -40,6 +41,7 @@ function doPost(e) {
   if (g.tur === 'cek') {
     var cek = { setcard: setcardCek, tokenflex: tokenflexCek }[g.kaynak];
     if (!cek) return jsonYanit_({ hata: 'kaynak: setcard | tokenflex' });
+    if (g.kaynak === 'tokenflex') PropertiesService.getScriptProperties().deleteProperty('TOKENFLEX_2FA');   // elle deneme: sahibi başında, SMS beklemesi kalkar
     try { return jsonYanit_(cek(Number(g.gun) || 3)); } catch (err) { return jsonYanit_({ hata: String(err && err.message || err) }); }
   }
   // Tokenflex teşhis (08.10 'Un_Authorized_User_For_This_Merchant'): giriş yanıtı (anahtar gizli) + kayıtlı işyeri no
