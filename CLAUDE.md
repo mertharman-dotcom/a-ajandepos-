@@ -4,6 +4,11 @@ BAP Pizza (Erenköy + Fikirtepe; pizza, makarna, salata; satışın ~%80'i paket
 stok, maliyet, satın alma, personel ve panel kodları. Sahibi teknik değil: açıklamalar Türkçe,
 sade ve "senin yapman gereken" adımlarıyla yazılır.
 
+## Beceriler (`.claude/skills/`)
+
+Konuya girince ilgili beceri okunur: `yemek-karti`, `kurye-bordro`, `panel-ozelligi`; her işin sonunda `is-teslim`.
+Beceriler yol haritasıdır; bilginin sahibi yine `docs/` ve koddur (kural 3).
+
 ## Temel kurallar
 
 1. **Bu depo tek doğru kaynaktır.** Kod yalnızca burada değiştirilir. Apps Script editöründe veya
@@ -30,8 +35,3 @@ sade ve "senin yapman gereken" adımlarıyla yazılır.
 | `bap-sistem/` | Mutfak paneli (tek sayfa); arka ucu `apps-script/bap-panel-backend` | Cloudflare Pages › bap-sistem → bap-sistem.pages.dev |
 | `bap-panel/` | Yönetim paneli (`page.html` + `worker.template.js` → `node build.js` → `worker.js`) | Cloudflare Worker › bap-panel |
 | `docs/` | Veri sözlüğü, kontrol listesi, ajan talimatları | — |
-
-## Beceriler (`.claude/skills/`)
-
-Konuya girince ilgili beceri okunur: `yemek-karti`, `kurye-bordro`, `panel-ozelligi`; her işin sonunda `is-teslim`.
-Beceriler yol haritasıdır; bilginin sahibi yine `docs/` ve koddur (kural 3).
