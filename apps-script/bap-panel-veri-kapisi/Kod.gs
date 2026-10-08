@@ -130,6 +130,10 @@ function testTuketim() {
 /* ---------------- Paket ---------------- */
 
 function paketHazirla_() {
+  OKUMA_BELLEK = { tablo: {}, sekme: {}, okunan: 0, bellekten: 0 };
+  try { return paketHazirlaIc_(); } finally { OKUMA_BELLEK = null; }
+}
+function paketHazirlaIc_() {
   var simdi = new Date();
   var out = {
     surum: 1,
@@ -164,7 +168,18 @@ function paketHazirla_() {
   bolum_(out, 'setcardFatura', setcardFatura_);
   bolum_(out, 'metropolFatura', metropolFatura_);
   bolum_(out, 'multinetFatura', multinetFatura_);
+  out.okuma = { okunan: OKUMA_BELLEK.okunan, bellekten: OKUMA_BELLEK.bellekten };
   return out;
+}
+
+// Okuma belleği: paket hazırlanırken aynı tablo ve sekme birkaç bölümde okunuyordu (kurye, yemek kartı kontrolü, açık hesaplar
+// aynı Siparişler / kart sekmelerini; satış ve yemek kartı kontrolü aynı Adisyo tablosunu ayrı ayrı). Bellek açıkken her tablo bir
+// kez açılır, her sekme bir kez okunur; sonraki istekler aynı satırlardan karşılanır. Yalnız paketHazirla_ sırasında açıktır:
+// yazma yapan isteklerde (doPost) her okuma tablodan taze yapılır.
+var OKUMA_BELLEK = null;
+function tabloAc_(id) {
+  if (!OKUMA_BELLEK) return SpreadsheetApp.openById(id);
+  return OKUMA_BELLEK.tablo[id] || (OKUMA_BELLEK.tablo[id] = SpreadsheetApp.openById(id));
 }
 
 function bolum_(out, ad, fn) {
@@ -178,6 +193,7 @@ function bolum_(out, ad, fn) {
 function hizTesti() {
   var t0 = Date.now(), v = paketHazirla_(), metin = JSON.stringify(v);
   Logger.log('Toplam: ' + ((Date.now() - t0) / 1000).toFixed(1) + ' sn · paket ' + Math.round(metin.length / 1024) + ' KB');
+  if (v.okuma) Logger.log('Sekme okuma: ' + v.okuma.okunan + ' kez tablodan, ' + v.okuma.bellekten + ' kez bellekten');
   Object.keys(v.sureler || {}).sort(function (a, b) { return v.sureler[b] - v.sureler[a]; })
     .forEach(function (k) { Logger.log(k + ': ' + (v.sureler[k] / 1000).toFixed(1) + ' sn'); });
   onbellekYaz_(CacheService.getScriptCache(), metin);
@@ -187,7 +203,15 @@ function hizTesti() {
 
 // Sipariş tablosu sondan okunur. enEski (yyyy-MM-dd) verilirse o güne ulaşana kadar geriye doğru parça parça okunur.
 function siparisVerisi_(enEski) {
-  var sh = SpreadsheetApp.openById(KAYNAK.siparis.id).getSheetByName('Satıs Verileri');
+  // Bellekteki okuma istenen günü kapsıyorsa yeniden okunmaz (satış ve yemek kartı kontrolü aynı tabloyu okur).
+  var m = OKUMA_BELLEK && OKUMA_BELLEK.siparis;
+  if (m && enEski && (m.hepsi || m.rows.length >= 60000 || (m.ilkGun && m.ilkGun < enEski))) { OKUMA_BELLEK.bellekten++; return m; }
+  var sv = siparisVerisiOku_(enEski);
+  if (OKUMA_BELLEK) { OKUMA_BELLEK.okunan++; OKUMA_BELLEK.siparis = sv; }
+  return sv;
+}
+function siparisVerisiOku_(enEski) {
+  var sh = tabloAc_(KAYNAK.siparis.id).getSheetByName('Satıs Verileri');
   if (!sh) throw new Error("Sipariş dosyasında 'Satıs Verileri' sekmesi bulunamadı");
   var son = sh.getLastRow(), gen = sh.getLastColumn();
   var b = sh.getRange(1, 1, 1, gen).getValues()[0];
@@ -394,7 +418,7 @@ function yemekKartAdi_(odeme) {
  * Çıktı: { gunler: { 'yyyy-mm-dd': { Pluxee: {t, a}, Edenred: {...}, Paye: {...} } }, son: { Pluxee: 'yyyy-mm-dd', ... } }
  */
 function yemekKarti_() {
-  var ss = SpreadsheetApp.openById(KAYNAK.yemekKarti.id), bas = gunEkle_(isGunu_(simdi_()), -29);
+  var ss = tabloAc_(KAYNAK.yemekKarti.id), bas = gunEkle_(isGunu_(simdi_()), -29);
   var out = { gunler: {}, son: {} };
   function ekle(kart, gun, tutar) {
     if (!gun || gun < bas || !(tutar > 0)) return;
@@ -454,7 +478,7 @@ var ESKI_FIS = { id: '152FdGaQUhwyd0ytcTbM1OI6beNZsXBJhCM-GoG2Bzvw', sekme: 'Kes
 
 function fisDosyasi_(olustur) {
   var p = PropertiesService.getScriptProperties(), id = p.getProperty('FIS_DOSYASI'), ss = null;
-  if (id) { try { ss = SpreadsheetApp.openById(id); } catch (err) { ss = null; } }
+  if (id) { try { ss = tabloAc_(id); } catch (err) { ss = null; } }
   if (!ss && olustur) {
     ss = SpreadsheetApp.create('BAP Günlük Fiş Kaydı');
     var sh = ss.getSheets()[0]; sh.setName('Fisler');
@@ -487,7 +511,7 @@ function fisKayit_() {
     });
   }
   try {
-    var es = SpreadsheetApp.openById(ESKI_FIS.id).getSheetByName(ESKI_FIS.sekme);
+    var es = tabloAc_(ESKI_FIS.id).getSheetByName(ESKI_FIS.sekme);
     if (es && es.getLastRow() >= 2) {
       var ev = es.getDataRange().getValues(), eb = ev[0].map(String);
       var eG = kolon_(eb, ['Gün']), eA = kolon_(eb, ['Adet']), eT = kolon_(eb, ['Tutar']), eZ = kolon_(eb, ['Kayıt Zamanı']);
@@ -635,7 +659,7 @@ function tuketim_(bas, bit) {
 
 // Sube_Stok: Urun_Adi, Tip, Sube, Mevcut_Stok → { 'ad|TIP|sube': mevcut }
 function subeStokHaritasi_() {
-  var v = sekme_(SpreadsheetApp.openById(KAYNAK.stok.id), ['Sube_Stok']), h = {};
+  var v = sekme_(tabloAc_(KAYNAK.stok.id), ['Sube_Stok']), h = {};
   if (v.length < 2) return h;
   var b = v[0].map(String), cA = tamKolon_(b, ['Urun_Adi'], 0), cT = tamKolon_(b, ['Tip'], 1), cS = tamKolon_(b, ['Sube', 'Şube'], 2), cM = tamKolon_(b, ['Mevcut_Stok'], 3);
   v.slice(1).forEach(function (r) {
@@ -746,7 +770,7 @@ function ymBirimFiyat_(T, ym, derin, urun) {
 }
 
 function maliyetTanimlari_() {
-  var ss = SpreadsheetApp.openById(KAYNAK.stok.id);
+  var ss = tabloAc_(KAYNAK.stok.id);
   var T = { recete: {}, receteAnahtar: [], urunKategori: {}, hm: {}, ym: {}, ds: {}, dsAnahtar: [], amb: {}, ambUrun: {}, ambKat: {}, mal: {},
             eslestir: {}, urunMemo: {}, eksik: {}, benzerMemo: {}, ikiliMemo: {}, sayilar: {} };
 
@@ -915,7 +939,7 @@ function subeKisa_(s) { return String(s || '').replace(/^BAP\s+/i, '').trim(); }
 /* ---------------- Sistem nabzı (sipariş dosyasındaki Sistem_Nabzi sekmesi) ---------------- */
 
 function nabiz_() {
-  var sh = SpreadsheetApp.openById(KAYNAK.siparis.id).getSheetByName('Sistem_Nabzi');
+  var sh = tabloAc_(KAYNAK.siparis.id).getSheetByName('Sistem_Nabzi');
   if (!sh) return null;
   var v = sh.getRange(1, 1, Math.min(40, Math.max(1, sh.getLastRow())), 3).getDisplayValues();
   var out = { sonKontrol: null, satirlar: [] }, basladi = false;
@@ -931,7 +955,7 @@ function nabiz_() {
 /* ---------------- Ortak iş kaydı ---------------- */
 
 function isKaydi_() {
-  var sh = SpreadsheetApp.openById(KAYNAK.isKaydi.id).getSheets()[0];
+  var sh = tabloAc_(KAYNAK.isKaydi.id).getSheets()[0];
   var v = sh.getDataRange().getDisplayValues();
   if (v.length < 2) return null;
   var b = v[0];
@@ -974,7 +998,7 @@ function isKaydi_() {
 /* ---------------- Yapay zeka görev merkezi (BAP AI HUB) ---------------- */
 
 function hub_() {
-  var ss = SpreadsheetApp.openById(KAYNAK.hub.id);
+  var ss = tabloAc_(KAYNAK.hub.id);
   var tq = tablo_(ss, 'TASK_QUEUE'), ap = tablo_(ss, 'CEO_APPROVALS'), ao = tablo_(ss, 'AI_OUTPUTS'),
       ej = tablo_(ss, 'ENGINE_JOBS'), au = tablo_(ss, 'AUDIT_LOG');
 
@@ -1075,7 +1099,7 @@ var PANO_ASAMA = { sende: 1, acik: 1, sirada: 1, engel: 1, hazir: 1, pencerede: 
 
 // Apps Script düzenleyicisinden bir kez çalıştırılabilir: eksik pano sekmelerini başlıklarıyla açar, var olana dokunmaz.
 function kokpitPanoKur() {
-  var ss = SpreadsheetApp.openById(KAYNAK.hub.id), acilan = [];
+  var ss = tabloAc_(KAYNAK.hub.id), acilan = [];
   Object.keys(PANO_SEKME).forEach(function (ad) {
     if (ss.getSheetByName(ad)) return;
     var sh = ss.insertSheet(ad); sh.getRange(1, 1, 1, PANO_SEKME[ad].length).setValues([PANO_SEKME[ad]]); sh.setFrozenRows(1); acilan.push(ad);
@@ -1142,7 +1166,7 @@ function panoNot_(d) {
   if (!not && !karar) return { hata: 'Mesajını yaz.' };
   if (!not) not = karar === 'onay' ? 'Onaylıyorum, devam edin.' : 'Reddediyorum, bu işi durdurun.';
   var istek = String(d.istekNo || '').slice(0, 60);
-  var ss = SpreadsheetApp.openById(KAYNAK.hub.id), sh = ss.getSheetByName('KOKPIT_NOTLAR');
+  var ss = tabloAc_(KAYNAK.hub.id), sh = ss.getSheetByName('KOKPIT_NOTLAR');
   if (!sh) { sh = ss.insertSheet('KOKPIT_NOTLAR'); sh.getRange(1, 1, 1, PANO_SEKME.KOKPIT_NOTLAR.length).setValues([PANO_SEKME.KOKPIT_NOTLAR]); sh.setFrozenRows(1); }
   var id = 'NOT-' + (istek || Utilities.getUuid()).replace(/[^A-Za-z0-9-]/g, '').slice(0, 36);
   if (sh.getLastRow() > 1) {
@@ -1165,7 +1189,7 @@ function kokpitCevap_(d) {
   var karar = { onaylandi: 'onaylandi', reddedildi: 'reddedildi', beklet: 'beklet' }[d.karar];
   if (!karar) return { hata: 'Geçersiz karar.' };
   var not = String(d.not || '').replace(/\r/g, '').trim().slice(0, 3000);
-  var sh = SpreadsheetApp.openById(KAYNAK.hub.id).getSheetByName('KOKPIT_ONAYLAR'); if (!sh) return { hata: "HUB'da KOKPIT_ONAYLAR sekmesi yok." };
+  var sh = tabloAc_(KAYNAK.hub.id).getSheetByName('KOKPIT_ONAYLAR'); if (!sh) return { hata: "HUB'da KOKPIT_ONAYLAR sekmesi yok." };
   var v = sh.getDataRange().getDisplayValues(), b = v[0].map(function (h) { return String(h).trim().toUpperCase(); });
   var c = function (ad) { return b.indexOf(ad); }, satir = -1;
   for (var i = v.length - 1; i >= 1; i--) if (String(v[i][c('ID')]).trim() === id) { satir = i; break; }
@@ -1182,7 +1206,7 @@ function kokpitCevap_(d) {
 /* ---------------- Finans ve alımlar (Kolaybi fatura verisi + aylık gider takibi) ---------------- */
 
 function finans_() {
-  var ss = SpreadsheetApp.openById(KAYNAK.fatura.id);
+  var ss = tabloAc_(KAYNAK.fatura.id);
   var simdi = simdi_();
   var bugun = new Date(simdi).toISOString().slice(0, 10);
   var ay = bugun.slice(0, 7), gun = +bugun.slice(8, 10);
@@ -1280,7 +1304,7 @@ function finans_() {
 
   // Aylık gider tablosu ve açık sorular (BAP Aylık Gider Takibi)
   try {
-    var gs = SpreadsheetApp.openById(KAYNAK.gider.id);
+    var gs = tabloAc_(KAYNAK.gider.id);
     var oz = gs.getSheetByName('Özet');
     if (oz) {
       var v = oz.getDataRange().getDisplayValues(), aylar = null, kalemler = [], toplam = null;
@@ -1323,7 +1347,7 @@ function satirlar_(ss, ad) {
  */
 var TY_DEGERLENDIRME = 'Degerlendirmeler';
 function musteri_() {
-  var ss = SpreadsheetApp.openById(KAYNAK.yorum.id), bugun = isGunu_(simdi_());
+  var ss = tabloAc_(KAYNAK.yorum.id), bugun = isGunu_(simdi_());
   var out = { bugun: bugun, puan: [], tahmin: [], iade: [], yorumBekleyen: [], yorumSon: [], dusukYorum: [] };
   var bos = function (v) { return v === '' || v === null || v === undefined; };
   var num = function (v) { return bos(v) ? null : sayi_(v); };
@@ -1415,7 +1439,7 @@ var IADE_RET_KODLARI = [5000, 5001, 5002, 5003, 5004, 5005, 5006, 5007, 5016, 50
 function iadeIslem_(d) {
   var id = String(d.id || '').trim();
   if (!id) return { hata: 'İade bulunamadı.' };
-  var sh = SpreadsheetApp.openById(KAYNAK.yorum.id).getSheetByName('Iadeler');
+  var sh = tabloAc_(KAYNAK.yorum.id).getSheetByName('Iadeler');
   if (!sh || sh.getLastRow() < 2) return { hata: 'Iadeler sekmesi bulunamadı.' };
   // Trendyol projesinin henüz eklemediği istek sütunlarını burada ekle (o proje de aynı adla arar, çift olmaz)
   var bas = sh.getRange(1, 1, 1, sh.getLastColumn()).getDisplayValues()[0].map(function (x) { return String(x).trim(); });
@@ -1473,7 +1497,7 @@ function yorumOnay_(d) {
   if (!id) return { hata: 'Yorum bulunamadı.' };
   if (!metin) return { hata: 'Cevap boş olamaz.' };
   if (metin.length > 1000) return { hata: 'Cevap çok uzun (en fazla 1000 karakter).' };
-  var sh = SpreadsheetApp.openById(KAYNAK.yorum.id).getSheetByName('Yorum_Cevap');
+  var sh = tabloAc_(KAYNAK.yorum.id).getSheetByName('Yorum_Cevap');
   if (!sh || sh.getLastRow() < 2) return { hata: 'Yorum_Cevap sekmesi bulunamadı.' };
   var lc = sh.getLastColumn(), b = sh.getRange(1, 1, 1, lc).getDisplayValues()[0];
   var c = { id: kolon_(b, ['Review ID']), ce: kolon_(b, ['Cevap']), tf: kolon_(b, ['Telafi Sözü']), on: kolon_(b, ['Onay']), du: kolon_(b, ['Durum']) };
@@ -1512,7 +1536,7 @@ var MOBIL_FATURA = [
 function takvimGunu_() { return Utilities.formatDate(new Date(), TZ, 'yyyy-MM-dd'); }
 // BAP Yemek Kartı › 'Mac Oturumları': robot doğrulamalı sitelerde (Metropol) oturum düşmüşse sahibinin bir kez giriş yapması gerekir.
 function macOturum_() {
-  var sh = SpreadsheetApp.openById(KAYNAK.yemekKarti.id).getSheetByName('Mac Oturumları'); if (!sh || sh.getLastRow() < 2) return [];
+  var sh = tabloAc_(KAYNAK.yemekKarti.id).getSheetByName('Mac Oturumları'); if (!sh || sh.getLastRow() < 2) return [];
   return sh.getRange(2, 1, sh.getLastRow() - 1, 3).getDisplayValues().map(function (r) { return { kart: r[0], durum: r[1], zaman: r[2] }; });
 }
 function mobilFatura_() {
@@ -1523,7 +1547,7 @@ function mobilFatura_() {
     var takvim = [], g = bugun; for (var i = 0; i < 45 && takvim.length < 3; i++) { if (k.gunMu(g)) takvim.push(g); g = gunEkle_(g, 1); }
     // Kart firmasının 'Açık' (henüz faturalanmamış) dönemi varsa faturalanacak tutar odur
     var biriken = null;
-    if (k.birikenSekme) try { var sh = SpreadsheetApp.openById(KAYNAK.yemekKarti.id).getSheetByName(k.birikenSekme);
+    if (k.birikenSekme) try { var sh = tabloAc_(KAYNAK.yemekKarti.id).getSheetByName(k.birikenSekme);
       if (sh && sh.getLastRow() > 1) { var b = sh.getRange(1, 1, 1, sh.getLastColumn()).getDisplayValues()[0], cd = kolon_(b, ['Durum']), ct = kolon_(b, ['Tutar (TL)']);
         biriken = Math.round(sh.getRange(2, 1, sh.getLastRow() - 1, sh.getLastColumn()).getDisplayValues().filter(function (r) { return /^acik$/.test(norm_(r[cd])); })
           .reduce(function (t, r) { return t + sayi_(r[ct]); }, 0)); } } catch (err) { }
@@ -1549,7 +1573,7 @@ function ykKartAd_(odeme) { var k = yemekKartAdi_(odeme); return k === 'Setcard'
 
 function ykKontrol_() {
   var bugun = isGunu_(simdi_()), bas = gunEkle_(bugun, -(YK_KONTROL_GUN - 1)), DK = 60000;
-  var ks = SpreadsheetApp.openById(KAYNAK.kurye.id), sip = [];
+  var ks = tabloAc_(KAYNAK.kurye.id), sip = [];
   // 1) Adisyo: yemek kartıyla kapanan siparişler
   var sv = siparisVerisi_(gunEkle_(bas, -1)), c = sv.c;
   sv.rows.forEach(function (r) {
@@ -1651,7 +1675,7 @@ function setcardFaturaSatirlari_(sh) {
 }
 // KolayBi satış faturaları, müşteri adına göre: [{ no, ms, tutar, odendi, kalan }]
 function kolaybiSatis_(musteriRe) {
-  var sf = satirlar_(SpreadsheetApp.openById(KAYNAK.fatura.id), 'Satis_Faturalari'), out = [], gor = {};
+  var sf = satirlar_(tabloAc_(KAYNAK.fatura.id), 'Satis_Faturalari'), out = [], gor = {};
   var c = { id: kolon_(sf.b, ['Fatura_ID']), no: kolon_(sf.b, ['Fatura_No']), t: kolon_(sf.b, ['Tarih']), m: kolon_(sf.b, ['Musteri']), tu: kolon_(sf.b, ['Tutar']),
             k: kolon_(sf.b, ['Kalan']), d: kolon_(sf.b, ['Odeme_Durumu']) };
   if (c.m < 0 || c.tu < 0 || c.t < 0) return out;
@@ -1673,7 +1697,7 @@ function setcardFaturaGunuMu_(gun) {
 }
 // SetCard Fatura satırları + KolayBi karşılığı (x.kolaybi). Panel (setcardFatura_) ve Finans alacakları (finans_) aynı eşleşmeyi kullanır.
 function setcardEslesme_() {
-  var sh = SpreadsheetApp.openById(KAYNAK.yemekKarti.id).getSheetByName('SetCard Fatura'); if (!sh) return null;
+  var sh = tabloAc_(KAYNAK.yemekKarti.id).getSheetByName('SetCard Fatura'); if (!sh) return null;
   var l = setcardFaturaSatirlari_(sh).l.sort(function (p, q) { return String(q.tarih).localeCompare(String(p.tarih)) || (+q.takipNo) - (+p.takipNo); });
   var kb = []; try { kb = kolaybiSatis_(/setcard/); } catch (err) { }
   var kul = {}, GUN = 86400000;
@@ -1693,12 +1717,12 @@ function kartOdenenFaturalar_() {
   var out = {}, e = null; try { e = setcardEslesme_(); } catch (err) { }
   if (e) e.l.forEach(function (x) { if (x.kolaybi && !x.kolaybi.odendi && /gonderildi/.test(norm_(x.durum))) out[x.kolaybi.no] = { kaynak: 'SetCard', odeme: x.odeme }; });
   // Multinet faturasında KolayBi fatura no doğrudan yazıyor; 'Ödeme Tamamlandı' olanlar ödenmiştir.
-  try { var mf = SpreadsheetApp.openById(KAYNAK.yemekKarti.id).getSheetByName('Multinet Fatura');
+  try { var mf = tabloAc_(KAYNAK.yemekKarti.id).getSheetByName('Multinet Fatura');
     if (mf && mf.getLastRow() > 1) { var b = mf.getRange(1, 1, 1, mf.getLastColumn()).getDisplayValues()[0], c = { no: kolon_(b, ['Fatura No']), d: kolon_(b, ['Durum']), o: kolon_(b, ['Ödeme Tarihi']) };
       mf.getRange(2, 1, mf.getLastRow() - 1, mf.getLastColumn()).getDisplayValues().forEach(function (r) {
         var no = String(r[c.no] || '').replace(/^'/, '').trim(); if (no && /tamamland/i.test(norm_(r[c.d]))) out[no] = { kaynak: 'Multinet', odeme: c.o >= 0 ? String(r[c.o] || '').replace(/^'/, '') : '' }; }); } } catch (err) { }
   // Tokenflex faturasında da KolayBi fatura no yazıyor; 'Ödendi' olanlar ödenmiştir.
-  try { var tf = SpreadsheetApp.openById(KAYNAK.yemekKarti.id).getSheetByName('Tokenflex Fatura');
+  try { var tf = tabloAc_(KAYNAK.yemekKarti.id).getSheetByName('Tokenflex Fatura');
     if (tf && tf.getLastRow() > 1) { var tb = tf.getRange(1, 1, 1, tf.getLastColumn()).getDisplayValues()[0], tc = { no: kolon_(tb, ['Fatura No']), d: kolon_(tb, ['Durum']), o: kolon_(tb, ['Ödeme Tarihi']) };
       tf.getRange(2, 1, tf.getLastRow() - 1, tf.getLastColumn()).getDisplayValues().forEach(function (r) {
         var no = String(r[tc.no] || '').replace(/^'/, '').trim(); if (no && /^odendi$/.test(norm_(r[tc.d]))) out[no] = { kaynak: 'Tokenflex', odeme: String(r[tc.o] || '').replace(/^'/, '') }; }); } } catch (err) { }
@@ -1732,7 +1756,7 @@ function metropolFatura_() {
   var kesim = faturaKesimBugun_('Metropol'), bugunKesildi = kb.some(function (f) { return gunu(f.ms) === bugun; }) || !!(kesim && /^kesildi/i.test(kesim.sonuc));
   // Biriken: son METROPAL faturasından bu yana Metropol çekimleri (Metropol sekmesi gelmeye başladıysa)
   var biriken = null, son = kb[0] ? kb[0].ms : null;
-  try { var v = metropolCekimleri_(SpreadsheetApp.openById(KAYNAK.kurye.id));
+  try { var v = metropolCekimleri_(tabloAc_(KAYNAK.kurye.id));
     if (v && v.cekim && v.cekim.length) biriken = Math.round(v.cekim.filter(function (y) { return son === null || y.ms > son + GUN / 2; }).reduce(function (t, y) { return t + y.tutar; }, 0)); } catch (err) { }
   var takvim = [], g = bugun; for (var i = 0; i < 70 && takvim.length < 3; i++) { if (metropolFaturaGunuMu_(g)) takvim.push(g); g = gunEkle_(g, 1); }
   return { bugun: bugun, faturaGunu: metropolFaturaGunuMu_(bugun), sonGun: bugun === new Date(Date.UTC(+bugun.slice(0, 4), +bugun.slice(5, 7), 0)).toISOString().slice(0, 10),
@@ -1742,7 +1766,7 @@ function metropolFatura_() {
 
 // BAP Yemek Kartı › 'Fatura Kesimleri' (Mac programlarının kesim kayıtları): bu kartın bugünkü son kaydı { zaman, sonuc, mesaj } | null
 function faturaKesimBugun_(kart) {
-  try { var sh = SpreadsheetApp.openById(KAYNAK.yemekKarti.id).getSheetByName('Fatura Kesimleri'); if (!sh || sh.getLastRow() < 2) return null;
+  try { var sh = tabloAc_(KAYNAK.yemekKarti.id).getSheetByName('Fatura Kesimleri'); if (!sh || sh.getLastRow() < 2) return null;
     var bugun = takvimGunu_(), g = bugun.slice(8, 10) + '.' + bugun.slice(5, 7) + '.' + bugun.slice(0, 4), son = null;
     sh.getRange(Math.max(2, sh.getLastRow() - 40), 1, Math.min(40, sh.getLastRow() - 1), 6).getDisplayValues().forEach(function (r) {
       if (String(r[0]).indexOf(g) === 0 && norm_(r[1]) === norm_(kart)) son = { zaman: String(r[0]).slice(11, 16), sonuc: r[2], mesaj: r[5] }; });
@@ -1755,7 +1779,7 @@ function faturaKesimBugun_(kart) {
  * Multinet faturasında KolayBi fatura no yazar ('Multinet Fatura'); mali fatura KolayBi'de MULTINET'e kesilmiş olmalı.
  */
 function multinetFatura_() {
-  var ss = SpreadsheetApp.openById(KAYNAK.yemekKarti.id), bugun = takvimGunu_(), GUN = 86400000;
+  var ss = tabloAc_(KAYNAK.yemekKarti.id), bugun = takvimGunu_(), GUN = 86400000;
   var faturaGunu = new Date(bugun + 'T00:00:00Z').getUTCDay() === 2;
   var liste = [], bek = null;
   var mf = ss.getSheetByName('Multinet Fatura');
@@ -1778,7 +1802,7 @@ function multinetFatura_() {
 function setcardFaturaIslem_(d) {
   var no = String(d.takipNo || '').replace(/\D/g, ''); if (!no) return { hata: 'Takip numarası yok.' };
   if (d.islem !== 'kes') return { hata: 'Geçersiz işlem.' };
-  var ss = SpreadsheetApp.openById(KAYNAK.yemekKarti.id), sh = ss.getSheetByName('SetCard Fatura'); if (!sh) return { hata: "'SetCard Fatura' sekmesi yok." };
+  var ss = tabloAc_(KAYNAK.yemekKarti.id), sh = ss.getSheetByName('SetCard Fatura'); if (!sh) return { hata: "'SetCard Fatura' sekmesi yok." };
   var x = setcardFaturaSatirlari_(sh).l.filter(function (y) { return y.takipNo === no; })[0];
   if (!x) return { hata: no + ' numaralı fatura listede yok; panel yenilensin.' };
   if (!/kesilmedi/i.test(x.durum)) return { hata: 'Fatura "' + x.durum + '" durumunda; kesilemez.' };
@@ -1792,7 +1816,7 @@ function setcardFaturaIslem_(d) {
 }
 
 function genel_() {
-  var ss = SpreadsheetApp.openById(KAYNAK.menu.id), out = { portal: GENEL_PORTAL_URL };
+  var ss = tabloAc_(KAYNAK.menu.id), out = { portal: GENEL_PORTAL_URL };
   var t = function (ad) { var sh = ss.getSheetByName(ad); return sh ? sh.getDataRange().getDisplayValues() : null; };
   var m = t('Menü');
   if (m) {
@@ -1826,7 +1850,7 @@ function onar_(s) {
 var PERSONEL_PANEL_URL = 'https://script.google.com/macros/s/AKfycbwPJbZCgnURva8C--D7jmMK8t4jhaQkC3J0ps-j7fxQEgbrSAfTtLYKqtMJr9yfXtOm/exec?panel=yonetici';
 
 function personel_() {
-  var ss = SpreadsheetApp.openById(KAYNAK.personel.id);
+  var ss = tabloAc_(KAYNAK.personel.id);
   var simdi = simdi_(), bugun = isGunu_(simdi), ay = bugun.slice(0, 7);
   var out = { bugun: bugun, yoneticiLink: PERSONEL_PANEL_URL };
 
@@ -1975,7 +1999,7 @@ function avansGir_(d) {
   // Mahsup işaretli yazılır: geçen ay eksik ödendiyse (+) bu ay eklenir, fazla ödendiyse (−) düşülür.
   if (tur === 'Mahsup') { if (!/eksik|fazla/i.test(kalem)) return { hata: 'Mahsubun yönünü seçin (eksik ödeme + / fazla ödeme −).' }; if (/fazla/i.test(kalem)) tutar = -tutar; }
   if (!/^\d{4}-\d{2}-\d{2}$/.test(String(d.tarih || ''))) return { hata: 'Tarih seçin.' };
-  var ss = SpreadsheetApp.openById(KAYNAK.personel.id), ps = ss.getSheetByName('Personel');
+  var ss = tabloAc_(KAYNAK.personel.id), ps = ss.getSheetByName('Personel');
   var var_ = ps ? ps.getDataRange().getDisplayValues() : [[]], cA = kolon_(var_[0], ['İsim Soyisim']);
   var gercekAd = null; var_.slice(1).forEach(function (r) { if (!gercekAd && norm_(r[cA]) === norm_(ad)) gercekAd = String(r[cA]).trim(); });
   if (!gercekAd) return { hata: 'Bu isim Personel listesinde yok.' };
@@ -2284,7 +2308,7 @@ function puKolonlar_(b) {
 var PU_IZIN = [['yi', 'Yıllık İzin'], ['rap', 'Rapor'], ['ui', 'Ücretsiz İzin'], ['dev', 'Devamsızlık']];
 
 function puBaglam_() {
-  var ss = SpreadsheetApp.openById(KAYNAK.personel.id);
+  var ss = tabloAc_(KAYNAK.personel.id);
   var gs = ss.getSheetByName('Personel_Giris_Cİkis') || ss.getSheetByName('Personel_Giris_Cikis');
   if (!gs) throw new Error('Giriş-çıkış sekmesi bulunamadı.');
   var v = gs.getDataRange().getDisplayValues(), c = puKolonlar_(v[0]);
@@ -2519,7 +2543,7 @@ function vardiyaGir_(d) {
   if (!gelen.length) return { hata: 'Kaydedilecek vardiya yok.' };
   var onceki = d.onceki && typeof d.onceki === 'object' ? d.onceki : {};
 
-  var ss = SpreadsheetApp.openById(KAYNAK.personel.id);
+  var ss = tabloAc_(KAYNAK.personel.id);
   var vs = ss.getSheetByName('Vardiya');
   if (!vs) return { hata: "Personel tablosunda 'Vardiya' sekmesi bulunamadı." };
   var v = vs.getDataRange().getDisplayValues(), b = v[0];
@@ -2638,7 +2662,7 @@ function personelBilgiGir_(d) {
   if (!alan) return { hata: 'Bu alan panelden girilemez.' };
   var deger = dogrula_(alan.tur, String(d.cevap || '').trim());
   if (deger.hata) return { hata: deger.hata };
-  var ss = SpreadsheetApp.openById(KAYNAK.personel.id), ps = ss.getSheetByName('Personel');
+  var ss = tabloAc_(KAYNAK.personel.id), ps = ss.getSheetByName('Personel');
   var v = ps.getDataRange().getDisplayValues(), b = v[0];
   var cA = kolon_(b, ['İsim Soyisim']), cX = kolon_(b, [alan.ad]), satir = +d.satir;
   if (cX < 0 || !(satir >= 2 && satir <= v.length)) return { hata: 'Personel satırı bulunamadı.' };
@@ -2728,7 +2752,7 @@ function kuryeMaliyet_(ad, netDk, paket) {
 }
 
 function kurye_() {
-  var ss = SpreadsheetApp.openById(KAYNAK.kurye.id);
+  var ss = tabloAc_(KAYNAK.kurye.id);
   try { kuryeUcretOku_(ss); } catch (err) { /* yedek ücretlerle devam */ }
   var simdi = simdi_(), bugun = isGunu_(simdi), ay = bugun.slice(0, 7), dun = gunEkle_(bugun, -1);
   var yediBasi = gunEkle_(bugun, -6), otuzBasi = gunEkle_(bugun, -29), ilkSeri = gunEkle_(bugun, -13);
@@ -3030,7 +3054,7 @@ function acikKanit_(ks, liste) {
       kmap[id] = { no: String(r[cs.no] || '').trim(), ms: ms, teslim: teslim };
       if (cs.od >= 0 && cs.tu >= 0) { var rf = kartRef_(gunStr_(r[cs.t]), teslim, ms);
         tum.push({ id: id, no: String(r[cs.no] || '').trim(), odeme: String(r[cs.od] || ''), tutar: sayi_(r[cs.tu]), ms: rf ? rf.ms : null, gun: gunStr_(r[cs.t]) }); } }); }
-  var as = SpreadsheetApp.openById(KAYNAK.siparis.id);
+  var as = tabloAc_(KAYNAK.siparis.id);
   var a = sonSatirlar_(as, 'Satıs Verileri', 12000, ['Sipariş ID', 'Sipariş No', 'Sipariş Tarihi', 'Ödeme Alındı']);
   if (a) {
     var c = { no: kolon_(a.b, ['Sipariş No']), t: kolon_(a.b, ['Sipariş Tarihi']), od: kolon_(a.b, ['Ödeme Alındı']) }, ano = {}, enEski = null;
@@ -3064,7 +3088,7 @@ var KART_CIHAZ_KISI_ = null;
 function kartCihazKisi_() {
   if (KART_CIHAZ_KISI_) return KART_CIHAZ_KISI_;
   var m = {}; KART_CIHAZ_KISI_ = m;
-  try { var ss = SpreadsheetApp.openById(KAYNAK.yemekKarti.id);
+  try { var ss = tabloAc_(KAYNAK.yemekKarti.id);
     ['Tokenflex', 'Metropol'].forEach(function (ad) { var t = sonSatirlar_(ss, ad, 3000); if (!t) return;
       var ck = kolon_(t.b, ['Cihaz / Kullanıcı']), ct = kolon_(t.b, ['Telefon']); if (ck < 0 || ct < 0) return;
       t.v.forEach(function (r) { var tel = String(r[ct] || '').replace(/\D/g, '').slice(-10), k = String(r[ck] || '').trim(); if (tel.length === 10 && k) m[tel] = k; }); });
@@ -3123,7 +3147,7 @@ function kartEslestir_(kk, veri, liste, tum, kmap) {
 // Kart çekimlerinin tek sahibi 'BAP Yemek Kartı Tahsilatları' (KAYNAK.yemekKarti, 05.10.2026). Taşıma yapılmamışsa
 // kurye dosyasındaki eski sekmeye ('Pluxee', 'Pluxee (eski)' …) düşer.
 function kartSekmesi_(ks, ad, n) {
-  var t = null; try { t = sonSatirlar_(SpreadsheetApp.openById(KAYNAK.yemekKarti.id), ad, n); } catch (err) { }
+  var t = null; try { t = sonSatirlar_(tabloAc_(KAYNAK.yemekKarti.id), ad, n); } catch (err) { }
   return t || sonSatirlar_(ks, ad, n) || sonSatirlar_(ks, ad + ' (eski)', n);
 }
 
@@ -3154,7 +3178,7 @@ var PAYE_SUTUN = {
   tip: ['İşlem Tipi', 'İşlem Türü', 'İşlem Durumu', 'Durum', 'Tip']
 };
 function payeCekimleri_(ks) {
-  var p = null; try { p = sonSatirlar_(SpreadsheetApp.openById(KAYNAK.yemekKarti.id), 'Paye İşlemler', 6000); } catch (err) { }
+  var p = null; try { p = sonSatirlar_(tabloAc_(KAYNAK.yemekKarti.id), 'Paye İşlemler', 6000); } catch (err) { }
   if (!p) return null;
   var c = { z: kolon_(p.b, PAYE_SUTUN.zaman), s: kolon_(p.b, PAYE_SUTUN.saat), t: kolon_(p.b, PAYE_SUTUN.tutar), tip: kolon_(p.b, PAYE_SUTUN.tip), g: kolon_(p.b, ['Rapor Günü']) };
   // Cihaz Sicil Numarası = çekimi yapan telefon (90532…) → kişi (Tokenflex / Metropol kullanıcı listelerinden)
@@ -3283,7 +3307,7 @@ function kartAjani() {
 }
 
 function kartAjanCalis_() {
-  var ss = SpreadsheetApp.openById(KAYNAK.kurye.id), bugun = isGunu_(simdi_());
+  var ss = tabloAc_(KAYNAK.kurye.id), bugun = isGunu_(simdi_());
   var liste = acikListe_(ss, tahsilatlar_(ss), bugun, {}).liste;
   acikKanit_(ss, liste);
   liste = liste.filter(function (x) { return x.adisyo !== 'odendi' && x.id; });
@@ -3357,7 +3381,7 @@ function tahsilatlar_(ss) {
 // Açık hesap satırına tıklanınca tek siparişin müşteri bilgisi (yalnız istenince; panel paketine girmez).
 function musteriDetay_(d) {
   var id = siparisNo_(d.siparisId); if (!id) return { hata: 'Sipariş numarası yok.' };
-  var ss = SpreadsheetApp.openById(KAYNAK.kurye.id), out = null;
+  var ss = tabloAc_(KAYNAK.kurye.id), out = null;
   var s = sonSatirlar_(ss, 'Siparişler', 8000, ['Tarih', 'Sipariş ID', 'Adisyon No', 'Platform', 'Kurye', 'Sipariş Saati', 'Restorandan Çıktı', 'Teslim Saati',
     'Ödeme Yöntemi', 'Tutar (TL)', 'Sipariş İçeriği', 'Müşteri', 'Telefon', 'Adres', 'Not', 'Durum', 'Mesafe (km)']);
   if (s) { var b = s.b, k = function (h) { return kolon_(b, [h]); }, ci = k('Sipariş ID');
@@ -3379,7 +3403,7 @@ function hesapKapat_(d) {
   if (d.islem === 'adisyo') return { tamam: true, adisyo: tahsilatlariAdisyoyaIsle_() };
   var id = siparisNo_(d.siparisId), islem = d.islem === 'kes' ? 'kes' : d.islem === 'tahsil' ? 'tahsil' : '';
   if (!id || !islem) return { hata: 'Geçersiz istek.' };
-  var ss = SpreadsheetApp.openById(KAYNAK.kurye.id);
+  var ss = tabloAc_(KAYNAK.kurye.id);
   if (tahsilatlar_(ss).idler[id]) return { tamam: true, zatenKapali: true };
   var a = sonSatirlar_(ss, 'Açık Hesaplar', 2000); if (!a) return { hata: "'Açık Hesaplar' sekmesi okunamadı." };
   var ca = { tarih: kolon_(a.b, ['Tarih']), no: kolon_(a.b, ['Adisyon No']), id: kolon_(a.b, ['Sipariş ID']), kurye: kolon_(a.b, ['Kurye']),
@@ -3476,7 +3500,7 @@ function mesaiDuzelt_(d) {
   if (islem === 'saat' && !giris && !cikis) return { hata: 'Esas giriş ya da esas çıkış saatini yazın.' };
   if (islem === 'saat' && !aciklama) return { hata: 'Kısa bir açıklama yazın (kurye itiraz ederse bu satıra bakılacak).' };
 
-  var ss = SpreadsheetApp.openById(KAYNAK.kurye.id), sh = ss.getSheetByName('Mesai Düzeltme');
+  var ss = tabloAc_(KAYNAK.kurye.id), sh = ss.getSheetByName('Mesai Düzeltme');
   if (!sh) {
     sh = ss.insertSheet('Mesai Düzeltme');
     sh.getRange(1, 1, 1, MESAI_DUZELTME_BASLIK.length).setValues([MESAI_DUZELTME_BASLIK]).setBackground('#134f5c').setFontColor('#ffffff').setFontWeight('bold');
@@ -3542,7 +3566,7 @@ function kesintiGir_(d) {
   var aciklama = String(d.aciklama || '').replace(/\s+/g, ' ').trim().slice(0, 200);
   if (!aciklama) return { hata: 'Kısa bir açıklama yazın (ne oldu?). Kurye itiraz ederse bu satıra bakılacak.' };
 
-  var ss = SpreadsheetApp.openById(KAYNAK.kurye.id);
+  var ss = tabloAc_(KAYNAK.kurye.id);
   var sh = ss.getSheetByName('Kesintiler');
   if (!sh) { sh = ss.insertSheet('Kesintiler'); sh.appendRow(['Tarih', 'Kurye Adı', 'Kesinti Tipi (Saat / TL)', 'Kesilen Süre (Dk)', 'Kesilen Tutar (TL)', 'Açıklama']); sh.setFrozenRows(1); }
   var lc = Math.max(6, sh.getLastColumn()), b = sh.getRange(1, 1, 1, lc).getDisplayValues()[0];
@@ -3608,13 +3632,13 @@ function subeSozlugu_() {
   var cache = CacheService.getScriptCache(), c = cache.get('sube_sozluk_v2'); if (c) { try { return JSON.parse(c); } catch (e) { } }
   var out = { no: {}, mahalle: {}, sure: {} };
   try {
-    var a = sonSatirlar_(SpreadsheetApp.openById(KAYNAK.siparis.id), 'Satıs Verileri', 1500, ['Sipariş No', 'Sipariş Tarihi', 'Şube', 'Ürün Çıkan Şube']);
+    var a = sonSatirlar_(tabloAc_(KAYNAK.siparis.id), 'Satıs Verileri', 1500, ['Sipariş No', 'Sipariş Tarihi', 'Şube', 'Ürün Çıkan Şube']);
     if (a) { var cn = kolon_(a.b, ['Sipariş No']), ct = kolon_(a.b, ['Sipariş Tarihi']), cs = kolon_(a.b, ['Şube']), cc = kolon_(a.b, ['Ürün Çıkan Şube']);
       a.v.forEach(function (r) { var no = String(r[cn] || '').trim(), gun = gunStr_(r[ct]); if (!no || !gun) return;
         var sb = subeAnahtar_(r[cc]) || subeAnahtar_(r[cs]); if (/Erenköy|Fikirtepe/.test(sb)) out.no[gun + '|' + no] = sb; }); }
   } catch (e) { }
   try {
-    var mh = SpreadsheetApp.openById(KAYNAK.menu.id).getSheetByName('Mahalle_Sube');
+    var mh = tabloAc_(KAYNAK.menu.id).getSheetByName('Mahalle_Sube');
     // Sütunlar: Mahalle, Tam ad, Şube, Teslimat süresi ("30-40 dk" gibi; üst sınır söz verilen süre sayılır)
     if (mh) mh.getDataRange().getDisplayValues().slice(1).forEach(function (r) { if (!r[0]) return; var k = norm_(String(r[0]).replace(/\bmah(allesi)?\b\.?/i, '')), sb = subeAnahtar_(r[2]);
       if (/Erenköy|Fikirtepe/.test(sb)) out.mahalle[k] = sb;
@@ -3681,7 +3705,7 @@ function rotaHesapla_(d) {
   var cache = CacheService.getScriptCache(), anahtar = 'rota_' + idler.slice().sort().join('_') + (zorla ? '_' + norm_(zorla) : ''), eski = cache.get(anahtar);
   // Saklanan sonuç, o sırada teslim edilmemiş siparişlerle hesaplandıysa ve panel artık teslimleri görüyorsa yeniden hesapla.
   if (eski) { try { var o = JSON.parse(eski); if (!(+d.teslimSayisi > (o.teslimSayisi || 0))) { o.onbellek = true; return o; } } catch (e) { } }
-  var ss = SpreadsheetApp.openById(KAYNAK.kurye.id);
+  var ss = tabloAc_(KAYNAK.kurye.id);
   var s = sonSatirlar_(ss, 'Siparişler', 1500, ['Tarih', 'Sipariş ID', 'Adisyon No', 'Adres', 'Restorandan Çıktı', 'Teslim Saati', 'Mesafe (km)']);
   if (!s) return { hata: 'Siparişler sekmesi okunamadı.' };
   var c = { tarih: kolon_(s.b, ['Tarih']), id: kolon_(s.b, ['Sipariş ID']), no: kolon_(s.b, ['Adisyon No']), adres: kolon_(s.b, ['Adres']), cik: kolon_(s.b, ['Restorandan Çıktı']),
@@ -3731,7 +3755,7 @@ function rotaHesapla_(d) {
 // (kurye tablosundaki sipariş no + sipariş saati, en fazla 20 dk fark) ve 'Ödeme Alındı' hücresini TRUE yapar.
 // Sonuç Tahsilatlar › 'Adisyo Durumu' sütununa yazılır; bulunamayan bir sonraki çalışmada yeniden denenir (en fazla 3 gün).
 function tahsilatlariAdisyoyaIsle_() {
-  var ks = SpreadsheetApp.openById(KAYNAK.kurye.id), th = ks.getSheetByName('Tahsilatlar'); if (!th || th.getLastRow() < 2) return { islenen: 0 };
+  var ks = tabloAc_(KAYNAK.kurye.id), th = ks.getSheetByName('Tahsilatlar'); if (!th || th.getLastRow() < 2) return { islenen: 0 };
   var lc = th.getLastColumn(), tb = th.getRange(1, 1, 1, lc).getDisplayValues()[0], ca = kolon_(tb, ['Adisyo Durumu']);
   if (ca < 0) { lc++; th.getRange(1, lc).setValue('Adisyo Durumu'); ca = lc - 1; }
   var ci = kolon_(tb, ['Sipariş ID']), cz = kolon_(tb, ['Kayıt Zamanı']), tv = th.getRange(2, 1, th.getLastRow() - 1, lc).getDisplayValues();
@@ -3741,7 +3765,7 @@ function tahsilatlariAdisyoyaIsle_() {
   var s = sonSatirlar_(ks, 'Siparişler', 8000, ['Tarih', 'Sipariş ID', 'Adisyon No', 'Sipariş Saati']), kmap = {};
   if (s) { var cs = { t: kolon_(s.b, ['Tarih']), id: kolon_(s.b, ['Sipariş ID']), no: kolon_(s.b, ['Adisyon No']), sa: kolon_(s.b, ['Sipariş Saati']) };
     s.v.forEach(function (r) { var id = siparisNo_(r[cs.id]); if (id) kmap[id] = { no: String(r[cs.no] || '').trim(), ms: zaman_(String(r[cs.t]).trim() + ' ' + String(r[cs.sa] || '').trim()) }; }); }
-  var as = SpreadsheetApp.openById(KAYNAK.siparis.id), ash = as.getSheetByName('Satıs Verileri'); if (!ash) throw new Error("Adisyo'da 'Satıs Verileri' yok");
+  var as = tabloAc_(KAYNAK.siparis.id), ash = as.getSheetByName('Satıs Verileri'); if (!ash) throw new Error("Adisyo'da 'Satıs Verileri' yok");
   var a = sonSatirlar_(as, 'Satıs Verileri', 8000, ['Sipariş ID', 'Sipariş No', 'Sipariş Tarihi', 'Ödeme Alındı']);
   var son = ash.getLastRow(), ilk = son - a.v.length + 1, c = { id: kolon_(a.b, ['Sipariş ID']), no: kolon_(a.b, ['Sipariş No']), t: kolon_(a.b, ['Sipariş Tarihi']), od: kolon_(a.b, ['Ödeme Alındı']) };
   if (c.od < 0) throw new Error("Adisyo'da 'Ödeme Alındı' sütunu bulunamadı");
@@ -3779,14 +3803,14 @@ function ayniKurye_(a, b) {
 function kuryeEslestirme_() {
   var simdi = simdi_(), bugun = isGunu_(simdi), bas = gunEkle_(bugun, -ESLESTIRME_GUN);
   // Kurye sistemi: sipariş no → [{ms, kurye, platform}]
-  var ks = sonSatirlar_(SpreadsheetApp.openById(KAYNAK.kurye.id), 'Siparişler', 6000, ['Tarih', 'Adisyon No', 'Kurye', 'Platform', 'Sipariş Saati', 'Durum']);
+  var ks = sonSatirlar_(tabloAc_(KAYNAK.kurye.id), 'Siparişler', 6000, ['Tarih', 'Adisyon No', 'Kurye', 'Platform', 'Sipariş Saati', 'Durum']);
   var kno = {}, kAdlar = {};
   if (ks) { var ck = { tarih: kolon_(ks.b, ['Tarih']), no: kolon_(ks.b, ['Adisyon No']), kurye: kolon_(ks.b, ['Kurye']), plat: kolon_(ks.b, ['Platform']), sip: kolon_(ks.b, ['Sipariş Saati']), durum: kolon_(ks.b, ['Durum']) };
     ks.v.forEach(function (r) { var no = String(r[ck.no] || '').trim(), ms = zaman_(String(r[ck.tarih]).trim() + ' ' + String(r[ck.sip] || '').trim()); if (!no || ms === null) return;
       if (iptalMi_(r[ck.durum])) return; var ad = String(r[ck.kurye] || '').trim(); if (ad) kAdlar[ad] = 1;
       (kno[no] = kno[no] || []).push({ ms: ms, kurye: ad, platform: r[ck.plat] || '' }); }); }
   // Adisyo
-  var ss = SpreadsheetApp.openById(KAYNAK.siparis.id), sh = ss.getSheetByName('Satıs Verileri'); if (!sh) throw new Error("Adisyo dosyasında 'Satıs Verileri' yok");
+  var ss = tabloAc_(KAYNAK.siparis.id), sh = ss.getSheetByName('Satıs Verileri'); if (!sh) throw new Error("Adisyo dosyasında 'Satıs Verileri' yok");
   var son = sh.getLastRow(), k = Math.min(6000, son - 1);
   var ok = sonSatirlar_(ss, 'Satıs Verileri', 6000, ['Sipariş ID', 'Sipariş No', 'Sipariş Tarihi', 'Sipariş Tipi', 'Masa Siparişi', 'Sipariş Kanalı', 'Şube', 'Kurye', 'Durum']);
   if (!ok) return { bos: [], farkli: [], eslesmeyen: [], ozet: { paket: 0, eslesen: 0, bos: 0, farkli: 0, eslesmeyen: 0 }, kuryeler: [] };
@@ -3823,12 +3847,12 @@ function kuryeEslestirme_() {
 
 // "Böyle kalsın" denen siparişler kurye tablosundaki 'Kurye Eşleştirme' sekmesinde tutulur (bir daha sorulmaz).
 function eslestirmeKaydi_() {
-  var ss = SpreadsheetApp.openById(KAYNAK.kurye.id), sh = ss.getSheetByName('Kurye Eşleştirme');
+  var ss = tabloAc_(KAYNAK.kurye.id), sh = ss.getSheetByName('Kurye Eşleştirme');
   if (!sh) { sh = ss.insertSheet('Kurye Eşleştirme'); sh.appendRow(['Zaman', 'Adisyo Sipariş ID', 'Sipariş No', 'Sipariş Tarihi', 'Adisyo Kuryesi (önce)', 'Yeni Kurye', 'İşlem', 'Kaynak']); sh.setFrozenRows(1); }
   return sh;
 }
 function eslestirmeKararlari_() {
-  var out = {}, t = sonSatirlar_(SpreadsheetApp.openById(KAYNAK.kurye.id), 'Kurye Eşleştirme', 5000); if (!t) return out;
+  var out = {}, t = sonSatirlar_(tabloAc_(KAYNAK.kurye.id), 'Kurye Eşleştirme', 5000); if (!t) return out;
   var ci = kolon_(t.b, ['Adisyo Sipariş ID']), cl = kolon_(t.b, ['İşlem']);
   t.v.forEach(function (r) { if (/kalsın|kalsin/i.test(r[cl] || '')) out[String(r[ci]).trim()] = 1; });
   return out;
@@ -3847,7 +3871,7 @@ function adisyoKuryeYaz_(sh, c, kayit, yeni, islem, kaynak, iz) {
 
 // Panelden: { islem: 'doldur' | 'duzelt' | 'kalsin' | 'ata', id, kurye }. 'doldur' bütün boşları kurye sistemindeki adla doldurur.
 function kuryeEslestirIslem_(d, kaynak, hazir) {
-  var e = hazir || kuryeEslestirme_(), sh = SpreadsheetApp.openById(KAYNAK.siparis.id).getSheetByName('Satıs Verileri'), iz = eslestirmeKaydi_();
+  var e = hazir || kuryeEslestirme_(), sh = tabloAc_(KAYNAK.siparis.id).getSheetByName('Satıs Verileri'), iz = eslestirmeKaydi_();
   var b = sh.getRange(1, 1, 1, sh.getLastColumn()).getDisplayValues()[0], c = { id: kolon_(b, ['Sipariş ID']), kurye: kolon_(b, ['Kurye']) };
   var bul = function (l) { return l.filter(function (x) { return x.id === String(d.id || '').trim(); })[0]; };
   if (d.islem === 'doldur') { var n = 0; e.bos.forEach(function (x) { if (adisyoKuryeYaz_(sh, c, x, x.oneri, 'Boş dolduruldu', kaynak || 'Panel', iz)) n++; }); return { tamam: true, yazilan: n }; }
@@ -3880,10 +3904,31 @@ function gunStr_(v) { var ms = zaman_(v); return ms === null ? null : new Date(m
 // basliklar verilirse yalnız o sütunlar okunur (uzun metin sütunları atlanır; büyük sekmede çok daha hızlı).
 // Satırlar yine tam genişlikte döner, okunmayan hücreler boş kalır; kolon_ ile bulunan sıra numaraları değişmez.
 function sonSatirlar_(ss, ad, n, basliklar) {
+  if (!OKUMA_BELLEK) return sonSatirlarOku_(ss, ad, n, basliklar);
+  var istenen = n, anahtar = ss.getId() + '|' + ad, m = OKUMA_BELLEK.sekme[anahtar];
+  if (m === null) return null;
+  if (m) {
+    var k = Math.min(n, m.son - 1);
+    var sutunVar = m.hepsi || (basliklar && basliklar.every(function (h) { var i = kolon_(m.b, [h]); return i < 0 || m.sutun[i]; }));
+    if (k <= m.k && sutunVar) { OKUMA_BELLEK.bellekten++; return { b: m.b, v: k === m.k ? m.v : m.v.slice(m.k - k) }; }
+    // Kapsamıyor: öncekiyle birleşik (daha çok satır, iki sütun kümesi) bir kez okunur, sonrakiler bundan karşılanır.
+    if (m.hepsi || !basliklar) basliklar = null;
+    else basliklar = basliklar.concat(m.b.filter(function (h, i) { return m.sutun[i]; }));
+    n = Math.max(n, m.k);
+  }
+  var t = sonSatirlarOku_(ss, ad, n, basliklar);
+  OKUMA_BELLEK.okunan++;
+  if (!t) { OKUMA_BELLEK.sekme[anahtar] = null; return null; }
+  var sutun = {}; if (basliklar) basliklar.forEach(function (h) { var i = kolon_(t.b, [h]); if (i >= 0) sutun[i] = 1; });
+  OKUMA_BELLEK.sekme[anahtar] = { b: t.b, v: t.v, k: t.v.length, son: t.son, hepsi: !basliklar, sutun: sutun };
+  var kk = Math.min(istenen, t.v.length);
+  return { b: t.b, v: kk === t.v.length ? t.v : t.v.slice(t.v.length - kk) };
+}
+function sonSatirlarOku_(ss, ad, n, basliklar) {
   var sh = ss.getSheetByName(ad); if (!sh) return null;
   var son = sh.getLastRow(), gen = sh.getLastColumn(); if (son < 2) return null;
   var k = Math.min(n, son - 1), b = sh.getRange(1, 1, 1, gen).getDisplayValues()[0];
-  if (!basliklar) return { b: b, v: sh.getRange(son - k + 1, 1, k, gen).getDisplayValues() };
+  if (!basliklar) return { b: b, v: sh.getRange(son - k + 1, 1, k, gen).getDisplayValues(), son: son };
   var idx = []; basliklar.forEach(function (h) { var i = kolon_(b, [h]); if (i >= 0 && idx.indexOf(i) < 0) idx.push(i); });
   idx.sort(function (x, y) { return x - y; });
   var v = []; for (var r = 0; r < k; r++) { var bos = []; bos.length = gen; v.push(bos); }
@@ -3893,7 +3938,7 @@ function sonSatirlar_(ss, ad, n, basliklar) {
     var blok = sh.getRange(son - k + 1, bas + 1, k, bit - bas + 1).getDisplayValues();
     for (r = 0; r < k; r++) for (var c = bas; c <= bit; c++) v[r][c] = blok[r][c - bas];
   }
-  return { b: b, v: v };
+  return { b: b, v: v, son: son };
 }
 
 /* ---------------- Sahibin panelden verdiği cevaplar ---------------- */
@@ -3994,7 +4039,7 @@ function doPost(e) {
 }
 
 function finansSoruCevapla_(d, cevap) {
-  var sh = SpreadsheetApp.openById(KAYNAK.gider.id).getSheetByName('Eksikler & Sorular');
+  var sh = tabloAc_(KAYNAK.gider.id).getSheetByName('Eksikler & Sorular');
   if (!sh) return { hata: "'Eksikler & Sorular' sekmesi bulunamadı." };
   var v = sh.getDataRange().getDisplayValues(), b = v[0];
   var cK = kolon_(b, ['Konu']), cC = kolon_(b, ['Cevap']);
@@ -4028,7 +4073,7 @@ function toptanciOdemeGir_(d) {
   var onceki = istek ? cache.get('odeme_' + istek) : null;
   if (onceki) { try { var o = JSON.parse(onceki); o.zatenKayitli = true; return o; } catch (err) { return { tamam: true, zatenKayitli: true }; } }
 
-  var ss = SpreadsheetApp.openById(KAYNAK.fatura.id);
+  var ss = tabloAc_(KAYNAK.fatura.id);
   // Toptancı adı Tedarikciler listesindekiyle birebir aynı yazılmalı, yoksa borçtan düşülmez.
   var td = satirlar_(ss, 'Tedarikciler'), dG = kolon_(td.b, ['Tedarikçi']), aranan = norm_(d.tedarikci), ad = '';
   td.r.forEach(function (r) { var x = String(r[dG] || '').trim(); if (x && norm_(x) === aranan) ad = x; });
@@ -4100,7 +4145,7 @@ function toptanciOdemeGir_(d) {
 // Tüm panel cevaplarının ortak kaydı. İlk cevapta dosya kendiliğinden oluşturulur.
 function cevapKaydet_(bolum, kaynak, satir, konu, cevap, damga) {
   var p = PropertiesService.getScriptProperties(), id = p.getProperty('CEVAP_DOSYASI'), ss;
-  if (id) { try { ss = SpreadsheetApp.openById(id); } catch (err) { ss = null; } }
+  if (id) { try { ss = tabloAc_(id); } catch (err) { ss = null; } }
   if (!ss) {
     ss = SpreadsheetApp.create('BAP Panel Cevapları');
     var s0 = ss.getSheets()[0]; s0.setName('Cevaplar');
