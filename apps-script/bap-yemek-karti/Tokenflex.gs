@@ -27,8 +27,13 @@ function tfIstek_(yol, govde, token) {
 function tfGiris_() {
   var p = PropertiesService.getScriptProperties(), k = p.getProperty('TOKENFLEX_KULLANICI'), s = p.getProperty('TOKENFLEX_SIFRE');
   if (!k || !s) throw new Error('Tokenflex: Komut dosyası özelliklerine TOKENFLEX_KULLANICI ve TOKENFLEX_SIFRE girilmeli');
+  // 08.10'dan beri giriş SMS doğrulaması istiyor (yanıtta twoFactorData; SMS'siz anahtarla işyeri verisi 'Un_Authorized_User_For_This_Merchant').
+  // Her deneme sahibine SMS gönderdiği için doğrulama gerektiği görülünce 12 saat yeniden denenmez (TOKENFLEX_2FA özelliği).
+  var bekle = Number(p.getProperty('TOKENFLEX_2FA') || 0);
+  if (bekle && Date.now() - bekle < 12 * 3600000) throw new Error('Tokenflex SMS doğrulaması istiyor; SMS göndermemek için 12 saat denenmiyor (TOKENFLEX_2FA)');
   var d = tfIstek_('Authentication/Login', { username: k, password: s, rememberMe: false });
-  if (!d || !d.token) throw new Error('Tokenflex girişte SMS / ek doğrulama istiyor (Google sunucusundan); MacBook programına taşınmalı');
+  if (d && d.twoFactorData) { p.setProperty('TOKENFLEX_2FA', String(Date.now())); throw new Error('Tokenflex girişte SMS doğrulaması istiyor (08.10\'dan beri); SMS adımı eklenene kadar çekim durdu'); }
+  if (!d || !d.token) throw new Error('Tokenflex girişte ek doğrulama istiyor');
   return d.token;
 }
 
