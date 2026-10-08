@@ -12,6 +12,15 @@
  *   4) Üretim, reçetenin standart partisinin katı olarak istenir: 0,5 · 1 · 1,5 · 2 … (yukarı yuvarlanır)
  *      Yarım parti bile raf ömrü içinde tüketilemiyorsa tahmini fireyi not düşer.
  *   5) "BAP Mutfak Hazırlık Planı" dosyasına yazar + e-posta; dünkü plan ↔ gerçek karşılaştırması
+ * v1.5: SAPMA SEBEPLERİ. Dünkü her sapmaya otomatik sebep yazılır (genel yoğunluk / ürün tercihi /
+ *       toplu sipariş / takvim çarpanı / düzensiz talep / az veri …); mutfak "Sebep (elle)" sütununa
+ *       kendi sebebini yazabilir (yağmur, kampanya …), o öncelikli sayılır. Son 28 gün ürün bazında
+ *       Hazirlik_Sapma_Ozet + Hazirlik_Sapma_Sebep sekmelerinde ve mailde özetlenir.
+ *       İNCE TAHMİN: her şube × yarı mamul için (a) son günlerdeki sistematik sapmadan düzeltme çarpanı,
+ *       (b) talebin oynaklığına göre ayrı güvenlik payı (%5–%25) hesaplanır → "Düzeltmeli Plan".
+ *       HP.DUZELTME_UYGULA = false iken KURU: plan eski yöntemle çıkar, düzeltmeli plan yalnızca yan yana
+ *       kaydedilir ve mailde "eski yöntem sapması ↔ düzeltmeli sapma" gösterilir. Düzeltmeli daha iyiyse true yapılır.
+ *       Satış tablosu gecede bir kez okunur (doğruluk planın okumasını kullanır — D18).
  * v1.4: e-postanın sonuna dünkü plan ↔ gerçek satış karşılaştırması eklendi (eksik / fazla / satılmadı).
  * v1.3: eldeki hesabına Zayi_Girisleri (yarı mamul zayi) ve Transferler (şubeler arası) eklendi;
  *       gram girilmiş adet takipli sayımlar porsiyona çevrilir. Kaynak dosyalar yalnızca OKUNUR —
@@ -29,7 +38,14 @@ var HP = {
   SATIS_SEKME: 'Satıs Verileri',
   HAFTA: 8,                 // kaç hafta geriye bakılır
   YAKIN_HAFTA: 4,           // son kaç hafta 2 kat ağırlık alır
-  GUVENLIK: 0.10,           // %10 güvenlik payı
+  GUVENLIK: 0.10,           // %10 güvenlik payı (eski yöntem; düzeltmeli yöntemde az geçmişli ürünler için)
+  DUZELTME_UYGULA: false,   // false = KURU: düzeltmeli plan yalnızca kaydedilir. true = plan düzeltmeli hesaplanır
+  ANALIZ_GUN: 28,           // sapma analizi ve düzeltme çarpanı kaç günlük doğruluk kaydına bakar
+  DUZ_MIN_GUN: 4,           // düzeltme çarpanı için en az kaç günlük kayıt
+  DUZ_ALT: 0.70, DUZ_UST: 1.40, // düzeltme çarpanı sınırları
+  PAY_CV: 0.5,              // ürün güvenlik payı = oynaklık × 0,5 (raf ömrü kısa olduğu için düşük tutuldu)
+  PAY_ALT: 0.05, PAY_UST: 0.25,
+  TOPLU_ESIK: 0.30,         // tek sipariş, günün ihtiyacının %30'unu aşarsa "Toplu sipariş"
   GUN_BASLANGIC_SAAT: 5,    // 05:00'ten önceki siparişler bir önceki iş gününe sayılır
   DICE_ESIK: 0.82,          // satış adı ↔ reçete adı otomatik eşleşme eşiği
   KAT_ADIM: 0.5,            // üretim reçetenin 0,5 · 1 · 1,5 · 2 … katı olarak istenir
@@ -46,8 +62,15 @@ var HP = {
   TAKVIM: 'Hazirlik_Takvim',
   DOGRULUK: 'Hazirlik_Dogruluk',
   RAF: 'Hazirlik_Raf_Omru',
-  STOK: 'Hazirlik_Stok'
+  STOK: 'Hazirlik_Stok',
+  OZET: 'Hazirlik_Sapma_Ozet',
+  SEBEP: 'Hazirlik_Sapma_Sebep'
 };
+
+var HP_GECMIS_BASLIK = ['Tarih', 'Şube', 'Yarı Mamul', 'Birim', 'Plan (ihtiyaç)', 'Oluşturma', 'Eldeki', 'Üretilecek Kat',
+  'Ham Tahmin', 'Düzeltmeli Plan', 'Düzeltme Çarpanı', 'Güvenlik Payı %', 'Oynaklık %', 'Geçmiş Hafta', 'Beklenen Sipariş', 'Takvim Çarpanı'];
+var HP_DOGRULUK_BASLIK = ['Tarih', 'Şube', 'Yarı Mamul', 'Birim', 'Plan', 'Gerçek İhtiyaç', 'Üretilen (kayıt)', 'Sapma %', 'Değerlendirme',
+  'Ham Tahmin', 'Düzeltmeli Plan', 'Beklenen Sipariş', 'Gerçek Sipariş', 'Toplu Sipariş Payı %', 'Sebep (otomatik)', 'Sebep (elle)'];
 
 /* ============================ KURULUM ============================ */
 
@@ -60,12 +83,10 @@ function hp_kurulum() {
   hp_sekme_(ss, HP.PLAN, ['Tarih', 'Şube', 'Kategori', 'Yarı Mamul', 'Birim', 'Yarın İhtiyaç (pay dahil)',
     'Raf Ömrü İçi İhtiyaç', 'Eldeki (sistem)', 'Eldeki (mutfak düzeltir)', 'Net İhtiyaç', '1 Kat =',
     'Üretilecek Kat', 'Üretilecek Miktar', 'Not']);
-  hp_sekme_(ss, HP.GECMIS, ['Tarih', 'Şube', 'Yarı Mamul', 'Birim', 'Plan (ihtiyaç)', 'Oluşturma', 'Eldeki', 'Üretilecek Kat']);
-  var gsh = ss.getSheetByName(HP.GECMIS);
-  if (gsh.getLastColumn() < 8) gsh.getRange(1, 7, 1, 2).setValues([['Eldeki', 'Üretilecek Kat']]).setFontWeight('bold').setBackground('#222').setFontColor('#fff');
+  hp_basliklarTamam_(hp_sekme_(ss, HP.GECMIS, HP_GECMIS_BASLIK), HP_GECMIS_BASLIK);
   hp_sekme_(ss, HP.ESLESME, ['Satış Adı', 'Reçete Adı', 'Durum (OTOMATİK / ELLE / YOK SAY / EŞLEŞMEDİ)', 'Benzerlik', 'Öneri', 'Son Görülme']);
   hp_sekme_(ss, HP.TAKVIM, ['Tarih (gg.aa.yyyy)', 'Şube (Tümü / Erenköy / Fikirtepe)', 'Çarpan (örn 1,3)', 'Sebep']);
-  hp_sekme_(ss, HP.DOGRULUK, ['Tarih', 'Şube', 'Yarı Mamul', 'Birim', 'Plan', 'Gerçek İhtiyaç', 'Üretilen (kayıt)', 'Sapma %', 'Değerlendirme']);
+  hp_basliklarTamam_(hp_sekme_(ss, HP.DOGRULUK, HP_DOGRULUK_BASLIK), HP_DOGRULUK_BASLIK);
   hp_sekme_(ss, HP.RAF, ['Yarı Mamul', 'Kategori', 'Raf Ömrü (gün)', 'Kaynak (VARSAYILAN / ŞEF)', 'Not']);
   hp_sekme_(ss, HP.STOK, ['Hesap Tarihi', 'Şube', 'Yarı Mamul', 'Birim', 'Eldeki', 'Parti Sayısı', 'En Eski Parti', 'Raf Ömrü (gün)',
     'Son Sayım', 'Son 3 Gün Fire (tahmini)', 'Uyarı']);
@@ -81,10 +102,15 @@ function hp_kurulum() {
   Logger.log('Kurulum tamam. Plan dosyası: ' + ss.getUrl() + '  ·  her gece 23:30 hp_gunluk tetikleyicisi kuruldu.');
 }
 
+/** Gecelik: satış tablosu bir kez okunur; dünkü doğruluk + sebepler o okumadan, ardından plan ve mail */
 function hp_gunluk() {
-  var dog = null;
-  try { dog = hp_dogrulukKontrol(); } catch (e) { Logger.log('Doğruluk hatası: ' + e); }
-  hp_planOlustur(null, false, dog);
+  hp_planOlustur(null, false, true);
+}
+
+/** Elle: son 28 günün sapma özetini yeniden yazar (Hazirlik_Sapma_Ozet / _Sebep), satış tablosunu okumaz */
+function hp_sapmaAnalizi() {
+  var an = hp_sapmaAnaliz_(hp_cikti_());
+  Logger.log('Sapma özeti yazıldı: ' + an.ozetSay + ' kalem · düzeltme önerisi olan: ' + Object.keys(an.duz).length);
 }
 
 /** Belirli bir tarih için elle deneme: hp_testTarih('18.09.2026') */
@@ -94,8 +120,8 @@ function hp_testTarih(tarihStr) {
 
 /* ============================ PLAN ============================ */
 
-/** dog: hp_dogrulukKontrol() çıktısı — verilirse mailin sonuna "dünkü plan ↔ gerçek satış" eklenir */
-function hp_planOlustur(hedef, mailYok, dog) {
+/** dogrulukla: true ise aynı satış okumasından dünkü doğruluk + sebepler yazılır ve maile eklenir */
+function hp_planOlustur(hedef, mailYok, dogrulukla) {
   var ss = hp_cikti_();
   if (!hedef) hedef = new Date(Date.now() + 864e5);
   var D = hp_gunKey_(hedef);
@@ -117,10 +143,18 @@ function hp_planOlustur(hedef, mailYok, dog) {
   for (var g = pencereBas; g <= bugun; g = hp_keyEkle_(g, 1)) { pencere.push(g); istenen[g] = 1; }
   var talep = hp_talep_(ctx, Object.keys(istenen));
 
+  // Dünkü doğruluk aynı okumadan (dün = bugun − 1, stok penceresinin içinde); hata planı durdurmaz
+  var dog = null;
+  if (dogrulukla) {
+    try { dog = hp_dogrulukKontrol(null, { talep: talep, ctx: ctx }); } catch (e) { Logger.log('Doğruluk hatası: ' + e); }
+  }
+  var an = { duz: {}, sube: {} };
+  try { an = hp_sapmaAnaliz_(ss); } catch (e) { Logger.log('Sapma analizi hatası: ' + e); }
+
   var takvim = {};
   tahminGunleri.forEach(function (X) { takvim[X] = hp_takvim_(ss, X); });
-  var tahmin = {};  // X → sube → ym → {ort, tavan}
-  tahminGunleri.forEach(function (X) { tahmin[X] = hp_tahmin_(talep, X, takvim[X]); });
+  var tahmin = {};  // X → sube → ym → {ort, ham, plan, duzPlan, …}
+  tahminGunleri.forEach(function (X) { tahmin[X] = hp_tahmin_(talep, X, takvim[X], an.duz); });
 
   // STOK SORGUSU (Stok & Satın Alma ajanının hizmeti — şimdilik burada hesaplanır)
   var stok = hp_stokSorgu_(ctx, raf, talep, pencere, D);
@@ -135,7 +169,8 @@ function hp_planOlustur(hedef, mailYok, dog) {
     Object.keys(ymler).forEach(function (ym) {
       var info = ctx.ym[ym]; if (!info) return;
       var R = Math.min(raf[ym] || 2, 6);
-      var yarin = ((tahmin[D][sube] || {})[ym] || { plan: 0 }).plan;
+      var tY = (tahmin[D][sube] || {})[ym] || null;
+      var yarin = tY ? tY.plan : 0;
       var rafIci = 0;
       for (var j = 0; j < R && j < tahminGunleri.length; j++) rafIci += ((tahmin[tahminGunleri[j]][sube] || {})[ym] || { plan: 0 }).plan;
       var st = (stok[sube] || {})[ym] || { eldeki: 0, partiler: [], uyari: '' };
@@ -155,9 +190,12 @@ function hp_planOlustur(hedef, mailYok, dog) {
       }
       if (st.uyari) not.push(st.uyari);
       if (takvim[D]._not) not.push('Takvim: ' + takvim[D]._not);
+      if (HP.DUZELTME_UYGULA && tY && Math.abs(tY.f - 1) >= 0.05)
+        not.push('Düzeltme ×' + String(Math.round(tY.f * 100) / 100).replace('.', ',') + ' (son günlerde hep ' + (tY.f < 1 ? 'fazla' : 'eksik') + ' çıktı)');
       var yuv = info.planBirim === 'adet' ? 1 : 10;
       liste.push({ ym: info.ad, kat: info.kategori || '', birim: info.planBirim, yarin: yarin, rafIci: rafIci,
-        eldeki: st.eldeki, net: net, base: info.base, uretKat: kat, not: not.join(' · ') });
+        eldeki: st.eldeki, net: net, base: info.base, uretKat: kat, not: not.join(' · '), t: tY,
+        sip: (tahmin[D]._siparis || {})[sube] || 0, carpan: (takvim[D]['Tümü'] || 1) * (takvim[D][sube] || 1) });
       stokSatir.push([hp_gosterTarih_(D), sube, info.ad, info.planBirim, hp_yuv_(st.eldeki, yuv), st.partiler.length,
         st.partiler.length ? hp_gosterTarih_(st.partiler[0].t) : '', R, st.sayim || '', hp_yuv_(st.fire || 0, yuv), st.uyari || '']);
     });
@@ -167,7 +205,13 @@ function hp_planOlustur(hedef, mailYok, dog) {
       var yuv = r.birim === 'adet' ? 1 : 10;
       satirlar.push([hp_gosterTarih_(D), sube, r.kat, r.ym, r.birim, Math.ceil(r.yarin / yuv) * yuv, Math.ceil(r.rafIci / yuv) * yuv,
         hp_yuv_(r.eldeki, yuv), '', '', r.base || '', '', '', r.not]);
-      gecmis.push([hp_gosterTarih_(D), sube, r.ym, r.birim, Math.ceil(r.yarin / yuv) * yuv, new Date(), hp_yuv_(r.eldeki, yuv), r.uretKat]);
+      var t = r.t || {};
+      gecmis.push({ 'Tarih': hp_gosterTarih_(D), 'Şube': sube, 'Yarı Mamul': r.ym, 'Birim': r.birim,
+        'Plan (ihtiyaç)': Math.ceil(r.yarin / yuv) * yuv, 'Oluşturma': new Date(), 'Eldeki': hp_yuv_(r.eldeki, yuv), 'Üretilecek Kat': r.uretKat,
+        'Ham Tahmin': hp_yuv_(t.ham || 0, yuv), 'Düzeltmeli Plan': Math.ceil((t.duzPlan || 0) / yuv) * yuv,
+        'Düzeltme Çarpanı': t.f != null ? Math.round(t.f * 100) / 100 : '', 'Güvenlik Payı %': t.pay != null ? Math.round(t.pay * 100) : '',
+        'Oynaklık %': t.cv != null ? Math.round(t.cv * 100) : '', 'Geçmiş Hafta': t.hafta != null ? t.hafta : '',
+        'Beklenen Sipariş': Math.round(r.sip), 'Takvim Çarpanı': r.carpan });
     });
   });
 
@@ -189,37 +233,58 @@ function hp_planOlustur(hedef, mailYok, dog) {
     sh.getRange(2, 9, satirlar.length, 1).setBackground('#FFF8E1');
   }
   var gs = ss.getSheetByName(HP.GECMIS);
-  if (gs && gecmis.length) { hp_gecmisTemizle_(gs, hp_gosterTarih_(D)); gs.getRange(gs.getLastRow() + 1, 1, gecmis.length, 8).setValues(gecmis); }
+  if (gs && gecmis.length) { hp_gecmisTemizle_(gs, hp_gosterTarih_(D)); hp_satirEkle_(gs, hp_basliklarTamam_(gs, HP_GECMIS_BASLIK), gecmis); }
   var ss2 = hp_sekme_(ss, HP.STOK, []);
   if (ss2.getLastRow() > 1) ss2.getRange(2, 1, ss2.getLastRow() - 1, 11).clearContent();
   if (stokSatir.length) ss2.getRange(2, 1, stokSatir.length, 11).setValues(stokSatir);
   hp_eslesmeYaz_(ss, ctx);
   hp_rafDoldur_(ss, ctx);
 
-  if (!mailYok) hp_mail_(D, mailVeri, ctx, takvim[D], dog);
+  if (!mailYok) hp_mail_(D, mailVeri, ctx, takvim[D], dog, an);
   var uretSay = 0;
   Object.keys(mailVeri).forEach(function (sb) { mailVeri[sb].forEach(function (x) { if (x.uretKat > 0) uretSay++; }); });
   Logger.log('Plan ' + hp_gosterTarih_(D) + ': ' + satirlar.length + ' kalem, üretim istenen ' + uretSay + ' · eşleşmeyen ürün: ' + Object.keys(ctx.eslesmeyen).length);
   return mailVeri;
 }
 
-/** X günü için şube × YM tahmini (ağırlıklı aynı gün ortalaması × takvim × güvenlik) */
-function hp_tahmin_(talep, X, takvim) {
-  var out = {};
+/**
+ * X günü için şube × YM tahmini.
+ *   ham     = ağırlıklı aynı gün ortalaması × takvim
+ *   eski    = ham × (1 + %10)
+ *   duzPlan = ham × düzeltme çarpanı (son günlerin sistematik sapması) × (1 + ürünün oynaklığına göre pay)
+ *   plan    = HP.DUZELTME_UYGULA ? duzPlan : eski
+ * out._siparis[sube] = beklenen sipariş sayısı (sapma sebebinde "genel yoğunluk" ayrımı için)
+ */
+function hp_tahmin_(talep, X, takvim, duz) {
+  var out = { _siparis: {} };
   HP.SUBELER.forEach(function (sube) {
-    var toplam = {}, agirlik = 0, tavan = {};
+    var toplam = {}, kare = {}, hafta = {}, agirlik = 0, tavan = {}, sip = 0;
     for (var k = 1; k <= HP.HAFTA; k++) {
       var key = hp_keyEkle_(X, -7 * k), w = k <= HP.YAKIN_HAFTA ? 2 : 1;
-      if (!((talep._siparis[key] || {})[sube])) continue; // kapalı / henüz yaşanmamış gün
-      agirlik += w;
+      var sipK = (talep._siparis[key] || {})[sube];
+      if (!sipK) continue; // kapalı / henüz yaşanmamış gün
+      agirlik += w; sip += sipK * w;
       var m = (talep[key] || {})[sube] || {};
-      Object.keys(m).forEach(function (ym) { toplam[ym] = (toplam[ym] || 0) + m[ym] * w; tavan[ym] = Math.max(tavan[ym] || 0, m[ym]); });
+      Object.keys(m).forEach(function (ym) {
+        toplam[ym] = (toplam[ym] || 0) + m[ym] * w;
+        kare[ym] = (kare[ym] || 0) + m[ym] * m[ym] * w;
+        if (m[ym] > 0) hafta[ym] = (hafta[ym] || 0) + 1;
+        tavan[ym] = Math.max(tavan[ym] || 0, m[ym]);
+      });
     }
     var carpan = (takvim['Tümü'] || 1) * (takvim[sube] || 1);
+    out._siparis[sube] = agirlik ? sip / agirlik * carpan : 0;
     out[sube] = {};
     Object.keys(toplam).forEach(function (ym) {
       var ort = agirlik ? toplam[ym] / agirlik : 0;
-      out[sube][ym] = { ort: ort, plan: ort * carpan * (1 + HP.GUVENLIK), tavan: tavan[ym] || 0 };
+      var vr = agirlik ? kare[ym] / agirlik - ort * ort : 0;  // satış olmayan haftalar 0 sayılır
+      var cv = ort > 0 ? Math.sqrt(Math.max(0, vr)) / ort : 0;
+      var n = hafta[ym] || 0, ham = ort * carpan;
+      var f = ((duz || {})[sube + '|' + ym] || {}).f || 1;
+      var pay = n >= 4 ? Math.min(HP.PAY_UST, Math.max(HP.PAY_ALT, cv * HP.PAY_CV)) : HP.GUVENLIK;
+      var eski = ham * (1 + HP.GUVENLIK), duzPlan = ham * f * (1 + pay);
+      out[sube][ym] = { ort: ort, ham: ham, plan: HP.DUZELTME_UYGULA ? duzPlan : eski, duzPlan: duzPlan,
+        f: f, pay: pay, cv: cv, hafta: n, tavan: tavan[ym] || 0 };
     });
   });
   return out;
@@ -410,41 +475,206 @@ function hp_rafDoldur_(ss, ctx) {
   if (yeni.length) sh.getRange(sh.getLastRow() + 1, 1, yeni.length, 5).setValues(yeni);
 }
 
-/* ============================ DOĞRULUK ============================ */
+/* ============================ DOĞRULUK + SAPMA SEBEPLERİ ============================ */
 
-function hp_dogrulukKontrol(tarih) {
+/**
+ * Dünkü plan ↔ gerçek. Her satıra otomatik sebep yazar; aynı gün yeniden çalışırsa "Sebep (elle)" korunur.
+ * hazir: { talep, ctx } verilirse satış tablosu yeniden okunmaz (gecelik çalışma).
+ * Dönüş: satır nesneleri (mail için).
+ */
+function hp_dogrulukKontrol(tarih, hazir) {
   var ss = hp_cikti_();
   var dunKey = tarih ? hp_gunKey_(tarih) : hp_keyEkle_(hp_gunKey_(new Date()), -1);
-  var ctx = hp_context_();
-  var talep = hp_talep_(ctx, [dunKey]);
+  var ctx = hazir ? hazir.ctx : hp_context_();
+  var talep = hazir ? hazir.talep : hp_talep_(ctx, [dunKey]);
   var gTarih = hp_gosterTarih_(dunKey);
 
-  var plan = {};
-  var g = ss.getSheetByName(HP.GECMIS);
-  if (g && g.getLastRow() > 1) g.getRange(2, 1, g.getLastRow() - 1, 5).getDisplayValues().forEach(function (r) {
-    if (r[0] === gTarih) plan[r[1] + '|' + hp_n_(r[2])] = hp_sayi_(r[4]);
+  // o gecenin planı (Hazirlik_Plan_Gecmis) — başlık adıyla okunur
+  var plan = {}, planSube = {};
+  var g = hp_tabloOku_(ss.getSheetByName(HP.GECMIS));
+  if (g) g.rows.forEach(function (r) {
+    if (hp_hucreKey_(r[g.i.tarih]) !== dunKey) return;
+    var sube = hp_subeCoz_(r[g.i.sube], ''); if (!sube) return;
+    var al = function (ad) { return g.i[ad] != null ? r[g.i[ad]] : ''; };
+    var pl = hp_sayi_(al('planihtiyac'));
+    plan[sube + '|' + hp_n_(r[g.i.yarimamul])] = {
+      pl: pl, ham: al('hamtahmin') === '' ? pl / (1 + HP.GUVENLIK) : hp_sayi_(al('hamtahmin')),
+      duz: al('duzeltmeliplan') === '' ? '' : hp_sayi_(al('duzeltmeliplan')),
+      sip: hp_sayi_(al('beklenensiparis')), takvim: hp_sayi_(al('takvimcarpani')) || 1,
+      cv: al('oynaklik') === '' ? null : hp_sayi_(al('oynaklik')) / 100,
+      hafta: al('gecmishafta') === '' ? null : hp_sayi_(al('gecmishafta'))
+    };
+    planSube[sube] = 1;
   });
   var uretim = (hp_uretimGunluk_(hp_stokDosya_(), ctx, [dunKey])[dunKey]) || {};
+
+  var d = ss.getSheetByName(HP.DOGRULUK) || hp_sekme_(ss, HP.DOGRULUK, HP_DOGRULUK_BASLIK);
+  var idx = hp_basliklarTamam_(d, HP_DOGRULUK_BASLIK);
+  // aynı gün yeniden hesaplanıyorsa mutfağın / sahibin yazdığı sebebi koru
+  var elle = {};
+  var eski = hp_tabloOku_(d);
+  if (eski && eski.i.sebepelle != null) eski.rows.forEach(function (r) {
+    if (hp_hucreKey_(r[eski.i.tarih]) === dunKey && r[eski.i.sebepelle] !== '') elle[r[eski.i.sube] + '|' + hp_n_(r[eski.i.yarimamul])] = r[eski.i.sebepelle];
+  });
 
   var anahtarlar = {};
   Object.keys(plan).forEach(function (k) { anahtarlar[k] = 1; });
   HP.SUBELER.forEach(function (s) {
     Object.keys(((talep[dunKey] || {})[s]) || {}).forEach(function (ym) { anahtarlar[s + '|' + ym] = 1; });
   });
-  var out = [];
+  var out = [], yaz = [];
   Object.keys(anahtarlar).forEach(function (k) {
     var p = k.split('|'), sube = p[0], ym = p[1], info = ctx.ym[ym];
     if (!info) return;
-    var pl = plan[k] || 0, ger = (((talep[dunKey] || {})[sube]) || {})[ym] || 0, ur = uretim[k] || '';
-    var planVar = plan.hasOwnProperty(k);
-    var sap = planVar && ger ? (pl - ger) / ger : '';
-    var deg = !planVar ? 'Plan yok' : (sap === '' ? '' : (sap < -0.05 ? 'EKSİK planlandı' : (sap > 0.35 ? 'Fazla planlandı' : 'Uygun')));
-    out.push([gTarih, sube, info.ad, info.planBirim, pl, hp_yuv_(ger, info.planBirim === 'adet' ? 1 : 10), ur, sap === '' ? '' : Math.round(sap * 100), deg]);
+    var P = plan[k] || null;
+    var pl = P ? P.pl : 0, ger = (((talep[dunKey] || {})[sube]) || {})[ym] || 0, ur = uretim[k] || '';
+    var sap = P && ger ? (pl - ger) / ger : '';
+    var deg = !P ? 'Plan yok' : (sap === '' ? (pl > 0 ? 'Satılmadı' : '') : (sap < -0.05 ? 'EKSİK planlandı' : (sap > 0.35 ? 'Fazla planlandı' : 'Uygun')));
+    var sipG = ((talep._siparis || {})[dunKey] || {})[sube] || 0;
+    var tepe = ((((talep._tepe || {})[dunKey] || {})[sube]) || {})[ym] || 0;
+    var toplu = ger ? tepe / ger : 0;
+    var sebep = hp_sebep_({ deg: deg, pl: pl, ger: ger, P: P, sipG: sipG, toplu: toplu, planVar: !!planSube[sube] });
+    var yuv = info.planBirim === 'adet' ? 1 : 10;
+    var satir = { sube: sube, ym: info.ad, birim: info.planBirim, pl: pl, ger: hp_yuv_(ger, yuv), ur: ur,
+      sap: sap === '' ? '' : Math.round(sap * 100), deg: deg, sebep: elle[k] || sebep };
+    out.push(satir);
+    yaz.push({ 'Tarih': gTarih, 'Şube': sube, 'Yarı Mamul': info.ad, 'Birim': info.planBirim, 'Plan': pl,
+      'Gerçek İhtiyaç': satir.ger, 'Üretilen (kayıt)': ur, 'Sapma %': satir.sap, 'Değerlendirme': deg,
+      'Ham Tahmin': P ? hp_yuv_(P.ham, yuv) : '', 'Düzeltmeli Plan': P && P.duz !== '' ? P.duz : '',
+      'Beklenen Sipariş': P && P.sip ? P.sip : '', 'Gerçek Sipariş': sipG,
+      'Toplu Sipariş Payı %': toplu ? Math.round(toplu * 100) : '', 'Sebep (otomatik)': sebep, 'Sebep (elle)': elle[k] || '' });
   });
-  var d = ss.getSheetByName(HP.DOGRULUK) || hp_sekme_(ss, HP.DOGRULUK, []);
   hp_gecmisTemizle_(d, gTarih);
-  if (out.length) d.getRange(d.getLastRow() + 1, 1, out.length, 9).setValues(out);
+  hp_satirEkle_(d, idx, yaz);
+  out.tarih = gTarih;
   return out;
+}
+
+/**
+ * Bir sapmanın en olası sebebi. Sıra önemlidir: önce veriyle kanıtlanabilenler (toplu sipariş, takvim,
+ * genel yoğunluk), sonra ürünün kendi özelliği (düzensiz talep, az veri), en son "ürün tercihi değişti".
+ * Metin "Etiket: ayrıntı" biçimindedir; özet etikete göre sayar.
+ */
+function hp_sebep_(o) {
+  var P = o.P;
+  if (o.deg === 'Uygun' || o.deg === '') return '';
+  if (o.deg === 'Plan yok') return o.planVar ? 'Yeni / nadir ürün: aynı gün geçmiş haftalarda satışı yoktu, plana girmedi'
+                                             : 'Plan oluşmadı: o gece ajan plan yazamadı';
+  if (!o.ger) return P && P.hafta != null && P.hafta <= 3 ? 'Nadir ürün: son 8 haftanın ' + P.hafta + '\'inde satılmış'
+                                                          : 'Hiç satılmadı: menüden kalkmış ya da satış adı eşleşmiyor olabilir';
+  var fazlaGeldi = o.ger > o.pl; // talep plandan fazla
+  if (o.toplu >= HP.TOPLU_ESIK) return 'Toplu sipariş: tek sipariş günün %' + Math.round(o.toplu * 100) + '\'i';
+  if (P && Math.abs(P.takvim - 1) > 0.01 && (P.takvim > 1) !== fazlaGeldi)
+    return 'Takvim çarpanı tutmadı: ×' + String(P.takvim).replace('.', ',') + ' girilmişti';
+  var sOran = P && P.sip ? o.sipG / P.sip : 0, uOran = P && P.ham ? o.ger / P.ham : 0;
+  function yuzde(x) { var v = Math.round((x - 1) * 100); return (v > 0 ? '+' : '') + v + '%'; }
+  if (sOran && Math.abs(sOran - 1) >= 0.15 && (sOran > 1) === fazlaGeldi && Math.abs(uOran - sOran) < 0.2)
+    return 'Genel yoğunluk: sipariş sayısı beklenenin ' + yuzde(sOran) + ' (' + o.sipG + ' / ' + Math.round(P.sip) + ')';
+  if (P && P.cv != null && P.cv >= 0.5) return 'Düzensiz talep: bu üründe günden güne oynaklık %' + Math.round(P.cv * 100);
+  if (P && P.hafta != null && P.hafta <= 3) return 'Az geçmiş veri: son 8 haftanın ' + P.hafta + '\'inde satılmış';
+  if (sOran) return 'Ürün tercihi: sipariş sayısı ' + (Math.abs(sOran - 1) < 0.05 ? 'normal' : yuzde(sOran)) + ' iken bu ürün ' + yuzde(uOran);
+  return 'Belirlenemedi: plan eski sürümle yazılmış (sipariş beklentisi yok)';
+}
+
+/**
+ * Son HP.ANALIZ_GUN günün Hazirlik_Dogruluk satırlarından:
+ *   - şube × yarı mamul özeti → Hazirlik_Sapma_Ozet (her gece baştan yazılır)
+ *   - sebep dağılımı → Hazirlik_Sapma_Sebep
+ *   - duz: 'sube|ym' → { f, n }  düzeltme çarpanı = gerçek / ham tahmin oranlarının ortancası,
+ *     az kayıtta 1'e doğru çekilir ve [DUZ_ALT, DUZ_UST] ile sınırlanır. Toplu sipariş günleri hariç.
+ * Satış tablosunu okumaz.
+ */
+function hp_sapmaAnaliz_(ss) {
+  var sonuc = { duz: {}, sube: {}, ozetSay: 0 };
+  var t = hp_tabloOku_(ss.getSheetByName(HP.DOGRULUK));
+  if (!t) return sonuc;
+  var bitis = hp_gunKey_(new Date()), bas = hp_keyEkle_(bitis, -HP.ANALIZ_GUN);
+  var al = function (r, ad) { return t.i[ad] != null ? r[t.i[ad]] : ''; };
+  var grup = {}, sebepSay = {};
+  HP.SUBELER.forEach(function (s) { sebepSay[s] = {}; sonuc.sube[s] = { sapan: 0, toplam: 0, eskiHata: 0, yeniHata: 0, kiyasGer: 0, kiyasGun: 0 }; });
+
+  t.rows.forEach(function (r) {
+    var key = hp_hucreKey_(al(r, 'tarih'));
+    if (!key || key < bas || key >= bitis) return;
+    var sube = hp_subeCoz_(al(r, 'sube'), ''); if (!sonuc.sube[sube]) return;
+    var ymAd = String(al(r, 'yarimamul')), k = sube + '|' + hp_n_(ymAd);
+    var pl = hp_sayi_(al(r, 'plan')), ger = hp_sayi_(al(r, 'gercekihtiyac'));
+    if (!pl && !ger) return;
+    var deg = String(al(r, 'degerlendirme'));
+    var sebep = String(al(r, 'sebepelle') || al(r, 'sebepotomatik') || '');
+    var etiket = sebep ? (al(r, 'sebepelle') ? 'Elle: ' : '') + sebep.split(':')[0].trim() : (deg !== 'Uygun' ? 'Sebep kaydı yok (eski kayıt)' : '');
+    var G = grup[k] = grup[k] || { sube: sube, ad: ymAd, birim: String(al(r, 'birim')), gun: 0, pl: 0, ger: 0, mutlak: 0,
+      eksik: 0, fazla: 0, sebep: {}, oran: [], yeniMutlak: 0, eskiMutlakKiyas: 0, kiyasGer: 0 };
+    G.gun++; G.pl += pl; G.ger += ger; G.mutlak += Math.abs(pl - ger);
+    if (deg.indexOf('EKSİK') === 0 || deg === 'Plan yok') G.eksik++;
+    else if (deg.indexOf('Fazla') === 0 || deg === 'Satılmadı') G.fazla++;
+    var S = sonuc.sube[sube];
+    S.toplam++;
+    if (etiket) { G.sebep[etiket] = (G.sebep[etiket] || 0) + 1; sebepSay[sube][etiket] = (sebepSay[sube][etiket] || 0) + 1; S.sapan++; }
+    // düzeltme çarpanı için oran (plan yoksa / toplu siparişse / ham yoksa alınmaz)
+    var ham = al(r, 'hamtahmin') === '' ? (pl ? pl / (1 + HP.GUVENLIK) : 0) : hp_sayi_(al(r, 'hamtahmin'));
+    if (deg !== 'Plan yok' && ham > 0 && sebep.indexOf('Toplu sipariş') !== 0) G.oran.push({ key: key, o: ger / ham });
+    // eski ↔ düzeltmeli yöntem kıyası (yalnızca düzeltmeli planı kayıtlı günler)
+    var duz = al(r, 'duzeltmeliplan');
+    if (duz !== '' && deg !== 'Plan yok') {
+      G.yeniMutlak += Math.abs(hp_sayi_(duz) - ger); G.eskiMutlakKiyas += Math.abs(pl - ger); G.kiyasGer += ger;
+      S.yeniHata += Math.abs(hp_sayi_(duz) - ger) / (ger || 1); S.eskiHata += Math.abs(pl - ger) / (ger || 1); S.kiyasGun++;
+    }
+  });
+
+  var ozet = [];
+  Object.keys(grup).forEach(function (k) {
+    var G = grup[k];
+    var son = G.oran.sort(function (a, b) { return a.key < b.key ? 1 : -1; }).slice(0, 14).map(function (x) { return x.o; }).sort(function (a, b) { return a - b; });
+    var n = son.length, f = 1, durum = 'Az kayıt (' + n + ' gün)';
+    if (n >= HP.DUZ_MIN_GUN) {
+      var med = n % 2 ? son[(n - 1) / 2] : (son[n / 2 - 1] + son[n / 2]) / 2;
+      f = 1 + (med - 1) * n / (n + 4);
+      f = Math.min(HP.DUZ_UST, Math.max(HP.DUZ_ALT, f));
+      sonuc.duz[k] = { f: f, n: n };
+      durum = Math.abs(f - 1) < 0.05 ? 'Tahmin dengeli' : (f < 1 ? 'Sürekli fazla tahmin' : 'Sürekli eksik tahmin');
+    }
+    var enSik = '', enSay = 0;
+    Object.keys(G.sebep).forEach(function (s) { if (G.sebep[s] > enSay) { enSay = G.sebep[s]; enSik = s; } });
+    var yuv = G.birim === 'adet' ? 1 : 10;
+    G.bias = G.ger ? (G.pl - G.ger) / G.ger : null;
+    G.wape = G.ger ? G.mutlak / G.ger : null;
+    G.f = f; G.durum = durum; G.enSik = enSik ? enSik + ' (' + enSay + ' gün)' : '';
+    ozet.push(G);
+  });
+  ozet.sort(function (a, b) {
+    return a.sube === b.sube ? (b.wape || 0) * Math.min(b.gun, 7) - (a.wape || 0) * Math.min(a.gun, 7) : (a.sube < b.sube ? -1 : 1);
+  });
+
+  var oz = hp_sekme_(ss, HP.OZET, ['Şube', 'Yarı Mamul', 'Birim', 'Gün', 'Toplam Plan', 'Toplam Gerçek', 'Plan Sapması % (+ fazla / − eksik)',
+    'Ortalama Mutlak Sapma %', 'Eksik Gün', 'Fazla Gün', 'En Sık Sebep', 'Önerilen Düzeltme Çarpanı', 'Durum', 'Düzeltmeli Yöntem Mutlak Sapma %']);
+  if (oz.getLastRow() > 1) oz.getRange(2, 1, oz.getLastRow() - 1, 14).clearContent();
+  var rows = ozet.map(function (G) {
+    var yuv = G.birim === 'adet' ? 1 : 10;
+    return [G.sube, G.ad, G.birim, G.gun, hp_yuv_(G.pl, yuv), hp_yuv_(G.ger, yuv),
+      G.bias == null ? '' : Math.round(G.bias * 100), G.wape == null ? '' : Math.round(G.wape * 100), G.eksik, G.fazla, G.enSik,
+      Math.round(G.f * 100) / 100, G.durum, G.kiyasGer ? Math.round(G.yeniMutlak / G.kiyasGer * 100) : ''];
+  });
+  if (rows.length) oz.getRange(2, 1, rows.length, 14).setValues(rows);
+
+  var sb = hp_sekme_(ss, HP.SEBEP, ['Şube', 'Sebep', 'Sapan Ürün-Gün', 'Sapmaların %', 'En Çok Görülen Ürünler', 'Son ' + HP.ANALIZ_GUN + ' gün · hesap']);
+  if (sb.getLastRow() > 1) sb.getRange(2, 1, sb.getLastRow() - 1, 6).clearContent();
+  var srows = [];
+  HP.SUBELER.forEach(function (s) {
+    var top = 0; Object.keys(sebepSay[s]).forEach(function (e) { top += sebepSay[s][e]; });
+    var liste = Object.keys(sebepSay[s]).sort(function (a, b) { return sebepSay[s][b] - sebepSay[s][a]; });
+    sonuc.sube[s].sebepler = liste.map(function (e) { return { etiket: e, say: sebepSay[s][e], pay: top ? sebepSay[s][e] / top : 0 }; });
+    sonuc.sube[s].urunler = ozet.filter(function (G) { return G.sube === s; });
+    liste.forEach(function (e) {
+      var urun = ozet.filter(function (G) { return G.sube === s && G.sebep[e]; })
+        .sort(function (a, b) { return b.sebep[e] - a.sebep[e]; }).slice(0, 4)
+        .map(function (G) { return G.ad + ' (' + G.sebep[e] + ')'; }).join(', ');
+      srows.push([s, e, sebepSay[s][e], top ? Math.round(sebepSay[s][e] / top * 100) : '', urun, hp_gosterTarih_(bitis)]);
+    });
+  });
+  if (srows.length) sb.getRange(2, 1, srows.length, 6).setValues(srows);
+  sonuc.ozetSay = rows.length;
+  return sonuc;
 }
 
 /* ============================ ÇEKİRDEK ============================ */
@@ -543,7 +773,7 @@ function hp_talep_(ctx, gunKeys) {
   var i = hp_basliklar_(v[0]);
   var cT = i['siparistarihi'], cU = i['urunler'], cA = i['urunadetleri'], cD = i['durum'], cC = i['uruncikansube'], cS = i['sube'];
   if (cT == null || cU == null || cA == null) throw new Error('Satış tablosunda Sipariş Tarihi / Ürünler / Ürün Adetleri sütunu bulunamadı');
-  var out = { _siparis: {} };
+  var out = { _siparis: {}, _tepe: {} }; // _tepe: gün → şube → ym → tek siparişin en büyük payı
   for (var r = 1; r < v.length; r++) {
     var row = v[r];
     if (cD != null && String(row[cD]).toUpperCase() !== 'KAPALI') continue;
@@ -556,6 +786,7 @@ function hp_talep_(ctx, gunKeys) {
     out._siparis[key] = out._siparis[key] || {};
     out._siparis[key][sube] = (out._siparis[key][sube] || 0) + 1;
     var urunler = String(row[cU] || '').split('|'), adetler = String(row[cA] || '').split('|');
+    var bu = {};
     for (var u = 0; u < urunler.length; u++) {
       var ad = urunler[u].trim(); if (!ad) continue;
       var adet = hp_sayi_(adetler[u]) || 1;
@@ -563,8 +794,11 @@ function hp_talep_(ctx, gunKeys) {
       var vec = ctx.recete[rk];
       out[key] = out[key] || {}; out[key][sube] = out[key][sube] || {};
       var hedef = out[key][sube];
-      Object.keys(vec).forEach(function (ym) { hedef[ym] = (hedef[ym] || 0) + vec[ym] * adet; });
+      Object.keys(vec).forEach(function (ym) { hedef[ym] = (hedef[ym] || 0) + vec[ym] * adet; bu[ym] = (bu[ym] || 0) + vec[ym] * adet; });
     }
+    var tp = out._tepe[key] = out._tepe[key] || {};
+    tp = tp[sube] = tp[sube] || {};
+    Object.keys(bu).forEach(function (ym) { if (bu[ym] > (tp[ym] || 0)) tp[ym] = bu[ym]; });
   }
   return out;
 }
@@ -587,7 +821,7 @@ function hp_eslesmeYaz_(ss, ctx) {
   if (yeni.length) e.getRange(e.getLastRow() + 1, 1, yeni.length, 6).setValues(yeni);
 }
 
-function hp_mail_(D, veri, ctx, takvim, dog) {
+function hp_mail_(D, veri, ctx, takvim, dog, an) {
   var gun = ['Pazar', 'Pazartesi', 'Salı', 'Çarşamba', 'Perşembe', 'Cuma', 'Cumartesi'][new Date(D + 'T12:00:00Z').getUTCDay()];
   var h = '<div style="font-family:Arial,sans-serif;font-size:13px;color:#222">';
   h += '<h2 style="margin:0 0 4px">Mutfak Hazırlık Planı · ' + hp_gosterTarih_(D) + ' ' + gun + '</h2>';
@@ -615,31 +849,29 @@ function hp_mail_(D, veri, ctx, takvim, dog) {
   var esl = Object.keys(ctx.eslesmeyen).length;
   if (esl) h += '<p style="color:#b00;margin-top:14px">' + esl + ' satış ürünü reçeteyle eşleşmedi → "' + HP.ESLESME + '" sekmesi.</p>';
   if (dog && dog.length) h += hp_dogrulukHtml_(dog);
+  h += hp_sapmaHtml_(an);
   h += '</div>';
   MailApp.sendEmail({ to: HP.MAIL, subject: 'BAP Hazırlık Planı · ' + hp_gosterTarih_(D) + ' ' + gun, htmlBody: h });
 }
 
 /** Dünkü plan ↔ gerçek satış bölümü (hp_dogrulukKontrol satırlarından) */
 function hp_dogrulukHtml_(dog) {
-  var gTarih = dog[0][0];
+  var gTarih = dog.tarih;
   var p = gTarih.split('.');
   var gun = ['Pazar', 'Pazartesi', 'Salı', 'Çarşamba', 'Perşembe', 'Cuma', 'Cumartesi'][new Date(p[2] + '-' + p[1] + '-' + p[0] + 'T12:00:00Z').getUTCDay()];
   var h = '<h2 style="margin:28px 0 4px;border-top:2px solid #222;padding-top:12px">Dünkü plan ↔ gerçek satış · ' + gTarih + ' ' + gun + '</h2>';
-  h += '<p style="margin:0 0 8px;color:#666">Plan = o gün için tahmin edilen ihtiyaç (%' + Math.round(HP.GUVENLIK * 100) +
-    ' güvenlik payı dahil). Gerçek = o günün kapanan siparişlerinin reçeteye göre harcadığı yarı mamul. ' +
-    'Sapma %5\'ten fazla eksikse "EKSİK", %35\'ten fazla fazlaysa "Fazla" sayılır. Tüm satırlar "' + HP.DOGRULUK + '" sekmesinde.</p>';
+  h += '<p style="margin:0 0 8px;color:#666">Plan = o gün için tahmin edilen ihtiyaç (güvenlik payı dahil). Gerçek = o günün kapanan siparişlerinin reçeteye göre harcadığı yarı mamul. ' +
+    'Sapma %5\'ten fazla eksikse "EKSİK", %35\'ten fazla fazlaysa "Fazla" sayılır. Gri yazı ajanın bulduğu sebeptir; ' +
+    'yanlışsa ya da gerçek sebebi biliyorsanız (yağmur, kampanya, ürün bitti…) "' + HP.DOGRULUK + '" sekmesinde "Sebep (elle)" sütununa yazın.</p>';
   var renk = { 'EKSİK planlandı': '#b00', 'Plan yok': '#b00', 'Fazla planlandı': '#a15c00', 'Satılmadı': '#a15c00' };
   var sira = { 'EKSİK planlandı': 0, 'Plan yok': 1, 'Fazla planlandı': 2, 'Satılmadı': 3 };
   HP.SUBELER.forEach(function (sube) {
     var say = { uygun: 0, eksik: 0, fazla: 0 }, liste = [];
-    dog.forEach(function (r) {
-      if (r[1] !== sube) return;
-      var pl = hp_sayi_(r[4]) || 0, ger = hp_sayi_(r[5]) || 0;
-      if (!pl && !ger) return;
-      var deg = r[8] || (pl > 0 && !ger ? 'Satılmadı' : '');
-      if (deg === 'Uygun') { say.uygun++; return; }
-      if (deg === 'EKSİK planlandı' || deg === 'Plan yok') say.eksik++; else say.fazla++;
-      liste.push({ ym: r[2], birim: r[3], pl: pl, ger: ger, ur: r[6], sap: r[7], deg: deg });
+    dog.forEach(function (x) {
+      if (x.sube !== sube || (!x.pl && !x.ger) || !x.deg) return;
+      if (x.deg === 'Uygun') { say.uygun++; return; }
+      if (x.deg === 'EKSİK planlandı' || x.deg === 'Plan yok') say.eksik++; else say.fazla++;
+      liste.push(x);
     });
     if (!say.uygun && !liste.length) return;
     h += '<h3 style="margin:14px 0 4px">' + sube + '</h3><p style="margin:0 0 6px">' +
@@ -650,17 +882,57 @@ function hp_dogrulukHtml_(dog) {
     liste.sort(function (a, b) {
       return sira[a.deg] !== sira[b.deg] ? sira[a.deg] - sira[b.deg] : Math.abs(b.pl - b.ger) / (b.ger || b.pl || 1) - Math.abs(a.pl - a.ger) / (a.ger || a.pl || 1);
     });
-    h += '<table cellpadding="5" style="border-collapse:collapse;font-size:13px"><tr style="background:#222;color:#fff"><th align="left">Yarı mamul</th><th align="right">Plan</th><th align="right">Gerçek</th><th align="right">Fark</th><th align="right">Üretilen</th><th align="left">Durum</th></tr>';
+    h += '<table cellpadding="5" style="border-collapse:collapse;font-size:13px"><tr style="background:#222;color:#fff"><th align="left">Yarı mamul</th><th align="right">Plan</th><th align="right">Gerçek</th><th align="right">Fark</th><th align="right">Üretilen</th><th align="left">Durum · sebep</th></tr>';
     liste.forEach(function (x) {
       var fark = x.pl - x.ger;
       h += '<tr style="border-bottom:1px solid #eee"><td>' + x.ym + '</td><td align="right">' + hp_fmt_(x.pl, x.birim) + '</td><td align="right">' + hp_fmt_(x.ger, x.birim) +
         '</td><td align="right" style="color:' + (fark < 0 ? '#b00' : '#a15c00') + '">' + (fark > 0 ? '+' : '−') + hp_fmt_(Math.abs(fark), x.birim) +
         (x.sap !== '' && x.sap != null ? ' (' + (x.sap > 0 ? '+' : '') + x.sap + '%)' : '') +
         '</td><td align="right">' + (x.ur !== '' && x.ur != null ? hp_fmt_(hp_sayi_(x.ur), x.birim) : '–') +
-        '</td><td style="color:' + (renk[x.deg] || '#222') + '">' + x.deg + '</td></tr>';
+        '</td><td style="color:' + (renk[x.deg] || '#222') + '">' + x.deg +
+        (x.sebep ? '<br><span style="color:#666;font-size:12px">' + x.sebep + '</span>' : '') + '</td></tr>';
     });
     h += '</table>';
   });
+  return h;
+}
+
+/** Son 28 günün sapma özeti: sebep dağılımı, en çok sapan ürünler, eski ↔ düzeltmeli yöntem */
+function hp_sapmaHtml_(an) {
+  if (!an || !an.sube) return '';
+  var h = '<h2 style="margin:28px 0 4px;border-top:2px solid #222;padding-top:12px">Son ' + HP.ANALIZ_GUN + ' gün · neden sapıyoruz?</h2>';
+  h += '<p style="margin:0 0 8px;color:#666">Ayrıntı: "' + HP.OZET + '" (ürün bazında) ve "' + HP.SEBEP + '" (sebep bazında) sekmeleri. ' +
+    '<b>Genel yoğunluk</b> = o gün sipariş sayısı beklenenden çok farklıydı (hava, maç, tatil → "' + HP.TAKVIM + '" sekmesine önceden çarpan girilebilir). ' +
+    '<b>Ürün tercihi</b> = sipariş sayısı normaldi ama müşteriler bu ürünü daha az/çok seçti.</p>';
+  var bosMu = true;
+  HP.SUBELER.forEach(function (sube) {
+    var S = an.sube[sube]; if (!S || !S.toplam) return;
+    bosMu = false;
+    var eski = 0;
+    var seb = (S.sebepler || []).filter(function (x) { if (x.etiket.indexOf('Sebep kaydı yok') === 0) { eski = x.say; return false; } return true; });
+    h += '<h3 style="margin:14px 0 4px">' + sube + '</h3>';
+    if (seb.length) h += '<p style="margin:0 0 6px"><b>Sebepler:</b> ' + seb.slice(0, 6).map(function (x) { return x.etiket + ' <b>' + x.say + '</b>'; }).join(' · ') +
+      (eski ? ' <span style="color:#999">(+' + eski + ' eski kayıt, sebepsiz)</span>' : '') + '</p>';
+    else if (eski) h += '<p style="margin:0 0 6px;color:#999">Sebepler bu sürümden itibaren birikiyor (' + eski + ' eski sapma sebepsiz).</p>';
+    var top = (S.urunler || []).filter(function (G) { return G.gun >= HP.DUZ_MIN_GUN && G.wape != null && G.wape >= 0.2; }).slice(0, 6);
+    if (top.length) {
+      h += '<table cellpadding="5" style="border-collapse:collapse;font-size:13px"><tr style="background:#222;color:#fff"><th align="left">En çok sapan</th><th align="right">Gün</th><th align="right">Plan ort.</th><th align="left">En sık sebep</th><th align="right">Öneri</th></tr>';
+      top.forEach(function (G) {
+        var b = Math.round((G.bias || 0) * 100);
+        h += '<tr style="border-bottom:1px solid #eee"><td>' + G.ad + '</td><td align="right">' + G.gun + '</td><td align="right" style="color:' + (b < 0 ? '#b00' : '#a15c00') + '">' +
+          (b > 0 ? '%' + b + ' fazla' : '%' + (-b) + ' eksik') + '</td><td style="font-size:12px">' + (G.enSik || '–') + '</td><td align="right">' +
+          (Math.abs(G.f - 1) >= 0.05 ? '×' + String(Math.round(G.f * 100) / 100).replace('.', ',') : '–') + '</td></tr>';
+      });
+      h += '</table>';
+    }
+    if (S.kiyasGun >= 7) {
+      var e = Math.round(S.eskiHata / S.kiyasGun * 100), y = Math.round(S.yeniHata / S.kiyasGun * 100);
+      h += '<p style="margin:6px 0 0">Ortalama sapma — şu anki yöntem: <b>%' + e + '</b> · düzeltmeli yöntem: <b>%' + y + '</b> (' + S.kiyasGun + ' ürün-gün)' +
+        (HP.DUZELTME_UYGULA ? '' : (y < e ? ' → <span style="color:#2e7d32">düzeltmeli daha iyi</span>' : ' → henüz fark yok')) + '</p>';
+    }
+  });
+  if (bosMu) return '';
+  if (!HP.DUZELTME_UYGULA) h += '<p style="color:#666;margin-top:10px">Düzeltmeli tahmin şu an <b>KURU</b>: plan eski yöntemle hesaplanıyor, yeni yöntem yalnızca yan yana kaydediliyor.</p>';
   return h;
 }
 
@@ -701,6 +973,45 @@ function hp_gecmisTemizle_(sh, gTarih) {
   if (sh.getLastRow() < 2) return;
   var v = sh.getRange(2, 1, sh.getLastRow() - 1, 1).getDisplayValues();
   for (var i = v.length - 1; i >= 0; i--) if (v[i][0] === gTarih) sh.deleteRow(i + 2);
+}
+
+/** Başlıkta olmayan sütunları sona ekler; hp_n_(başlık) → 0 tabanlı sütun döndürür (_n = toplam sütun) */
+function hp_basliklarTamam_(sh, basliklar) {
+  var lc = sh.getLastColumn();
+  var mevcut = lc ? sh.getRange(1, 1, 1, lc).getValues()[0] : [];
+  while (mevcut.length && mevcut[mevcut.length - 1] === '') mevcut.pop();
+  var idx = hp_basliklar_(mevcut);
+  var eksik = basliklar.filter(function (b) { return idx[hp_n_(b)] == null; });
+  if (eksik.length) {
+    sh.getRange(1, mevcut.length + 1, 1, eksik.length).setValues([eksik]).setFontWeight('bold').setBackground('#222').setFontColor('#fff');
+    eksik.forEach(function (b, i) { idx[hp_n_(b)] = mevcut.length + i; });
+  }
+  idx._n = mevcut.length + eksik.length;
+  return idx;
+}
+
+/** Nesne satırlarını ({'Başlık': değer}) başlık adına göre sona ekler */
+function hp_satirEkle_(sh, idx, nesneler) {
+  if (!nesneler.length) return;
+  var rows = nesneler.map(function (o) {
+    var r = []; for (var i = 0; i < idx._n; i++) r.push('');
+    Object.keys(o).forEach(function (k) { var c = idx[hp_n_(k)]; if (c != null) r[c] = o[k]; });
+    return r;
+  });
+  sh.getRange(sh.getLastRow() + 1, 1, rows.length, idx._n).setValues(rows);
+}
+
+/** Çıktı dosyasındaki bir sekmeyi başlık adlarıyla okur: { i: hp_n_(başlık) → sütun, rows } */
+function hp_tabloOku_(sh) {
+  if (!sh || sh.getLastRow() < 2) return null;
+  var v = sh.getDataRange().getValues();
+  return { i: hp_basliklar_(v[0]), rows: v.slice(1) };
+}
+
+/** Tarih hücresi (Date ya da "gg.aa.yyyy") → yyyy-MM-dd */
+function hp_hucreKey_(v) {
+  var d = v instanceof Date ? v : hp_tarihParse_(v);
+  return d ? Utilities.formatDate(d, HP.TZ, 'yyyy-MM-dd') : '';
 }
 
 /** Stok dosyasında başlığa göre tablo arar (konum önbelleğe alınır); birden fazla varsa en çok satırlıyı seçer */
