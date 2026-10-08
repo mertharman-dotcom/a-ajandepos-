@@ -1,0 +1,39 @@
+# Etki haritasını (docs/etki-haritasi.*) koddan yeniden üretir ve değiştiyse main'e yazar.
+# Yalnızca depodaki kodu okur; Apps Script'e, tablolara ya da Cloudflare'e dokunmaz.
+name: Etki Haritasını Güncelle
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'apps-script/**'
+      - 'bap-panel/**'
+      - 'bap-sistem/**'
+      - 'mac-kopru/**'
+      - 'docs/veri-sozlugu.md'
+      - 'araclar/etki-haritasi*'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: etki-haritasi
+  cancel-in-progress: false
+
+jobs:
+  uret:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 20 }
+      - name: Haritayı üret
+        run: node araclar/etki-haritasi.mjs
+      - name: Değiştiyse main'e yaz
+        run: |
+          git add docs/etki-haritasi.md docs/etki-haritasi.json docs/etki-haritasi.html
+          git diff --cached --quiet && { echo "Harita zaten güncel."; exit 0; }
+          git config user.name "github-actions"; git config user.email "github-actions@users.noreply.github.com"
+          git commit -m "Etki haritasını güncelle"
+          git push origin HEAD:main || echo "::warning::main'e yazılamadı (dal koruması?). Haritayı bir oturumda 'node araclar/etki-haritasi.mjs' ile güncelleyin."

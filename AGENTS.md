@@ -15,3 +15,6 @@ Bu depoda Claude da çalışıyor. Aynı kurallar herkes için geçerli; tamamı
 6. Testler: `node tests/satis-motoru-testi.js "apps-script/stok-takip-sistemi/Satıs Motoru.gs"` ve
    `node tests/veri-kapisi-maliyet-testi.js`. Değiştirdiğin koda test ekle.
 7. Sahibi teknik değil: açıklamalar Türkçe, sade ve "senin yapman gereken" adımlarıyla.
+8. **Değiştirmeden önce etki haritasına bak:** bir sekme, sütun başlığı ya da ortak fonksiyon değişecekse önce
+   `node araclar/etki-haritasi.mjs ara "<ad>"` çalıştır, etkilenen kodları ve panelleri sahibine söyle.
+   Kodu değiştirince `node araclar/etki-haritasi.mjs` ile haritayı yenile ve commit'e ekle.

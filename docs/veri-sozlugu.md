@@ -15,6 +15,14 @@ tutamaz; gerekiyorsa sahipten okur. ⏳ = karar/geçiş bekliyor (bkz. `kontrol-
 | YEMEKKARTI | BAP Yemek Kartı Tahsilatları (Pluxee, Edenred, Paye çekimleri) | `19RVXZQwKZRCW6xnZxSwhRHXte4VWhaVqruaTZRwVJbM` |
 | TRENDYOL | Trendyol Yorumlar (Trendyol API çeker; ayrıntı `docs/trendyol-api.md`) | `1KLWCEBwFMHCTrTnCYLhv2ctg5PvGtS9DNzoMXF-Z1JE` |
 | KURYE | Kurye Net Çalışma Süresi (HemenYolda köprüsü, Pluxee çekimi, açık hesaplar) | `1LG7naAbMM9aL3K0QNzzrjXomC2LXjx4rdSCYNYWzDQo` |
+| PERSONEL | BAP Personel (BAP_Personel projesi bağlı; puantaj, vardiya, izin) | `1WBniOC2h9SvD20bHZl3G4o0f4kUmjbXtIrNvYVyV8Hg` |
+| MUSTERI | Birlesik Musteri Veritabani | `1dcjX3o-6N9b8ndKt8ALj9MxLg-KZ3I16Z6DI-S9oV1Q` |
+| HUB | BAP AI HUB (ajan görevleri, kokpit) | `1JbhHFzQYAvRXokYT3IClXgHz0vsXR3Rb0521jxBOFUQ` |
+| ISKAYDI | BAP İş Kaydı | `1Lsfaxw71jGeo93AuLovkyFfAfw2H53BsYWKire5COhs` |
+| GIDER | BAP Aylık Gider Takibi | `1F-lWaWJN43GdQMAQWpggPmwFoFEcWARCB0GRHhR70Tw` |
+| HAKEDIS | BAP Finans — Platform Hakediş | `139-CaKw5Dew7-PFIDAcjn6h673QJGPJ1j3mPslkttAE` |
+| AMBAR | BAP Veri Ambarı | `17ScW_Xfbp6vN02DxYtjBAmwF_d-qlWhwaL5t9mF5bmk` |
+| ARSIV2025 | BAP_Veri_Arsivi_2025 (yalnız okunur) | `1QVGFcOp91Bv7DXMtcxyjUuCBfm-DKoispGwZRtXbUS8` |
 
 Bütün e-tabloların listesi ve önerilen Drive düzeni: `docs/tablo-haritasi.md`.
 
