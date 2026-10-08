@@ -3694,9 +3694,22 @@ function kuralYenile_() {
   var p = PropertiesService.getScriptProperties(), url = p.getProperty('KOPRU_URL'), anahtar = p.getProperty('KOPRU_ANAHTAR');
   if ((!url || !anahtar) && KURAL_KOPRU.url && KURAL_KOPRU.anahtar) { url = KURAL_KOPRU.url; anahtar = KURAL_KOPRU.anahtar; p.setProperties({ KOPRU_URL: url, KOPRU_ANAHTAR: anahtar }); }
   if (!url || !anahtar) return { ok: false, not: 'Düzeltme kaydedildi; tablo, kurye tablosunda Kurye Sistemi › VERİYİ ÇEK ve TÜMÜNÜ YENİLE ya da köprünün bir sonraki çalışmasında yeniden hesaplanır (KOPRU_URL ayarlı değil).' };
+  // Yeniden hesap aynı sonucu üretir (çift kayıt riski yok), bu yüzden Google geçici hata sayfası (HTML) dönerse bir kez daha denenir.
+  var r = null, j = null, son = '';
+  for (var deneme = 0; deneme < 2 && !j; deneme++) {
+    if (deneme) Utilities.sleep(4000);
+    try {
+      r = UrlFetchApp.fetch(url, { method: 'post', contentType: 'text/plain;charset=utf-8', payload: JSON.stringify({ anahtar: anahtar, tur: 'kural' }), muteHttpExceptions: true, followRedirects: true });
+      var metin = r.getContentText();
+      try { j = JSON.parse(metin); }
+      catch (e1) { // Google'ın hata sayfası: başlığını / mesajını al
+        var t = (metin.match(/<title>([^<]*)<\/title>/i) || [])[1] || '', m = (metin.match(/class="errorMessage"[^>]*>([^<]*)</i) || [])[1] || '';
+        son = 'HTTP ' + r.getResponseCode() + (t ? ' — ' + t : '') + (m ? ' — ' + m : '');
+      }
+    } catch (e2) { son = String(e2.message || e2).slice(0, 120); }
+  }
+  if (!j) return { ok: false, not: 'Düzeltme kaydedildi ama kurye tablosu şu an yeniden hesaplayamadı (' + son + '). Bordro, köprünün bir sonraki çalışmasında kendiliğinden güncellenir; beklemek istemezsen biraz sonra aynı düzeltmeyi tekrar kaydet ya da kurye tablosunda Kurye Sistemi › Kesinti Kuralını Uygula çalıştır.' };
   try {
-    var r = UrlFetchApp.fetch(url, { method: 'post', contentType: 'text/plain;charset=utf-8', payload: JSON.stringify({ anahtar: anahtar, tur: 'kural' }), muteHttpExceptions: true, followRedirects: true });
-    var j = JSON.parse(r.getContentText());
     if (j && j.ok) return { ok: true };
     return { ok: false, not: 'Düzeltme kaydedildi ama tablo yeniden hesaplanamadı: ' + ((j && j.hata) || 'bilinmeyen hata') + '. Kurye Sistemi › VERİYİ ÇEK ve TÜMÜNÜ YENİLE çalıştırın.' };
   } catch (err) {
