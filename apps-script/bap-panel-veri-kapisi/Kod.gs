@@ -168,7 +168,7 @@ function paketHazirlaIc_() {
   bolum_(out, 'setcardFatura', setcardFatura_);
   bolum_(out, 'metropolFatura', metropolFatura_);
   bolum_(out, 'multinetFatura', multinetFatura_);
-  out.okuma = { okunan: OKUMA_BELLEK.okunan, bellekten: OKUMA_BELLEK.bellekten };
+  out.okuma = { okunan: OKUMA_BELLEK.okunan, bellekten: OKUMA_BELLEK.bellekten, olcum: OKUMA_BELLEK.olcum || {} };
   return out;
 }
 
@@ -181,6 +181,10 @@ function tabloAc_(id) {
   if (!OKUMA_BELLEK) return SpreadsheetApp.openById(id);
   return OKUMA_BELLEK.tablo[id] || (OKUMA_BELLEK.tablo[id] = SpreadsheetApp.openById(id));
 }
+// Ölçüm (yalnız hizTesti için): bir bölümün içinde hangi adımın ne kadar sürdüğü. tur_('kurye') bir sayaç verir;
+// her çağrı bir önceki çağrıdan bu yana geçen süreyi o adıma yazar.
+function olcEkle_(ad, ms) { if (OKUMA_BELLEK) { var o = OKUMA_BELLEK.olcum = OKUMA_BELLEK.olcum || {}; o[ad] = (o[ad] || 0) + ms; } }
+function tur_(on) { var t = Date.now(); return function (ad) { var n = Date.now(); olcEkle_(on + ' › ' + ad, n - t); t = n; }; }
 
 function bolum_(out, ad, fn) {
   var t0 = Date.now();
@@ -194,6 +198,9 @@ function hizTesti() {
   var t0 = Date.now(), v = paketHazirla_(), metin = JSON.stringify(v);
   Logger.log('Toplam: ' + ((Date.now() - t0) / 1000).toFixed(1) + ' sn · paket ' + Math.round(metin.length / 1024) + ' KB');
   if (v.okuma) Logger.log('Sekme okuma: ' + v.okuma.okunan + ' kez tablodan, ' + v.okuma.bellekten + ' kez bellekten');
+  var o = (v.okuma && v.okuma.olcum) || {};
+  Object.keys(o).sort(function (a, b) { return o[b] - o[a]; }).slice(0, 30)
+    .forEach(function (k) { Logger.log('  adım · ' + k + ': ' + (o[k] / 1000).toFixed(1) + ' sn'); });
   Object.keys(v.sureler || {}).sort(function (a, b) { return v.sureler[b] - v.sureler[a]; })
     .forEach(function (k) { Logger.log(k + ': ' + (v.sureler[k] / 1000).toFixed(1) + ' sn'); });
   onbellekYaz_(CacheService.getScriptCache(), metin);
@@ -206,7 +213,7 @@ function siparisVerisi_(enEski) {
   // Bellekteki okuma istenen günü kapsıyorsa yeniden okunmaz (satış ve yemek kartı kontrolü aynı tabloyu okur).
   var m = OKUMA_BELLEK && OKUMA_BELLEK.siparis;
   if (m && enEski && (m.hepsi || m.rows.length >= 60000 || (m.ilkGun && m.ilkGun < enEski))) { OKUMA_BELLEK.bellekten++; return m; }
-  var sv = siparisVerisiOku_(enEski);
+  var t0 = Date.now(), sv = siparisVerisiOku_(enEski); olcEkle_('okuma › Adisyo Satıs Verileri (tüm sütunlar)', Date.now() - t0);
   if (OKUMA_BELLEK) { OKUMA_BELLEK.okunan++; OKUMA_BELLEK.siparis = sv; }
   return sv;
 }
@@ -1573,7 +1580,7 @@ function ykKartAd_(odeme) { var k = yemekKartAdi_(odeme); return k === 'Setcard'
 
 function ykKontrol_() {
   var bugun = isGunu_(simdi_()), bas = gunEkle_(bugun, -(YK_KONTROL_GUN - 1)), DK = 60000;
-  var ks = tabloAc_(KAYNAK.kurye.id), sip = [];
+  var tur = tur_('ykKontrol'), ks = tabloAc_(KAYNAK.kurye.id), sip = [];
   // 1) Adisyo: yemek kartıyla kapanan siparişler
   var sv = siparisVerisi_(gunEkle_(bas, -1)), c = sv.c;
   sv.rows.forEach(function (r) {
@@ -1583,6 +1590,7 @@ function ykKontrol_() {
     sip.push({ kart: ykKartAd_(r[c.odeme]), online: online, ms: ms, lo: ms - (online ? 15 : 30) * DK, hi: ms + (online ? 90 : 300) * DK,
       tutar: sayi_(r[c.tutar]), id: String(c.id >= 0 ? r[c.id] : ''), kanal: String(c.kanal >= 0 ? r[c.kanal] : '').trim(), sube: String(c.sube >= 0 ? r[c.sube] : '').trim(), odeme: String(r[c.odeme] || '').trim(), kaynak: 'Adisyo' });
   });
+  tur('Adisyo kart siparişleri');
   // 2) Kuryede hâlâ açık yemek kartı hesapları (Adisyo'da 'Açık Hesap' görünür; kart adı kurye sisteminde)
   try {
     acikListe_(ks, tahsilatlar_(ks), bugun, {}, null).liste.forEach(function (x) {
@@ -1600,8 +1608,11 @@ function ykKontrol_() {
   var cekOge = function (y) { return { zaman: y.tam, tutar: y.tutar, online: !!y.online, kurye: y.kurye || '', terminal: y.terminal || '' }; };
   var out = { bas: bas, gun: YK_KONTROL_GUN, kartlar: [] }, okundu = {};
 
+  tur('kurye açık hesapları');
   KART_KAYNAKLARI.forEach(function (kk) {
+    tur('kart eşleştirme');
     var veri; try { veri = (kk.tumu || kk.oku)(ks); } catch (err) { veri = { hata: String(err.message || err) }; }
+    tur(kk.ad + ' okuma');
     var O = sip.filter(function (o) { return o.kart === kk.ad; }).sort(function (p, q) { return p.ms - q.ms; });
     okundu[kk.ad] = 1;
     var k = { ad: kk.ad, siparis: O.length, cekim: 0, eslesen: 0, bekleyen: 0, onlineAyri: 0, parcali: [], cekimsiz: [], siparissiz: [], son: null };
@@ -1649,6 +1660,7 @@ function ykKontrol_() {
   });
   // Çekim verisi sisteme gelmeyen kartlar (Multinet, Metropol …): yalnız sipariş sayısı
   var diger = {}; sip.forEach(function (o) { if (okundu[o.kart]) return; var d = diger[o.kart] = diger[o.kart] || { ad: o.kart, siparis: 0, tutar: 0 }; d.siparis++; d.tutar += o.tutar; });
+  tur('kart eşleştirme');
   out.verisiz = Object.keys(diger).map(function (x) { diger[x].tutar = Math.round(diger[x].tutar); return diger[x]; });
   return out;
 }
@@ -2752,8 +2764,9 @@ function kuryeMaliyet_(ad, netDk, paket) {
 }
 
 function kurye_() {
-  var ss = tabloAc_(KAYNAK.kurye.id);
+  var tur = tur_('kurye'), ss = tabloAc_(KAYNAK.kurye.id);
   try { kuryeUcretOku_(ss); } catch (err) { /* yedek ücretlerle devam */ }
+  tur('ücretler');
   var simdi = simdi_(), bugun = isGunu_(simdi), ay = bugun.slice(0, 7), dun = gunEkle_(bugun, -1);
   var yediBasi = gunEkle_(bugun, -6), otuzBasi = gunEkle_(bugun, -29), ilkSeri = gunEkle_(bugun, -13);
   var out = { bugun: bugun, hedef: KURYE_HEDEF };
@@ -2769,6 +2782,7 @@ function kurye_() {
 
   // Siparişler: süre aşamaları, gecikme sebebi, kurye başına paket
   var s = sonSatirlar_(ss, 'Siparişler', 6000, ['Tarih', 'Sipariş ID', 'Adisyon No', 'Kurye', 'Platform', 'Sipariş Saati', 'Atama (dk)', 'Hazırlık (dk)', 'Yol (dk)', 'Toplam (dk)', 'Mesafe (km)', 'Durum', 'Adres', 'Teslim Saati', 'Ödeme Yöntemi', 'Tutar (TL)', 'Hesap']);
+  tur('Siparişler okuma');
   var seri = {}; for (var i = 0; i < 14; i++) seri[gunEkle_(ilkSeri, i)] = { adet: 0, dk: 0, n: 0, gec: 0, maliyet: 0 };
   var saat = {}, dagilim = [0, 0, 0, 0, 0], platform = {}, enKotu = [], sonSiparisMs = null, mahalleSay = {}, siparisGun = {}, siparisSaat = {}, sipHesap = {};
   KURYE_DONEMLER.forEach(function (d) { mahalleSay[d] = {}; });
@@ -2818,6 +2832,7 @@ function kurye_() {
       }
     });
   }
+  tur('Siparişler hesap');
   out.sonSiparis = sonSiparisMs === null ? null : new Date(sonSiparisMs).toISOString().slice(0, 16).replace('T', ' ');
   // İş günü 10:00'da başlar: saatleri 11, …, 23, 0, 1, 2 sırasıyla ver
   out.saatlik = []; for (var hh = 10; hh < 27; hh++) { var h2 = hh % 24, sv = saat[h2]; if (sv || (hh >= 11 && hh <= 23)) out.saatlik.push({ saat: h2, gunluk: sv ? Math.round(sv.adet / 7 * 10) / 10 : 0, ortDk: sv && sv.n ? Math.round(sv.dk / sv.n) : null,
@@ -2841,6 +2856,7 @@ function kurye_() {
     }).sort(function (a, b) { return b.paket - a.paket; }).slice(0, 60);
   });
 
+  tur('mahalle süreleri');
   // Günlük Mesai: bugün kim sahada; dönem bazında net saat, geç giriş, kesinti, maliyet; haftalık bordro
   var mesaiGun = {}, m = sonSatirlar_(ss, 'Günlük Mesai', 1200), bugunMesai = [], kesintiler = [], kadro = {}, haftalar = {}, mesaiKontrol = [];
   var dow = (new Date(bugun + 'T00:00:00Z').getUTCDay() + 6) % 7, buHafta = gunEkle_(bugun, -dow), ilkHafta = gunEkle_(buHafta, -7 * 7);
@@ -2894,7 +2910,9 @@ function kurye_() {
   var bugunAdlar = {}; bugunMesai.forEach(function (x) { bugunAdlar[norm_(x.ad)] = 1; });
   out.kadro = { sayi: Object.keys(kadro).length, off: Object.keys(kadro).filter(function (k) { return !bugunAdlar[norm_(k)]; }).sort(function (a, b) { return a.localeCompare(b, 'tr'); }) };
   // Düzeltmesi yazılmış gün listeden hemen düşer; Günlük Mesai henüz yeniden hesaplanmadıysa düzeltme 'tabloya işlenmedi' görünür.
+  tur('mesai');
   var duzListe = mesaiDuzeltmeListesi_(ss, gunEkle_(bugun, -59)), duzVar = {};
+  tur('mesai düzeltme');
   duzListe.forEach(function (x) { var k = x.gun + '|' + norm_(x.ad); duzVar[k] = 1; var mg = mesaiGun[k]; x.islendi = !!(mg && /düzeltildi|onaylı/i.test(mg.durum)); });
   out.mesaiKontrol = mesaiKontrol.filter(function (x) { return !duzVar[x.gun + '|' + norm_(x.ad)]; })
     .sort(function (a, b) { return b.gun.localeCompare(a.gun) || b.bosta - a.bosta; }).slice(0, 60);
@@ -2935,13 +2953,16 @@ function kurye_() {
   // Açık hesaplar: 'Ödenmez' (işletme/personel siparişi) kuryeden alınacak para değil, ayrı sayılır.
   // Panelden kapatılanlar ('Tahsilatlar' sekmesi) listeden düşer.
   // Kaynak: Siparişler sekmesinin 'Hesap' = AÇIK satırları + eski kayıtlar için 'Açık Hesaplar' sekmesi (acikListe_).
-  var kapali = tahsilatlar_(ss), al = acikListe_(ss, kapali, bugun, siparisSaat, sipHesap), acikL = al.liste, haric = al.haric;
+  tur('kesinti + bordro');
+  var kapali = tahsilatlar_(ss); tur('tahsilatlar');
+  var al = acikListe_(ss, kapali, bugun, siparisSaat, sipHesap), acikL = al.liste, haric = al.haric; tur('açık hesap listesi');
   // Kasada Adisyo'ya 'Ödeme Alındı' işlenmiş olanlar açık sayılmaz; yemek kartı (Pluxee / Paye / Edenred) çekimi bulunanlar işaretlenir.
   var adisyoOdendi = [], kanitHata = '';
   try { var kn = acikKanit_(ss, acikL); acikL = acikL.filter(function (x) { if (x.adisyo === 'odendi') { adisyoOdendi.push(x); return false; } return true; }); }
   catch (err) { kanitHata = String(err.message || err); }
   acikL.sort(function (x, y) { return y.yas - x.yas || y.tutar - x.tutar; });
   (kapali.son || []).forEach(function (x) { x.saat = siparisSaat[x.id] || ''; });
+  tur('açık hesap kanıtı (Adisyo + kartlar)');
   var eski = acikL.filter(function (x) { return x.yas > 0; }), bugunkuler = acikL.filter(function (x) { return x.yas <= 0; });
   var eskiKisi = {}; eski.forEach(function (x) { topla_(eskiKisi, x.kurye, x.tutar); });
   var tl = function (l) { return Math.round(l.reduce(function (t, x) { return t + x.tutar; }, 0)); };
@@ -2960,8 +2981,11 @@ function kurye_() {
       sebep: { mutfak: g.mutfak, kurye: g.kurye, ikisi: g.ikisi, diger: g.diger } }; });
   out.seri = Object.keys(seri).sort().map(function (k) { var x = seri[k]; return { gun: k, adet: x.adet, ortDk: x.n ? Math.round(x.dk / x.n) : null, gec: x.gec, maliyet: Math.round(x.maliyet) }; });
   out.ucret = KURYE_UCRET;
+  tur('özet');
   try { out.eslestirme = kuryeEslestirme_(); } catch (err) { out.eslestirme = { hata: String(err.message || err) }; }
+  tur('kurye eşleştirme');
   try { out.seferler = seferler_(ss, bugun); } catch (err) { out.seferler = []; out.seferHata = String(err.message || err); }
+  tur('seferler');
   out.subeKonum = SUBE_KONUM;
   out.kisiler = {};
   KURYE_DONEMLER.forEach(function (d) {
@@ -3069,11 +3093,14 @@ function acikKanit_(ks, liste) {
       else if (enEski !== null && k.ms < enEski) x.adisyo = 'eski';
     });
   }
+  var tur = tur_('açık hesap kanıtı'); tur('Adisyo eşleştirme');
   KART_KAYNAKLARI.forEach(function (kk) {
     var veri; try { veri = kk.oku(ks); } catch (err) { veri = { hata: String(err.message || err) }; }
+    tur(kk.ad + ' okuma');
     if (!veri) return;
     if (veri.hata) { ozet[kk.ad] = { hata: veri.hata }; return; }
     kartEslestir_(kk, veri, liste.filter(function (x) { return kk.odeme.test(x.odeme); }), tum.filter(function (o) { return kk.odeme.test(o.odeme); }), kmap);
+    tur(kk.ad + ' eşleştirme');
     ozet[kk.ad] = { son: veri.son === null ? null : new Date(veri.son).toISOString().slice(0, 16).replace('T', ' '), adet: veri.cekim.length, gunler: veri.gunler ? Object.keys(veri.gunler).length : null };
   });
   return ozet;
@@ -3911,14 +3938,13 @@ function sonSatirlar_(ss, ad, n, basliklar) {
     var k = Math.min(n, m.son - 1);
     var sutunVar = m.hepsi || (basliklar && basliklar.every(function (h) { var i = kolon_(m.b, [h]); return i < 0 || m.sutun[i]; }));
     if (k <= m.k && sutunVar) { OKUMA_BELLEK.bellekten++; return { b: m.b, v: k === m.k ? m.v : m.v.slice(m.k - k) }; }
-    // Kapsamıyor: öncekiyle birleşik (daha çok satır, iki sütun kümesi) bir kez okunur, sonrakiler bundan karşılanır.
-    if (m.hepsi || !basliklar) basliklar = null;
-    else basliklar = basliklar.concat(m.b.filter(function (h, i) { return m.sutun[i]; }));
-    n = Math.max(n, m.k);
   }
-  var t = sonSatirlarOku_(ss, ad, n, basliklar);
+  // Kapsamıyorsa istenen kadar okunur (birleşik okuma 08.10'da kuryeyi yavaşlattı); bellekte büyük olan kalır.
+  var t0 = Date.now(), t = sonSatirlarOku_(ss, ad, n, basliklar);
+  olcEkle_('okuma › ' + ad + ' (' + n + ' satır, ' + (basliklar ? basliklar.length + ' sütun' : 'tüm sütunlar') + ')', Date.now() - t0);
   OKUMA_BELLEK.okunan++;
   if (!t) { OKUMA_BELLEK.sekme[anahtar] = null; return null; }
+  if (m && m.k > t.v.length) return t;
   var sutun = {}; if (basliklar) basliklar.forEach(function (h) { var i = kolon_(t.b, [h]); if (i >= 0) sutun[i] = 1; });
   OKUMA_BELLEK.sekme[anahtar] = { b: t.b, v: t.v, k: t.v.length, son: t.son, hepsi: !basliklar, sutun: sutun };
   var kk = Math.min(istenen, t.v.length);
