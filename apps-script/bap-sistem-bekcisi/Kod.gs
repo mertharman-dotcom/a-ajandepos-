@@ -176,6 +176,7 @@ function kontrolEt_() {
   });
 
   guvenli('Kurye gece yedeği', function () { ekle(geceYedegi_(simdi)); });
+  guvenli('Gece ZIP yedeği', function () { ekle(zipYedegi_(simdi)); });
   guvenli('Apps Script çalışmaları', function () { scriptHatalari_(simdi).forEach(ekle); });
   guvenli('Make', function () { makeKontrol_(simdi).forEach(ekle); });
   ADRESLER.forEach(function (a) { guvenli(a.ad, function () { ekle(adresKontrol_(a)); }); });
@@ -232,6 +233,25 @@ function geceYedegi_(simdi) {
   r.sonVeri = en;
   r.durum = saat > 50 ? 'SORUN' : saat > 30 ? 'UYARI' : 'OK';
   r.detay = 'Son yedek ' + sureMetni_(Math.round(saat * 60)) + '.';
+  return r;
+}
+
+// Gece ZIP yedeği: 10 ana tablonun xlsx kopyası, her gece 03:00 (ayrı proje: BAP Sistem Nabzı + Yedekleme v3 › yedekZipAl).
+// Yalnız eksiksiz yedek "BAP_YEDEK_yyyy-MM-dd.zip" adıyla yazılır; kısmi yedekte dosya hiç oluşmaz.
+var ZIP_YEDEK_KLASOR = '1GXCIojyM13z01MvSZSgVAA8e92FbbnSe';
+function zipYedegi_(simdi) {
+  var r = { grup: 'Yedekler', ad: 'Gece ZIP yedeği (10 ana tablo)', nerede: 'Drive › yedek klasörü · Apps Script › yedekZipAl (03:00)',
+            cozum: 'Yedek projesinin Yürütmeler ekranına bak. "KISMİ/HATALI" yazıyorsa bir tablo bulunamamıştır (adı değişmiş ya da aynı adda iki dosya var).' };
+  var en = null, ad = '', it = DriveApp.getFolderById(ZIP_YEDEK_KLASOR).getFiles();
+  while (it.hasNext()) {
+    var f = it.next(), m = f.getName().match(/^BAP_YEDEK_\d{4}-\d{2}-\d{2}\.zip$/);
+    if (m && !f.isTrashed() && (!en || f.getDateCreated() > en)) { en = f.getDateCreated(); ad = f.getName() + ' · ' + gb_(f.getSize()).replace(' GB', '') + ' GB'; }
+  }
+  if (!en) { r.durum = 'SORUN'; r.detay = 'Klasörde hiç tam yedek (BAP_YEDEK_….zip) yok.'; return r; }
+  var saat = (simdi - en) / 3600000;
+  r.sonVeri = en;
+  r.durum = saat > 50 ? 'SORUN' : saat > 30 ? 'UYARI' : 'OK';
+  r.detay = 'Son tam yedek ' + sureMetni_(Math.round(saat * 60)) + ' (' + ad + ').';
   return r;
 }
 
@@ -431,7 +451,7 @@ function olaylarYaz_(ss, d) {
 
 function kalpYaz_(ss, s) {
   var sh = ss.getSheetByName('Kalp') || ss.insertSheet('Kalp');
-  var yedek = s.filter(function (r) { return r.ad === 'Kurye gece yedeği'; })[0];
+  var yedek = s.filter(function (r) { return r.ad === 'Gece ZIP yedeği (10 ana tablo)'; })[0];
   var f = function (t) { return t ? Utilities.formatDate(t, TZ_B, 'dd.MM.yyyy HH:mm') : ''; };
   sh.getRange(1, 1, 3, 3).setValues([
     ['Kalp', 'Son zaman', 'Not'],
