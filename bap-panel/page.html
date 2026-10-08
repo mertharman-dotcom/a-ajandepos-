@@ -2023,6 +2023,12 @@ function kuryeEslestirme(a,K){var E=K.eslestirme;
         el("button",{type:"button",class:"dugme",style:kucuk,onclick:function(){eslGonder({islem:"kalsin",id:x.id},x.id,ciz4);}},["Kurye yok"])])];})):bos("Kurye sisteminde karşılığı olmayan paket siparişi yok.")));}
   ciz4();a.appendChild(kap);}
 
+// Kapatılan hesabın Adisyo'da 'Ödeme Alındı' yapılması ayrı, beklenmeyen bir istekle yapılır (10–25 sn sürebilir; kaydı bekletmesin).
+// Aynı anda tek istek; arada yeni hesap kapatılırsa bittiğinde bir kez daha çalışır.
+var ADISYO_IS={gidiyor:false,tekrar:false};
+function adisyoArkadan(){if(ADISYO_IS.gidiyor){ADISYO_IS.tekrar=true;return;}ADISYO_IS.gidiyor=true;ADISYO_IS.tekrar=false;
+  fetch("/api/hesap",{method:"POST",credentials:"same-origin",headers:{"content-type":"application/json","x-bap-panel":"1"},body:JSON.stringify({islem:"adisyo"})})
+    .catch(function(){}).then(function(){ADISYO_IS.gidiyor=false;if(ADISYO_IS.tekrar)adisyoArkadan();});}
 var HESAP_ISLEM={};// siparisId → {durum:"gidiyor"|"tamam"|"hata", islem, mesaj}
 // Ödeme yöntemi seçenekleri: açık hesaplarda geçen yöntemler + sık kullanılanlar.
 var KURYE_ODEME_YONTEMLERI=["Nakit","Kredi/Banka Kartı","Havale/EFT","Paye Kart","Paye Kod","Pluxee (Sodexo) Pass Mobil","Sodexo Kart","Multinet","Multinet Kodu","SetCard","SetCard Kodu","Metropol","Metropol Kodu","Ticket Edenred","Token Flex","SmarTicket","Online (platform)"];
@@ -2041,6 +2047,7 @@ function hesapKapat(x,islem,yenidenCiz){
     HESAP_ISLEM[x.id]={durum:"gidiyor",islem:islem};yenidenCiz();
     fetch("/api/hesap",{method:"POST",credentials:"same-origin",headers:{"content-type":"application/json","x-bap-panel":"1"},body:JSON.stringify({siparisId:x.id,islem:islem,bahsis:bahsis,odeme:odeme!==x.odeme?odeme:""})})
       .then(function(r){return r.json();}).then(function(r){
+        if(r&&r.tamam&&!r.zatenKapali)adisyoArkadan();
         if(r&&r.tamam)HESAP_ISLEM[x.id]={durum:"tamam",islem:islem,mesaj:r.zatenKapali?"Zaten kapatılmıştı":(islem==="kes"?"Kuryeden kesildi":"Tahsil edildi"+(r.bahsis?" + "+para(r.bahsis)+" bahşiş (kuryenin bu haftaki bordrosuna eklendi)":""))+(r.odemeDegisti?" · ödeme: "+r.odeme:"")};
         else HESAP_ISLEM[x.id]={durum:"hata",islem:islem,mesaj:(r&&r.hata)||"Kaydedilemedi."};
       }).catch(function(){HESAP_ISLEM[x.id]={durum:"hata",islem:islem,mesaj:"Bağlantı koptu; kayıt yazılmış olabilir. Paneli yenileyip kontrol et."};})

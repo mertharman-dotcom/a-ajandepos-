@@ -3543,7 +3543,15 @@ function musteriDetay_(d) {
   return out ? { tamam: true, siparis: out } : { hata: 'Sipariş kurye tablosunda bulunamadı.' };
 }
 
-function hesapKapat_(d) {
+// Kilit dışında: siparişi açık hesap listesinde bulur (Siparişler okuması birkaç saniye sürer; kilit içinde öteki kayıtları bekletiyordu).
+function hesapOnBilgi_(d) {
+  var id = siparisNo_(d.siparisId); if (!id) return {};
+  var ss = tabloAc_(KAYNAK.kurye.id), kapali = tahsilatlar_(ss);
+  if (kapali.idler[id]) return {};
+  return { bul: acikListe_(ss, kapali, isGunu_(simdi_()), {}).liste.filter(function (x) { return x.id === id; })[0] || null };
+}
+
+function hesapKapat_(d, on) {
   if (d.islem === 'adisyo') return { tamam: true, adisyo: tahsilatlariAdisyoyaIsle_() };
   var id = siparisNo_(d.siparisId), islem = d.islem === 'kes' ? 'kes' : d.islem === 'tahsil' ? 'tahsil' : '';
   if (!id || !islem) return { hata: 'Geçersiz istek.' };
@@ -3551,7 +3559,8 @@ function hesapKapat_(d) {
   var kapali = tahsilatlar_(ss);
   if (kapali.idler[id]) return { tamam: true, zatenKapali: true };
   // Panelin gösterdiği listeyle aynı kaynak (Siparişler 'Hesap = AÇIK' + eski kayıtlar için Açık Hesaplar sekmesi).
-  var bul = acikListe_(ss, kapali, isGunu_(simdi_()), {}).liste.filter(function (x) { return x.id === id; })[0];
+  // Kilit içinde yalnız 'zaten kapatıldı mı' yeniden bakılır (yukarıda); sipariş bilgisi kilit dışında bulundu.
+  var bul = on && on.bul !== undefined ? on.bul : acikListe_(ss, kapali, isGunu_(simdi_()), {}).liste.filter(function (x) { return x.id === id; })[0];
   if (!bul) return { hata: 'Bu sipariş açık hesaplarda bulunamadı; tablo güncellenmiş olabilir. Paneli yenileyin.' };
   var ca = { tarih: 0, no: 1, kurye: 2, odeme: 3, tutar: 4 }, r = [bul.tarih, bul.no, bul.kurye, bul.odeme, bul.tutar];
   var kurye = String(r[ca.kurye] || '').trim(), tutar = sayi_(r[ca.tutar]), not = String(d.not || '').replace(/\s+/g, ' ').trim().slice(0, 200);
@@ -3583,7 +3592,9 @@ function hesapKapat_(d) {
   }
   var ozet = kurye + ' — adisyon ' + r[ca.no] + ', ' + tutar + ' TL: ' + (islem === 'kes' ? 'kuryeden kesildi' : 'tahsil edildi') + (bahsis ? ' + ' + bahsis + ' TL bahşiş' : '') + (odemeDegisti ? ' (ödeme: ' + eskiOdeme + ' → ' + odeme + ')' : '');
   try { cevapKaydet_('Operasyon', 'Kurye Net Çalışma Süresi › Tahsilatlar', sh.getLastRow(), 'Açık hesap kapatıldı', ozet, damga.slice(0, 16)); } catch (err) { }
-  var adisyo = null; try { adisyo = tahsilatlariAdisyoyaIsle_(); } catch (err) { adisyo = { hata: String(err.message || err) }; }
+  // Adisyo'ya 'Ödeme Alındı' işleme artık burada yapılmaz: panel kayıttan sonra ayrı istekle ({ islem: 'adisyo' }) başlatır
+  // (okuması 10–25 sn; kaydı ve öteki kayıtları bekletmesin). Saatlik kuryeBoslariDoldur da işler.
+  var adisyo = null;
   return { tamam: true, islem: islem, kurye: kurye, tutar: tutar, bahsis: bahsis, adisyo: adisyo, odeme: odeme, odemeDegisti: odemeDegisti };
 }
 
@@ -3932,10 +3943,12 @@ function rotaHesapla_(d) {
 // Tahsilatlar sekmesinde 'Adisyo Durumu' sütunu boş olan her kayıt için Adisyo › Satıs Verileri'nde siparişi bulur
 // (kurye tablosundaki sipariş no + sipariş saati, en fazla 20 dk fark) ve 'Ödeme Alındı' hücresini TRUE yapar.
 // Sonuç Tahsilatlar › 'Adisyo Durumu' sütununa yazılır; bulunamayan bir sonraki çalışmada yeniden denenir (en fazla 3 gün).
-function tahsilatlariAdisyoyaIsle_() {
+// kilitAl: okuma kilitsiz yapılır, yalnız hücre yazarken kilit alınır (çağıran kilit tutmuyorsa). Okuma 10–25 sn sürebildiği için
+// kilit içinde yapılınca öteki panel kayıtları (fiş, ödeme, açık hesap) bekliyordu (08.10).
+function tahsilatlariAdisyoyaIsle_(kilitAl) {
   var ks = tabloAc_(KAYNAK.kurye.id), th = ks.getSheetByName('Tahsilatlar'); if (!th || th.getLastRow() < 2) return { islenen: 0 };
-  var lc = th.getLastColumn(), tb = th.getRange(1, 1, 1, lc).getDisplayValues()[0], ca = kolon_(tb, ['Adisyo Durumu']);
-  if (ca < 0) { lc++; th.getRange(1, lc).setValue('Adisyo Durumu'); ca = lc - 1; }
+  var lc = th.getLastColumn(), tb = th.getRange(1, 1, 1, lc).getDisplayValues()[0], ca = kolon_(tb, ['Adisyo Durumu']), baslikYaz = false;
+  if (ca < 0) { lc++; ca = lc - 1; baslikYaz = true; }
   var ci = kolon_(tb, ['Sipariş ID']), cz = kolon_(tb, ['Kayıt Zamanı']), tv = th.getRange(2, 1, th.getLastRow() - 1, lc).getDisplayValues();
   var bekleyen = []; tv.forEach(function (r, i) { if (!String(r[ca] || '').trim() && siparisNo_(r[ci])) bekleyen.push({ satir: i + 2, id: siparisNo_(r[ci]), zaman: zaman_(r[cz]) }); });
   if (!bekleyen.length) return { islenen: 0 };
@@ -3944,23 +3957,30 @@ function tahsilatlariAdisyoyaIsle_() {
   if (s) { var cs = { t: kolon_(s.b, ['Tarih']), id: kolon_(s.b, ['Sipariş ID']), no: kolon_(s.b, ['Adisyon No']), sa: kolon_(s.b, ['Sipariş Saati']) };
     s.v.forEach(function (r) { var id = siparisNo_(r[cs.id]); if (id) kmap[id] = { no: String(r[cs.no] || '').trim(), ms: zaman_(String(r[cs.t]).trim() + ' ' + String(r[cs.sa] || '').trim()) }; }); }
   var as = tabloAc_(KAYNAK.siparis.id), ash = as.getSheetByName('Satıs Verileri'); if (!ash) throw new Error("Adisyo'da 'Satıs Verileri' yok");
-  var a = sonSatirlar_(as, 'Satıs Verileri', 8000, ['Sipariş ID', 'Sipariş No', 'Sipariş Tarihi', 'Ödeme Alındı']);
-  var son = ash.getLastRow(), ilk = son - a.v.length + 1, c = { id: kolon_(a.b, ['Sipariş ID']), no: kolon_(a.b, ['Sipariş No']), t: kolon_(a.b, ['Sipariş Tarihi']), od: kolon_(a.b, ['Ödeme Alındı']) };
+  // Ham değer: görünen metin okuması bu tabloda çok yavaş. Sipariş ID / No yalnız rakamlarıyla karşılaştırılır ("46.847.362" = 46847362).
+  var a = sonSatirlar_(as, 'Satıs Verileri', 8000, ['Sipariş ID', 'Sipariş No', 'Sipariş Tarihi', 'Ödeme Alındı'], true);
+  if (!a) return { islenen: 0, bekleyen: bekleyen.length };
+  var son = a.son || ash.getLastRow(), ilk = son - a.v.length + 1, c = { id: kolon_(a.b, ['Sipariş ID']), no: kolon_(a.b, ['Sipariş No']), t: kolon_(a.b, ['Sipariş Tarihi']), od: kolon_(a.b, ['Ödeme Alındı']) };
   if (c.od < 0) throw new Error("Adisyo'da 'Ödeme Alındı' sütunu bulunamadı");
-  var ano = {}; a.v.forEach(function (r, i) { var no = String(r[c.no] || '').trim(), ms = zaman_(r[c.t]); if (no && ms !== null) (ano[no] = ano[no] || []).push({ satir: ilk + i, ms: ms, id: String(r[c.id] || '').trim(), od: String(r[c.od] || '') }); });
+  var ano = {}; a.v.forEach(function (r, i) { var no = siparisNo_(r[c.no]), ms = zaman_(r[c.t]); if (no && ms !== null) (ano[no] = ano[no] || []).push({ satir: ilk + i, ms: ms, id: siparisNo_(r[c.id]) }); });
   var simdi = new Date().getTime(), n = 0, bulunamadi = 0;
+  var kilit = null;
+  if (kilitAl) { kilit = LockService.getScriptLock(); if (!kilit.tryLock(28000)) return { islenen: 0, bekleyen: bekleyen.length, mesgul: true }; }
+  try {
+  if (baslikYaz) th.getRange(1, lc).setValue('Adisyo Durumu');
   bekleyen.forEach(function (b) {
     var k = kmap[b.id], sonuc = '';
-    var aday = k && k.ms !== null ? (ano[k.no] || []).map(function (x) { return { x: x, f: Math.abs(x.ms - k.ms) }; }).filter(function (y) { return y.f <= 20 * 60000; }).sort(function (p, q) { return p.f - q.f; })[0] : null;
+    var aday = k && k.ms !== null ? (ano[siparisNo_(k.no)] || []).map(function (x) { return { x: x, f: Math.abs(x.ms - k.ms) }; }).filter(function (y) { return y.f <= 20 * 60000; }).sort(function (p, q) { return p.f - q.f; })[0] : null;
     if (aday) {
       var hucre = ash.getRange(aday.x.satir, c.id + 1);
-      if (String(hucre.getDisplayValue()).trim() !== aday.x.id) sonuc = ''; // satır kaydı; bir sonraki çalışmada yeniden denenir
+      if (siparisNo_(hucre.getDisplayValue()) !== aday.x.id) sonuc = ''; // satır kaydı; bir sonraki çalışmada yeniden denenir
       else { var od = ash.getRange(aday.x.satir, c.od + 1), once = String(od.getDisplayValue()).toUpperCase();
         if (once !== 'TRUE') od.setValue(true);
         sonuc = 'Ödeme Alındı = TRUE (Adisyo ' + aday.x.id + (once === 'TRUE' ? ', zaten TRUE' : '') + ')'; n++; }
     } else if (b.zaman !== null && simdi - b.zaman > 3 * 86400000) { sonuc = "Adisyo'da bulunamadı; elle kontrol edin"; bulunamadi++; }
     if (sonuc) th.getRange(b.satir, ca + 1).setValue(sonuc);
   });
+  } finally { if (kilit) kilit.releaseLock(); }
   return { islenen: n, bulunamadi: bulunamadi, bekleyen: bekleyen.length - n - bulunamadi };
 }
 
@@ -4066,9 +4086,10 @@ function kuryeEslestirIslem_(d, kaynak, hazir) {
 function kuryeBoslariDoldur() {
   var e = kuryeEslestirme_(); // okuma kilitsiz: panel kayıtlarını bekletmesin
   var k = LockService.getScriptLock(); if (!k.tryLock(30000)) { Logger.log('Kilit alınamadı; bir sonraki çalışmaya kaldı.'); return; }
-  try { var r = e.bos.length ? kuryeEslestirIslem_({ islem: 'doldur' }, 'Otomatik', e) : { yazilan: 0 }; Logger.log('Doldurulan: ' + r.yazilan);
-    try { Logger.log('Adisyo ödeme: ' + JSON.stringify(tahsilatlariAdisyoyaIsle_())); } catch (er) { Logger.log(er); } }
+  try { var r = e.bos.length ? kuryeEslestirIslem_({ islem: 'doldur' }, 'Otomatik', e) : { yazilan: 0 }; Logger.log('Doldurulan: ' + r.yazilan); }
   finally { k.releaseLock(); CacheService.getScriptCache().remove('panel_v1_n'); }
+  // Okuması uzun: kilit dışında okur, yalnız yazarken kilit alır.
+  try { Logger.log('Adisyo ödeme: ' + JSON.stringify(tahsilatlariAdisyoyaIsle_(true))); } catch (er) { Logger.log(er); }
 }
 
 function gz_() { return { maliyet: 0, mesaiPaket: 0, adet: 0, km: 0, n: 0, at: 0, cikis: 0, yol: 0, top: 0, gec: 0, mutfak: 0, kurye: 0, ikisi: 0, diger: 0 }; }
@@ -4200,8 +4221,12 @@ function doPost(e) {
     finally { ksf.releaseLock(); CacheService.getScriptCache().remove('panel_v1_n'); }
   }
   if (d.tur === 'hesap') {
+    if (d.islem === 'adisyo') {
+      try { return json_({ tamam: true, adisyo: tahsilatlariAdisyoyaIsle_(true) }); } catch (err) { return json_({ hata: String(err.message || err) }); }
+    }
+    var onb; try { onb = hesapOnBilgi_(d); } catch (err) { onb = null; }
     var kh = LockService.getScriptLock(); if (!kh.tryLock(28000)) return json_(MESGUL_);
-    try { return json_(hesapKapat_(d)); }
+    try { return json_(hesapKapat_(d, onb)); }
     finally { kh.releaseLock(); CacheService.getScriptCache().remove('panel_v1_n'); }
   }
   if (d.tur === 'vardiya') {
