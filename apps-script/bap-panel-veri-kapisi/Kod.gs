@@ -3510,12 +3510,12 @@ function hesapKapat_(d) {
   var id = siparisNo_(d.siparisId), islem = d.islem === 'kes' ? 'kes' : d.islem === 'tahsil' ? 'tahsil' : '';
   if (!id || !islem) return { hata: 'Geçersiz istek.' };
   var ss = tabloAc_(KAYNAK.kurye.id);
-  if (tahsilatlar_(ss).idler[id]) return { tamam: true, zatenKapali: true };
-  var a = sonSatirlar_(ss, 'Açık Hesaplar', 2000); if (!a) return { hata: "'Açık Hesaplar' sekmesi okunamadı." };
-  var ca = { tarih: kolon_(a.b, ['Tarih']), no: kolon_(a.b, ['Adisyon No']), id: kolon_(a.b, ['Sipariş ID']), kurye: kolon_(a.b, ['Kurye']),
-             odeme: kolon_(a.b, ['Ödeme Yöntemi']), tutar: kolon_(a.b, ['Tutar (TL)', 'Tutar']) };
-  var r = a.v.filter(function (x) { return siparisNo_(x[ca.id]) === id; })[0];
-  if (!r) return { hata: 'Bu sipariş Açık Hesaplar listesinde bulunamadı; tablo güncellenmiş olabilir. Paneli yenileyin.' };
+  var kapali = tahsilatlar_(ss);
+  if (kapali.idler[id]) return { tamam: true, zatenKapali: true };
+  // Panelin gösterdiği listeyle aynı kaynak (Siparişler 'Hesap = AÇIK' + eski kayıtlar için Açık Hesaplar sekmesi).
+  var bul = acikListe_(ss, kapali, isGunu_(simdi_()), {}).liste.filter(function (x) { return x.id === id; })[0];
+  if (!bul) return { hata: 'Bu sipariş açık hesaplarda bulunamadı; tablo güncellenmiş olabilir. Paneli yenileyin.' };
+  var ca = { tarih: 0, no: 1, kurye: 2, odeme: 3, tutar: 4 }, r = [bul.tarih, bul.no, bul.kurye, bul.odeme, bul.tutar];
   var kurye = String(r[ca.kurye] || '').trim(), tutar = sayi_(r[ca.tutar]), not = String(d.not || '').replace(/\s+/g, ' ').trim().slice(0, 200);
   // Kurye farklı yöntemle tahsil ettiyse (ör. sistemde kart, gerçekte nakit) gerçek yöntem yazılır, eskisi notta kalır.
   var eskiOdeme = String(r[ca.odeme] || '').trim(), odeme = String(d.odeme || '').replace(/\s+/g, ' ').trim().slice(0, 60) || eskiOdeme;
@@ -3533,11 +3533,15 @@ function hesapKapat_(d) {
     if (cb < 0) { cb = lc; sh.getRange(1, cb + 1).setValue('Bahşiş (TL)').setFontWeight('bold'); }
     sh.getRange(sh.getLastRow(), cb + 1).setValue(bahsis); }
 
-  if (islem === 'kes') {
+  if (islem === 'kes' || bahsis > 0) {
     var ks = ss.getSheetByName('Kesintiler');
     if (!ks) { ks = ss.insertSheet('Kesintiler'); ks.appendRow(['Tarih', 'Kurye Adı', 'Kesinti Tipi (Saat / TL)', 'Kesilen Süre (Dk)', 'Kesilen Tutar (TL)', 'Açıklama']); ks.setFrozenRows(1); }
-    ks.appendRow([Utilities.formatDate(new Date(), TZ, 'dd.MM.yyyy'), kurye, 'TL', '', tutar,
+    var bugunYazi = Utilities.formatDate(new Date(), TZ, 'dd.MM.yyyy');
+    if (islem === 'kes') ks.appendRow([bugunYazi, kurye, 'TL', '', tutar,
       'Açık hesap: adisyon ' + r[ca.no] + ', ' + r[ca.tarih] + ' (' + odeme + ')' + (not ? ' — ' + not : '')]);
+    // Kartla gelen bahşiş kuryenin: bugünün tarihiyle 'Bahşiş' satırı → bu haftanın bordrosuna + olarak girer.
+    if (bahsis > 0) ks.appendRow([bugunYazi, kurye, 'Bahşiş', '', bahsis,
+      'Açık hesap bahşişi: adisyon ' + r[ca.no] + ', ' + r[ca.tarih] + ' (' + odeme + ')']);
   }
   var ozet = kurye + ' — adisyon ' + r[ca.no] + ', ' + tutar + ' TL: ' + (islem === 'kes' ? 'kuryeden kesildi' : 'tahsil edildi') + (bahsis ? ' + ' + bahsis + ' TL bahşiş' : '') + (odemeDegisti ? ' (ödeme: ' + eskiOdeme + ' → ' + odeme + ')' : '');
   try { cevapKaydet_('Operasyon', 'Kurye Net Çalışma Süresi › Tahsilatlar', sh.getLastRow(), 'Açık hesap kapatıldı', ozet, damga.slice(0, 16)); } catch (err) { }
