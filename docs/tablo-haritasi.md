@@ -142,6 +142,8 @@ Kurallar:
 ## 7 · Eski / kullanılmıyor olabilir
 
 > ⏸ 03.10: Sahip bu 15 dosyaya bakıp ne yapılacağını söyleyecek. O zamana kadar **dokunulmaz, taşınmaz**.
+>
+> 08.10 kontrolü (T5): `BAP Veri Ambarı` (Satış Veri Ambarı projesi yazıyor) ve `BAP_Veri_Arsivi_2025` (rapor ajanı okuyor) kodda **kullanılıyor**. Diğer 13'ünü kod, Make ve ajanlar açmıyor. Güncel temizlik listesi: https://claude.ai/artifact/EXgCpL17TYpkekZ8jHdxgT
 
 | Son değişiklik | Dosya | Not |
 |---|---|---|

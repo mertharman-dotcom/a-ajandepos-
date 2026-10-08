@@ -35,7 +35,8 @@ var KAYNAK = {
   kurye:    { id: '1LG7naAbMM9aL3K0QNzzrjXomC2LXjx4rdSCYNYWzDQo', ad: 'Kurye çalışma süresi',    bolum: 'kurye',    beklenenDk: 1440 },
   personel: { id: '1WBniOC2h9SvD20bHZl3G4o0f4kUmjbXtIrNvYVyV8Hg', ad: 'Personel',                bolum: 'personel', beklenenDk: 1440 },
   yorum:    { id: '1KLWCEBwFMHCTrTnCYLhv2ctg5PvGtS9DNzoMXF-Z1JE', ad: 'Trendyol yorumları',      bolum: 'musteri',  beklenenDk: 1440 },
-  yemekKarti: { id: '19RVXZQwKZRCW6xnZxSwhRHXte4VWhaVqruaTZRwVJbM', ad: 'Yemek kartı tahsilatları', bolum: 'yemekkart', beklenenDk: 180 }
+  yemekKarti: { id: '19RVXZQwKZRCW6xnZxSwhRHXte4VWhaVqruaTZRwVJbM', ad: 'Yemek kartı tahsilatları', bolum: 'yemekkart', beklenenDk: 180 },
+  nabiz:    { id: '1Zcvs58MkIX_D2GZZv8q2p6LpFj6_BS42TBMKuU1oNpY', ad: 'Sistem bekçisi',          bolum: 'saglik',   beklenenDk: 30 }
 };
 
 var DEPARTMANLAR = ['Müşteri İlişkileri', 'Operasyon', 'Finans', 'Satış & Gelir', 'Teknoloji & Sistemler',
@@ -965,9 +966,13 @@ function eksikEkle_(T, ad, urun) { var k = norm_(ad), e = T.eksik[k] = T.eksik[k
 function parca_(v) { return String(v == null ? '' : v).split('|').map(function (x) { return x.trim(); }); }
 function subeKisa_(s) { return String(s || '').replace(/^BAP\s+/i, '').trim(); }
 
-/* ---------------- Sistem nabzı (sipariş dosyasındaki Sistem_Nabzi sekmesi) ---------------- */
+/* ---------------- Sistem nabzı ----------------
+ * Asıl kaynak: BAP Sistem Nabzı › Durum (BAP Sistem Bekçisi 15 dk'da bir yazar: Sistem, Durum, Detay, Grup, Nerede, Ne yapmalı,
+ * Ne zamandan beri, Son veri). Bekçi kurulmadıysa eski Sistem_Nabzi sekmesi (sipariş dosyası) okunur. */
 
 function nabiz_() {
+  var v2 = nabizBekci_();
+  if (v2) return v2;
   var sh = tabloAc_(KAYNAK.siparis.id).getSheetByName('Sistem_Nabzi');
   if (!sh) return null;
   var v = sh.getRange(1, 1, Math.min(40, Math.max(1, sh.getLastRow())), 3).getDisplayValues();
@@ -978,6 +983,28 @@ function nabiz_() {
     else if (norm_(a) === 'sistem') basladi = true;
     else if (basladi && a) out.satirlar.push({ sistem: a, durum: String(r[1]).trim(), detay: String(r[2]).trim() });
   });
+  return out;
+}
+
+function nabizBekci_() {
+  var sh = tabloAc_(KAYNAK.nabiz.id).getSheetByName('Durum');
+  if (!sh || sh.getLastRow() < 4) return null;
+  var v = sh.getRange(1, 1, sh.getLastRow(), 8).getDisplayValues();
+  var out = { surum: 2, sonKontrol: String(v[0][0]).replace(/^son kontrol:?\s*/i, ''), ozet: String(v[1][0]), satirlar: [] };
+  var b = v[2].map(String), c = {};
+  ['Sistem', 'Durum', 'Detay', 'Grup', 'Nerede', 'Ne yapmalı', 'Ne zamandan beri', 'Son veri'].forEach(function (h) { c[h] = b.indexOf(h); });
+  if (c.Sistem < 0 || c.Durum < 0) return null;
+  var al = function (r, h) { return c[h] >= 0 ? String(r[c[h]] || '').trim() : ''; };
+  for (var i = 3; i < v.length; i++) {
+    if (!al(v[i], 'Sistem')) continue;
+    out.satirlar.push({ sistem: al(v[i], 'Sistem'), durum: al(v[i], 'Durum'), detay: al(v[i], 'Detay'), grup: al(v[i], 'Grup'),
+                        nerede: al(v[i], 'Nerede'), cozum: al(v[i], 'Ne yapmalı'), beri: al(v[i], 'Ne zamandan beri'), sonVeri: al(v[i], 'Son veri') });
+  }
+  var ol = tabloAc_(KAYNAK.nabiz.id).getSheetByName('Olaylar');
+  if (ol && ol.getLastRow() > 1) {
+    var n = Math.min(40, ol.getLastRow() - 1), ov = ol.getRange(ol.getLastRow() - n + 1, 1, n, 6).getDisplayValues().reverse();
+    out.olaylar = ov.map(function (r) { return { zaman: r[0], grup: r[1], sistem: r[2], onceki: r[3], yeni: r[4], detay: r[5] }; });
+  }
   return out;
 }
 
