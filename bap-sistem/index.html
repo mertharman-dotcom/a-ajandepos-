@@ -1283,7 +1283,7 @@ function hepsiniSifirla(idx){
 }
 
 // Siparişin şubesi: tedarikçi tek şubeye bağlıysa o, 'Hepsi' ise girişte seçilen şube.
-// 'Hepsi' kayda yazılırsa Mal Kabul siparişi hiçbir şubede göstermez (kontrol listesi P51).
+// 'Hepsi' kayda yazılırsa Mal Kabul siparişi hiçbir şubede göstermez (kontrol listesi P53).
 function siparisSubesi(ted){
   return (ted.sube && ted.sube.toLocaleLowerCase('tr-TR')!=='hepsi') ? ted.sube : (S_seciliSube || S.sube || '');
 }

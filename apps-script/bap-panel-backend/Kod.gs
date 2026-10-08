@@ -1096,7 +1096,7 @@ function tahminiTeslimGunu(tedarikciAdi, sube, baslangic) {
 function siparisKaydet(data) {
   const sh = siparisSheet();
   const { calisanAdi, tedarikci, sube, urunler, wpGonderildi, tarih } = data;
-  // 'Hepsi' ya da boş şube yazılırsa sipariş Mal Kabul'de hiçbir şubede görünmez, hep 'Bekliyor' kalır (P51).
+  // 'Hepsi' ya da boş şube yazılırsa sipariş Mal Kabul'de hiçbir şubede görünmez, hep 'Bekliyor' kalır (P53).
   const subeK = trKucuk(sube).trim();
   if (!subeK || subeK === 'hepsi') return { basari: false, hata: 'Şube seçili değil. Çıkış yapıp şubeni seçerek tekrar gir.' };
   const simdi = new Date();
@@ -1186,7 +1186,7 @@ function siparisDuzelt(data) {
 // MAL KABUL & AÇIK SİPARİŞLER
 // ============================================================
 
-// ── P51: Sube = 'Hepsi' yazılmış eski sipariş satırlarına gerçek şubeyi önerir / yazar ──
+// ── P53: Sube = 'Hepsi' yazılmış eski sipariş satırlarına gerçek şubeyi önerir / yazar ──
 // Editörden çalıştır: hepsiSubeDuzelt()  → KURU = true: hiçbir şey yazmaz, 'Sube_Duzeltme_Raporu' sekmesine öneri yazar.
 // Sahibi raporu onaylayınca KURU = false yapılıp tekrar çalıştırılır: yalnız F (Sube) hücresi değişir, satır silinmez.
 // Öneri: siparişi veren çalışanın 'Hepsi' olmayan siparişlerinde en çok kullandığı şube (en az %80 ve 3 sipariş).
