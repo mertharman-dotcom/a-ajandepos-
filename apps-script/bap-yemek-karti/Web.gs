@@ -28,6 +28,7 @@ function doPost(e) {
   if (g.tur === 'tokenflexTani') {
     try {
       var p = PropertiesService.getScriptProperties();
+      if (g.gonder !== true) return jsonYanit_({ ok: true, isyeriOzellik: p.getProperty('TOKENFLEX_ISYERI') || '(yok → 320096)', smsBekleme: p.getProperty('TOKENFLEX_2FA') || '' });
       var d = tfIstek_('Authentication/Login', { username: p.getProperty('TOKENFLEX_KULLANICI'), password: p.getProperty('TOKENFLEX_SIFRE'), rememberMe: false }) || {};
       var gizle = function (o) { return JSON.parse(JSON.stringify(o, function (k, v) { return /token/i.test(k) && typeof v === 'string' ? v.slice(0, 6) + '…' : v; })); };
       return jsonYanit_({ ok: true, isyeriOzellik: p.getProperty('TOKENFLEX_ISYERI') || '(yok → 320096)', giris: gizle(d) });
