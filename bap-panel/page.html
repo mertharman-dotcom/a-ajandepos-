@@ -1793,6 +1793,9 @@ function mesaiDuzeltme(a,K,o){o=o||{};var D=MESAI_DUZ,L=K.mesaiKontrol||[],Y=K.m
 function hmDk(s){var m=String(s||"").match(/^(\d{1,2}):(\d{2})/);return m?(+m[1])*60+(+m[2]):null;}
 function dkHm(d){if(d==null)return "";d=((Math.round(d)%1440)+1440)%1440;return ("0"+Math.floor(d/60)).slice(-2)+":"+("0"+d%60).slice(-2);}
 function kuryeSaatUcreti(K,ad){var U=K.ucret||{},k=U.kisiler||{},n=normAd(ad),i;for(i in k)if(normAd(i)===n||normAd(String(ad).split(/\s+/)[0])===normAd(i))return k[i].saat;return (U.varsayilan||{}).saat||0;}
+// Ek ödemesi bordro ekranında gösterilmeyen kuryeler (sahibin isteği, 08.10): tutar toplama dahil, yalnız sütunda ve haftalık dökümde görünmez.
+var EK_ODEME_GIZLI=["kenan"];
+function ekGizli(ad){var n=normAd(String(ad||"").split(/\s+/)[0]);return EK_ODEME_GIZLI.some(function(k){return normAd(k)===n;});}
 function haddyMi(grup){return !/bap/i.test(String(grup||""));}
 function kuryeHaftaSec(a,K,ek){var B=K.bordro||[];if(!B.length)return null;if(KURYE_HAFTA>=B.length)KURYE_HAFTA=0;
   var sec=el("select",{class:"cevap-alan",style:"max-width:220px","aria-label":"Hafta",onchange:function(e){KURYE_HAFTA=+e.target.value;ciz();}},B.map(function(h,i){var o=el("option",{value:String(i),text:gunAd(h.hafta)+" – "+gunAd(h.bitis)+(i===0?" (bu hafta)":"")});if(i===KURYE_HAFTA)o.selected=true;return o;}));
@@ -1808,7 +1811,7 @@ function haftaKalemleri(K,H){var R=[];
   (K.mesaiGunleri||[]).forEach(function(x){if(x.gun<H.hafta||x.gun>H.bitis)return;
     if(x.erken>0)R.push({gun:x.gun,ad:x.ad,tur:"Giriş — erken çevrimiçi",dk:x.erken,tl:-Math.round(x.erken/60*x.saatUcret),odenmez:true,neden:nedenParca(x.neden,"erken")});
     if(x.kapanis>0)R.push({gun:x.gun,ad:x.ad,tur:"Çıkış — kapanış kesintisi",dk:x.kapanis,tl:-Math.round(x.kapanis/60*x.saatUcret),neden:nedenParca(x.neden,"kapanis")});});
-  (K.kesintiKalemleri||[]).forEach(function(x){if(x.gun<H.hafta||x.gun>H.bitis||x.yon==="iptal")return;
+  (K.kesintiKalemleri||[]).forEach(function(x){if(x.gun<H.hafta||x.gun>H.bitis||x.yon==="iptal"||(x.yon==="arti"&&ekGizli(x.ad)))return;
     var tur=x.yon==="arti"?x.tip:x.yon==="avans"?"Avans":/saat/i.test(x.tip)?"Süre kesintisi (elle)":/^açık hesap/i.test(x.not)?"Açık hesap — ödeme alınmadı":"Para kesintisi";
     var tl=/saat/i.test(x.tip)&&x.yon==="kesinti"?-Math.round((x.dk||0)/60*kuryeSaatUcreti(K,x.ad)):x.yon==="arti"?x.tl:-x.tl;
     R.push({gun:x.gun,ad:x.ad,tur:tur,dk:/saat/i.test(x.tip)?x.dk:null,tl:tl,arti:x.yon==="arti",neden:x.not});});
@@ -1897,10 +1900,10 @@ function kuryeBordro(a,K){var B=K.bordro||[];if(!B.length)return a.appendChild(b
   if(KURYE_HAFTA>=B.length)KURYE_HAFTA=0;var H=B[KURYE_HAFTA],sec=null;
   var U=K.ucret,ucretYazi=[U.varsayilan.grup+" (varsayılan): saat "+U.varsayilan.saat+" ₺, paket "+U.varsayilan.paket+" ₺"+(U.varsayilan.kdv?", KDV %"+Math.round(U.varsayilan.kdv*100):"")].concat(Object.keys(U.kisiler).map(function(k){var x=U.kisiler[k];return k+" ("+x.grup+"): "+x.saat+" ₺ + "+x.paket+" ₺"+(x.kdv?", KDV %"+Math.round(x.kdv*100):"");})).join(" · ")+(U.kaynak==="yedek"?" — ‘Kurye bilgiler’ sekmesi okunamadı, yedek ücretler kullanıldı.":"");
   kuryeHaftaSec(a,K,[el("span",{style:"color:var(--gri);font-size:13px",text:ucretYazi})]);
-  function top(l){return l.reduce(function(t,x){t.gun+=x.gun;t.netDk+=x.netDk;t.paket+=x.paket;t.kesintiDk+=x.kesintiDk;t.ekDk+=x.ekDk||0;t.saat+=x.saat;t.paketTl+=x.paketTl;t.paraKesinti+=x.paraKesinti||0;t.kdv+=x.kdv;t.ekOdeme+=x.ekOdeme||0;t.avans+=x.avans||0;t.toplam+=x.toplam;return t;},{gun:0,netDk:0,paket:0,kesintiDk:0,ekDk:0,saat:0,paketTl:0,paraKesinti:0,kdv:0,ekOdeme:0,avans:0,toplam:0});}
+  function top(l){return l.reduce(function(t,x){t.gun+=x.gun;t.netDk+=x.netDk;t.paket+=x.paket;t.kesintiDk+=x.kesintiDk;t.ekDk+=x.ekDk||0;t.saat+=x.saat;t.paketTl+=x.paketTl;t.paraKesinti+=x.paraKesinti||0;t.kdv+=x.kdv;t.ekOdeme+=ekGizli(x.ad)?0:(x.ekOdeme||0);t.avans+=x.avans||0;t.toplam+=x.toplam;return t;},{gun:0,netDk:0,paket:0,kesintiDk:0,ekDk:0,saat:0,paketTl:0,paraKesinti:0,kdv:0,ekOdeme:0,avans:0,toplam:0});}
   function hucreler(x,ad,kalin){var ns=x.netDk>=60?Math.round(x.paket/(x.netDk/60)*100)/100:null;var f=function(v){return kalin?el("strong",{text:v}):v;};
     var pk=x.paraKesinti?(kalin?f("−"+para(x.paraKesinti)):el("span",{title:x.kesintiNot||"",style:"color:var(--kotu)",text:"−"+para(x.paraKesinti)})):"—";
-    var eo=x.ekOdeme?(kalin?f("+"+para(x.ekOdeme)):el("span",{title:x.ekNot||"",style:"color:var(--iyi)",text:"+"+para(x.ekOdeme)})):"—";
+    var eo=x.ekOdeme&&!ekGizli(x.ad)?(kalin?f("+"+para(x.ekOdeme)):el("span",{title:x.ekNot||"",style:"color:var(--iyi)",text:"+"+para(x.ekOdeme)})):"—";
     var av=x.avans?(kalin?f("−"+para(x.avans)):el("span",{title:x.avansNot||"",style:"color:var(--kotu)",text:"−"+para(x.avans)})):"—";
     return [ad,f(String(x.gun)),f(saatDk(x.netDk)),f(String(x.paket)),ns!=null?f(virgul(ns)):"—",(x.kesintiDk||x.ekDk)?f((x.kesintiDk+(x.ekDk||0))+" dk"):"—",f(para(x.saat)),f(para(x.paketTl)),pk,x.kdv?f(para(x.kdv)):"—",eo,av,el("strong",{text:para(x.toplam)})];}
   var gruplar={};H.kisiler.forEach(function(x){(gruplar[x.grup]=gruplar[x.grup]||[]).push(x);});
