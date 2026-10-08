@@ -92,11 +92,12 @@ t('Tüketim kayıt zamanı: çıkış varsa TAM çıkış saati (−10 dk / penc
   const k0 = kur();
   let r = f('11:00', '11:25', '11:50', 'paket'); assert.equal(r.nokta, T('11:25').getTime()); assert.equal(r.kaynak, 'cikis');
   r = f('09:00', '13:10', '', 'paket'); assert.equal(r.nokta, T('13:10').getTime());                  // ileri saatli
-  r = f('11:00', '', '13:30', 'masa'); assert.equal(r.nokta, T('11:00').getTime()); assert.equal(r.kaynak, 'kural-masa');   // kapanış kullanılmaz
-  r = f('11:00', '', '11:40', 'odenmez'); assert.equal(r.kaynak, 'kural-odenmez'); assert.equal(r.nokta, T('11:00').getTime());
+  r = f('11:00', '', '13:30', 'masa'); assert.equal(r.nokta, T('11:15').getTime()); assert.equal(r.kaynak, 'kural-masa');   // girişten 15 dk sonra; kapanış kullanılmaz
+  r = f('11:00', '11:20', '', 'masa'); assert.equal(r.nokta, T('11:15').getTime());                                           // masada çıkış olsa da 15 dk kuralı
+  r = f('11:00', '', '11:40', 'odenmez'); assert.equal(r.kaynak, 'kural-odenmez'); assert.equal(r.nokta, T('11:00').getTime());  // personel: hemen
+  r = f('11:00', '11:25', '11:40', 'odenmez'); assert.equal(r.nokta, T('11:00').getTime());
   r = f('11:00', '', '11:40', 'gelal'); assert.equal(r.kaynak, 'kural-gelal');
   r = f('11:00', '', '11:40', 'paket'); assert.equal(r.kaynak, 'eksik'); assert.equal(r.nokta, null);        // sessizce atanmaz
-  r = f('11:00', '11:20', '', 'masa'); assert.equal(r.kaynak, 'cikis');                                       // masada çıkış varsa o
   const b = k0.ctx.sk_bildirim_('Teorik: 3 · HAZIRDA:012, 15 · x'); assert.ok(b.cevap && b.hazirda['12'] && b.hazirda['15']);
   assert.ok(k0.ctx.sk_bildirim_('HAZIRDA:YOK').cevap); assert.equal(Object.keys(k0.ctx.sk_bildirim_('HAZIRDA:YOK').hazirda).length, 0);
   assert.equal(k0.ctx.sk_bildirim_('Teorik: 3').cevap, false);
@@ -177,14 +178,18 @@ t('Çıkış saati EKSİK, sipariş sayımdan önce, kapanış sonra → önce B
   const r = k.satir('s:1'); r[9] = 'HAZIRDA:YOK · SONRA:77'; r[11] = 'BEKLIYOR';          // sahibin elle kararı
   k.isle(T('12:40')); assert.equal(k.satir('s:1')[11], 'ISLENDI'); assert.equal(k.stok('Mozzarella'), 24.7);
 });
-t('Masa (çıkış yok): kayıt zamanı sipariş saati — kural olarak işaretlenir; kapanış (13:30) kullanılmaz', () => {
+t('Masa: girişten 15 dk sonra tüketilmiş sayılır; sayım anında açık masa (ilave olabilir) notta listelenir', () => {
   const k = kur();
-  satisKur(k, [{ id: 'M1', siparis: '11:30', kapanis: '13:30', tur: 'masa', islendi: 1 }, { id: 'M2', siparis: '12:20', kapanis: '13:30', tur: 'masa', islendi: 1 }]);
-  motorDustu(k, 'M1', 0.5, '13:35'); motorDustu(k, 'M2', 0.2, '13:35');
+  satisKur(k, [{ id: 'M1', no: '12', siparis: '11:40', kapanis: '13:30', tur: 'masa', islendi: 1 },   // 11:55 → sayımdan önce, masa hâlâ açık
+               { id: 'M2', no: '14', siparis: '11:50', kapanis: '12:30', tur: 'masa', islendi: 1 },   // 12:05 → sayımdan sonra
+               { id: 'P1', no: '20', siparis: '11:59', tur: 'odenmez', islendi: 1 }]);               // personel: 11:59 → önce
+  motorDustu(k, 'M1', 0.5, '13:35'); motorDustu(k, 'M2', 0.2, '13:35'); motorDustu(k, 'P1', 0.1, '12:30');
   k.ekle('s:1', 'Sayim', 'Mozzarella', 'HM', null, 25, T('12:00'), T('13:40'), 'HAZIRDA:YOK');
   k.isle(T('13:41'));
-  assert.equal(k.stok('Mozzarella'), 24.8);   // M1 önce (sayılanda yok), M2 sonra
-  assert.ok(/1 masa\/gel-al\/ödenmez sipariş/.test(k.satir('s:1')[13]), k.satir('s:1')[13]);
+  assert.equal(k.stok('Mozzarella'), 24.8);   // yalnız M2 sonra
+  const not = k.satir('s:1')[13];
+  assert.ok(/açık masa: no 12 \(0\.5\)/.test(not), not);
+  assert.ok(/2 masa\/gel-al\/personel/.test(not), not);
 });
 t('Hazırlanıp çıkmadan iptal: sipariş düşülmez ama mutfağın zayi kaydı tüketimi korur; sayımdan önceki zayi sayımı değiştirmez', () => {
   const k = kur();
