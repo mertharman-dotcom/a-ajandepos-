@@ -2398,18 +2398,32 @@ function ciz(){nav();var a=document.getElementById("ana");a.textContent="";
 var CIZ_BEKLIYOR=false;
 function odakFormda(){var e=document.activeElement;return !!(e&&/^(INPUT|TEXTAREA|SELECT)$/.test(e.tagName)&&document.getElementById("ana").contains(e));}
 function veriYasi(){if(!VERI||!VERI.olusturma)return 1e9;var t=Date.parse(VERI.olusturma+"+03:00");return isNaN(t)?1e9:(Date.now()-t)/1000;}
-function yanAltYaz(){var y=document.getElementById("yanAlt");if(!y||!VERI||VERI.hata)return;var kotu=kaynaklar().filter(function(k){return tazelik(k)==="kotu";}).length;
-  y.textContent=(YUKLENIYOR?"Güncelleniyor… · ":"")+(kotu?kotu+" kaynak beklenenden eski":"Bütün kaynaklar güncel");}
+function yanAltYaz(){var y=document.getElementById("yanAlt");if(!y||!VERI||VERI.hata)return;var kotu=kaynaklar().filter(function(k){return tazelik(k)==="kotu";}).length,yas=veriYasi();
+  y.textContent=(YUKLENIYOR?"Güncelleniyor… · ":"")+(yas>300&&yas<1e9?"Veri "+sure(Math.round(yas/60))+" · ":"")+(kotu?kotu+" kaynak beklenenden eski":"Bütün kaynaklar güncel");}
+// Son gelen paket bu tarayıcıda da saklanır (IndexedDB). Panel açılınca Google'ı beklemeden önce o çizilir,
+// taze veri arkadan gelir. Saklanamazsa (gizli pencere vb.) panel eskisi gibi çalışır.
+var YEREL_SURE=7*864e5;
+function yerelAc(cb){try{var r=indexedDB.open("bap-panel",1);r.onupgradeneeded=function(){r.result.createObjectStore("veri");};
+  r.onsuccess=function(){cb(r.result);};r.onerror=function(){cb(null);};}catch(e){cb(null);}}
+function yerelOku(cb){var bitti=false;function son(v){if(!bitti){bitti=true;cb(v);}}setTimeout(function(){son(null);},1500);
+  yerelAc(function(db){if(!db)return son(null);try{var q=db.transaction("veri","readonly").objectStore("veri").get("son");
+    q.onsuccess=function(){var v=q.result;son(v&&v.zaman&&Date.now()-v.zaman<YEREL_SURE?v.veri:null);};q.onerror=function(){son(null);};}catch(e){son(null);}});}
+function yerelYaz(d){yerelAc(function(db){if(!db)return;try{db.transaction("veri","readwrite").objectStore("veri").put({zaman:Date.now(),veri:d},"son");}catch(e){}});}
 function yukle(taze,sessiz){if(YUKLENIYOR)return;YUKLENIYOR=true;if(VERI&&!sessiz)ciz();else yanAltYaz();
   fetch("/api/data"+(taze?"?fresh=1":""),{cache:"no-store",credentials:"same-origin"}).then(function(r){return r.json();})
-    .then(function(d){if(d&&d.hata&&VERI&&!VERI.hata&&sessiz)return;VERI=d;})
+    .then(function(d){if(d&&d.hata&&VERI&&!VERI.hata&&sessiz)return;
+      // Google'ın önbelleği bu tarayıcıdaki kopyadan eskiyse elimizdeki kalır.
+      if(d&&!d.hata&&VERI&&!VERI.hata&&d.olusturma&&VERI.olusturma&&d.olusturma<VERI.olusturma)return;
+      VERI=d;if(d&&!d.hata)yerelYaz(d);})
     .catch(function(){if(!VERI||!sessiz)VERI={hata:"Bağlantı kurulamadı. İnternetini kontrol edip yeniden dene."};})
     .then(function(){YUKLENIYOR=false;if(odakFormda()){CIZ_BEKLIYOR=true;yanAltYaz();}else ciz();
       if(!taze&&VERI&&!VERI.hata&&veriYasi()>60)setTimeout(function(){yukle(true,true);},50);});}
 document.addEventListener("focusout",function(){setTimeout(function(){if(CIZ_BEKLIYOR&&!odakFormda()){CIZ_BEKLIYOR=false;ciz();}},200);});
 
 window.addEventListener("hashchange",function(){var h=(location.hash||"#merkez").slice(1);if(h!==AKTIF){AKTIF=h;ciz();}});
-nav();yukle(false);setInterval(function(){if(document.hidden)return;
+nav();yerelOku(function(v){if(v&&!VERI){VERI=v;try{ciz();}catch(e){VERI=null;document.getElementById("ana").textContent="";
+    document.getElementById("ana").appendChild(el("div",{class:"yukleniyor",text:"Panel verisi okunuyor…"}));}}
+  yukle(false,!!VERI);});setInterval(function(){if(document.hidden)return;
   // Ödeme formu yarım doldurulmuşken otomatik yenileme ekranı yeniden çizip odağı kaçırmasın.
   if(AKTIF==="odeme"&&(ODEME_FORM.tutar||ODEME_FORM.aciklama||ODEME_FORM.gonderiliyor))return;
     if((AKTIF==="panolar"||AKTIF==="kararlar")&&(PANO.acik||PANO.gonderiliyor))return;
