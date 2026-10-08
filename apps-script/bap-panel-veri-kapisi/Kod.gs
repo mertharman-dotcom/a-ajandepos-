@@ -1560,7 +1560,7 @@ function mobilFatura_() {
           .reduce(function (t, r) { return t + sayi_(r[ct]); }, 0)); } } catch (err) { }
     return { ad: k.ad, kural: k.kuralMetni, bugun: bugun, faturaGunu: k.gunMu(bugun), sonGun: ayinSonGunuMu_(bugun), biriken: biriken,
       bugunKesildi: kb.some(function (f) { return gunu(f.ms) === bugun; }), kolaybiOkundu: kb.length > 0, takvim: takvim,
-      liste: kb.slice(0, 8).map(function (f) { return { no: f.no, tarih: kartTam_(f.ms).slice(0, 5) + '.' + new Date(f.ms).getUTCFullYear(), tutar: f.tutar, odendi: f.odendi }; }) };
+      liste: kb.slice(0, 8).map(function (f) { return { no: f.no, tarih: kartTam_(f.ms).slice(0, 5) + '.' + new Date(f.ms).getUTCFullYear(), tutar: f.tutar, kb: kbDurum_(f), tahsil: tahsil_(f.no, f) }; }) };
   });
 }
 
@@ -1689,17 +1689,26 @@ function setcardFaturaSatirlari_(sh) {
 function kolaybiSatis_(musteriRe) {
   var sf = satirlar_(tabloAc_(KAYNAK.fatura.id), 'Satis_Faturalari'), out = [], gor = {};
   var c = { id: kolon_(sf.b, ['Fatura_ID']), no: kolon_(sf.b, ['Fatura_No']), t: kolon_(sf.b, ['Tarih']), m: kolon_(sf.b, ['Musteri']), tu: kolon_(sf.b, ['Tutar']),
-            k: kolon_(sf.b, ['Kalan']), d: kolon_(sf.b, ['Odeme_Durumu']) };
+            k: kolon_(sf.b, ['Kalan']), d: kolon_(sf.b, ['Odeme_Durumu']), e: kolon_(sf.b, ['EBelge_Durumu']), fd: kolon_(sf.b, ['Fatura_Durumu']) };
   if (c.m < 0 || c.tu < 0 || c.t < 0) return out;
   sf.r.forEach(function (r) {
     var id = String(c.id >= 0 ? r[c.id] : '') ; if (id) { if (gor[id]) return; gor[id] = 1; }
     if (!musteriRe.test(norm_(r[c.m]))) return;
     var ms = zaman_(r[c.t]); if (ms === null) return;
     var kalan = c.k >= 0 ? sayi_(r[c.k]) : null;
-    out.push({ no: String(c.no >= 0 ? r[c.no] : '').trim(), ms: ms, tutar: sayi_(r[c.tu]), kalan: kalan, odendi: /^paid$/i.test(String(c.d >= 0 ? r[c.d] : '')) || (kalan !== null && kalan < 0.5) });
+    var eb = String(c.e >= 0 ? r[c.e] : '').trim(), fd = String(c.fd >= 0 ? r[c.fd] : '').trim();
+    out.push({ no: String(c.no >= 0 ? r[c.no] : '').trim(), ms: ms, tutar: sayi_(r[c.tu]), kalan: kalan, odendi: /^paid$/i.test(String(c.d >= 0 ? r[c.d] : '')) || (kalan !== null && kalan < 0.5),
+      ebelge: eb, fdurum: fd, sorunlu: ebelgeSorunlu_(eb, fd) });
   });
+  // Reddedilen / iptal faturanın yerine aynı tutarda (±1 TL, 20 gün içinde) yenisi kesildiyse sorun kapanmıştır
+  var GUN = 86400000;
+  out.forEach(function (f) { if (f.sorunlu) f.yenisi = out.some(function (g) { return !g.sorunlu && Math.abs(g.tutar - f.tutar) <= 1 && Math.abs(g.ms - f.ms) <= 20 * GUN; }); });
   return out;
 }
+// KolayBi e-belge / fatura durumu sorunlu mu: reddedildi, iptal, hata (sahibin isteği 08.10: sorun varsa panel haber verir)
+function ebelgeSorunlu_(eb, fd) { return /declin|reject|redded|error|fail|hata|cancel|iptal/i.test(eb) || /cancel|iptal|declin|reject/i.test(fd); }
+// Panel satırına KolayBi faturasının durumu: { ebelge, fdurum, sorunlu, yenisi }
+function kbDurum_(f) { return f ? { ebelge: f.ebelge, fdurum: f.fdurum, sorunlu: !!f.sorunlu, yenisi: !!f.yenisi } : null; }
 // Sahibin kuralı (06.10.2026): SetCard faturası her Cuma kesilir; ayın 10'undan sonra kesilebilir (11'i ve sonrası);
 // ayda en çok 4 fatura; ayın son günü mutlaka kesilir. Şimdilik sahibi keser, panel o gün uyarır (sonra program kesecek).
 var SETCARD_FATURA = { ILK_GUN: 11, AYLIK_HAK: 4 };
@@ -1718,16 +1727,23 @@ function setcardEslesme_() {
     if (/kesilmedi/i.test(x.durum)) return;
     var ms = zaman_(x.tarih); if (ms === null) return;
     var b = null; kb.forEach(function (f, i) { if (kul[i] || Math.abs(f.tutar - x.tutar) > 1 || f.ms < ms - 3 * GUN || f.ms > ms + 20 * GUN) return;
-      if (!b || Math.abs(f.ms - ms) < Math.abs(b.f.ms - ms)) b = { f: f, i: i }; });
+      if (!b || (b.f.sorunlu && !f.sorunlu) || (!!b.f.sorunlu === !!f.sorunlu && Math.abs(f.ms - ms) < Math.abs(b.f.ms - ms))) b = { f: f, i: i }; });
     if (!b) return; kul[b.i] = 1;
-    x.kolaybi = { no: b.f.no, tarih: kartTam_(b.f.ms).slice(0, 5) + '.' + new Date(b.f.ms).getUTCFullYear(), odendi: b.f.odendi, kalan: b.f.kalan };
+    x.kolaybi = { no: b.f.no, tarih: kartTam_(b.f.ms).slice(0, 5) + '.' + new Date(b.f.ms).getUTCFullYear(), odendi: b.f.odendi, kalan: b.f.kalan, durum: kbDurum_(b.f) };
   });
   return { l: l, kbVar: kb.length > 0 };
 }
-// Kart sistemine göre ödenmiş ama KolayBi'de tahsil işlenmemiş satış faturaları: { 'EFA…': { kaynak, odeme } }
+/* Yemek kartı faturasının tahsilatı (sahibin kararı 08.10.2026): KolayBi'ye tahsilat girilmez, her şey panelden izlenir.
+ * Kaynak: kart firmasının sistemi (SetCard 'Ödeme Gönderildi', Multinet 'Ödeme Tamamlandı', Tokenflex 'Ödendi') ya da
+ * sahibinin paneldeki 'Tahsil edildi' onayı (YEMEKKARTI › Fatura Tahsil Onayı; son kayıt geçerli, 'Geri alındı' onayı kaldırır).
+ * Dönen: { 'EFA…': { kaynak: 'SetCard' | 'Multinet' | 'Tokenflex' | 'Yönetici onayı', odeme } } */
+var KART_ODENEN_ = null;   // bir çalışmada bir kez hesaplanır (panel paketi birkaç bölümde kullanıyor)
 function kartOdenenFaturalar_() {
-  var out = {}, e = null; try { e = setcardEslesme_(); } catch (err) { }
-  if (e) e.l.forEach(function (x) { if (x.kolaybi && !x.kolaybi.odendi && /gonderildi/.test(norm_(x.durum))) out[x.kolaybi.no] = { kaynak: 'SetCard', odeme: x.odeme }; });
+  if (KART_ODENEN_) return KART_ODENEN_;
+  var out = KART_ODENEN_ = {}, e = null; try { e = setcardEslesme_(); } catch (err) { }
+  // Önce yönetici onayları; kart sistemi bilgisi varsa onun üstüne yazar (sistem daha güvenilir)
+  try { var on = tahsilOnaylari_(); Object.keys(on).forEach(function (no) { out[no] = { kaynak: 'Yönetici onayı', odeme: on[no].zaman }; }); } catch (err) { }
+  if (e) e.l.forEach(function (x) { if (x.kolaybi && /gonderildi/.test(norm_(x.durum))) out[x.kolaybi.no] = { kaynak: 'SetCard', odeme: x.odeme }; });
   // Multinet faturasında KolayBi fatura no doğrudan yazıyor; 'Ödeme Tamamlandı' olanlar ödenmiştir.
   try { var mf = tabloAc_(KAYNAK.yemekKarti.id).getSheetByName('Multinet Fatura');
     if (mf && mf.getLastRow() > 1) { var b = mf.getRange(1, 1, 1, mf.getLastColumn()).getDisplayValues()[0], c = { no: kolon_(b, ['Fatura No']), d: kolon_(b, ['Durum']), o: kolon_(b, ['Ödeme Tarihi']) };
@@ -1740,6 +1756,12 @@ function kartOdenenFaturalar_() {
         var no = String(r[tc.no] || '').replace(/^'/, '').trim(); if (no && /^odendi$/.test(norm_(r[tc.d]))) out[no] = { kaynak: 'Tokenflex', odeme: String(r[tc.o] || '').replace(/^'/, '') }; }); } } catch (err) { }
   return out;
 }
+// Panel satırının tahsilatı: { kaynak, tarih } | null. KolayBi'de ödendi işaretliyse o da sayılır.
+function tahsil_(no, f) {
+  var ko = {}; try { ko = kartOdenenFaturalar_(); } catch (err) { }
+  var k = no && ko[no]; if (k) return { kaynak: k.kaynak, tarih: k.odeme || '' };
+  return f && f.odendi ? { kaynak: 'KolayBi', tarih: '' } : null;
+}
 function setcardFatura_() {
   var e = setcardEslesme_(); if (!e) return null;
   var l = e.l, kb = { length: e.kbVar ? 1 : 0 };
@@ -1747,6 +1769,7 @@ function setcardFatura_() {
   // Bu ay kesilen: fatura tarihi bu ay olan ve "Kesilmedi" olmayan (SetCard'ın biriken bakiye satırı sayılmaz)
   var buAy = l.filter(function (x) { return String(x.tarih).slice(0, 7) === ay && !/kesilmedi/i.test(x.durum); }).length;
   var takvim = [], g = bugun; for (var i = 0; i < 45 && takvim.length < 4; i++) { if (setcardFaturaGunuMu_(g)) takvim.push(g); g = gunEkle_(g, 1); }
+  l.slice(0, 12).forEach(function (x) { if (x.kolaybi) x.tahsil = tahsil_(x.kolaybi.no, x.kolaybi); });
   return { liste: l.slice(0, 12), kontrol: l.length ? l[0].kontrol : '', kolaybiOkundu: kb.length > 0,
            kural: { bugun: bugun, faturaGunu: setcardFaturaGunuMu_(bugun), sonGun: bugun === sonGun, buAy: buAy, hak: SETCARD_FATURA.AYLIK_HAK, ilkGun: SETCARD_FATURA.ILK_GUN, takvim: takvim } };
 }
@@ -1773,7 +1796,7 @@ function metropolFatura_() {
   var takvim = [], g = bugun; for (var i = 0; i < 70 && takvim.length < 3; i++) { if (metropolFaturaGunuMu_(g)) takvim.push(g); g = gunEkle_(g, 1); }
   return { bugun: bugun, faturaGunu: metropolFaturaGunuMu_(bugun), sonGun: bugun === new Date(Date.UTC(+bugun.slice(0, 4), +bugun.slice(5, 7), 0)).toISOString().slice(0, 10),
     bugunKesildi: bugunKesildi, buAy: buAy, hak: 2, takvim: takvim, biriken: biriken, kolaybiOkundu: kb.length > 0,
-    liste: kb.slice(0, 8).map(function (f) { return { no: f.no, tarih: kartTam_(f.ms).slice(0, 5) + '.' + new Date(f.ms).getUTCFullYear(), tutar: f.tutar, odendi: f.odendi }; }) };
+    liste: kb.slice(0, 8).map(function (f) { return { no: f.no, tarih: kartTam_(f.ms).slice(0, 5) + '.' + new Date(f.ms).getUTCFullYear(), tutar: f.tutar, kb: kbDurum_(f), tahsil: tahsil_(f.no, f) }; }) };
 }
 
 // BAP Yemek Kartı › 'Fatura Kesimleri' (Mac programlarının kesim kayıtları): bu kartın bugünkü son kaydı { zaman, sonuc, mesaj } | null
@@ -1807,11 +1830,38 @@ function multinetFatura_() {
   var kb = []; try { kb = kolaybiSatis_(/multinet/); } catch (err) { }
   var gunu = function (ms) { return new Date(ms).toISOString().slice(0, 10); };
   var kbBugun = kb.some(function (f) { return gunu(f.ms) >= gunEkle_(bugun, -1); });
-  // KolayBi tahsilatı: Multinet faturasındaki no ile KolayBi satış faturası (panelde tüm kartlarda aynı 'KolayBi tahsilat' sütunu)
+  // Multinet faturasındaki no ile KolayBi satış faturası: e-belge durumu + tahsilat (kaynak Multinet sistemi)
   var kbNo = {}; kb.forEach(function (f) { if (f.no) kbNo[f.no] = f; });
-  liste.forEach(function (x) { var f = kbNo[x.no]; x.kolaybiVar = !!f; x.odendi = !!(f && f.odendi); });
+  liste = liste.slice(0, 8); liste.forEach(function (x) { var f = kbNo[x.no]; x.kb = kbDurum_(f); x.tahsil = tahsil_(x.no, f); });
   var takvim = [], g = bugun; for (var i = 0; i < 21 && takvim.length < 3; i++) { if (new Date(g + 'T00:00:00Z').getUTCDay() === 2) takvim.push(g); g = gunEkle_(g, 1); }
   return { bugun: bugun, faturaGunu: faturaGunu, saat: '23:30', vade: '3 gün', kesim: kesim, kolaybiBugun: kbBugun, bekleyen: bek, takvim: takvim, liste: liste.slice(0, 8) };
+}
+
+var TAHSIL_SEKME = 'Fatura Tahsil Onayı', TAHSIL_BASLIK = ['Zaman', 'KolayBi Fatura No', 'Kart', 'Tutar (TL)', 'İşlem', 'Kaynak'];
+function tahsilOnaylari_() {
+  var sh = tabloAc_(KAYNAK.yemekKarti.id).getSheetByName(TAHSIL_SEKME), out = {}; if (!sh || sh.getLastRow() < 2) return out;
+  var b = sh.getRange(1, 1, 1, sh.getLastColumn()).getDisplayValues()[0], c = { z: kolon_(b, ['Zaman']), no: kolon_(b, ['KolayBi Fatura No']), i: kolon_(b, ['İşlem']) };
+  if (c.no < 0 || c.i < 0) return out;
+  sh.getRange(2, 1, sh.getLastRow() - 1, sh.getLastColumn()).getDisplayValues().forEach(function (r) {
+    var no = String(r[c.no] || '').replace(/^'/, '').trim(); if (!no) return;
+    if (/geri/i.test(norm_(r[c.i]))) delete out[no]; else out[no] = { zaman: String(c.z >= 0 ? r[c.z] : '').slice(0, 10) }; });
+  return out;
+}
+// Panel › Yemek Kartları › 'Tahsil edildi' (ya da 'Geri al'). Kaydı ekler, satır silmez.
+function faturaTahsilIslem_(d) {
+  var no = String(d.no || '').trim(); if (!/^[A-Z]{3}\d{6,}$/.test(no)) return { hata: 'Fatura numarası geçersiz.' };
+  var geri = d.islem === 'geri'; if (!geri && d.islem !== 'onay') return { hata: 'Geçersiz işlem.' };
+  var kb = []; try { kb = kolaybiSatis_(/./); } catch (err) { }
+  var f = kb.filter(function (y) { return y.no === no; })[0]; if (!f) return { hata: no + ' KolayBi satış faturalarında yok; panel yenilensin.' };
+  var on = tahsilOnaylari_();
+  if (!geri && on[no]) return { tamam: true, zaten: true };
+  if (geri && !on[no]) return { hata: 'Bu faturanın yönetici onayı yok.' };
+  var ss = tabloAc_(KAYNAK.yemekKarti.id), sh = ss.getSheetByName(TAHSIL_SEKME);
+  if (!sh) { sh = ss.insertSheet(TAHSIL_SEKME); sh.appendRow(TAHSIL_BASLIK); sh.setFrozenRows(1); sh.getRange(1, 1, 1, TAHSIL_BASLIK.length).setFontWeight('bold'); }
+  var damga = Utilities.formatDate(new Date(), TZ, 'dd.MM.yyyy HH:mm');
+  sh.appendRow([damga, "'" + no, String(d.kart || '').slice(0, 30), f.tutar, geri ? 'Geri alındı' : 'Tahsil edildi', 'Panel']);
+  try { cevapKaydet_('Finans', 'YEMEKKARTI › ' + TAHSIL_SEKME, sh.getLastRow(), 'Fatura ' + no + ' (' + f.tutar + ' TL)', geri ? 'Tahsil onayı geri alındı' : 'Tahsil edildi (yönetici onayı)', damga); } catch (err) { }
+  return { tamam: true, zaman: damga.slice(0, 10) };
 }
 
 function setcardFaturaIslem_(d) {
@@ -4026,6 +4076,11 @@ function doPost(e) {
   }
   if (d.tur === 'musteri') {
     try { return json_(musteriDetay_(d)); } catch (err) { return json_({ hata: String(err.message || err) }); }
+  }
+  if (d.tur === 'faturaTahsil') {
+    var kft = LockService.getScriptLock(); if (!kft.tryLock(28000)) return json_(MESGUL_);
+    try { return json_(faturaTahsilIslem_(d)); } catch (err) { return json_({ hata: String(err.message || err) }); }
+    finally { kft.releaseLock(); CacheService.getScriptCache().remove('panel_v1_n'); }
   }
   if (d.tur === 'setcardFatura') {
     var ksf = LockService.getScriptLock(); if (!ksf.tryLock(28000)) return json_(MESGUL_);

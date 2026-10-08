@@ -253,6 +253,25 @@ export default {
       } catch (e) { return json({ belirsiz: true, hata: 'Veri kapısına ulaşılamadı; onay yazılmış olabilir. Paneli yenileyip kontrol edin.' }, 502); }
     }
 
+    // Yemek Kartları › SetCard 'Fatura Kes' ve tüm kartlarda 'Tahsil edildi' (yönetici onayı). Tekrar denenmez (çift kayıt riski).
+    if ((url.pathname === '/api/setcard-fatura' || url.pathname === '/api/fatura-tahsil') && request.method === 'POST') {
+      if (request.headers.get('x-bap-panel') !== '1' || (request.headers.get('origin') || url.origin) !== url.origin) {
+        return json({ hata: 'İzin verilmeyen istek.' }, 403);
+      }
+      let govde;
+      try { govde = await request.json(); } catch (e) { return json({ hata: 'Geçersiz istek.' }, 400); }
+      const sc = url.pathname === '/api/setcard-fatura';
+      const ileti = JSON.stringify(sc
+        ? { key: env.GAS_KEY, tur: 'setcardFatura', takipNo: String(govde.takipNo || '').slice(0, 20), islem: govde.islem === 'kes' ? 'kes' : '' }
+        : { key: env.GAS_KEY, tur: 'faturaTahsil', no: String(govde.no || '').slice(0, 30), kart: String(govde.kart || '').slice(0, 30), islem: govde.islem === 'geri' ? 'geri' : govde.islem === 'onay' ? 'onay' : '' });
+      const ne = sc ? 'fatura kesilmiş' : 'kayıt yazılmış';
+      try {
+        const r = await fetch(env.GAS_URL, { method: 'POST', headers: { 'content-type': 'application/json' }, body: ileti, redirect: 'follow' });
+        const metin = await r.text();
+        try { return json(JSON.parse(metin), 200); }
+        catch (e) { return json({ belirsiz: true, hata: 'Veri kapısı beklenmeyen bir cevap verdi; ' + ne + ' olabilir. Paneli yenileyip kontrol edin.' + gasHatasi(metin) }, 502); }
+      } catch (e) { return json({ belirsiz: true, hata: 'Veri kapısına ulaşılamadı; ' + ne + ' olabilir. Paneli yenileyip kontrol edin.' }, 502); }
+    }
     if (url.pathname === '/api/kesinti' && request.method === 'POST') {
       // Kurye kesintisi: yalnızca panelin kendisinden gelen istek kabul edilir.
       if (request.headers.get('x-bap-panel') !== '1' || (request.headers.get('origin') || url.origin) !== url.origin) {
