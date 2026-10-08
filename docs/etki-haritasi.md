@@ -1425,7 +1425,7 @@ Bağlı dosya: YEMEKKARTI · 41 fonksiyon · 13 sekme
 
 ### BAP Sistem Bekçisi (`apps-script/bap-sistem-bekcisi`)
 
-Bağlı dosya: — (tabloları kimlikle açar) · 26 fonksiyon · 4 sekme
+Bağlı dosya: — (tabloları kimlikle açar) · 27 fonksiyon · 4 sekme
 
 - her 15 dk → bekci
 
@@ -1486,4 +1486,4 @@ Sekme adı koddan okunamadı (değişkenle ya da döngüyle açılıyor). Bu yer
 | indirim-orani | `kaynakSayfaBul` | `indirim-orani/Kod.gs:170` | `KAYNAK_SAYFA_ADI` |
 | bap-yemek-karti | `payeMailCek` | `bap-yemek-karti/Paye.gs:18` | `ad` |
 | bap-yemek-karti | `payeMailCek` | `bap-yemek-karti/Paye.gs:19` | `ad` |
-| bap-sistem-bekcisi | `kontrolEt_` | `bap-sistem-bekcisi/Bekci.gs:161` | `a . sekme` |
+| bap-sistem-bekcisi | `kontrolEt_` | `bap-sistem-bekcisi/Kod.gs:161` | `a . sekme` |
