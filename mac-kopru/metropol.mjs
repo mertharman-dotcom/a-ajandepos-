@@ -254,7 +254,9 @@ async function main() {
     }
     // Fatura Ödeme Bilgileri: Metropol'ün hangi faturayı ne zaman ödediği (Finans'ta alacak kapatmak için). Sütun adları sayfadan alınır.
     try {
-      const od = tablo((await sayfa(page, '/Home/OdemeDetay')).html);
+      // Tarih verilmezse site yalnız son birkaç faturayı veriyor (08.10: 2 satır) → son 120 gün istenir (sitedeki 'Listele' ile aynı adres)
+      const odBas = new Date(Date.now() - 120 * 86400000);
+      const od = tablo((await sayfa(page, `/Home/OdemeDetay?&start=${gaa(odBas)}&end=${gaa(new Date())}`)).html);
       log('fatura ödeme bilgileri: ' + od.length + ' satır' + (od[0] ? ' · sütunlar: ' + Object.keys(od[0]).join(' | ') : ''));
       if (YAZMA && od.length) log('tabloya: ' + JSON.stringify(await yk({ tur: 'metropolOdeme', satirlar: od.slice(0, 500) })));
     } catch (e) { log('fatura ödeme bilgileri okunamadı: ' + e.message); }

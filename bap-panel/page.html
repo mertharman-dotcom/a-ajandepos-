@@ -2325,8 +2325,8 @@ function ykFaturaTablo(satirlar,bosMetin,kart){if(!satirlar.length)return bos(bo
   return tablo(bas,satirlar.map(function(x){if(kart&&!x.kart)x.kart=kart;
     var no=x.no?el("span",{title:x.no,text:String(x.no).slice(-6)}):x.kbYok?el("span",{class:"etiket "+x.kbYok[0],text:x.kbYok[1]}):"—";
     var eb=x.kb?ebelgeYazi(x.kb):null,ebH=eb&&eb[1]!=="—"?el("span",{class:"etiket "+eb[0],title:x.kb.ebelge||null,text:eb[1]}):"—";
-    var durum=x.durum?el("span",{class:"etiket "+(x.durumRenk||"e-notr"),title:x.takipNo?"Takip no "+x.takipNo:null,text:x.durum}):"—";
-    var r=[no,trTarih(x.tarih),para(x.tutar),ebH,durum,x.odeme||"—",tahsilHucre(x)];if(islemli)r.push(x.islem||"");return r;}));}
+    var durum=x.durum?el("span",{class:"etiket "+(x.durumRenk||(/ödendi|odendi|tamamland|gönderildi/i.test(x.durum)?"e-iyi":"e-notr")),title:x.takipNo?"Takip no "+x.takipNo:null,text:x.durum}):"—";
+    var r=[no,trTarih(x.tarih),para(x.tutar),ebH,durum,x.odeme?trTarih(x.odeme):"—",tahsilHucre(x)];if(islemli)r.push(x.islem||"");return r;}));}
 
 function setcardFaturaBlok(a){var F=VERI.setcardFatura;if(!F)return;var kap=el("div");
   var RENK=function(d){return /kesilmedi/i.test(d)?"e-dikkat":/gönderildi/i.test(d)?"e-iyi":"e-notr";};
@@ -2353,7 +2353,7 @@ function metropolFaturaBlok(a){var M=VERI.metropolFatura;if(!M)return;
     rakam("Bu ay kesilen",M.buAy+" / "+M.hak,"KolayBi'deki METROPAL faturalarından"),
     rakam("Sonraki fatura günleri",M.takvim.filter(function(g){return g!==M.bugun;}).slice(0,2).map(function(g){return gunAd(g);}).join(", ")||"—","ayın 15'i + ayın son günü"),
     M.biriken!=null?rakam("Biriken (son faturadan beri)",para(M.biriken),"Metropol çekimleri"):null]));
-  a.appendChild(blok("Metropol faturası","Kural: ayda 2 fatura — ayın 15'i ve ayın son günü (site ayın 1–6'sında kestirmez). Şimdilik sen kesiyorsun (Metropol › Manuel Fatura Kesimi), sonra MacBook programı kesecek. Kesildiğini KolayBi'deki METROPAL faturasından anlarım; fatura günü kesilmemişse Yönetim Merkezi'nde uyarı çıkar.",
+  a.appendChild(blok("Metropol faturası","Kural: ayda 2 fatura — ayın 15'i ve ayın son günü (site ayın 1–6'sında kestirmez). Şimdilik sen kesiyorsun (Metropol › Manuel Fatura Kesimi), sonra MacBook programı kesecek. Kesildiğini KolayBi'deki METROPAL faturasından anlarım; fatura günü kesilmemişse Yönetim Merkezi'nde uyarı çıkar. Ödendi bilgisi Metropol › Fatura Ödeme Bilgileri'nden gelir (‘tahsil edildi · Metropol sistemi’; Mac programı günde 3 kez).",
     ykFaturaTablo(M.liste,M.kolaybiOkundu?"KolayBi'de METROPAL faturası yok.":"KolayBi satış faturaları okunamadı.","Metropol")));}
 
 function multinetFaturaBlok(a){var N=VERI.multinetFatura;if(!N)return;var k=N.kesim;
