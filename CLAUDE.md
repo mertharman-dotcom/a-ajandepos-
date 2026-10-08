@@ -21,6 +21,13 @@ sade ve "senin yapman gereken" adımlarıyla yazılır.
    Tablolar sütun numarasıyla değil **başlık adıyla** okunur.
 6. **Kayıt (POST) istekleri otomatik tekrar denenmez**; çift kayıt riski vardır.
 7. Bulunan her sorun `docs/kontrol-listesi.md`'ye kimliğiyle (ör. `S1`) yazılır, çözülünce işaretlenir.
+8. **Değiştirmeden önce etki haritasına bakılır.** Bir sekmenin, sütun başlığının, ürün/eşleştirme listesinin ya da
+   ortak bir fonksiyonun adını veya yapısını değiştirmeden önce `node araclar/etki-haritasi.mjs ara "<ad>"` çalıştırılır
+   (özet: `docs/etki-haritasi.md`). Çıkan yazan/okuyan kodlar ve onları çalıştıran zamanlayıcı/panel, değişiklikten
+   **önce** sahibine sade dille söylenir ("bu sütunun adı değişirse şu üç kod ve mutfak panelinin sipariş ekranı etkilenir").
+   Kod değiştiren her iş `node araclar/etki-haritasi.mjs` ile haritayı yeniden üretip aynı commit'e koyar
+   (`main`'de GitHub da kendisi üretir). Görsel sayfa: https://claude.ai/artifact/8S5NzS4c53PUvVVHu7sKRK
+   (`docs/etki-haritasi.html` değişince yeniden yayınlanır). Harita statik okumadır; `ara` çıktısının sonundaki ham arama da kontrol edilir.
 
 ## Klasörler
 
@@ -30,3 +37,4 @@ sade ve "senin yapman gereken" adımlarıyla yazılır.
 | `bap-sistem/` | Mutfak paneli (tek sayfa); arka ucu `apps-script/bap-panel-backend` | Cloudflare Pages › bap-sistem → bap-sistem.pages.dev |
 | `bap-panel/` | Yönetim paneli (`page.html` + `worker.template.js` → `node build.js` → `worker.js`) | Cloudflare Worker › bap-panel |
 | `docs/` | Veri sözlüğü, kontrol listesi, ajan talimatları | — |
+| `araclar/` | Depo içi yardımcı araçlar (ör. `etki-haritasi.mjs`: kod ↔ sekme ↔ sütun ↔ tetikleyici haritası) | Yerelde / GitHub Actions |
