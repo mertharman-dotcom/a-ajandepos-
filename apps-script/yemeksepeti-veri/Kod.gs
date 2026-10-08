@@ -7,8 +7,9 @@
  *      dosyayı "İşlendi" alt klasörüne taşır. Aynı satır iki kez yazılmaz (anahtar sütunlarla bulunur,
  *      değişmişse yerinde güncellenir). Satır silinmez.
  *
- * Tanınan raporlar (sütunlar başlık adıyla okunur):
+ * Tanınan raporlar (sütunlar başlık adıyla okunur; "Eski" dışa aktarmanın farklı adları YS.TURLER › esanlam ile eşlenir):
  *   Finansal Rapor - Ödemeler           → YS_Odemeler    (anahtar: Ödeme No)
+ *   Finansal Rapor - Faturalar          → YS_Faturalar   (Fatura No) — haftalık brüt satış, komisyon, nakit, kesintiler
  *   Menü raporu                         → YS_Menu_Satis  (Tarih + Mağaza + Menü öğesi ID'si + adı)
  *   Puanlar ve değerlendirmeler raporu  → YS_Puanlar     (Sipariş Kimliği)
  *   Performans Raporu                   → YS_Performans  (Tarih + Restoran No) — kısa ya da 55 sütunluk tam hali
@@ -28,12 +29,70 @@ var YS = {
   KAYIT: 'YS_Dosyalar',
   // Yemeksepeti mağaza kodu → şube (Drive'daki "Yemeksepeti BAP … DKNP / NRRZ" klasörlerinden)
   SUBE: { dknp: 'Salad Erenköy', nrrz: 'Pizza Erenköy', l65e: 'Salad Fikirtepe', ml23: 'Pizza Fikirtepe' },
+  // esanlam: Yemeksepeti aynı raporu iki adlandırmayla veriyor (panelden yeni dışa aktarma ↔ geçmiş "Eski" dışa aktarma).
+  // Eski ad → bu sekmede kullanılan ad. Tür, eşleştirmeden sonraki başlıklara göre tanınır.
   TURLER: [
     { ad: 'Ödemeler', sekme: 'YS_Odemeler', imza: ['Ödeme No', 'Toplam Ödeme'], anahtar: ['Ödeme No'], magaza: '' },
+    { ad: 'Faturalar', sekme: 'YS_Faturalar', imza: ['Fatura No', 'Komisyon Bedeli'], anahtar: ['Fatura No'], magaza: '' },
     { ad: 'Menü satışları', sekme: 'YS_Menu_Satis', imza: ["Menü öğesi ID'si", 'Satılan Adet'],
-      anahtar: ['Tarih', 'Mağaza Kimliği', "Menü öğesi ID'si", 'Menü öğesi adı'], magaza: 'Mağaza Kimliği' },
-    { ad: 'Puanlar', sekme: 'YS_Puanlar', imza: ['Sipariş Kimliği', 'Derecelendirme'], anahtar: ['Sipariş Kimliği'], magaza: 'Vendor ID' },
-    { ad: 'Performans', sekme: 'YS_Performans', imza: ['Brüt Satışlar', 'Başarılı Siparişler'], anahtar: ['Tarih', 'Restoran No'], magaza: 'Restoran No' }
+      anahtar: ['Tarih', 'Mağaza Kimliği', "Menü öğesi ID'si", 'Menü öğesi adı'], magaza: 'Mağaza Kimliği',
+      esanlam: {
+        "Satıcı Kimliği": "Mağaza Kimliği",
+        "Ortalama sipariş tutarı": "Ürün içeren siparişler için ortalama sipariş değeri",
+        "Sipariş sayısı": "Öğe içeren siparişler",
+        "Adet": "Satılan Adet",
+        "Gelir": "Öğe başına gelir"
+      } },
+    { ad: 'Puanlar', sekme: 'YS_Puanlar', imza: ['Sipariş Kimliği', 'Derecelendirme'], anahtar: ['Sipariş Kimliği'], magaza: 'Vendor ID',
+      esanlam: {
+        "Restoran adı": "Restaurant Name",
+        "Satıcı Kimliği": "Vendor ID",
+        "Sipariş kimliği": "Sipariş Kimliği",
+        "Puan": "Derecelendirme",
+        "İnceleme metni": "Review Text"
+      } },
+    { ad: 'Performans', sekme: 'YS_Performans', imza: ['Brüt Satışlar', 'Başarılı Siparişler'], anahtar: ['Tarih', 'Restoran No'], magaza: 'Restoran No',
+      esanlam: {
+        "Başarılı siparişler": "Başarılı Siparişler",
+        "Brüt satışlar": "Brüt Satışlar",
+        "Çevrim içi satışlar": "Online Ödemeli Satışlar",
+        "Nakit satış": "Nakit Ödemeli Satışlar",
+        "Teslimat satışları": "Adrese Teslim Satışlar",
+        "Gel Al satışları": "Gel-Al Satışları",
+        "İptal edilen siparişler": "İptal Edilen Siparişler",
+        "Çevrim içi siparişler": "Online Ödemeli Siparişler",
+        "Nakit siparişler": "Nakit Ödemeli Siparişler",
+        "Kurye teslimatlı siparişler": "Adrese Teslim Siparişler",
+        "Gel Al siparişleri": "Gel-Al Siparişleri",
+        "Pro siparişleri": "Pro Siparişler",
+        "Pro geliri": "Pro Ciro",
+        "Müsait olmama süresi (Dakika)": "Unavailable time duration (Minutes)",
+        "Erişilemeyen süre oranı": "Çevrimdışı Kalma Oranı",
+        "Planlanan açılma zamanı (dakika)": "Planlanan çalışma saati (Dakika)",
+        "Uygun Olmayan Süre sayısı": "Unavailable Time Duration count",
+        "Önlenebilir iptal nedeni": "İşletme Kaynaklı İptal Nedeni",
+        "Önlenebilir iptal sayısı": "Avoidable cancellation count",
+        "Ortalama hazırlama süresi (dakika)": "Average preparation time (minutes)",
+        "İşaretli siparişlerin oranı": "Orders marked rate",
+        "Toplam önlenebilir bekleme süresi (dakika)": "Total AWT Duration (Minutes)",
+        "AWT'li siparişler": "Orders with AWT",
+        "Önlenebilir bekleme süresi ücreti olan sipariş": "Order with AWT Fee",
+        "Uygulanan toplam ücret": "Total Fee applied",
+        "1. Kümedeki siparişler: < 5 dakika": "Orders in Bucket1: < 5 minutes",
+        "Kova1'de ücretli siparişler: < 5 dakika": "Orders with fees in Bucket1: < 5 minutes",
+        "Grup2'deki siparişler: >= 5 dakika ve < 10 dakika": "Orders in Bucket2: >= 5 Mins and < 10 Mins",
+        "Grup2'deki ücretli siparişler: >= 5 dakika ve < 10 dakika": "Orders with fees in Bucket2: >= 5 Mins and < 10 Mins",
+        "Grup3'teki siparişler: >= 10 dakika": "Orders in Bucket3: >= 10 Mins",
+        "Kepçe3'te ücretli siparişler: >= 10 dakika": "Orders with fees in Bucket3: >= 10 Mins",
+        "Müşteri Şikayet oranı": "Customer Complaint rate",
+        "Müşteri şikâyeti nedeni": "Customer Complaint Reason",
+        "Müşteri şikâyeti kişileri": "Customer Complaint Contacts",
+        "Kendi teslimat personelinin kişi sayısı": "Own delivery contacts count",
+        "Satıcı teslimat irtibat kişisi sayısı": "Vendor delivery contacts counts",
+        "Yeni müşterilerden gelen siparişlerin oranı": "Orders from new customers rate",
+        "Tekrar gelen müşterilerden gelen siparişler": "Orders from returning customers",
+        "Tekrar gelen müşterilerden gelen siparişlerin oranı": "Orders from returning customers rate"
+      } }
   ],
   EK: ['Şube', 'Dosya', 'Alındı', 'Rapor Son Gün']   // her sekmenin sonuna eklenen sütunlar; son gün = dosyadaki en geç Tarih
 };
@@ -170,10 +229,16 @@ function ysSekmeyeYaz_(ss, tur, tablo, dosyaAd, kuru, bellek) {
 
 /* ================== YARDIMCILAR ================== */
 
+/* Raporun türünü bulur; eski adlı başlıkları o türün adlarına çevirir (başlık satırı yerinde değişir). */
 function ysTurBul_(baslik) {
   var b = baslik.map(function (x) { return String(x).trim(); });
   for (var i = 0; i < YS.TURLER.length; i++) {
-    if (YS.TURLER[i].imza.every(function (x) { return b.indexOf(x) >= 0; })) return YS.TURLER[i];
+    var tur = YS.TURLER[i], es = tur.esanlam || {};
+    var c = b.map(function (x) { return es[x] || x; });
+    if (tur.imza.every(function (x) { return c.indexOf(x) >= 0; })) {
+      c.forEach(function (x, k) { baslik[k] = x; });
+      return tur;
+    }
   }
   return null;
 }
