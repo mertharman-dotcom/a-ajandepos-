@@ -1507,10 +1507,10 @@ Sekme adı koddan okunamadı (değişkenle ya da döngüyle açılıyor). Bu yer
 | stok-takip-sistemi | `eslestirmeDoldur` | `stok-takip-sistemi/fatura eşleştirme doldur.gs:43` | `k . tablo` |
 | stok-takip-sistemi | `oneriUret` | `stok-takip-sistemi/kısa ad onerıcı.gs:37` | `tablo` |
 | stok-takip-sistemi | `onerileriUygula` | `stok-takip-sistemi/kısa ad onerıcı.gs:107` | `tablo` |
-| bap-panel-veri-kapisi | `kokpitPanoKur` | `bap-panel-veri-kapisi/Kod.gs:1151` | `ad` |
-| bap-panel-veri-kapisi | `kokpitPanoKur` | `bap-panel-veri-kapisi/Kod.gs:1152` | `ad` |
-| bap-panel-veri-kapisi | `mobilFatura_` | `bap-panel-veri-kapisi/Kod.gs:1597` | `k . birikenSekme` |
-| bap-panel-veri-kapisi | `genel_` | `bap-panel-veri-kapisi/Kod.gs:1945` | `ad` |
+| bap-panel-veri-kapisi | `kokpitPanoKur` | `bap-panel-veri-kapisi/Kod.gs:1153` | `ad` |
+| bap-panel-veri-kapisi | `kokpitPanoKur` | `bap-panel-veri-kapisi/Kod.gs:1154` | `ad` |
+| bap-panel-veri-kapisi | `mobilFatura_` | `bap-panel-veri-kapisi/Kod.gs:1599` | `k . birikenSekme` |
+| bap-panel-veri-kapisi | `genel_` | `bap-panel-veri-kapisi/Kod.gs:1947` | `ad` |
 | kolaybi-fatura-ham-veri | `ap_hammaddeEkle_` | `kolaybi-fatura-ham-veri/Alım Paneli.gs:489` | `sekmeler [ s ]` |
 | kolaybi-fatura-ham-veri | `ap_eslestirmeVeri_` | `kolaybi-fatura-ham-veri/Alım Paneli.gs:536` | `ad` |
 | kolaybi-fatura-ham-veri | `ap_hammaddeHaritasi_` | `kolaybi-fatura-ham-veri/Alım Paneli.gs:671` | `ad` |
