@@ -1497,4 +1497,4 @@ Sekme adı koddan okunamadı (değişkenle ya da döngüyle açılıyor). Bu yer
 | indirim-orani | `kaynakSayfaBul` | `indirim-orani/Kod.gs:170` | `KAYNAK_SAYFA_ADI` |
 | bap-yemek-karti | `payeMailCek` | `bap-yemek-karti/Paye.gs:18` | `ad` |
 | bap-yemek-karti | `payeMailCek` | `bap-yemek-karti/Paye.gs:19` | `ad` |
-| bap-sistem-bekcisi | `kontrolEt_` | `bap-sistem-bekcisi/Kod.gs:165` | `a . sekme` |
+| bap-sistem-bekcisi | `kontrolEt_` | `bap-sistem-bekcisi/Kod.gs:166` | `a . sekme` |
