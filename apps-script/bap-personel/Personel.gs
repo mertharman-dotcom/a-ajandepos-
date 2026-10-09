@@ -873,8 +873,7 @@ function calisanDashboardSayfasi(ss, ad, pin, ekipHaftaStr, kod, ekipAcik) {
     '<div class="stat-card sc-plan"><div style="font-size:12px;font-weight:700">' + ayAdi + ' — Planlanan</div><div class="sc-val">' + planlananSaat + ' sa</div><div style="font-size:11px;margin-top:4px">Vardiya planından</div></div>' +
     '<div class="stat-card sc-gercek"><div style="font-size:12px;font-weight:700">' + ayAdi + ' — Gerçekleşen</div><div class="sc-val">' + sureMetin(ozet.toplamDk) + '</div><div style="font-size:11px;margin-top:4px">' + ozet.calisilanGun + ' gün çalışıldı</div></div>' +
     '<div class="stat-card sc-fazla" style="color:' + fmRenk + '"><div style="font-size:12px;font-weight:700">Fazla Mesai (Net)</div><div class="sc-val">' + dkMetin(ozet.fazlaDk) + '</div><div style="font-size:11px;margin-top:4px">Artı ve eksi netleşmiş · ' + tlMetin(hak.fazlaKazanc) + '</div></div>' +
-    '<div class="stat-card sc-maas"><div style="font-size:12px;font-weight:700">Şu Ana Kadar Hak Edilen</div><div class="sc-val">' + tlMetin(hak.bugunNet) + '</div><div style="font-size:11px;margin-top:4px">' + hak.bugunEsasGun + ' gün üzerinden</div></div>' +
-    '<div class="stat-card sc-tahmin"><div style="font-size:12px;font-weight:700">Ay Sonu Tahmini</div><div class="sc-val">' + tlMetin(hak.aySonuNet) + '</div><div style="font-size:11px;margin-top:4px">Kalan günler tam çalışılırsa</div></div></div>' +
+    '</div>' + // Hak edilen / ay sonu tahmini kartları sahibin kararıyla çalışan ekranından kaldırıldı (P72)
     '<div class="grid-5">' +
     '<div class="p-card pc-yil"><div style="font-size:20px;font-weight:800">' + ozet.yillik + '</div><div style="font-size:11px;font-weight:700">Yıllık İzin</div></div>' +
     '<div class="p-card pc-ucr"><div style="font-size:20px;font-weight:800">' + ozet.ucretsiz + '</div><div style="font-size:11px;font-weight:700">Ücretsiz İzin</div></div>' +

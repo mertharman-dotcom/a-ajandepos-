@@ -199,7 +199,7 @@
     {
      "ad": "bap-personel › odemeTopluKaydet",
      "yer": [
-      "apps-script/bap-personel/Personel.gs:1877"
+      "apps-script/bap-personel/Personel.gs:1876"
      ]
     }
    ],
@@ -207,7 +207,7 @@
     {
      "ad": "bap-personel › odemeKaydet",
      "yer": [
-      "apps-script/bap-personel/Personel.gs:1897"
+      "apps-script/bap-personel/Personel.gs:1896"
      ]
     }
    ],
@@ -12331,7 +12331,7 @@
     {
      "ad": "bap-personel › loglariTemizle",
      "yer": [
-      "apps-script/bap-personel/Personel.gs:1594"
+      "apps-script/bap-personel/Personel.gs:1593"
      ]
     }
    ],
@@ -12777,7 +12777,7 @@
     {
      "ad": "bap-personel › odemeSayfasi",
      "yer": [
-      "apps-script/bap-personel/Personel.gs:1805"
+      "apps-script/bap-personel/Personel.gs:1804"
      ]
     }
    ],
@@ -12791,7 +12791,7 @@
     {
      "ad": "bap-personel › odemeleriOku",
      "yer": [
-      "apps-script/bap-personel/Personel.gs:1821"
+      "apps-script/bap-personel/Personel.gs:1820"
      ]
     }
    ],
@@ -13011,13 +13011,13 @@
     {
      "ad": "bap-personel › personelGuncelleKaydet",
      "yer": [
-      "apps-script/bap-personel/Personel.gs:1336"
+      "apps-script/bap-personel/Personel.gs:1335"
      ]
     },
     {
      "ad": "bap-personel › yeniPersonelEkle",
      "yer": [
-      "apps-script/bap-personel/Personel.gs:1384"
+      "apps-script/bap-personel/Personel.gs:1383"
      ]
     }
    ],
@@ -13079,7 +13079,7 @@
     {
      "ad": "bap-personel › yoneticiHub",
      "yer": [
-      "apps-script/bap-personel/Personel.gs:1047"
+      "apps-script/bap-personel/Personel.gs:1046"
      ]
     }
    ],
@@ -13507,37 +13507,37 @@
     {
      "ad": "bap-personel › doGet",
      "yer": [
-      "apps-script/bap-personel/Personel.gs:1124"
+      "apps-script/bap-personel/Personel.gs:1123"
      ]
     },
     {
      "ad": "bap-personel › eksikCikislariTamamla",
      "yer": [
-      "apps-script/bap-personel/Personel.gs:1410"
+      "apps-script/bap-personel/Personel.gs:1409"
      ]
     },
     {
      "ad": "bap-personel › gunlukDevamsizIsaretle",
      "yer": [
-      "apps-script/bap-personel/Personel.gs:1460"
+      "apps-script/bap-personel/Personel.gs:1459"
      ]
     },
     {
      "ad": "bap-personel › izinTalebiSatirlariEkle",
      "yer": [
-      "apps-script/bap-personel/Personel.gs:1314"
+      "apps-script/bap-personel/Personel.gs:1313"
      ]
     },
     {
      "ad": "bap-personel › resmiTatilleriYenidenIsaretle",
      "yer": [
-      "apps-script/bap-personel/Personel.gs:1559"
+      "apps-script/bap-personel/Personel.gs:1558"
      ]
     },
     {
      "ad": "bap-personel › topluYenidenHesapla",
      "yer": [
-      "apps-script/bap-personel/Personel.gs:1626"
+      "apps-script/bap-personel/Personel.gs:1625"
      ]
     }
    ],
@@ -13575,7 +13575,7 @@
     {
      "ad": "bap-personel › aylikTrendHesapla",
      "yer": [
-      "apps-script/bap-personel/Personel.gs:1086"
+      "apps-script/bap-personel/Personel.gs:1085"
      ]
     },
     {
@@ -13587,7 +13587,7 @@
     {
      "ad": "bap-personel › gunlukOzetGonder",
      "yer": [
-      "apps-script/bap-personel/Personel.gs:1487"
+      "apps-script/bap-personel/Personel.gs:1486"
      ]
     },
     {
@@ -13599,7 +13599,7 @@
     {
      "ad": "bap-personel › personelYonetimPaneli",
      "yer": [
-      "apps-script/bap-personel/Personel.gs:1082"
+      "apps-script/bap-personel/Personel.gs:1081"
      ]
     },
     {
@@ -13611,7 +13611,7 @@
     {
      "ad": "bap-personel › puantajDenetim",
      "yer": [
-      "apps-script/bap-personel/Personel.gs:1692"
+      "apps-script/bap-personel/Personel.gs:1691"
      ]
     }
    ],
@@ -14050,7 +14050,7 @@
     {
      "ad": "bap-personel › resmiTatilleriYenidenIsaretle",
      "yer": [
-      "apps-script/bap-personel/Personel.gs:1560"
+      "apps-script/bap-personel/Personel.gs:1559"
      ]
     },
     {
@@ -14156,7 +14156,7 @@
     {
      "ad": "bap-personel › vardiyaCizelgeKaydet",
      "yer": [
-      "apps-script/bap-personel/Personel.gs:1358"
+      "apps-script/bap-personel/Personel.gs:1357"
      ]
     },
     {
@@ -14206,7 +14206,7 @@
     {
      "ad": "bap-personel › gunlukDevamsizIsaretle",
      "yer": [
-      "apps-script/bap-personel/Personel.gs:1461"
+      "apps-script/bap-personel/Personel.gs:1460"
      ]
     },
     {
@@ -14242,7 +14242,7 @@
     {
      "ad": "bap-personel › yoneticiHub",
      "yer": [
-      "apps-script/bap-personel/Personel.gs:934"
+      "apps-script/bap-personel/Personel.gs:933"
      ]
     }
    ],
@@ -37358,7 +37358,7 @@
     },
     "aylikTrendHesapla": {
      "dosya": "apps-script/bap-personel/Personel.gs",
-     "satir": 1084,
+     "satir": 1083,
      "cagirir": [
       "anaSayfa",
       "ayarAl",
@@ -37462,7 +37462,7 @@
     },
     "devamsizTetikleyiciKur": {
      "dosya": "apps-script/bap-personel/Personel.gs",
-     "satir": 1548,
+     "satir": 1547,
      "cagirir": [
       "tetikleyicileriKur"
      ],
@@ -37478,7 +37478,7 @@
     },
     "doGet": {
      "dosya": "apps-script/bap-personel/Personel.gs",
-     "satir": 1121,
+     "satir": 1120,
      "cagirir": [
       "aktifSubeBul",
       "anahtarTarih",
@@ -37550,7 +37550,7 @@
     },
     "eksikCikislariTamamla": {
      "dosya": "apps-script/bap-personel/Personel.gs",
-     "satir": 1408,
+     "satir": 1407,
      "cagirir": [
       "anahtarTarih",
       "anaSayfa",
@@ -37571,7 +37571,7 @@
     },
     "eksikCikisTetikleyiciKur": {
      "dosya": "apps-script/bap-personel/Personel.gs",
-     "satir": 1547,
+     "satir": 1546,
      "cagirir": [
       "tetikleyicileriKur"
      ],
@@ -37604,7 +37604,7 @@
     },
     "gece_kontrol": {
      "dosya": "apps-script/bap-personel/Personel.gs",
-     "satir": 1529,
+     "satir": 1528,
      "cagirir": [
       "eksikCikislariTamamla",
       "gunlukOffIsaretle",
@@ -37643,7 +37643,7 @@
     },
     "gunlukDevamsizIsaretle": {
      "dosya": "apps-script/bap-personel/Personel.gs",
-     "satir": 1458,
+     "satir": 1457,
      "cagirir": [
       "anahtarTarih",
       "anaSayfa",
@@ -37672,7 +37672,7 @@
     },
     "gunlukOzetGonder": {
      "dosya": "apps-script/bap-personel/Personel.gs",
-     "satir": 1486,
+     "satir": 1485,
      "cagirir": [
       "anahtarTarih",
       "anaSayfa",
@@ -37788,7 +37788,7 @@
     },
     "izinTalebiSatirlariEkle": {
      "dosya": "apps-script/bap-personel/Personel.gs",
-     "satir": 1312,
+     "satir": 1311,
      "cagirir": [
       "anahtarTarih",
       "anaSayfa",
@@ -37840,7 +37840,7 @@
     },
     "loglariTemizle": {
      "dosya": "apps-script/bap-personel/Personel.gs",
-     "satir": 1592,
+     "satir": 1591,
      "cagirir": [],
      "sekmeler": [
       "✎ PERSONEL › Islem_Loglari"
@@ -37858,13 +37858,13 @@
     },
     "odemeAyStr_": {
      "dosya": "apps-script/bap-personel/Personel.gs",
-     "satir": 1813,
+     "satir": 1812,
      "cagirir": [],
      "sekmeler": []
     },
     "odemeHucreleri": {
      "dosya": "apps-script/bap-personel/Personel.gs",
-     "satir": 1901,
+     "satir": 1900,
      "cagirir": [
       "htmlEsc",
       "tlMetin"
@@ -37873,7 +37873,7 @@
     },
     "odemeKaydet": {
      "dosya": "apps-script/bap-personel/Personel.gs",
-     "satir": 1891,
+     "satir": 1890,
      "cagirir": [
       "kilitAl",
       "kilitBirak",
@@ -37887,7 +37887,7 @@
     },
     "odemeleriOku": {
      "dosya": "apps-script/bap-personel/Personel.gs",
-     "satir": 1818,
+     "satir": 1817,
      "cagirir": [
       "odemeAyStr_"
      ],
@@ -37897,7 +37897,7 @@
     },
     "odemeSatirYaz_": {
      "dosya": "apps-script/bap-personel/Personel.gs",
-     "satir": 1839,
+     "satir": 1838,
      "cagirir": [
       "logEkle",
       "odemeAyStr_",
@@ -37907,7 +37907,7 @@
     },
     "odemeSayfasi": {
      "dosya": "apps-script/bap-personel/Personel.gs",
-     "satir": 1802,
+     "satir": 1801,
      "cagirir": [],
      "sekmeler": [
       "✎ PERSONEL › Odemeler",
@@ -37916,7 +37916,7 @@
     },
     "odemeTopluKaydet": {
      "dosya": "apps-script/bap-personel/Personel.gs",
-     "satir": 1872,
+     "satir": 1871,
      "cagirir": [
       "kilitAl",
       "kilitBirak",
@@ -37931,13 +37931,13 @@
     },
     "odemeTutarCoz_": {
      "dosya": "apps-script/bap-personel/Personel.gs",
-     "satir": 1862,
+     "satir": 1861,
      "cagirir": [],
      "sekmeler": []
     },
     "offTetikleyiciKur": {
      "dosya": "apps-script/bap-personel/Personel.gs",
-     "satir": 1546,
+     "satir": 1545,
      "cagirir": [
       "tetikleyicileriKur"
      ],
@@ -37985,7 +37985,7 @@
     },
     "personelGuncelleKaydet": {
      "dosya": "apps-script/bap-personel/Personel.gs",
-     "satir": 1335,
+     "satir": 1334,
      "cagirir": [
       "logEkle"
      ],
@@ -38006,7 +38006,7 @@
     },
     "personelYonetimPaneli": {
      "dosya": "apps-script/bap-personel/Personel.gs",
-     "satir": 1082,
+     "satir": 1081,
      "cagirir": [
       "anaSayfa",
       "yoneticiHub"
@@ -38084,7 +38084,7 @@
     },
     "puantajDenetim": {
      "dosya": "apps-script/bap-personel/Personel.gs",
-     "satir": 1690,
+     "satir": 1689,
      "cagirir": [
       "anahtarTarih",
       "anaSayfa",
@@ -38113,7 +38113,7 @@
     },
     "resmiTatilleriYenidenIsaretle": {
      "dosya": "apps-script/bap-personel/Personel.gs",
-     "satir": 1557,
+     "satir": 1556,
      "cagirir": [
       "anahtarTarih",
       "anaSayfa",
@@ -38182,7 +38182,7 @@
     },
     "tetikleyicileriKur": {
      "dosya": "apps-script/bap-personel/Personel.gs",
-     "satir": 1539,
+     "satir": 1538,
      "cagirir": [],
      "sekmeler": []
     },
@@ -38200,7 +38200,7 @@
     },
     "topluYenidenHesapla": {
      "dosya": "apps-script/bap-personel/Personel.gs",
-     "satir": 1623,
+     "satir": 1622,
      "cagirir": [
       "anaSayfa",
       "ayarAl",
@@ -38221,7 +38221,7 @@
     },
     "trendGrafigiCiz": {
      "dosya": "apps-script/bap-personel/Personel.gs",
-     "satir": 1100,
+     "satir": 1099,
      "cagirir": [],
      "sekmeler": []
     },
@@ -38268,7 +38268,7 @@
     },
     "vardiyaCizelgeKaydet": {
      "dosya": "apps-script/bap-personel/Personel.gs",
-     "satir": 1356,
+     "satir": 1355,
      "cagirir": [
       "haftaKey",
       "kilitAl",
@@ -38295,7 +38295,7 @@
     },
     "vardiyaPaneli": {
      "dosya": "apps-script/bap-personel/Personel.gs",
-     "satir": 1080,
+     "satir": 1079,
      "cagirir": [
       "yoneticiHub"
      ],
@@ -38320,7 +38320,7 @@
     },
     "yeniPersonelEkle": {
      "dosya": "apps-script/bap-personel/Personel.gs",
-     "satir": 1383,
+     "satir": 1382,
      "cagirir": [
       "logEkle"
      ],
@@ -38336,7 +38336,7 @@
     },
     "yoneticiHub": {
      "dosya": "apps-script/bap-personel/Personel.gs",
-     "satir": 910,
+     "satir": 909,
      "cagirir": [
       "anahtarTarih",
       "ayarAl",
@@ -38367,7 +38367,7 @@
     },
     "yonetimPaneli": {
      "dosya": "apps-script/bap-personel/Personel.gs",
-     "satir": 1081,
+     "satir": 1080,
      "cagirir": [
       "yoneticiHub"
      ],
@@ -38379,14 +38379,14 @@
      "proje": "bap-personel",
      "fn": "puantajDenetim",
      "dosya": "apps-script/bap-personel/Personel.gs",
-     "satir": 1702,
+     "satir": 1701,
      "ifade": "adiSayfa"
     },
     {
      "proje": "bap-personel",
      "fn": "puantajDenetim",
      "dosya": "apps-script/bap-personel/Personel.gs",
-     "satir": 1704,
+     "satir": 1703,
      "ifade": "adiSayfa"
     }
    ]
@@ -41216,10 +41216,11 @@
   {
    "ad": "Cloudflare eski sayfalar",
    "dosya": "cloudflare/workers/bap-genel-yonetm/index.html",
-   "projeler": [],
+   "projeler": [
+    "bap-personel"
+   ],
    "eylemler": [],
    "bilinmeyenDagitim": [
-    "AKfycbwPJbZCgnURva8C--D7jmMK8t4jhaQkC3J0ps-j7fxQEgbrSAfTtLYKqtMJr9yfXtOm",
     "AKfycbzwJ-trbYupGDewcJ-WKsDzJr5d0hYuG2mWfo6MhV9EbNY1ErkFfER0FnDCnxqBLgQ",
     "AKfycbwfNNSFMJYvSYbRtdzJrpe52_bp6O-LqQvFFzhSro3elnYYrCBmwIm-mupwxvxIX7CH"
    ]

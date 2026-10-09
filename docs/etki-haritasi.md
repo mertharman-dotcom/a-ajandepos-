@@ -1503,7 +1503,7 @@ Bağlı dosya: — (tabloları kimlikle açar) · 27 fonksiyon · 4 sekme
 | `mac-kopru/topla.mjs` (MacBook köprüsü (mac-kopru)) | bap-yemek-karti, kurye-net-calisma-suresi | 4 |
 | `cloudflare/workers/bap-alim-paneli/index.html` (Cloudflare eski sayfalar) | kolaybi-fatura-ham-veri | 11 |
 | `cloudflare/workers/bap-genel-bilgiler/index.html` (Cloudflare eski sayfalar) | projeler.json'da olmayan dağıtım | 0 |
-| `cloudflare/workers/bap-genel-yonetm/index.html` (Cloudflare eski sayfalar) | projeler.json'da olmayan dağıtım | 0 |
+| `cloudflare/workers/bap-genel-yonetm/index.html` (Cloudflare eski sayfalar) | bap-personel | 0 |
 | `cloudflare/workers/kurye-takip/index.html` (Cloudflare eski sayfalar) | — | 0 |
 
 ## Çözülemeyenler
@@ -1545,8 +1545,8 @@ Sekme adı koddan okunamadı (değişkenle ya da döngüyle açılıyor). Bu yer
 | kurye-net-calisma-suresi | `_wSekmeDokumu` | `kurye-net-calisma-suresi/Kurye Web.gs:111` | `ad` |
 | kurye-net-calisma-suresi | `payeMailCek` | `kurye-net-calisma-suresi/Yemek Karti.gs:76` | `ad` |
 | kurye-net-calisma-suresi | `payeMailCek` | `kurye-net-calisma-suresi/Yemek Karti.gs:77` | `ad` |
-| bap-personel | `puantajDenetim` | `bap-personel/Personel.gs:1702` | `adiSayfa` |
-| bap-personel | `puantajDenetim` | `bap-personel/Personel.gs:1704` | `adiSayfa` |
+| bap-personel | `puantajDenetim` | `bap-personel/Personel.gs:1701` | `adiSayfa` |
+| bap-personel | `puantajDenetim` | `bap-personel/Personel.gs:1703` | `adiSayfa` |
 | indirim-orani | `kaynakSayfaBul` | `indirim-orani/Kod.gs:170` | `KAYNAK_SAYFA_ADI` |
 | bap-yemek-karti | `payeMailCek` | `bap-yemek-karti/Paye.gs:18` | `ad` |
 | bap-yemek-karti | `payeMailCek` | `bap-yemek-karti/Paye.gs:19` | `ad` |
