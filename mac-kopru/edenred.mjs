@@ -63,6 +63,11 @@ function terminaldenSor() {
 }
 
 /* ---------- giriş ---------- */
+// Oturum çerezi Chrome kapanınca siliniyor (Metropol'de görüldü, 08.10): dosyada saklanır, her çalışmada SMS istenmesin.
+const CEREZ = path.join(DIZIN, 'edenred-cerez.json');
+async function cerezYukle(c) { try { const x = JSON.parse(fs.readFileSync(CEREZ, 'utf8')); if (x.length) await c.addCookies(x); } catch (_) {} }
+async function cerezKaydet(c) { try { const x = (await c.cookies()).filter(k => /edenred/i.test(k.domain)); if (x.length) fs.writeFileSync(CEREZ, JSON.stringify(x)); } catch (_) {} }
+
 async function oturumAcik(page) {
   await page.goto(KOK + '/', { waitUntil: 'domcontentloaded' });
   return !/\/login/.test(page.url());
@@ -164,8 +169,9 @@ async function islemler(page, sube, terminal, bas, bit) {
     else { const b = new Date(), g = new Date(); g.setDate(g.getDate() - GERI_GUN); bas = tarih(g, '/'); bit = tarih(b, '/'); }
 
     tarayici = await chromium.launchPersistentContext(PROFIL, { executablePath: CHROME, headless: false, ignoreDefaultArgs: ['--enable-automation', '--no-sandbox'], args: ['--disable-blink-features=AutomationControlled'], locale: 'tr-TR', viewport: { width: 1280, height: 900 } });
+    await cerezYukle(tarayici);
     const page = tarayici.pages()[0] || await tarayici.newPage();
-    if (await oturumAcik(page)) log('oturum zaten açık'); else await girisYap(page);
+    if (await oturumAcik(page)) log('oturum zaten açık'); else { await girisYap(page); await cerezKaydet(tarayici); }
 
     const satirlar = [];
     for (const s of await subeler(page)) {
@@ -193,6 +199,6 @@ async function islemler(page, sube, terminal, bas, bit) {
     log('HATA: ' + e.message);
     process.exitCode = 1;
   } finally {
-    if (tarayici) await tarayici.close().catch(() => {});
+    if (tarayici) { await cerezKaydet(tarayici); await tarayici.close().catch(() => {}); }
   }
 })();

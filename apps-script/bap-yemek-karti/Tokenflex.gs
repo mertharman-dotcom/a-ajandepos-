@@ -1,7 +1,6 @@
 /**
  * Tokenflex (uye.tokenflex.com.tr) — Apps Script doğrudan çeker (robot doğrulaması yok), saatte bir (Kurulum.gs).
- *   Giriş: POST MerchantPortal/Authentication/Login {username, password} → data.token (10 saat). İlk girişte site SMS istemişti,
- *          sonrakilerde istemedi (06.10). Google'dan girişte SMS isterse hata yazar → MacBook'a taşınır.
+ *   Giriş: SMS doğrulamalı (tfGiris_ açıklaması); token 10 saat saklanır.
  *   İşlemler: POST Invoices/GetTransactionListFo (sayfalı) → 'Tokenflex' (Ref = cardTransactionId; terminal → kişi adı terminal listesinden)
  *   Faturalar: GET Invoices/GetInvoiceList → 'Tokenflex Fatura' (Fatura No = KolayBi no; 'Ödendi' → Finans alacaktan düşer;
  *              'Açık' = henüz faturalanmamış biriken dönem)
@@ -19,30 +18,55 @@ function tfIstek_(yol, govde, token) {
   if (token) o.headers.Authorization = 'Bearer ' + token;
   var r = UrlFetchApp.fetch(TF_API + yol, o), kod = r.getResponseCode(), j = null;
   try { j = JSON.parse(r.getContentText()); } catch (e) { }
+  if (kod === 401 || /Un_Authorized/i.test(r.getContentText())) PropertiesService.getScriptProperties().deleteProperty('TOKENFLEX_TOKEN');   // süresi bitmiş / geçersiz anahtar
   if (kod === 401) throw new Error('Tokenflex ' + yol + ': yetkisiz (oturum açılamadı)');
   if (kod !== 200 || !j) throw new Error('Tokenflex ' + yol + ': HTTP ' + kod + ' ' + r.getContentText().slice(0, 200));
   if (j.isOk === false || (j.data && j.data.isSuccess === false)) throw new Error('Tokenflex ' + yol + ': ' + ((j.error && (j.error.message || JSON.stringify(j.error))) || (j.data && j.data.message) || 'hata'));
   return j.data;
 }
+/* Giriş (08.10'dan beri SMS doğrulamalı; sahibinin HAR'ı):
+ *   Authentication/Login → twoFactorData {loginAttemptId, otpGuid} → SendMerchantPortalLoginOtp {loginAttemptId, otpType: 1 (SMS), otpGuid}
+ *   → SMS (4 hane) iPhone kestirmesiyle kod kutusuna (kaynak 'tokenflex') → VerifyMerchantPortalLoginOtp {…, otpCode} → token (10 saat).
+ * Token saklanır (TOKENFLEX_TOKEN) ve süresi bitene kadar yeniden giriş yapılmaz: günde 2–3 SMS. Gece 01–09 arası SMS istenmez;
+ * kod 3 dakikada gelmezse 2 saat yeniden denenmez (TOKENFLEX_2FA) — sahibine üst üste SMS gitmesin. */
 function tfGiris_() {
   var p = PropertiesService.getScriptProperties(), k = p.getProperty('TOKENFLEX_KULLANICI'), s = p.getProperty('TOKENFLEX_SIFRE');
   if (!k || !s) throw new Error('Tokenflex: Komut dosyası özelliklerine TOKENFLEX_KULLANICI ve TOKENFLEX_SIFRE girilmeli');
-  // 08.10'dan beri giriş SMS doğrulaması istiyor (yanıtta twoFactorData; SMS'siz anahtarla işyeri verisi 'Un_Authorized_User_For_This_Merchant').
-  // Her deneme sahibine SMS gönderdiği için doğrulama gerektiği görülünce 12 saat yeniden denenmez (TOKENFLEX_2FA özelliği).
-  var bekle = Number(p.getProperty('TOKENFLEX_2FA') || 0);
-  if (bekle && Date.now() - bekle < 12 * 3600000) throw new Error('Tokenflex SMS doğrulaması istiyor; SMS göndermemek için 12 saat denenmiyor (TOKENFLEX_2FA)');
-  var d = tfIstek_('Authentication/Login', { username: k, password: s, rememberMe: false });
-  if (d && d.twoFactorData) { p.setProperty('TOKENFLEX_2FA', String(Date.now())); throw new Error('Tokenflex girişte SMS doğrulaması istiyor (08.10\'dan beri); SMS adımı eklenene kadar çekim durdu'); }
-  if (!d || !d.token) throw new Error('Tokenflex girişte ek doğrulama istiyor');
+  var kayit = JSON.parse(p.getProperty('TOKENFLEX_TOKEN') || 'null');
+  if (kayit && kayit.son - Date.now() > 15 * 60000) return kayit.t;
+  var d = tfIstek_('Authentication/Login', { username: k, password: s, rememberMe: true });
+  if (d && d.token && !d.twoFactorData) return tfTokenSakla_(p, d);
+  var tf = d && d.twoFactorData; if (!tf || !tf.loginAttemptId) throw new Error('Tokenflex girişte bilinmeyen ek doğrulama istiyor');
+  var saat = +Utilities.formatDate(new Date(), TZ, 'H');
+  if (saat >= 1 && saat < 9) throw new Error('Tokenflex SMS doğrulaması gece istenmez (01–09); sabah alınır');
+  var son = Number(p.getProperty('TOKENFLEX_2FA') || 0);
+  if (son && Date.now() - son < 2 * 3600000) throw new Error('Tokenflex SMS kodu son denemede gelmedi; 2 saat beklenecek (TOKENFLEX_2FA)');
+  kodKutusu_({ tur: 'kodIste', kaynak: 'tokenflex' });
+  // Site SMS'i gönderdiği hâlde isSuccess:false döndürüyor (HAR, 08.10) → yalnız bağlantı / yetki hatası durdurur
+  try { tfIstek_('Authentication/SendMerchantPortalLoginOtp', { loginAttemptId: tf.loginAttemptId, otpType: 1, otpGuid: tf.otpGuid }); }
+  catch (e) { if (/HTTP|yetkisiz/.test(String(e.message))) throw e; }
+  var kod = null;
+  for (var i = 0; i < 36 && !kod; i++) { Utilities.sleep(5000); kod = kodKutusu_({ tur: 'kodOku', kaynak: 'tokenflex' }).kod; }
+  if (!kod) { p.setProperty('TOKENFLEX_2FA', String(Date.now())); throw new Error('Tokenflex SMS kodu 3 dakikada gelmedi (kestirme: kaynak=tokenflex)'); }
+  kodKutusu_({ tur: 'kodSil', kaynak: 'tokenflex' });
+  var v = tfIstek_('Authentication/VerifyMerchantPortalLoginOtp', { loginAttemptId: tf.loginAttemptId, otpType: 1, otpCode: String(kod), otpGuid: tf.otpGuid });
+  if (!v || !v.token) throw new Error('Tokenflex SMS kodu kabul edilmedi');
+  p.deleteProperty('TOKENFLEX_2FA');
+  return tfTokenSakla_(p, v);
+}
+function tfTokenSakla_(p, d) {
+  p.setProperty('TOKENFLEX_TOKEN', JSON.stringify({ t: d.token, son: Date.now() + (Number(d.expiresIn) || 36000) * 1000 }));
   return d.token;
 }
 
 function tokenflexCek(gunSayisi) {
   // Saatlik tetikleyici ilk değişken olarak olay nesnesi verir; sayı değilse varsayılan 3 gün (06–07.10 bu yüzden hiç çalışmadı).
   gunSayisi = typeof gunSayisi === 'number' && gunSayisi > 0 ? gunSayisi : 3;
+  // Giriş kilitten önce: SMS kodu 3 dakikaya kadar beklenebilir, Mac programlarının kayıtları o sırada kilide takılmasın.
+  var token; try { token = tfGiris_(); } catch (e) { sonCalisma_('tokenflex', { hata: String(e && e.message || e) }); throw e; }
   var kilit = LockService.getScriptLock(); if (!kilit.tryLock(120000)) return sonCalisma_('tokenflex', { atlandi: 'meşgul' });
   try {
-    var token = tfGiris_(), isyeri = Number(PropertiesService.getScriptProperties().getProperty('TOKENFLEX_ISYERI') || 320096);
+    var isyeri = Number(PropertiesService.getScriptProperties().getProperty('TOKENFLEX_ISYERI') || 320096);
     var f = function (d) { return Utilities.formatDate(d, TZ, 'yyyy-MM-dd'); }, bugun = new Date();
     // terminal → kişi (SoftPOS satırında contactName ve 'Gsm: 5xx…')
     var kisi = {};

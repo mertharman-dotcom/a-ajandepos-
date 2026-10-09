@@ -1,0 +1,297 @@
+<title>BAP Etki Haritası</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Onest:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+/* Yerleşim: solda dosya › sekme listesi, sağda seçilen sekmenin akışı (yazan → sekme → okuyan → çalıştıran). Telefonda alt alta. */
+:root{
+  --zemin:#E9ECEE; --kagit:#FBFAF7; --kum:#E6DCCA; --kum-acik:#F3EEE4;
+  --mavi:#A8C3D6; --mavi-acik:#E3EDF4; --mavi-koyu:#2E5B78;
+  --murekkep:#34312D; --gri:#76706A; --cizgi:#D9D4CB;
+  --iyi:#3C7A52; --dikkat:#A8741E; --kotu:#A33F2C;
+  --iyi-z:#E4F0E7; --dikkat-z:#F6ECD9; --kotu-z:#F5E1DC;
+  --yazi:"Onest", "Segoe UI", system-ui, -apple-system, Roboto, Arial, sans-serif;
+  --kod:"JetBrains Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  --r-kucuk:6px; --r:12px;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --zemin:#1E2124; --kagit:#272A2E; --kum:#3A352D; --kum-acik:#2F2C27;
+    --mavi:#5F88A5; --mavi-acik:#26323B; --mavi-koyu:#A9CBE3;
+    --murekkep:#ECE8E1; --gri:#A8A29A; --cizgi:#3A3D42;
+    --iyi:#7CC293; --dikkat:#E0B462; --kotu:#EC8C78;
+    --iyi-z:#223329; --dikkat-z:#3A3021; --kotu-z:#3D2622;
+    color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --zemin:#1E2124; --kagit:#272A2E; --kum:#3A352D; --kum-acik:#2F2C27;
+  --mavi:#5F88A5; --mavi-acik:#26323B; --mavi-koyu:#A9CBE3;
+  --murekkep:#ECE8E1; --gri:#A8A29A; --cizgi:#3A3D42;
+  --iyi:#7CC293; --dikkat:#E0B462; --kotu:#EC8C78;
+  --iyi-z:#223329; --dikkat-z:#3A3021; --kotu-z:#3D2622;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+body{background:var(--zemin);color:var(--murekkep);font-family:var(--yazi);font-size:15px;line-height:1.5;font-variant-numeric:tabular-nums}
+button{font:inherit;color:inherit}
+:focus-visible{outline:2px solid var(--mavi-koyu);outline-offset:2px;border-radius:4px}
+code,.kod{font-family:var(--kod);font-size:.84em}
+
+.sayfa{max-width:1240px;margin:0 auto;padding-inline:16px;padding-block:20px 48px;display:grid;gap:18px}
+header{display:grid;gap:6px}
+h1{margin:0;font-size:1.6rem;font-weight:700;letter-spacing:-.01em;text-wrap:balance}
+.alt{margin:0;color:var(--gri);max-width:68ch}
+.ozet{display:flex;flex-wrap:wrap;gap:8px;margin-top:6px}
+.ozet span{background:var(--kagit);border:1px solid var(--cizgi);border-radius:999px;padding:3px 12px;font-size:.85rem}
+.ozet b{font-weight:600}
+
+.arama{position:sticky;top:env(safe-area-inset-top,0px);z-index:3;background:var(--zemin);padding-block:6px;display:flex;gap:8px;flex-wrap:wrap}
+.arama input{flex:1 1 260px;min-width:0;font:inherit;padding:11px 14px;border:1px solid var(--cizgi);border-radius:var(--r);background:var(--kagit);color:var(--murekkep)}
+.sekmeler-btn{display:flex;gap:4px;background:var(--kagit);border:1px solid var(--cizgi);border-radius:var(--r);padding:3px}
+.sekmeler-btn button{border:0;background:none;padding:7px 12px;border-radius:9px;cursor:pointer;font-size:.9rem;color:var(--gri)}
+.sekmeler-btn button[aria-pressed="true"]{background:var(--mavi-acik);color:var(--mavi-koyu);font-weight:600}
+
+.duzen{display:grid;grid-template-columns:minmax(260px,330px) 1fr;gap:18px;align-items:start}
+@media (max-width:820px){.duzen{grid-template-columns:1fr}}
+.liste{background:var(--kagit);border:1px solid var(--cizgi);border-radius:var(--r);overflow:hidden;max-height:calc(100vh - 140px);overflow-y:auto}
+@media (max-width:820px){.liste{max-height:46vh}}
+.dosya{border-bottom:1px solid var(--cizgi)}
+.dosya:last-child{border-bottom:0}
+.dosya > button{all:unset;box-sizing:border-box;display:flex;justify-content:space-between;gap:8px;width:100%;padding:10px 14px;cursor:pointer;background:var(--kum-acik)}
+.dosya > button:focus-visible{outline:2px solid var(--mavi-koyu);outline-offset:-2px}
+.dosya-ad{font-weight:600;font-size:.9rem;min-width:0}
+.dosya-ad small{display:block;font-weight:400;color:var(--gri);font-size:.78rem;overflow-wrap:anywhere}
+.adet{color:var(--gri);font-size:.8rem;white-space:nowrap}
+.sekme-satir{all:unset;box-sizing:border-box;display:flex;align-items:center;gap:8px;width:100%;padding:7px 14px 7px 22px;cursor:pointer;font-size:.9rem;border-top:1px solid var(--cizgi)}
+.sekme-satir:hover{background:var(--mavi-acik)}
+.sekme-satir[aria-current="true"]{background:var(--mavi-acik);color:var(--mavi-koyu);font-weight:600}
+.sekme-satir:focus-visible{outline:2px solid var(--mavi-koyu);outline-offset:-2px}
+.sekme-satir .ad{flex:1;min-width:0;overflow-wrap:anywhere}
+.nokta{width:8px;height:8px;border-radius:50%;flex:none;background:var(--cizgi)}
+.nokta.yaz{background:var(--mavi-koyu)}
+.nokta.risk{background:var(--kotu)}
+.bos{padding:16px;color:var(--gri)}
+
+.ayrinti{display:grid;gap:14px;min-width:0}
+.kart{background:var(--kagit);border:1px solid var(--cizgi);border-radius:var(--r);padding:16px 18px;min-width:0}
+.ayrinti h2{margin:0;font-size:1.3rem;text-wrap:balance;overflow-wrap:anywhere}
+.ayrinti .yol{color:var(--gri);font-size:.85rem;margin:2px 0 0}
+.rozetler{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}
+.rozet{font-size:.78rem;padding:2px 10px;border-radius:999px;border:1px solid transparent}
+.rozet.kotu{background:var(--kotu-z);color:var(--kotu)}
+.rozet.dikkat{background:var(--dikkat-z);color:var(--dikkat)}
+.rozet.iyi{background:var(--iyi-z);color:var(--iyi)}
+
+.akis{display:grid;grid-template-columns:1fr auto 1fr auto 1fr;gap:10px;align-items:start}
+.akis > .merkez,.akis > .ok{align-self:center}
+@media (max-width:1000px){.akis{grid-template-columns:1fr}.ok{transform:rotate(90deg);justify-self:center}}
+.sutun{display:grid;gap:8px;align-content:start;min-width:0}
+.sutun h3{margin:0;font-size:.75rem;letter-spacing:.06em;text-transform:uppercase;color:var(--gri);font-weight:600}
+.ok{align-self:center;color:var(--gri);font-size:1.2rem}
+.fn{border:1px solid var(--cizgi);border-radius:var(--r-kucuk);padding:7px 10px;background:var(--kagit);min-width:0}
+.fn.yaz{border-left:3px solid var(--mavi-koyu)}
+.fn.dolayli{border-left:3px dashed var(--dikkat)}
+.fn .p{font-size:.75rem;color:var(--gri)}
+.fn .f{font-family:var(--kod);font-size:.82rem;overflow-wrap:anywhere}
+.fn .y{font-size:.72rem;color:var(--gri);font-family:var(--kod);overflow-wrap:anywhere}
+.merkez{background:var(--mavi-acik);color:var(--mavi-koyu);border-radius:var(--r);padding:14px;display:grid;gap:4px;align-content:center;text-align:center;min-width:0}
+.merkez b{font-size:1.05rem;overflow-wrap:anywhere}
+.merkez span{font-size:.78rem}
+.yok{color:var(--gri);font-size:.85rem;font-style:italic}
+
+.giris{display:flex;gap:8px;align-items:flex-start;font-size:.86rem}
+.giris .tur{flex:none;font-size:.7rem;padding:1px 7px;border-radius:999px;background:var(--kum);color:var(--murekkep);margin-top:2px}
+.giris .tur.web{background:var(--mavi-acik);color:var(--mavi-koyu)}
+
+.cipler{display:flex;flex-wrap:wrap;gap:6px}
+.cip{font-family:var(--kod);font-size:.78rem;padding:3px 9px;border-radius:var(--r-kucuk);background:var(--kum-acik);border:1px solid var(--cizgi)}
+.cip.belki{background:none;color:var(--gri);border-style:dashed}
+details summary{cursor:pointer;color:var(--gri);font-size:.85rem;margin-top:8px}
+.not{font-size:.82rem;color:var(--gri);margin:8px 0 0}
+
+table{border-collapse:collapse;width:100%;font-size:.88rem}
+.tablo{overflow-x:auto}
+th,td{text-align:left;padding:8px 10px;border-bottom:1px solid var(--cizgi);vertical-align:top}
+th{font-size:.75rem;letter-spacing:.05em;text-transform:uppercase;color:var(--gri);font-weight:600}
+td button{all:unset;cursor:pointer;color:var(--mavi-koyu);text-decoration:underline;text-underline-offset:2px}
+td button:focus-visible{outline:2px solid var(--mavi-koyu)}
+.aciklama{display:grid;gap:6px;font-size:.88rem}
+.aciklama p{margin:0}
+@media (prefers-reduced-motion:no-preference){.sekme-satir,.sekmeler-btn button{transition:background .12s}}
+</style>
+
+<div class="sayfa">
+  <header>
+    <h1>BAP Etki Haritası</h1>
+    <p class="alt">Bir sekmenin adını, bir sütun başlığını ya da bir listeyi değiştirmeden önce buradan bak: o sekmeye hangi kod yazıyor, hangisi okuyor, o kodu hangi zamanlayıcı ya da panel çalıştırıyor.</p>
+    <div class="ozet" id="ozet"></div>
+  </header>
+
+  <div class="arama">
+    <input id="ara" type="search" placeholder="Sekme, sütun ya da kod adı… (ör. Tbl_Hammaddeler, Birim, uretimKaydet)" aria-label="Ara">
+    <div class="sekmeler-btn" role="group" aria-label="Görünüm">
+      <button id="g-harita" aria-pressed="true">Harita</button>
+      <button id="g-risk" aria-pressed="false">Riskler</button>
+      <button id="g-nasil" aria-pressed="false">Nasıl okunur</button>
+    </div>
+  </div>
+
+  <div class="duzen">
+    <nav class="liste" id="liste" aria-label="Dosyalar ve sekmeler"></nav>
+    <main class="ayrinti" id="ayrinti"></main>
+  </div>
+</div>
+
+<script>
+const VERI = /*VERI*/null;
+const $ = s => document.querySelector(s);
+const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+const TR = { 'ı': 'i', 'İ': 'i', 'ş': 's', 'Ş': 's', 'ğ': 'g', 'Ğ': 'g', 'ü': 'u', 'Ü': 'u', 'ö': 'o', 'Ö': 'o', 'ç': 'c', 'Ç': 'c' };
+const sade = s => String(s).replace(/[ıİşŞğĞüÜöÖçÇ]/g, c => TR[c]).toLowerCase().replace(/[\s_\-]+/g, ' ').trim();
+const projeAd = Object.fromEntries(VERI.projeler.map(p => [p.klasor, p.ad]));
+const dosyaAdi = k => k === '?' ? 'Dosyası bulunamadı' : k.startsWith('AD:') ? k.slice(3) : k.startsWith('BAĞLI:') ? (projeAd[k.slice(6)] || k.slice(6)) + ' projesinin tablosu' : k.startsWith('ID:') ? 'Sözlükte olmayan dosya' : (VERI.dosyalar[k] || k);
+const dosyaKisa = k => k.startsWith('AD:') || k.startsWith('BAĞLI:') ? '' : k;
+const yazanProjeler = s => [...new Set(s.yazan.map(x => x.ad.split(' › ')[0]))];
+const riskli = s => yazanProjeler(s).length > 1;
+
+let secili = null, gorunum = 'harita', sorgu = '';
+try { secili = localStorage.getItem('etki-secili'); } catch (e) {}
+if (!VERI.sekmeler.some(s => s.anahtar === secili)) secili = (VERI.sekmeler.find(s => s.anahtar === 'STOK › Tbl_Hammaddeler') || VERI.sekmeler[0]).anahtar;
+
+function ozet() {
+  const r = VERI.sekmeler.filter(riskli).length;
+  $('#ozet').innerHTML = `<span><b>${VERI.sekmeler.length}</b> sekme</span><span><b>${new Set(VERI.sekmeler.map(s => s.dosya)).size}</b> dosya</span><span><b>${VERI.projeler.length}</b> Apps Script projesi</span><span><b>${r}</b> sekmeye birden fazla proje yazıyor</span>`;
+}
+
+function eslesir(s) {
+  if (!sorgu) return true;
+  const q = sade(sorgu);
+  return sade(s.sekme).includes(q) || sade(s.dosya + ' ' + dosyaAdi(s.dosya)).includes(q)
+    || s.sutunlar.some(c => sade(c.ad).includes(q))
+    || [...s.yazan, ...s.okuyan].some(x => sade(x.ad).includes(q));
+}
+
+function liste() {
+  const gruplar = new Map();
+  for (const s of VERI.sekmeler.filter(eslesir)) { if (!gruplar.has(s.dosya)) gruplar.set(s.dosya, []); gruplar.get(s.dosya).push(s); }
+  const toplam = d => VERI.sekmeler.filter(s => s.dosya === d).length;
+  const sira = [...gruplar.keys()].sort((a, b) => (a === '?') - (b === '?') || toplam(b) - toplam(a) || a.localeCompare(b, 'tr'));
+  if (!sira.length) { $('#liste').innerHTML = `<p class="bos">“${esc(sorgu)}” hiçbir sekmede, sütunda ya da kodda geçmiyor.</p>`; return; }
+  $('#liste').innerHTML = sira.map(d => `
+    <div class="dosya">
+      <button type="button" aria-expanded="true" data-dosya="${esc(d)}"><span class="dosya-ad">${esc(dosyaKisa(d) || dosyaAdi(d))}${dosyaKisa(d) ? `<small>${esc(dosyaAdi(d))}</small>` : ''}</span><span class="adet">${gruplar.get(d).length}</span></button>
+      <div class="ic">${gruplar.get(d).map(s => `
+        <button type="button" class="sekme-satir" data-k="${esc(s.anahtar)}" aria-current="${s.anahtar === secili}">
+          <span class="nokta ${riskli(s) ? 'risk' : s.yazan.length ? 'yaz' : ''}" title="${riskli(s) ? 'Birden fazla proje yazıyor' : s.yazan.length ? 'Kod yazıyor' : 'Yalnız okunuyor'}"></span>
+          <span class="ad">${esc(s.sekme)}</span><span class="adet">${s.yazan.length + s.okuyan.length}</span>
+        </button>`).join('')}</div>
+    </div>`).join('');
+}
+
+function fnKutu(x, sinif) {
+  const [p, f] = x.ad.split(' › ');
+  const yer = (x.yer || []).slice(0, 2).map(y => y.replace(/^apps-script\//, '')).join(', ');
+  return `<div class="fn ${sinif || ''}"><div class="p">${esc(projeAd[p] || p)}</div><div class="f">${esc(f)}</div>${yer ? `<div class="y">${esc(yer)}</div>` : ''}</div>`;
+}
+
+function girisler(s) {
+  const web = new Set(s.girisler.filter(g => g.tur === 'web' && g.eylem).map(g => g.proje));
+  const l = s.girisler.filter(g => !(g.tur === 'web' && !g.eylem && web.has(g.proje)));
+  const tur = { zamanlayici: 'zaman', otomatik: 'otomatik', menu: 'menü', ekran: 'ekran', web: 'panel' };
+  const metin = g => g.tur === 'web' && g.eylem ? `${g.eylem}` : g.aciklama.replace(/^menü: |^ekran: /, '');
+  const gor = new Set();
+  const satirlar = l.map(g => {
+    const k = g.proje + metin(g) + g.tur; if (gor.has(k)) return ''; gor.add(k);
+    return `<div class="giris"><span class="tur ${g.tur === 'web' ? 'web' : ''}">${tur[g.tur] || g.tur}</span><span><b>${esc(metin(g))}</b> <span class="p" style="color:var(--gri)">· ${esc(projeAd[g.proje] || g.proje)}${g.tur === 'web' ? '' : ' · ' + esc(g.fn)}</span></span></div>`;
+  }).filter(Boolean);
+  const ara = s.arayuzler.map(a => `<div class="giris"><span class="tur web">arayüz</span><span><b>${esc(a)}</b></span></div>`);
+  return [...ara, ...satirlar];
+}
+
+function ayrinti() {
+  if (gorunum === 'risk') return riskler();
+  if (gorunum === 'nasil') return nasil();
+  const s = VERI.sekmeler.find(x => x.anahtar === secili);
+  if (!s) { $('#ayrinti').innerHTML = '<div class="kart bos">Soldan bir sekme seç.</div>'; return; }
+  const yp = yazanProjeler(s);
+  const roz = [];
+  if (yp.length > 1) roz.push(`<span class="rozet kotu">${yp.length} proje yazıyor: ${esc(yp.map(p => projeAd[p] || p).join(', '))}</span>`);
+  if (s.dolayli.length) roz.push(`<span class="rozet dikkat">dolaylı yazma olabilir</span>`);
+  if (!s.yazan.length && !s.dolayli.length) roz.push(`<span class="rozet iyi">kod yalnızca okuyor</span>`);
+  if (s.dosya === '?' ) roz.push(`<span class="rozet dikkat">hangi dosyada olduğu koddan anlaşılamadı</span>`);
+  const kesin = s.sutunlar.filter(c => c.kesin), belki = s.sutunlar.filter(c => !c.kesin);
+  const g = girisler(s);
+  $('#ayrinti').innerHTML = `
+    <div class="kart">
+      <h2>${esc(s.sekme)}</h2>
+      <p class="yol">${esc(dosyaAdi(s.dosya))}${dosyaKisa(s.dosya) ? ' · ' + esc(s.dosya) : ''}</p>
+      <div class="rozetler">${roz.join('')}</div>
+    </div>
+    <div class="kart">
+      <div class="akis">
+        <div class="sutun"><h3>Yazan (${s.yazan.length + s.dolayli.length})</h3>
+          ${s.yazan.map(x => fnKutu(x, 'yaz')).join('')}
+          ${s.dolayli.map(a => fnKutu({ ad: a }, 'dolayli')).join('')}
+          ${!s.yazan.length && !s.dolayli.length ? '<span class="yok">Koddan yazan yok (elle ya da Make.com doldurur olabilir)</span>' : ''}</div>
+        <div class="ok" aria-hidden="true">→</div>
+        <div class="merkez"><b>${esc(s.sekme)}</b><span>${esc(dosyaKisa(s.dosya) || dosyaAdi(s.dosya))}</span></div>
+        <div class="ok" aria-hidden="true">→</div>
+        <div class="sutun"><h3>Okuyan (${s.okuyan.length})</h3>
+          ${s.okuyan.map(x => fnKutu(x)).join('') || '<span class="yok">Koddan okuyan yok</span>'}</div>
+      </div>
+      ${s.dolayli.length ? '<p class="not">Kesikli çizgili kutu: bu fonksiyon sekmeyi bir listeye koyup başka bir fonksiyona veriyor; asıl yazma orada olabilir.</p>' : ''}
+    </div>
+    <div class="kart">
+      <div class="sutun"><h3>Bu kodları kim çalıştırıyor (${g.length})</h3>${g.join('') || '<span class="yok">Zamanlayıcı, menü ya da panel bağlantısı bulunamadı (elle çalıştırılıyor olabilir)</span>'}</div>
+    </div>
+    <div class="kart">
+      <div class="sutun"><h3>Kodun adıyla aradığı sütunlar (${kesin.length})</h3>
+        ${kesin.length ? `<div class="cipler">${kesin.map(c => `<span class="cip" title="${esc(c.fn.join(', '))}">${esc(c.ad)}</span>`).join('')}</div>` : '<span class="yok">Kod bu sekmede başlık adıyla arama yapmıyor; sütunları sırasıyla (A, B, C…) okuyor olabilir. Sütun eklemek ya da yerini değiştirmek risklidir.</span>'}
+        ${belki.length ? `<details><summary>Olası başka sütunlar (${belki.length}) — aynı fonksiyon birden fazla sekme açtığı için kesin değil</summary><div class="cipler" style="margin-top:8px">${belki.map(c => `<span class="cip belki" title="${esc(c.fn.join(', '))}">${esc(c.ad)}</span>`).join('')}</div></details>` : ''}
+      </div>
+    </div>`;
+}
+
+function riskler() {
+  const r = VERI.sekmeler.filter(riskli);
+  const d = VERI.sekmeler.filter(s => s.dolayli.length);
+  const satir = s => `<tr><td><button type="button" data-git="${esc(s.anahtar)}">${esc(s.sekme)}</button><div class="p" style="color:var(--gri);font-size:.8rem">${esc(dosyaAdi(s.dosya))}</div></td><td>${esc(yazanProjeler(s).map(p => projeAd[p] || p).join(', '))}</td></tr>`;
+  $('#ayrinti').innerHTML = `
+    <div class="kart"><h2>Birden fazla projenin yazdığı sekmeler (${r.length})</h2>
+      <p class="not">Aynı sekmeye iki ayrı proje yazıyorsa birinde yapılan değişiklik diğerini bozabilir. Veri sözlüğündeki “her bilginin tek sahibi” kuralına göre bunların her biri ya bilerek böyle ya da düzeltilecek.</p>
+      <div class="tablo"><table><thead><tr><th>Sekme</th><th>Yazan projeler</th></tr></thead><tbody>${r.map(satir).join('')}</tbody></table></div></div>
+    <div class="kart"><h2>Dolaylı yazma olabilecek sekmeler (${d.length})</h2>
+      <p class="not">Sekme bir listeye konup başka bir fonksiyona veriliyor; yazma orada yapılıyor olabilir.</p>
+      <div class="tablo"><table><thead><tr><th>Sekme</th><th>Fonksiyon</th></tr></thead><tbody>${d.map(s => `<tr><td><button type="button" data-git="${esc(s.anahtar)}">${esc(s.sekme)}</button></td><td class="kod">${esc(s.dolayli.join(', '))}</td></tr>`).join('')}</tbody></table></div></div>`;
+}
+
+function nasil() {
+  $('#ayrinti').innerHTML = `<div class="kart aciklama">
+    <h2>Nasıl okunur</h2>
+    <p><b>Yazan</b>: o sekmeye veri yazan kod. Sütunların yeri ya da adı değişirse yanlış yere yazabilir.</p>
+    <p><b>Okuyan</b>: o sekmeden veri alan kod. Başlık değişirse boş ya da yanlış veri görür.</p>
+    <p><b>Kim çalıştırıyor</b>: o kodu tetikleyen zamanlayıcı (ör. her gün 04:00), tablo menüsü ya da panel ekranı. Bir şey bozulursa etkiyi ilk orada görürsün.</p>
+    <p><b>Sütunlar</b>: kodun başlık adıyla aradığı sütunlar. Bunların adını değiştirmek kodu bozar. Listesi boşsa kod sütunları sırasıyla okuyor olabilir; o zaman araya sütun eklemek de bozar.</p>
+    <p>Harita koddan otomatik çıkarılır ve kod her değiştiğinde yenilenir. Statik bir okuma olduğu için en iyi tahmindir: değişkenle açılan bazı sekmeler eksik kalabilir. Make.com senaryoları ve elle doldurulan sekmeler burada görünmez.</p>
+  </div>`;
+}
+
+function ciz() { liste(); ayrinti(); }
+document.addEventListener('click', e => {
+  const k = e.target.closest('[data-k]'); if (k) { secili = k.dataset.k; try { localStorage.setItem('etki-secili', secili); } catch (er) {} gorunumSec('harita'); if (matchMedia('(max-width:820px)').matches) $('#ayrinti').scrollIntoView({ behavior: 'smooth' }); return; }
+  const gi = e.target.closest('[data-git]'); if (gi) { secili = gi.dataset.git; sorgu = ''; $('#ara').value = ''; gorunumSec('harita'); return; }
+  const d = e.target.closest('[data-dosya]'); if (d) { const ic = d.nextElementSibling; ic.hidden = !ic.hidden; d.setAttribute('aria-expanded', String(!ic.hidden)); }
+});
+function gorunumSec(g) { gorunum = g; for (const b of ['harita', 'risk', 'nasil']) $('#g-' + b).setAttribute('aria-pressed', String(b === g)); ciz(); }
+$('#g-harita').onclick = () => gorunumSec('harita');
+$('#g-risk').onclick = () => gorunumSec('risk');
+$('#g-nasil').onclick = () => gorunumSec('nasil');
+$('#ara').addEventListener('input', e => {
+  sorgu = e.target.value.trim();
+  const ilk = VERI.sekmeler.filter(eslesir);
+  if (sorgu && ilk.length && !ilk.some(s => s.anahtar === secili)) secili = ilk[0].anahtar;
+  ciz();
+});
+ozet(); ciz();
+</script>

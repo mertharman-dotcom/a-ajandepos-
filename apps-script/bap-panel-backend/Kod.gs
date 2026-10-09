@@ -1103,6 +1103,14 @@ function siparisKaydet(data) {
   const saat = simdi.getHours() + ':' + String(simdi.getMinutes()).padStart(2,'0');
   const sipId = 'SP' + Utilities.formatDate(simdi, 'Europe/Istanbul', 'yyMMddHHmmss');
 
+  // Aynı kişi + tedarikçi + şube, aynı ürün ve miktarlar, son 10 dk içinde kaydedilmişse ikinci satır açılmaz (P39).
+  // Eski kaydın numarası döner; ekran normal devam eder (WhatsApp açılır).
+  const onceki = siparisTekrarBul_(sh, calisanAdi, tedarikci, sube, urunler, simdi);
+  if (onceki) {
+    return { basari: true, tekrar: true, siparisId: onceki, tahminiTeslim: '',
+      mesaj: 'Bu sipariş az önce kaydedilmişti (' + onceki + '), ikinci kez yazılmadı.' };
+  }
+
   const teslimGun = tahminiTeslimGunu(tedarikci, sube, simdi);
   const teslimStr = teslimGun ? Utilities.formatDate(teslimGun, 'Europe/Istanbul', 'dd.MM.yyyy') : '';
 
@@ -1122,6 +1130,39 @@ function siparisKaydet(data) {
     basari: true, siparisId: sipId, tahminiTeslim: teslimStr,
     mesaj: tedarikci + (sube ? ' (' + sube + ')' : '') + ' siparisi kaydedildi. ' + urunler.length + ' urun.' + (teslimStr ? ' Teslim: ' + teslimStr : '')
   };
+}
+
+// 'SP261005151225' → o anın Date'i (sipariş numarası kayıt saatini taşır, İstanbul saati)
+function siparisIdZamani_(base) {
+  const m = String(base || '').match(/^SP(\d{2})(\d{2})(\d{2})(\d{2})(\d{2})(\d{2})/);
+  if (!m) return null;
+  return Utilities.parseDate('20' + m[1] + '-' + m[2] + '-' + m[3] + ' ' + m[4] + ':' + m[5] + ':' + m[6], 'Europe/Istanbul', 'yyyy-MM-dd HH:mm:ss');
+}
+
+function siparisUrunImzasi_(liste) {
+  return liste.map(u => nrm(u.adi) + ':' + (Number(String(u.miktar).replace(',', '.')) || 0)).sort().join('|');
+}
+
+function siparisTekrarBul_(sh, calisan, ted, sube, urunler, simdi) {
+  const son = sh.getLastRow();
+  if (son < 2) return '';
+  const bas = Math.max(2, son - 299);
+  const rows = sh.getRange(bas, 1, son - bas + 1, 8).getValues();
+  const gruplar = {};
+  rows.forEach(r => {
+    const base = siparisBaseId_(r[0]);
+    if (!base) return;
+    if (nrm(r[3]) !== nrm(calisan) || nrm(r[4]) !== nrm(ted) || nrm(r[5]) !== nrm(sube)) return;
+    (gruplar[base] = gruplar[base] || []).push({ adi: r[6], miktar: r[7] });
+  });
+  const imza = siparisUrunImzasi_(urunler);
+  const bases = Object.keys(gruplar).sort().reverse();
+  for (const b of bases) {
+    const z = siparisIdZamani_(b);
+    if (!z || (simdi - z) > 10 * 60000 || (simdi - z) < 0) continue;
+    if (siparisUrunImzasi_(gruplar[b]) === imza) return b;
+  }
+  return '';
 }
 
 function siparisBaseId_(satirId) {
@@ -1185,6 +1226,96 @@ function siparisDuzelt(data) {
 // ============================================================
 // MAL KABUL & AÇIK SİPARİŞLER
 // ============================================================
+
+// ── P39: çift kaydedilmiş siparişler ──
+// Editörden çalıştır: ciftSiparisBul()  → KURU = true: hiçbir şey yazmaz, 'Cift_Siparis_Raporu' sekmesine yazar.
+// Sahibinin kuralı (09.10): aynı kişi, aynı gün, aynı tedarikçi ve şube, birbirine ≤ 20 dk yakın siparişler hatalıdır.
+// Grubun son siparişi kalır (WhatsApp'a gideni varsa o); bütün ürünleri kalan siparişte de olan diğerlerinin
+// Teslim_Durumu 'Mükerrer' olur. Kalan siparişte olmayan ürünü olan (sonradan eklenen kalem) dokunulmaz. Satır silinmez.
+// Başka kişinin 30 dk içinde aynı tedarikçiye aynı şubeden verdiği sipariş yalnız 'KONTROL' diye yazılır, dokunulmaz.
+const CIFT_SIPARIS_KURU = false;   // 09.10 sahip onayı: kuru rapor 11 sipariş / 109 satır
+const CIFT_SIPARIS_DK = 20;
+
+function ciftSiparisBul() {
+  const KURU = CIFT_SIPARIS_KURU;
+  const sh = siparisSheet();
+  const rows = sh.getDataRange().getValues();
+  const bas = rows[0].map(nrm);
+  const kol = (adlar, yedek) => { for (const a of adlar) { const i = bas.indexOf(nrm(a)); if (i >= 0) return i; } return yedek; };
+  const cId = kol(['Siparis_ID', 'Sipariş Numarası'], 0), cCal = kol(['Calisan'], 3), cTed = kol(['Tedarikci'], 4);
+  const cSube = kol(['Sube'], 5), cUrun = kol(['Urun_Adi'], 6), cMik = kol(['Miktar'], 7);
+  const cDurum = kol(['Teslim_Durumu'], 11), cWp = kol(['WP_Gonderildi'], 15);
+
+  // sipariş numarası → bilgi
+  const sip = {};
+  for (let i = 1; i < rows.length; i++) {
+    const b = siparisBaseId_(rows[i][cId]);
+    const z = siparisIdZamani_(b);
+    if (!b || !z) continue;
+    const o = sip[b] || (sip[b] = { base: b, zaman: z, cal: String(rows[i][cCal] || '').trim(), ted: String(rows[i][cTed] || '').trim(),
+      sube: String(rows[i][cSube] || '').trim(), satirlar: [], urunler: [], wp: false, durumlar: {} });
+    o.satirlar.push(i + 1);
+    o.urunler.push({ adi: rows[i][cUrun], miktar: rows[i][cMik] });
+    if (String(rows[i][cWp]).trim().toUpperCase() === 'EVET') o.wp = true;
+    const d = String(rows[i][cDurum] || '').trim(); o.durumlar[d] = (o.durumlar[d] || 0) + 1;
+  }
+  const gun = z => Utilities.formatDate(z, 'Europe/Istanbul', 'dd.MM.yyyy');
+  const saatS = z => Utilities.formatDate(z, 'Europe/Istanbul', 'HH:mm');
+
+  // aynı gün + tedarikçi + şube grupları, zamana göre sıralı
+  const grup = {};
+  Object.keys(sip).forEach(b => { const o = sip[b]; const k = gun(o.zaman) + '|' + nrm(o.ted) + '|' + nrm(o.sube); (grup[k] = grup[k] || []).push(o); });
+
+  const rapor = [['Grup', 'Siparis_ID', 'Tarih', 'Saat', 'Calisan', 'Tedarikci', 'Sube', 'Kalem', 'WP', 'Teslim_Durumu', 'Ayni_urunler', 'Karar', 'Islem']];
+  let gNo = 0, mukerrerSatir = 0, mukerrerSip = 0;
+  Object.keys(grup).forEach(k => {
+    const liste = grup[k].sort((a, b) => a.zaman - b.zaman);
+    // aynı kişinin ardışık (≤ CIFT_SIPARIS_DK) siparişlerini kümele
+    const kumeler = [];
+    liste.forEach(o => {
+      const kume = kumeler.find(c => nrm(c[c.length - 1].cal) === nrm(o.cal) && (o.zaman - c[c.length - 1].zaman) <= CIFT_SIPARIS_DK * 60000);
+      if (kume) kume.push(o); else kumeler.push([o]);
+    });
+    kumeler.sort((a, b) => b.length - a.length).forEach(c => {
+      // başka kişinin 30 dk içindeki siparişi → yalnız bilgi
+      const komsu = liste.filter(o => nrm(o.cal) !== nrm(c[0].cal) && c.some(x => Math.abs(o.zaman - x.zaman) <= 30 * 60000));
+      if (c.length < 2 && (!komsu.length || c[0]._raporda)) return;
+      gNo++;
+      let kalan = null;
+      if (c.length >= 2) { const wpler = c.filter(o => o.wp); kalan = (wpler.length ? wpler : c)[(wpler.length ? wpler : c).length - 1]; }
+      const imzaKalan = kalan ? siparisUrunImzasi_(kalan.urunler) : '';
+      const yaz = (o, karar, islem) => {
+        o._raporda = true;
+        rapor.push([gNo, o.base, gun(o.zaman), saatS(o.zaman), o.cal, o.ted, o.sube, o.urunler.length, o.wp ? 'EVET' : 'HAYIR',
+          Object.keys(o.durumlar).map(d => (d || '(boş)') + (o.durumlar[d] > 1 ? ' ×' + o.durumlar[d] : '')).join(', '),
+          kalan && o !== kalan ? (siparisUrunImzasi_(o.urunler) === imzaKalan ? 'evet' : 'farklı') : '', karar, islem]);
+      };
+      const kalanUrun = {}; if (kalan) kalan.urunler.forEach(u => { kalanUrun[nrm(u.adi)] = true; });
+      c.forEach(o => {
+        if (!kalan || o === kalan) { yaz(o, c.length >= 2 ? 'KALIR' : 'KONTROL', ''); return; }
+        // Ürünlerinden biri kalan siparişte yoksa bu bir tamamlama siparişidir (unutulan kalem): dokunulmaz
+        if (!o.urunler.every(u => kalanUrun[nrm(u.adi)])) { yaz(o, 'KONTROL (farklı ürün var)', ''); return; }
+        if (KURU) { yaz(o, 'MÜKERRER', 'yazılacak'); }
+        else {
+          o.satirlar.forEach(r => sh.getRange(r, cDurum + 1).setValue('Mükerrer'));
+          yaz(o, 'MÜKERRER', 'yazıldı');
+        }
+        mukerrerSip++; mukerrerSatir += o.satirlar.length;
+      });
+      komsu.forEach(o => { if (!o._raporda) yaz(o, 'KONTROL (başka kişi)', ''); });
+    });
+  });
+
+  const ss = ss_();
+  let r = sekmeBul(ss, 'Cift_Siparis_Raporu');
+  if (!r) r = ss.insertSheet('Cift_Siparis_Raporu'); else r.clear();
+  r.getRange(1, 1, rapor.length, rapor[0].length).setValues(rapor);
+  r.getRange(1, 1, 1, rapor[0].length).setFontWeight('bold');
+  r.setFrozenRows(1);
+  const ozet = (KURU ? 'KURU: ' : 'Uygulandı: ') + mukerrerSip + ' sipariş (' + mukerrerSatir + ' satır) mükerrer' + (KURU ? ' olacak' : ' yapıldı') + ', ' + gNo + ' grup';
+  Logger.log(ozet);
+  return ozet;
+}
 
 // ── P53: Sube = 'Hepsi' yazılmış eski sipariş satırlarına gerçek şubeyi önerir / yazar ──
 // Editörden çalıştır: hepsiSubeDuzelt()  → KURU = true: hiçbir şey yazmaz, 'Sube_Duzeltme_Raporu' sekmesine öneri yazar.

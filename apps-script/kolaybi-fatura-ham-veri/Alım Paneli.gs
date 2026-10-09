@@ -25,6 +25,7 @@ var AP_HM      = 'Tbl_Hammaddeler';
 var AP_OZEL    = 'Ozel_Alimlar';      // panelden işaretlenen ev/kırtasiye alımları (bu dosyada)
 var AP_SATIS   = 'Satis_Faturalari';
 var AP_GIDER   = 'Gider_Faturalari';
+var AP_PLAN    = 'Odeme_Plani';       // toptancıya söz verilen ödeme tarihleri (yazan: Veri Kapısı odemePlaniIsle_)
 var AP_EV_BASLIK = 'Not (elle';        // Stok Takip'te ürün bazlı "Ev" notu olan sekmelerin J başlığı
 var AP_VARSAYILAN_VADE = 30;   // tedarikçiye vade tanımlanmamışsa (gün)
 var AP_ACILIS_TARIHI   = '2026-01-01';  // açılış bakiyesinin tarihi (verinin başladığı ay)
@@ -32,10 +33,19 @@ var AP_STOK_BASLANGIC  = '2026-08-13';  // bu tarihten eski faturalar stoğa gir
 // Faturanın bütün kalemleri bunlardan oluşuyorsa fatura "ek masraf" sayılır (listelerde gizlenir, borçta kalır)
 var AP_EK_MASRAF = ['yükleme bedeli', 'yukleme bedeli', 'nakliye', 'kargo', 'taşıma bedeli', 'hizmet bedeli', 'yuvarlama', 'iskonto', 'indirim', 'komisyon'];
 
+// Yönetim paneli (bap-panel Worker › /alim) bu adrese anahtarla gelir. Komut dosyası özelliği PANEL_KEY yazılıysa
+// anahtarsız istek reddedilir (eski bap-alim-paneli adresi de böylece kapanır); yazılı değilse eskisi gibi açıktır.
+function ap_yetkili_(key) {
+  var k = PropertiesService.getScriptProperties().getProperty('PANEL_KEY');
+  return !k || String(key || '') === k;
+}
+
 function doGet(e) {
   var action = (e && e.parameter && e.parameter.action) || 'veri';
   try {
-    if (action === 'veri') return ap_json_(ap_veri_());
+    if (!ap_yetkili_(e && e.parameter && e.parameter.key)) return ap_json_({ ok: false, hata: 'yetkisiz' });
+    if (action === 'veri') return ap_veriCevap_(e.parameter.fresh);
+    if (action === 'eslestirme') return ap_json_(ap_eslestirmeVeri_());
     return ap_json_({ ok: false, hata: 'Bilinmeyen action: ' + action });
   } catch (err) {
     return ap_json_({ ok: false, hata: String(err) });
@@ -44,11 +54,13 @@ function doGet(e) {
 
 function doPost(e) {
   var lock = LockService.getScriptLock();
-  lock.tryLock(10000);
+  var kilitli = lock.tryLock(10000);   // P66: alınamazsa da devam ediyor (Kolaybi çekimi kilidi uzun tutabiliyor); karar sahibinde
   try {
     var b = JSON.parse((e && e.postData && e.postData.contents) || '{}');
+    if (!ap_yetkili_(b.key)) return ap_json_({ ok: false, hata: 'yetkisiz' });
     var sonuc;
     switch (b.action) {
+      case 'eslestirmeKaydet': sonuc = ap_eslestirmeKaydet_(b); break;
       case 'subeAta':         sonuc = ap_subeAta_(b.no, b.sube); break;
       case 'odemeEkle':       sonuc = ap_odemeEkle_(b); break;
       case 'odemeSil':        sonuc = ap_odemeSil_(b.id); break;
@@ -65,9 +77,39 @@ function doPost(e) {
   } catch (err) {
     return ap_json_({ ok: false, hata: String(err) });
   } finally {
-    lock.releaseLock();
+    ap_paketSil_();   // panelden yapılan her değişiklikten sonra önbellekteki paket geçersiz
+    if (kilitli) lock.releaseLock();
   }
 }
+
+// Alım ekranının paketi önbellekte (6 saat, sıkıştırılmış) tutulur: ekran açılınca hemen bu verilir, ekran arkadan
+// fresh=1 ile tazesini ister (her açılışta bütün sekmeleri baştan okumak 10+ sn sürüyordu; 09.10).
+var AP_PAKET_ON = 'apv_', AP_PAKET_SN = 21600;
+function ap_veriCevap_(fresh) {
+  if (!fresh) { var c = ap_paketOku_(); if (c) return ContentService.createTextOutput(c).setMimeType(ContentService.MimeType.JSON); }
+  var metin = JSON.stringify(ap_veri_());
+  ap_paketYaz_(metin);
+  return ContentService.createTextOutput(metin).setMimeType(ContentService.MimeType.JSON);
+}
+function ap_paketYaz_(metin) {
+  try {
+    var z = Utilities.base64Encode(Utilities.gzip(Utilities.newBlob(metin, 'application/json')).getBytes());
+    var n = Math.ceil(z.length / 90000), o = {}; if (n > 80) return;
+    for (var i = 0; i < n; i++) o[AP_PAKET_ON + i] = z.substr(i * 90000, 90000);
+    o[AP_PAKET_ON + 'n'] = String(n);
+    CacheService.getScriptCache().putAll(o, AP_PAKET_SN);
+  } catch (err) { }
+}
+function ap_paketOku_() {
+  try {
+    var c = CacheService.getScriptCache(), n = +c.get(AP_PAKET_ON + 'n'); if (!n) return null;
+    var keys = []; for (var i = 0; i < n; i++) keys.push(AP_PAKET_ON + i);
+    var o = c.getAll(keys), s = '';
+    for (i = 0; i < n; i++) { if (o[keys[i]] == null) return null; s += o[keys[i]]; }
+    return Utilities.ungzip(Utilities.newBlob(Utilities.base64Decode(s), 'application/x-gzip')).getDataAsString();
+  } catch (err) { return null; }
+}
+function ap_paketSil_() { try { CacheService.getScriptCache().remove(AP_PAKET_ON + 'n'); } catch (err) { } }
 
 function ap_json_(o) {
   return ContentService.createTextOutput(JSON.stringify(o)).setMimeType(ContentService.MimeType.JSON);
@@ -163,12 +205,17 @@ function ap_veri_() {
   var odemeler = [], eslesmeyenOdeme = [];
   var tedKeys = Object.keys(tedKanon);
   if (os.getLastRow() > 1) {
-    os.getRange(2, 1, os.getLastRow() - 1, 6).getValues().forEach(function (r) {
-      if (!r[0]) return;
-      var yazilan = String(r[2] || '').replace(/\s+/g, ' ').trim();
+    // Başlığa göre okunur: yönetim paneli (Veri Kapısı toptanciOdemeGir_) de bu sekmeye yazar ve Odeme_ID'yi her zaman
+    // doldurmaz. Eskiden sabit sütun sırasıyla okunup kimliksiz satırlar atlanıyordu → o ödemeler borçtan düşülmüyordu (P68).
+    var oc = ap_odemeKolon_(os);
+    os.getRange(2, 1, os.getLastRow() - 1, oc.n).getValues().forEach(function (r, i) {
+      var yazilan = String(r[oc.ted] || '').replace(/\s+/g, ' ').trim();
+      var tutar = ap_sayi_(r[oc.tutar]);
+      if (!yazilan || !(tutar > 0) || r[oc.tarih] === '' || r[oc.tarih] === null) return;
       var eslesen = ap_tedarikciBul_(yazilan, tedKanon, tedKeys);
-      var o = { id: String(r[0]), tarih: ap_iso_(ap_tarih_(r[1])), ted: eslesen || yazilan, yazilanTed: yazilan,
-                tutar: ap_sayi_(r[3]), yontem: String(r[4] || ''), not: String(r[5] || ''), eslesti: !!eslesen };
+      var id = oc.id >= 0 ? String(r[oc.id] || '').trim() : '';
+      var o = { id: id, tarih: ap_iso_(ap_tarih_(r[oc.tarih])), ted: eslesen || yazilan, yazilanTed: yazilan,
+                tutar: tutar, yontem: oc.yontem >= 0 ? String(r[oc.yontem] || '') : '', not: oc.not >= 0 ? String(r[oc.not] || '') : '', eslesti: !!eslesen };
       if (!eslesen) eslesmeyenOdeme.push(o);
       odemeler.push(o);
     });
@@ -190,6 +237,26 @@ function ap_veri_() {
   });
   if (eksik.length) ts.getRange(ts.getLastRow() + 1, 1, eksik.length, 4).setValues(eksik);
 
+  // --- ödeme planı (söz verilen ödeme tarihleri). Yazan: Veri Kapısı odemePlaniIsle_ (/api/odeme-plani). Burada yalnız okunur;
+  // hangi planın karşılandığı tarayıcıda, ödemelerle birlikte hesaplanır (Veri Kapısı odemePlanlari_ ile aynı kural).
+  var planlar = [];
+  var ps = ss.getSheetByName(AP_PLAN);
+  if (ps && ps.getLastRow() > 1) {
+    var pd = ps.getRange(1, 1, ps.getLastRow(), ps.getLastColumn()).getValues();
+    var pb = pd[0].map(function (x) { return ap_nrm_(x); });
+    var pk = function (ad) { return pb.indexOf(ap_nrm_(ad)); };
+    var pc = { id: pk('Plan_ID'), ted: pk('Tedarikçi'), tarih: pk('Plan_Tarihi'), tutar: pk('Tutar'), not: pk('Açıklama'), durum: pk('Durum'), kayit: pk('Kayıt_Zamanı') };
+    if (pc.ted >= 0 && pc.tarih >= 0) for (var pi = 1; pi < pd.length; pi++) {
+      var pr = pd[pi], pYaz = String(pr[pc.ted] || '').replace(/\s+/g, ' ').trim(), pBos = function (v) { return v === '' || v === null || v === undefined; };
+      if (!pYaz || pBos(pr[pc.tarih])) continue;                 // ap_tarih_ boşa "bugün" der; boş tarihli satır plan değildir
+      var pT = ap_tarih_(pr[pc.tarih]), pK = pc.kayit >= 0 && !pBos(pr[pc.kayit]) ? ap_tarih_(pr[pc.kayit]) : null;
+      planlar.push({ id: pc.id >= 0 ? String(pr[pc.id] || '') : '', ted: ap_tedarikciBul_(pYaz, tedKanon, tedKeys) || pYaz, yazilanTed: pYaz,
+                     tarih: ap_iso_(pT), tutar: pc.tutar >= 0 ? Math.round(ap_sayi_(pr[pc.tutar]) * 100) / 100 : 0,
+                     not: pc.not >= 0 ? String(pr[pc.not] || '') : '', iptal: pc.durum >= 0 && /[iİ]ptal/i.test(String(pr[pc.durum] || '')),
+                     kayit: ap_iso_(pK || pT) });
+    }
+  }
+
   var katSet = {};
   Object.keys(hmMap).forEach(function (k) { if (hmMap[k].kat) katSet[hmMap[k].kat] = true; });
 
@@ -205,6 +272,7 @@ function ap_veri_() {
     kalemler: kalemler,
     odemeler: odemeler,
     eslesmeyenOdeme: eslesmeyenOdeme,
+    planlar: planlar,
     tedarikciler: tedarikciler,
     hesap: ap_hesap_(faturalar, odemeler, tedarikciler)
   };
@@ -301,21 +369,40 @@ function ap_odemeEkle_(b) {
   if (!ted || !(tutar > 0)) return { ok: false, hata: 'Tedarikçi ve tutar gerekli' };
   var ss = SpreadsheetApp.getActiveSpreadsheet();
   ap_sekmeleriHazirla_(ss);
-  var sh = ss.getSheetByName(AP_ODEME);
+  var sh = ss.getSheetByName(AP_ODEME), oc = ap_odemeKolon_(sh);
   var tarih = b.tarih ? ap_tarih_(b.tarih) : new Date();
   var id = 'O' + Utilities.formatDate(new Date(), 'Europe/Istanbul', 'yyMMddHHmmss') + Math.floor(Math.random() * 90 + 10);
-  sh.insertRowsBefore(2, 1);
-  sh.getRange(2, 1, 1, 7).setValues([[id, tarih, ted, tutar, String(b.yontem || ''), String(b.not || ''), new Date()]]);
-  sh.getRange(2, 2).setNumberFormat('dd.MM.yyyy');
-  sh.getRange(2, 4).setNumberFormat('#,##0.00');
+  var satir = []; for (var i = 0; i < oc.n; i++) satir.push('');
+  if (oc.id >= 0) satir[oc.id] = id;
+  satir[oc.tarih] = tarih; satir[oc.ted] = ted; satir[oc.tutar] = tutar;
+  if (oc.yontem >= 0) satir[oc.yontem] = String(b.yontem || '');
+  if (oc.not >= 0) satir[oc.not] = String(b.not || '');
+  if (oc.kayit >= 0) satir[oc.kayit] = new Date();
+  var no = sh.getLastRow() + 1;
+  sh.getRange(no, 1, 1, oc.n).setValues([satir]);
+  sh.getRange(no, oc.tarih + 1).setNumberFormat('dd.MM.yyyy');
+  sh.getRange(no, oc.tutar + 1).setNumberFormat('#,##0.00');
   return { ok: true, id: id };
 }
 
+/** Odemeler sütunları başlıktan (Veri Kapısı ODEME_SUTUN ile aynı adlar); başlık bulunamazsa eski sabit sıra. */
+function ap_odemeKolon_(sh) {
+  var n = Math.max(7, sh.getLastColumn()), bas = sh.getRange(1, 1, 1, n).getValues()[0].map(function (x) { return ap_nrm_(x); });
+  var bul = function (adlar) { for (var i = 0; i < adlar.length; i++) { var j = bas.indexOf(ap_nrm_(adlar[i])); if (j >= 0) return j; } return -1; };
+  var c = { n: n, id: bul(['Odeme_ID']), tarih: bul(['Tarih']), ted: bul(['Tedarikçi', 'Toptancı', 'Firma']), tutar: bul(['Tutar']),
+            yontem: bul(['Yöntem', 'Ödeme_Yöntemi', 'Odeme Yontemi']), not: bul(['Not', 'Açıklama', 'Aciklama']), kayit: bul(['Kayıt_Zamanı', 'Kayit_Zamani', 'Girilme']) };
+  if (c.tarih < 0 || c.ted < 0 || c.tutar < 0) c = { n: n, id: 0, tarih: 1, ted: 2, tutar: 3, yontem: 4, not: 5, kayit: 6 };
+  return c;
+}
+
 function ap_odemeSil_(id) {
+  if (!String(id || '').trim()) return { ok: false, hata: 'Bu ödemenin kimliği yok (yönetim panelinden girilmiş); tablodan elle düzelt' };
   var ss = SpreadsheetApp.getActiveSpreadsheet();
   var sh = ss.getSheetByName(AP_ODEME);
   if (!sh || sh.getLastRow() < 2) return { ok: false, hata: 'Ödeme yok' };
-  var ids = sh.getRange(2, 1, sh.getLastRow() - 1, 1).getValues();
+  var oc = ap_odemeKolon_(sh);
+  if (oc.id < 0) return { ok: false, hata: 'Odemeler sekmesinde Odeme_ID sütunu yok' };
+  var ids = sh.getRange(2, oc.id + 1, sh.getLastRow() - 1, 1).getValues();
   for (var i = 0; i < ids.length; i++) if (String(ids[i][0]) === String(id)) { sh.deleteRow(i + 2); return { ok: true }; }
   return { ok: false, hata: 'Ödeme bulunamadı: ' + id };
 }
@@ -461,6 +548,81 @@ function ap_hammaddeEkle_(b) {
   sh.appendRow(satir);
   ap_cacheSil_('hmMap'); ap_cacheSil_('urunSekmeleri');
   return { ok: true, id: id, sekme: sekme };
+}
+
+// ==========================================
+// FATURA EŞLEŞTİRME (Stok Takip › Fatura_Eslestirme)
+// A Fatura_Urun_Adi (Alış Motoru yazar) | B Stok_Urun_Adi | C Carpan | D Not | E Tedarikci | F Tip | G Sube
+// Alış Motoru tanımadığı ürünü alta ekler; burası yalnız o satırın B/C/D/F hücrelerini doldurur.
+// ==========================================
+var AP_ESL = 'Fatura_Eslestirme';
+
+function ap_eslKolon_(bas, adlar, yedek) {
+  var b = bas.map(ap_nrm_);
+  for (var i = 0; i < adlar.length; i++) { var j = b.indexOf(ap_nrm_(adlar[i])); if (j >= 0) return j; }
+  return yedek;
+}
+
+function ap_eslestirmeVeri_() {
+  var ss = SpreadsheetApp.openById(AP_STOK_ID);
+  var sh = ss.getSheetByName(AP_ESL);
+  if (!sh) return { ok: false, hata: AP_ESL + ' sekmesi yok' };
+  var v = sh.getDataRange().getValues(), bas = v[0].map(String);
+  var c = { a: ap_eslKolon_(bas, ['Fatura_Urun_Adi'], 0), b: ap_eslKolon_(bas, ['Stok_Urun_Adi'], 1), c: ap_eslKolon_(bas, ['Carpan', 'Çarpan'], 2),
+            d: ap_eslKolon_(bas, ['Not'], 3), e: ap_eslKolon_(bas, ['Tedarikci', 'Tedarikçi'], 4), f: ap_eslKolon_(bas, ['Tip'], 5) };
+  var satirlar = [];
+  for (var i = 1; i < v.length; i++) {
+    var fa = String(v[i][c.a] || '').trim(); if (!fa) continue;
+    satirlar.push({ satir: i + 1, fatura: fa, hedef: String(v[i][c.b] || '').trim(), carpan: ap_sayi_(v[i][c.c]) || '',
+      not: String(v[i][c.d] || '').trim(), ted: String(v[i][c.e] || '').trim(), tip: String(v[i][c.f] || '').trim() });
+  }
+  // Stoktaki ürünler (seçim listesi): Tbl_Hammaddeler, ambalaj ve direkt satış sekmeleri
+  var stok = [];
+  ap_urunSekmeleri_(ss).forEach(function (ad) {
+    var d = ss.getSheetByName(ad).getDataRange().getValues();
+    var tip = ad === AP_HM ? 'HM' : /^direkt/i.test(ad) ? 'DS' : 'AMB';
+    for (var r = 1; r < d.length; r++) {
+      var tam = String(d[r][1] || '').trim(), kisa = String(d[r][2] || '').trim();
+      if (!tam && !kisa) continue;
+      stok.push({ sekme: ad, tip: tip, tam: tam, kisa: kisa || tam, paket: String(d[r][5] || '').trim(), icerik: ap_sayi_(d[r][7]),
+        olcu: String(d[r][8] || '').trim(), koli: ap_sayi_(d[r][15]) });
+    }
+  });
+  // Stoğa girmeyi bekleyen kalem sayısı (Alis_Bekleyenler, ESLESME_YOK): ürün → {n, son}
+  var bekleyen = {}, bs = ss.getSheetByName('Alis_Bekleyenler');
+  if (bs && bs.getLastRow() > 1) bs.getRange(2, 1, bs.getLastRow() - 1, 6).getValues().forEach(function (r) {
+    if (String(r[5]) !== 'ESLESME_YOK') return;
+    var k = ap_nrm_(r[3]), t = r[1] instanceof Date ? Utilities.formatDate(r[1], 'Europe/Istanbul', 'yyyy-MM-dd') : String(r[1] || '');
+    var o = bekleyen[k] = bekleyen[k] || { n: 0, son: '' }; o.n++; if (t > o.son) o.son = t;
+  });
+  return { ok: true, satirlar: satirlar, stok: stok, bekleyen: bekleyen };
+}
+
+/** {satir, fatura, hedef, carpan, tip, not} — not 'YOK SAY' ise hedef/çarpan gerekmez. */
+function ap_eslestirmeKaydet_(b) {
+  var satir = Math.floor(Number(b.satir)), fa = String(b.fatura || '').trim();
+  var yokSay = String(b.not || '').trim().toUpperCase() === 'YOK SAY';
+  var hedef = String(b.hedef || '').trim().slice(0, 200), carpan = ap_sayi_(b.carpan), tip = String(b.tip || 'HM').trim().toUpperCase();
+  if (!(satir > 1) || !fa) return { ok: false, hata: 'Satır bilgisi eksik' };
+  if (!yokSay && (!hedef || !(carpan > 0))) return { ok: false, hata: 'Stok ürünü ve çarpan gerekli' };
+  if (['HM', 'DS', 'AMB'].indexOf(tip) < 0) tip = 'HM';
+  if (carpan > 100000) return { ok: false, hata: 'Çarpan çok büyük görünüyor, kontrol et' };
+  var sh = SpreadsheetApp.openById(AP_STOK_ID).getSheetByName(AP_ESL);
+  if (!sh || satir > sh.getLastRow()) return { ok: false, hata: 'Satır bulunamadı' };
+  var bas = sh.getRange(1, 1, 1, sh.getLastColumn()).getValues()[0].map(String);
+  var c = { a: ap_eslKolon_(bas, ['Fatura_Urun_Adi'], 0), b: ap_eslKolon_(bas, ['Stok_Urun_Adi'], 1), c: ap_eslKolon_(bas, ['Carpan', 'Çarpan'], 2),
+            d: ap_eslKolon_(bas, ['Not'], 3), f: ap_eslKolon_(bas, ['Tip'], 5) };
+  // Sayfa açıkken satırlar kaymış olabilir: A hücresi aynı ürün değilse yazma
+  if (ap_nrm_(sh.getRange(satir, c.a + 1).getValue()) !== ap_nrm_(fa)) return { ok: false, hata: 'Tablo değişmiş; ekranı yenileyip tekrar dene' };
+  if (yokSay) {
+    sh.getRange(satir, c.d + 1).setValue('YOK SAY');
+  } else {
+    sh.getRange(satir, c.b + 1).setValue(hedef);
+    sh.getRange(satir, c.c + 1).setValue(carpan);
+    sh.getRange(satir, c.f + 1).setValue(tip);
+    if (String(sh.getRange(satir, c.d + 1).getValue()).trim().toUpperCase() === 'YOK SAY') sh.getRange(satir, c.d + 1).setValue('');
+  }
+  return { ok: true, satir: satir };
 }
 
 // ==========================================

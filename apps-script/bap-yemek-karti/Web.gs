@@ -10,6 +10,25 @@ function doGet(e) {
     var r = kodKutusu_({ tur: 'kodYaz', kaynak: kaynak, kod: String(p.kod || '') });
     return ContentService.createTextOutput(r.ok ? '✅ ' + kaynak + ' kodu alındı' : '❌ ' + (r.hata || 'hata') + (r.gelen ? ' (' + r.gelen + ')' : ''));
   }
+  // Telefondan elle (sahibi Mac başında değilken, 08.10):
+  //   ?sayfa=cek&kaynak=tokenflex|setcard&k=<anahtar>     çekimi şimdi çalıştırır (Tokenflex SMS ister, kodu 3 dk bekler)
+  //   ?sayfa=kodgir&kaynak=tokenflex&k=<anahtar>          SMS kodunu elle yazmak için küçük form (kestirme çalışmazsa)
+  if (p.sayfa === 'cek' || p.sayfa === 'kodgir') {
+    if (p.k !== KESTIRME_ANAHTAR) return ContentService.createTextOutput('Yetkisiz');
+    var kn = String(p.kaynak || '').toLowerCase().replace(/[^a-z]/g, '');
+    if (p.sayfa === 'cek') {
+      var f = { setcard: setcardCek, tokenflex: tokenflexCek }[kn]; if (!f) return ContentService.createTextOutput('kaynak: setcard | tokenflex');
+      if (kn === 'tokenflex') PropertiesService.getScriptProperties().deleteProperty('TOKENFLEX_2FA');
+      try { var r = f(3); return ContentService.createTextOutput('✅ ' + kn + ': ' + JSON.stringify(r)); }
+      catch (err) { return ContentService.createTextOutput('❌ ' + kn + ': ' + String(err && err.message || err)); }
+    }
+    var adres = ScriptApp.getService().getUrl();
+    return HtmlService.createHtmlOutput('<meta name="viewport" content="width=device-width,initial-scale=1"><div style="font:18px sans-serif;padding:24px">'
+      + '<h3>' + kn + ' SMS kodu</h3><form method="get" action="' + adres + '" target="_top"><input type="hidden" name="sayfa" value="kod">'
+      + '<input type="hidden" name="kaynak" value="' + kn + '"><input type="hidden" name="k" value="' + KESTIRME_ANAHTAR + '">'
+      + '<input name="kod" inputmode="numeric" autocomplete="one-time-code" style="font-size:28px;width:160px;padding:8px" autofocus> '
+      + '<button style="font-size:22px;padding:8px 16px">Gönder</button></form></div>').setTitle('SMS kodu');
+  }
   return ContentService.createTextOutput('BAP Yemek Kartı');
 }
 
@@ -22,6 +41,7 @@ function doPost(e) {
   if (g.tur === 'cek') {
     var cek = { setcard: setcardCek, tokenflex: tokenflexCek }[g.kaynak];
     if (!cek) return jsonYanit_({ hata: 'kaynak: setcard | tokenflex' });
+    if (g.kaynak === 'tokenflex') PropertiesService.getScriptProperties().deleteProperty('TOKENFLEX_2FA');   // elle deneme: sahibi başında, SMS beklemesi kalkar
     try { return jsonYanit_(cek(Number(g.gun) || 3)); } catch (err) { return jsonYanit_({ hata: String(err && err.message || err) }); }
   }
   // Tokenflex teşhis (08.10 'Un_Authorized_User_For_This_Merchant'): giriş yanıtı (anahtar gizli) + kayıtlı işyeri no

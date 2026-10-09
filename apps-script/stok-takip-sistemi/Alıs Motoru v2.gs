@@ -61,6 +61,7 @@ function alisIsle_() {
   var tedBilgi = tedarikciHaritasi_(sss);    // ünvan → {kisa, sube}
   var sipIdx  = siparisIndeksi_(sss);        // kisa ted → [{tarih, sube}]
   var stMap   = subeStokHaritasi_(sst);
+  var ozel    = ozelAlimHaritasi_(fss, sss);   // Alım Paneli'nde Ev/Kırtasiye/Diğer işaretli kalemler → stoğa girmez
 
   var kRows = kal.getDataRange().getValues();
   var hareketler = [], sonuc = [], sebepler = [], subeYaz = [], sipYaz = [], bekleyen = [], eksikAd = {};
@@ -79,6 +80,11 @@ function alisIsle_() {
     if (!urun || !adet) { sonuc.push(['']); sebepler.push(['adet/urun bos']); subeYaz.push([eskiSube]); sipYaz.push(['']); continue; }
 
     var ted = tedBilgi[norm_(unvan)] || { kisa: unvan, sube: '' };
+
+    // ---- Ev / özel alım: işletmenin değil, stoğa girmez. Durum 'OZEL' her çalışmada yeniden bakılır
+    //      (işaret kaldırılırsa kalem normal işlenir).
+    var ozTur = ozelAlimTuru_(ozel, fno, urun);
+    if (ozTur) { sonuc.push(['OZEL']); sebepler.push([ozTur + ' alımı (Alım Paneli)']); subeYaz.push([eskiSube]); sipYaz.push(['']); sayac.ozel = (sayac.ozel || 0) + 1; continue; }
 
     // ---- eşleşme: önce elle tablo, sonra HM, DS, AMB
     var es = esMap[norm_(urun)] || null;
@@ -245,33 +251,108 @@ function ambalajHaritasi_(ss) {
   return m;
 }
 
-// Tüm Fatura_Kalemleri satırlarından (durum ne olursa olsun) her ürünün EN SON tarihli fiyatını
-// ilgili tablonun J sütununa (Son Alış Fiyatı) yazar. HM: paket başına, DS: adet başına, AMB: adet başına.
+// ── SON ALIŞ FİYATI (J) — tek yazan bu kod (S6, M3, M4, M11, M18) ──
+// Kural: J = faturadaki birim fiyat × H ÷ çarpan
+//   çarpan = faturadaki 1 birim kaç stok birimi (I) eder (Fatura_Eslestirme C; eşleştirme yoksa koli × H)
+//   ör. rende mozzarella koli 4.380 TL, koli = 12 kg (çarpan 12), H = 2 kg → J = 4.380 × 2 ÷ 12 = 730
+// Fatura_Eslestirme hedefi tam ad (B) ya da kısa ad (C) olabilir; kısa ad birden çok satırdaysa her satır kendi H'siyle yazılır.
+// Mevcut J'nin yarısından az ya da iki katından fazla tutan değişiklik ŞÜPHELİ sayılır, yazılmaz:
+// 'Fiyat_Kontrol' sekmesinde Onay sütununa EVET yazılıp fiyatOnaylariniUygula() çalıştırılınca yazılır.
+// FIYAT_KURU = true iken hiçbir J yazılmaz, yalnız rapor çıkar.
+var FIYAT_KURU = true;
+var FIYAT_SUPHE_KAT = 2;
+var FIYAT_RAPOR = 'Fiyat_Kontrol';
+
 function sonAlisFiyatDoldur_(ss, kRows, esMap, hmMap, dsMap, ambMap) {
-  var son = {};
+  var kisaMap = hmKisaHaritasi_(ss);
+  var son = {};   // hedef satır → en son fatura fiyatı
   for (var r = 1; r < kRows.length; r++) {
     var K = kRows[r];
     var urun = String(K[FK_URUN] || '').trim(), fiyat = num_(K[FK_FIYAT]);
     if (!urun || !(fiyat > 0)) continue;
     var es = esMap[norm_(urun)];
     if (es && (es.not === 'YOK SAY' || !es.hedef)) es = null;
-    var hedefKayit = es ? (hmMap[norm_(es.hedef)] || dsMap[norm_(es.hedef)] || ambMap[norm_(es.hedef)]) : (hmMap[norm_(urun)] || dsMap[norm_(urun)] || ambMap[norm_(urun)]);
-    if (!hedefKayit || !hedefKayit.fiyatSh) continue;
-    var bolen = es && es.carpan ? (es.carpan / (hedefKayit.icerik || 1)) : (hedefKayit.fiyatBolen || 1);
-    var birimFiyat = Math.round((fiyat / (bolen || 1)) * 100) / 100;
+    var hedefler, carpan = 0, kaynak;
+    if (es) {
+      var h1 = hmMap[norm_(es.hedef)] || dsMap[norm_(es.hedef)] || ambMap[norm_(es.hedef)];
+      hedefler = h1 ? [h1] : (kisaMap[norm_(es.hedef)] || []);
+      carpan = es.carpan; kaynak = 'eşleştirme';
+    } else {
+      var h2 = hmMap[norm_(urun)] || dsMap[norm_(urun)] || ambMap[norm_(urun)];
+      hedefler = h2 ? [h2] : [];
+      kaynak = 'aynı ad';
+    }
     var t = tarihCoz_(K[FK_TARIH]) || new Date(0);
-    var key = hedefKayit.fiyatSh.getSheetId() + '|' + hedefKayit.fiyatRow;
-    if (!son[key] || t >= son[key].tarih) son[key] = { sh: hedefKayit.fiyatSh, row: hedefKayit.fiyatRow, fiyat: birimFiyat, tarih: t };
+    hedefler.forEach(function (h) {
+      if (!h.fiyatSh) return;
+      var H = h.tip === 'HM' ? (h.icerik || 1) : 1;
+      var c = carpan || (h.tip === 'HM' ? h.carpan : (h.fiyatBolen || 1));   // eşleştirmesiz: koli × H (HM) / koli (DS)
+      var key = h.fiyatSh.getSheetId() + '|' + h.fiyatRow;
+      if (son[key] && t < son[key].tarih) return;
+      son[key] = { h: h, tarih: t, faturaAdi: urun, ted: String(K[FK_TED] || ''), fiyat: fiyat, carpan: c, H: H,
+        kaynak: kaynak + (hedefler.length > 1 ? ' (kısa ad, ' + hedefler.length + ' satır)' : ''),
+        yeni: c > 0 ? Math.round(fiyat * H / c * 100) / 100 : 0 };
+    });
   }
-  var n = 0;
+
+  var rapor = [['Tablo', 'Satir', 'Urun', 'Olcu', 'H', 'Fatura_Adi', 'Tedarikci', 'Fatura_Tarihi', 'Fatura_Fiyati', 'Carpan',
+                'Mevcut_J', 'Yeni_J', 'Degisim_%', 'Kaynak', 'Durum', 'Onay']];
+  var n = 0, supheli = 0;
   Object.keys(son).forEach(function (k) {
-    var f = son[k];
-    var mevcut = f.sh.getRange(f.row, 10).getValue();
-    if (Number(mevcut) !== f.fiyat) { f.sh.getRange(f.row, 10).setValue(f.fiyat); n++; }
+    var f = son[k], h = f.h;
+    var mevcut = num_(h.fiyatSh.getRange(h.fiyatRow, 10).getValue());
+    var durum;
+    if (!(f.yeni > 0)) durum = 'ÇARPAN YOK';
+    else if (Math.abs(mevcut - f.yeni) < 0.005) durum = 'aynı';
+    else if (mevcut > 0 && (f.yeni > mevcut * FIYAT_SUPHE_KAT || f.yeni < mevcut / FIYAT_SUPHE_KAT)) { durum = 'ŞÜPHELİ'; supheli++; }
+    else if (FIYAT_KURU) durum = 'yazılacak';
+    else { h.fiyatSh.getRange(h.fiyatRow, 10).setValue(f.yeni); durum = 'yazıldı'; n++; }
+    if (durum === 'aynı') return;
+    rapor.push([h.fiyatSh.getName(), h.fiyatRow, h.hedef, h.olcu || h.birim || '', f.H, f.faturaAdi, f.ted, fmtTarih_(f.tarih),
+      f.fiyat, f.carpan, mevcut, f.yeni, mevcut > 0 ? Math.round((f.yeni / mevcut - 1) * 1000) / 10 : '', f.kaynak, durum, '']);
   });
-  Logger.log('Son alış fiyatı güncellenen: ' + n);
+  var sh = ss.getSheetByName(FIYAT_RAPOR) || ss.insertSheet(FIYAT_RAPOR);
+  sh.clear();
+  sh.getRange(1, 1, rapor.length, rapor[0].length).setValues(rapor);
+  sh.getRange(1, 1, 1, rapor[0].length).setFontWeight('bold');
+  sh.setFrozenRows(1);
+  Logger.log('Son alış fiyatı: ' + (FIYAT_KURU ? 'KURU, ' : '') + n + ' yazıldı, ' + supheli + ' şüpheli, ' + (rapor.length - 1) + ' rapor satırı');
   return n;
 }
+
+// Tbl_Hammaddeler C (kısa ad) → o kısa adı taşıyan bütün satırlar
+function hmKisaHaritasi_(ss) {
+  var sh = ss.getSheetByName('Tbl_Hammaddeler'), m = {}, hm = hammaddeHaritasi_(ss);
+  if (!sh) return m;
+  var rows = sh.getDataRange().getValues();
+  for (var i = 1; i < rows.length; i++) {
+    var kisa = norm_(rows[i][2]), tam = norm_(rows[i][1]);
+    if (!kisa || !tam || !hm[tam]) continue;
+    (m[kisa] = m[kisa] || []).push(hm[tam]);
+  }
+  return m;
+}
+
+// Fiyat_Kontrol'de Onay = EVET yazılan (şüpheli) satırların Yeni_J'sini yazar. Editörden ya da menüden çalıştırılır.
+function fiyatOnaylariniUygula() {
+  var ss = SpreadsheetApp.openById(SHEET_ID), sh = ss.getSheetByName(FIYAT_RAPOR);
+  if (!sh || sh.getLastRow() < 2) return 0;
+  var v = sh.getDataRange().getValues(), b = v[0].map(norm_);
+  var cT = b.indexOf('tablo'), cS = b.indexOf('satir'), cU = b.indexOf('urun'), cY = b.indexOf('yeni_j'), cD = b.indexOf('durum'), cO = b.indexOf('onay');
+  var n = 0;
+  for (var i = 1; i < v.length; i++) {
+    if (String(v[i][cO]).trim().toUpperCase() !== 'EVET' || String(v[i][cD]).indexOf('yazıldı') === 0) continue;
+    var hedef = ss.getSheetByName(String(v[i][cT])), satir = Number(v[i][cS]), yeni = num_(v[i][cY]);
+    if (!hedef || !(satir > 1) || !(yeni > 0)) continue;
+    if (norm_(hedef.getRange(satir, 2).getValue()) !== norm_(v[i][cU])) { sh.getRange(i + 1, cD + 1).setValue('satır değişmiş, yazılmadı'); continue; }
+    hedef.getRange(satir, 10).setValue(yeni);
+    sh.getRange(i + 1, cD + 1).setValue('yazıldı (onay)');
+    n++;
+  }
+  try { SpreadsheetApp.getUi().alert('✅ ' + n + ' onaylı fiyat yazıldı.'); } catch (e) {}
+  return n;
+}
+
 // Menüden/elle tek başına çalıştırmak için
 function sonAlisFiyatlariniDoldur() {
   var fss = SpreadsheetApp.openById(FATURA_SS_ID), kal = fss.getSheetByName(KALEM_SEKME);
@@ -279,6 +360,108 @@ function sonAlisFiyatlariniDoldur() {
   var n = sonAlisFiyatDoldur_(sss, kal.getDataRange().getValues(), eslesmeHaritasi_(eslesmeSekmesi_(sss)), hammaddeHaritasi_(sss), direktSatisHaritasi_(sss), ambalajHaritasi_(sss));
   try { SpreadsheetApp.getUi().alert('✅ ' + n + ' ürünün son alış fiyatı güncellendi.'); } catch (e) {}
   return n;
+}
+
+// ── Ev / özel alımlar ──
+// Kaynaklar (Alım Paneli'nin kullandıklarıyla aynı, kopya tutulmaz):
+//   Kolaybi Fatura Ham Veri › Ozel_Alimlar: A fatura no ('*' = bütün faturalar), B ürün (boş = bütün fatura), C tür (Ev/Kırtasiye/Diğer/Pasif)
+//   Stok Takip › J başlığı 'Not (elle…' olan sekmeler (Fatura_Ev_Alimlari): A ürün adı, J notu 'ev' olanlar
+// 'Pasif' Ev değildir (yalnız listeden gizler), stoğa girmeye devam eder.
+// büyük/küçük ve ı/i farkı yok sayılır ('FAIRY' = 'Fairy', 'ISLAK' = 'Islak')
+function ozNrm_(s) { return String(s || '').replace(/İ/g, 'i').toLowerCase().replace(/ı/g, 'i').replace(/[\s.,\-*/()'"&:;!?]/g, ''); }
+function ozNo_(v) { return String(v === null || v === undefined ? '' : v).replace(/\.0$/, '').trim(); }
+
+function ozelAlimHaritasi_(fss, sss) {
+  var h = {};
+  var sh = fss.getSheetByName('Ozel_Alimlar');
+  if (sh && sh.getLastRow() > 1) sh.getRange(2, 1, sh.getLastRow() - 1, 3).getValues().forEach(function (r) {
+    var no = ozNo_(r[0]), tur = String(r[2] || 'Ev').trim();
+    if (!no || tur === 'Pasif') return;
+    h[no + '|' + ozNrm_(r[1])] = tur;
+  });
+  sss.getSheets().forEach(function (s2) {
+    if (s2.getLastRow() < 2 || s2.getLastColumn() < 10) return;
+    if (String(s2.getRange(1, 10).getValue() || '').indexOf('Not (elle') !== 0) return;
+    s2.getRange(2, 1, s2.getLastRow() - 1, 10).getValues().forEach(function (r) {
+      if (r[0] && String(r[9] || '').trim().toLowerCase() === 'ev' && !h['*|' + ozNrm_(r[0])]) h['*|' + ozNrm_(r[0])] = 'Ev';
+    });
+  });
+  return h;
+}
+
+function ozelAlimTuru_(h, fno, urun) {
+  var no = ozNo_(fno), u = ozNrm_(urun);
+  return h[no + '|' + u] || h[no + '|'] || h['*|' + u] || '';
+}
+
+// ── V1/V2: stoğa girmeyen fatura kalemleri ──
+// alisBekleyenOzeti(): Alis_Bekleyenler'i (her alış çalışmasında yeniden yazılır) özetler → 'Alis_Bekleyen_Ozet'.
+//   Son 30 gün ayrı: geleceği düzeltmek için önce bunlar. Hiçbir şey değiştirmez.
+// eskiBekleyenleriKapat(): sayımdan ÖNCEKİ bekleyen kalemler artık stoğa işlenmemeli (sayım stoğu zaten sıfırdan kurar).
+//   ESKI_KAPAT_SINIR = sayım günü ('gg.aa.yyyy'). KURU = true → yalnız sayar. false → Fatura_Kalemleri'nde Islendi = ATLANDI,
+//   Sebep 'sayım öncesi, kapatıldı'. Satır silinmez; ATLANDI'yı boşaltınca kalem yeniden işlenir.
+var ESKI_KAPAT_SINIR = '';
+var ESKI_KAPAT_KURU = true;
+
+function alisBekleyenOzeti() {
+  var ss = SpreadsheetApp.openById(SHEET_ID), sh = ss.getSheetByName(BEKLEYEN_SEKME);
+  if (!sh || sh.getLastRow() < 2) return 'Alis_Bekleyenler boş';
+  var v = sh.getDataRange().getValues();   // Fatura_No | Tarih | Tedarikci | Urun | Adet | Durum | Ne yapmali
+  var sinir = new Date(); sinir.setDate(sinir.getDate() - 30);
+  var say = {}, ted = {}, urun = {}, top = { yeni: 0, eski: 0 };
+  for (var i = 1; i < v.length; i++) {
+    var t = tarihCoz_(v[i][1]), yeni = t && t >= sinir, d = String(v[i][5] || '').trim(), tk = String(v[i][2] || '(boş)');
+    var donem = yeni ? 'yeni' : 'eski'; top[donem]++;
+    say[d + '|' + donem] = (say[d + '|' + donem] || 0) + 1;
+    if (!yeni) continue;
+    var kt = d + '|' + tk; ted[kt] = (ted[kt] || 0) + 1;
+    if (d === 'ESLESME_YOK') { var ku = tk + '|' + String(v[i][3] || ''); urun[ku] = urun[ku] || { n: 0, adet: 0, son: t }; urun[ku].n++; urun[ku].adet += num_(v[i][4]); if (t > urun[ku].son) urun[ku].son = t; }
+  }
+  var out = [['STOĞA GİRMEYEN FATURA KALEMLERİ — ' + fmtTarih_(new Date()), '', '', '', ''],
+             ['Durum', 'Son 30 gün', '30 günden eski', '', ''],
+             ['SUBE_YOK', say['SUBE_YOK|yeni'] || 0, say['SUBE_YOK|eski'] || 0, '', ''],
+             ['SUBE_BELIRSIZ', say['SUBE_BELIRSIZ|yeni'] || 0, say['SUBE_BELIRSIZ|eski'] || 0, '', ''],
+             ['ESLESME_YOK', say['ESLESME_YOK|yeni'] || 0, say['ESLESME_YOK|eski'] || 0, '', ''],
+             ['', '', '', '', ''],
+             ['SON 30 GÜN — TEDARİKÇİYE GÖRE', 'Durum', 'Kalem', '', '']];
+  Object.keys(ted).sort(function (a, b) { return ted[b] - ted[a]; }).forEach(function (k) { var p = k.split('|'); out.push([p[1], p[0], ted[k], '', '']); });
+  out.push(['', '', '', '', '']);
+  out.push(['SON 30 GÜN — EŞLEŞMEYEN ÜRÜNLER (Fatura_Eslestirme\'de hedef + çarpan doldurulmalı)', 'Tedarikçi', 'Kaç fatura', 'Toplam adet', 'Son tarih']);
+  Object.keys(urun).sort(function (a, b) { return urun[b].n - urun[a].n; }).forEach(function (k) {
+    var p = k.split('|'); out.push([p.slice(1).join('|'), p[0], urun[k].n, urun[k].adet, fmtTarih_(urun[k].son)]); });
+  var o = ss.getSheetByName('Alis_Bekleyen_Ozet') || ss.insertSheet('Alis_Bekleyen_Ozet');
+  o.clear();
+  o.getRange(1, 1, out.length, 5).setValues(out);
+  [1, 2, 7].forEach(function (r) { o.getRange(r, 1, 1, 5).setFontWeight('bold'); });
+  var ozet = 'Son 30 gün ' + top.yeni + ' kalem, daha eski ' + top.eski + ' kalem bekliyor';
+  Logger.log(ozet);
+  return ozet;
+}
+
+function eskiBekleyenleriKapat() {
+  var m = String(ESKI_KAPAT_SINIR || '').match(/^(\d{1,2})\.(\d{1,2})\.(\d{4})$/);
+  if (!m) throw new Error("ESKI_KAPAT_SINIR'a sayım gününü yaz (ör. '15.10.2026')");
+  var sinir = new Date(+m[3], +m[2] - 1, +m[1]);
+  var lock = LockService.getScriptLock();
+  if (!lock.tryLock(30000)) throw new Error('Alış motoru çalışıyor, birazdan tekrar dene');
+  try {
+    var kal = SpreadsheetApp.openById(FATURA_SS_ID).getSheetByName(KALEM_SEKME);
+    var v = kal.getDataRange().getValues(), n = 0, durumlar = {};
+    for (var i = 1; i < v.length; i++) {
+      var d = String(v[i][FK_ISLENDI] || '').trim();
+      if (d !== 'SUBE_YOK' && d !== 'SUBE_BELIRSIZ' && d !== 'ESLESME_YOK') continue;
+      var t = tarihCoz_(v[i][FK_TARIH]);
+      if (!t || t >= sinir) continue;
+      durumlar[d] = (durumlar[d] || 0) + 1; n++;
+      if (!ESKI_KAPAT_KURU) {
+        kal.getRange(i + 1, FK_ISLENDI + 1).setValue('ATLANDI');
+        kal.getRange(i + 1, FK_SEBEP + 1).setValue('sayım öncesi (' + ESKI_KAPAT_SINIR + '), kapatıldı — ' + d);
+      }
+    }
+    var ozet = (ESKI_KAPAT_KURU ? 'KURU: ' : 'Kapatıldı: ') + n + ' kalem (' + JSON.stringify(durumlar) + ') ' + ESKI_KAPAT_SINIR + ' öncesi';
+    Logger.log(ozet);
+    return ozet;
+  } finally { lock.releaseLock(); }
 }
 
 // Tedarikçi Sevkiyat günleri: A kısa ad, B ticari ünvan, C şube (Hepsi/Erenköy/Fikirtepe)
@@ -308,6 +491,8 @@ function siparisIndeksi_(ss) {
   for (var i = 1; i < rows.length; i++) {
     var ted = norm_(rows[i][4]), sube = String(rows[i][5] || '').trim(), t = tarihCoz_(rows[i][1]);
     if (!ted || !sube || !t) continue;
+    if (norm_(sube) === 'hepsi') continue;                        // P34: 'Hepsi' gerçek bir yer değil, şube sayılmaz
+    if (norm_(rows[i][11]) === 'mükerrer') continue;              // P39: çift kayıt
     if (!m[ted]) m[ted] = [];
     m[ted].push({ tarih: t, sube: sube, sipId: String(rows[i][0] || ''), urun: norm_(rows[i][6]) });
   }

@@ -4,11 +4,15 @@
 //   GAS_URL        (Text)   Apps Script web uygulamasının adresi (sonu /exec ile biter)
 //   GAS_KEY        (Secret) Apps Script'te anahtarOlustur ile üretilen anahtar
 //   ALLOWED_EMAIL  (Text)   Panele girebilecek tek e-posta adresi
+//   ALIM_URL       (Text)   Alım & Tedarikçi ekranının arka ucu (Kolaybi Fatura Ham Veri web uygulaması, /exec);
+//                           yayın iş akışı projeler.json'dan yazar
+//   ALIM_KEY       (Secret, isteğe bağlı) Kolaybi projesindeki PANEL_KEY özelliğiyle aynı; yazılınca eski açık adres kapanır
 //
 // Güvenlik: Cloudflare Access açık değilse ya da giriş yapan e-posta ALLOWED_EMAIL değilse
 // panel hiçbir veri göstermez. Veri kapısının anahtarı tarayıcıya hiç gönderilmez.
 
 const PAGE = __PAGE__;
+const ALIM_PAGE = __ALIM__;   // /alim — Alım & Tedarikçi ekranı (bap-panel/alim.html)
 
 const LOCKED = "<!doctype html><html lang=\"tr\"><head><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width, initial-scale=1\"><meta name=\"robots\" content=\"noindex, nofollow\"><title>BAP Yönetim Paneli</title>\n<style>body{margin:0;min-height:100vh;display:grid;place-items:center;background:#E9ECEE;color:#34312D;font-family:\"Segoe UI\",system-ui,sans-serif}main{max-width:460px;padding:32px;background:#FBFAF7;border:1px solid #D9D4CB;border-radius:12px}b{font-size:28px;letter-spacing:.14em}h1{font-size:20px;margin:18px 0 6px}p{margin:0;color:#76706A;line-height:1.5}</style></head>\n<body><main><b>BAP</b><h1>Bu panele giriş kapalı</h1><p>Panel yalnızca izin verilen e-posta adresiyle, Cloudflare giriş ekranından açılır. Giriş ekranını görmediysen panelin korumasının henüz açılmadığı anlamına gelir; kurulum rehberindeki koruma adımını tamamla.</p></main></body></html>\n";
 
@@ -124,6 +128,25 @@ export default {
       } catch (e) { return json({ hata: 'Veri kapısına ulaşılamadı; cevap kaydedilmedi.' }, 502); }
     }
 
+    if (url.pathname === '/api/personel-ekle' && request.method === 'POST') {
+      // Yeni personel: yalnızca panelin kendisinden gelen istek kabul edilir.
+      if (request.headers.get('x-bap-panel') !== '1' || (request.headers.get('origin') || url.origin) !== url.origin) {
+        return json({ hata: 'İzin verilmeyen istek.' }, 403);
+      }
+      let govde;
+      try { govde = await request.json(); } catch (e) { return json({ hata: 'Geçersiz istek.' }, 400); }
+      const k = function (v, n) { return String(v == null ? '' : v).slice(0, n); };
+      const ileti = JSON.stringify({ key: env.GAS_KEY, tur: 'personelEkle', istekNo: k(govde.istekNo, 64), ad: k(govde.ad, 80), giris: k(govde.giris, 10),
+        sube: k(govde.sube, 20), departman: k(govde.departman, 60), maas: k(govde.maas, 12), sgk: k(govde.sgk, 6), telefon: k(govde.telefon, 20),
+        iban: k(govde.iban, 40), onay: govde.onay === '1' ? '1' : '' });
+      try {
+        const r = await fetch(env.GAS_URL, { method: 'POST', headers: { 'content-type': 'application/json' }, body: ileti, redirect: 'follow' });
+        const metin = await r.text();
+        try { return json(JSON.parse(metin), 200); }
+        catch (e) { return json({ belirsiz: true, hata: 'Veri kapısı beklenmeyen bir cevap verdi; kayıt yazılmış olabilir. Paneli yenileyip kontrol edin.' + gasHatasi(metin) }, 502); }
+      } catch (e) { return json({ belirsiz: true, hata: 'Veri kapısına ulaşılamadı; kayıt yazılmış olabilir. Paneli yenileyip kontrol edin.' }, 502); }
+    }
+
     if (url.pathname === '/api/avans' && request.method === 'POST') {
       // Personel avans / masraf girişi: yalnızca panelin kendisinden gelen istek kabul edilir.
       if (request.headers.get('x-bap-panel') !== '1' || (request.headers.get('origin') || url.origin) !== url.origin) {
@@ -178,6 +201,28 @@ export default {
         // Veri kapısı satırı yazıp sonra hata vermiş olabilir: "kaydedilmedi" demeyip panelden kontrol ettir.
         catch (e) { return json({ belirsiz: true, hata: 'Veri kapısı beklenmeyen bir cevap verdi; ödeme kaydedilmiş olabilir.' }, 502); }
       } catch (e) { return json({ belirsiz: true, hata: 'Veri kapısına ulaşılamadı; ödeme kaydedilmiş olabilir.' }, 502); }
+    }
+
+    if ((url.pathname === '/api/odeme-plani' || url.pathname === '/api/kurye-odendi') && request.method === 'POST') {
+      // Toptancı ödeme planı (söz verilen tarih) ve kurye haftası 'ödendi' işareti — Yönetim Merkezi yapılacaklar listesi.
+      if (request.headers.get('x-bap-panel') !== '1' || (request.headers.get('origin') || url.origin) !== url.origin) {
+        return json({ hata: 'İzin verilmeyen istek.' }, 403);
+      }
+      let govde;
+      try { govde = await request.json(); } catch (e) { return json({ hata: 'Geçersiz istek.' }, 400); }
+      const plan = url.pathname === '/api/odeme-plani';
+      const ileti = JSON.stringify(plan
+        ? { key: env.GAS_KEY, tur: 'odemePlani', istekNo: String(govde.istekNo || '').slice(0, 64), islem: govde.islem === 'iptal' ? 'iptal' : 'ekle',
+            id: String(govde.id || '').slice(0, 40), tedarikci: String(govde.tedarikci || '').slice(0, 200), tarih: String(govde.tarih || '').slice(0, 10),
+            tutar: String(govde.tutar || '').slice(0, 20), aciklama: String(govde.aciklama || '').slice(0, 300) }
+        : { key: env.GAS_KEY, tur: 'kuryeOdendi', hafta: String(govde.hafta || '').slice(0, 10), islem: govde.islem === 'geri' ? 'geri' : 'odendi',
+            bap: String(govde.bap || '').slice(0, 20), haddy: String(govde.haddy || '').slice(0, 20) });
+      try {
+        const r = await fetch(env.GAS_URL, { method: 'POST', headers: { 'content-type': 'application/json' }, body: ileti, redirect: 'follow' });
+        const metin = await r.text();
+        try { return json(JSON.parse(metin), 200); }
+        catch (e) { return json({ belirsiz: true, hata: 'Veri kapısı beklenmeyen bir cevap verdi; kayıt yazılmış olabilir. Paneli yenileyip kontrol edin.' + gasHatasi(metin) }, 502); }
+      } catch (e) { return json({ belirsiz: true, hata: 'Veri kapısına ulaşılamadı; kayıt yazılmış olabilir.' }, 502); }
     }
 
     if (url.pathname === '/api/eslestir' && request.method === 'POST') {
@@ -290,6 +335,22 @@ export default {
       } catch (e) { return json({ belirsiz: true, hata: 'Veri kapısına ulaşılamadı; kesinti yazılmış olabilir. Paneli yenileyip kontrol edin.' }, 502); }
     }
 
+    if (url.pathname === '/api/kesinti-iptal' && request.method === 'POST') {
+      // Kesintiler satırını iptal (pasife al): yalnızca panelin kendisinden gelen istek kabul edilir.
+      if (request.headers.get('x-bap-panel') !== '1' || (request.headers.get('origin') || url.origin) !== url.origin) {
+        return json({ hata: 'İzin verilmeyen istek.' }, 403);
+      }
+      let govde;
+      try { govde = await request.json(); } catch (e) { return json({ hata: 'Geçersiz istek.' }, 400); }
+      const ileti = JSON.stringify({ key: env.GAS_KEY, tur: 'kesintiIptal', satir: String(govde.satir || '').slice(0, 8), gun: String(govde.gun || '').slice(0, 10),
+        kurye: String(govde.kurye || '').slice(0, 60), tip: String(govde.tip || '').slice(0, 40) });
+      try {
+        const r = await fetch(env.GAS_URL, { method: 'POST', headers: { 'content-type': 'application/json' }, body: ileti, redirect: 'follow' });
+        const metin = await r.text();
+        try { return json(JSON.parse(metin), 200); }
+        catch (e) { return json({ belirsiz: true, hata: 'Veri kapısı beklenmeyen bir cevap verdi; iptal yazılmış olabilir. Paneli yenileyip kontrol edin.' + gasHatasi(metin) }, 502); }
+      } catch (e) { return json({ belirsiz: true, hata: 'Veri kapısına ulaşılamadı; iptal yazılmış olabilir. Paneli yenileyip kontrol edin.' }, 502); }
+    }
     if (url.pathname === '/api/mesai-duzelt' && request.method === 'POST') {
       // Mesai düzeltme: yalnızca panelin kendisinden gelen istek kabul edilir.
       if (request.headers.get('x-bap-panel') !== '1' || (request.headers.get('origin') || url.origin) !== url.origin) {
@@ -415,6 +476,51 @@ export default {
         try { return json(JSON.parse(metin), 200); }
         catch (e) { return json({ belirsiz: true, hata: 'Veri kapısı beklenmeyen bir cevap verdi; fiş kaydedilmiş olabilir.' }, 502); }
       } catch (e) { return json({ belirsiz: true, hata: 'Veri kapısına ulaşılamadı; fiş kaydedilmiş olabilir.' }, 502); }
+    }
+
+    // ── Alım & Tedarikçi ekranı (eski bap-alim-paneli) ──
+    // Veri yalnız bu ekran açılınca istenir; yönetim panelinin ana paketine eklenmez (panel yavaşlamasın).
+    if (url.pathname === '/alim') {
+      return new Response(ALIM_PAGE, { headers: HTML_HEADERS });
+    }
+    if ((url.pathname === '/api/alim/veri' || url.pathname === '/api/alim/eslestirme') && request.method === 'GET') {
+      if (!env.ALIM_URL) return json({ ok: false, hata: 'ALIM_URL ayarı yok (yayın iş akışı projeler.json\'dan yazar).' }, 500);
+      const hedef = new URL(env.ALIM_URL);
+      hedef.searchParams.set('action', url.pathname === '/api/alim/veri' ? 'veri' : 'eslestirme');
+      if (env.ALIM_KEY) hedef.searchParams.set('key', env.ALIM_KEY);
+      if (url.searchParams.get('fresh')) hedef.searchParams.set('fresh', '1');
+      try {
+        const r = await fetch(hedef.toString(), { redirect: 'follow' });
+        const metin = await r.text();
+        try { return json(JSON.parse(metin), 200); }
+        catch (e) { return json({ ok: false, hata: 'Alım arka ucu beklenmeyen bir cevap verdi (HTTP ' + r.status + ').' + gasHatasi(metin) }, 502); }
+      } catch (e) { return json({ ok: false, hata: 'Alım arka ucuna ulaşılamadı. Biraz sonra yeniden deneyin.' }, 502); }
+    }
+    if (url.pathname === '/api/alim/islem' && request.method === 'POST') {
+      if (request.headers.get('x-bap-panel') !== '1' || (request.headers.get('origin') || url.origin) !== url.origin) {
+        return json({ ok: false, hata: 'İzin verilmeyen istek.' }, 403);
+      }
+      if (!env.ALIM_URL) return json({ ok: false, hata: 'ALIM_URL ayarı yok.' }, 500);
+      let govde;
+      try { govde = await request.json(); } catch (e) { return json({ ok: false, hata: 'Geçersiz istek.' }, 400); }
+      // Ödeme ekleme burada yok: ödemeler /api/odeme (Veri Kapısı) ile yazılır, çift kayıt korumalı.
+      const IZINLI = ['subeAta', 'odemeSil', 'tedarikciKaydet', 'ozelIsaretle', 'hammaddeEkle', 'ozelUrun', 'giderEkle', 'giderSil', 'giderKategori', 'eslestirmeKaydet'];
+      if (IZINLI.indexOf(govde.action) < 0) return json({ ok: false, hata: 'Bilinmeyen işlem.' }, 400);
+      // Alanlar tipine göre kırpılır: metin 300, dizi 50 eleman
+      const temiz = function (v) {
+        if (Array.isArray(v)) return v.slice(0, 50).map(function (x) { return String(x == null ? '' : x).slice(0, 300); });
+        if (typeof v === 'number' || typeof v === 'boolean') return v;
+        return String(v == null ? '' : v).slice(0, 300);
+      };
+      const ileti = { action: govde.action };
+      Object.keys(govde).forEach(function (k) { if (k !== 'action' && k !== 'key' && /^[a-zA-Z]{1,20}$/.test(k)) ileti[k] = temiz(govde[k]); });
+      if (env.ALIM_KEY) ileti.key = env.ALIM_KEY;
+      try {
+        const r = await fetch(env.ALIM_URL, { method: 'POST', headers: { 'content-type': 'text/plain;charset=utf-8' }, body: JSON.stringify(ileti), redirect: 'follow' });
+        const metin = await r.text();
+        try { return json(JSON.parse(metin), 200); }
+        catch (e) { return json({ ok: false, belirsiz: true, hata: 'Alım arka ucu beklenmeyen bir cevap verdi; işlem yapılmış olabilir, Yenile ile kontrol edin.' }, 502); }
+      } catch (e) { return json({ ok: false, belirsiz: true, hata: 'Alım arka ucuna ulaşılamadı; işlem yapılmış olabilir.' }, 502); }
     }
 
     if (url.pathname === '/' || url.pathname === '/index.html') {

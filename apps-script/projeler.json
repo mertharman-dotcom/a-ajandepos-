@@ -29,7 +29,7 @@
       "klasor": "kolaybi-fatura-ham-veri",
       "ad": "Kolaybi Fatura Ham Veri (Apps Script adı: BAP Alım Tedarikci)",
       "scriptId": "1sngC4he3SAV2h2kYbfSIQm73y5rxOPGjgSRwy2yvIDia67C1gZkKC2zs",
-      "deploymentId": ""
+      "deploymentId": "AKfycbx8jqfqP6W7n98ay64mpgHyV3N6UIPWF7zxeE-O0jn2SpmAZENl-iFBNVdZhebydRA2kA"
     },
     {
       "klasor": "adisyo-siparis-toplayici",
@@ -84,6 +84,18 @@
       "ad": "BAP Yemek Kartı (BAP Yemek Kartı Tahsilatları tablosuna bağlı) — Pluxee, Edenred, Paye, SetCard; MacBook programları ve iPhone kestirmeleri bu web dağıtımına bağlanır",
       "scriptId": "1HAktsS8WeUbwy2hYDVhohIjP2UwR1elRl2d3-x210lkyouOIrsLQqVaq",
       "deploymentId": "AKfycbx9fcm_VBi6Ug-d1Uf9z-6Yao0AzIePIhasKN_Vv9A6yuBnqR4ZDPvSX_ho9JF-jC1OKA"
+    },
+    {
+      "klasor": "bap-gunluk-yedek",
+      "ad": "BAP Günlük Yedek (tek başına proje) — gece 03:00 yedekZipAl: 10 ana tablo → BAP_YEDEK_yyyy-MM-dd.zip; eski nabız (nabizKontrol → SATIS › Sistem_Nabzi)",
+      "scriptId": "1Z8xMkSzjeWKHJEo6ptB5XBwvpEOtYI39Hspj0KZ67SKOJYdOv2Y0h3Xk",
+      "deploymentId": ""
+    },
+    {
+      "klasor": "bap-sistem-bekcisi",
+      "ad": "BAP Sistem Bekçisi (BAP Sistem Nabzı tablosuna bağlı) — 15 dk'da bir veri akışlarını, Make'i, Apps Script hatalarını, web adreslerini ve kotaları kontrol eder",
+      "scriptId": "1frjcteIAOAAjddDsCtFpO6uE6TXJpatFVlXhVh-26g8k-OEuG9v59d_K",
+      "deploymentId": ""
     }
   ]
 }
