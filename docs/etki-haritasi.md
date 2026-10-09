@@ -248,9 +248,9 @@ Aynı sekmeye iki ayrı proje yazıyorsa birinin yaptığı değişiklik diğeri
 #### Ozel_Alimlar
 
 - **Yazan:** `ap_ozelIsaretle_` (Kolaybi Fatura Ham Veri), `ap_ozelUrun_` (Kolaybi Fatura Ham Veri), `ap_sekmeleriHazirla_` (Kolaybi Fatura Ham Veri)
-- **Okuyan:** `maliyetBolumu_` (BAP Rapor Ajanı), `ap_ozelHaritasi_` (Kolaybi Fatura Ham Veri)
+- **Okuyan:** `maliyetBolumu_` (BAP Rapor Ajanı), `ap_ozelHaritasi_` (Kolaybi Fatura Ham Veri), `ozelAlimHaritasi_` (Stok Takip Sistemi)
 - **Yoksa oluşturan:** `ap_sekmeleriHazirla_`
-- **Zamanla çalışan:** haftada bir 09:00 (`haftalikRapor`)
+- **Zamanla çalışan:** haftada bir 09:00 (`haftalikRapor`), her gün 00:30 (`alisIsle`), her gün 05:00 (`ajanGecelik`), her gün 14:30 (`alisIsle`)
 
 #### Satis_Faturalari
 
@@ -1295,7 +1295,7 @@ Aynı sekmeye iki ayrı proje yazıyorsa birinin yaptığı değişiklik diğeri
 
 ### Stok Takip Sistemi (`apps-script/stok-takip-sistemi`)
 
-Bağlı dosya: STOK · 281 fonksiyon · 52 sekme
+Bağlı dosya: STOK · 285 fonksiyon · 53 sekme
 
 - ekran: Index.html → submitRecipeSuggestion
 - haftada bir 09:00 → rc_kontrolEt
@@ -1486,7 +1486,7 @@ Sekme adı koddan okunamadı (değişkenle ya da döngüyle açılıyor). Bu yer
 | Proje | Fonksiyon | Yer | İfade |
 |---|---|---|---|
 | stok-takip-sistemi | `ambalajTeshis` | `stok-takip-sistemi/Adsız.gs:145` | `KURAL_AD` |
-| stok-takip-sistemi | `fiyatOnaylariniUygula` | `stok-takip-sistemi/Alıs Motoru v2.gs:339` | `String ( v [ i ] [ cT ] )` |
+| stok-takip-sistemi | `fiyatOnaylariniUygula` | `stok-takip-sistemi/Alıs Motoru v2.gs:345` | `String ( v [ i ] [ cT ] )` |
 | stok-takip-sistemi | `exportAllTargetSheetsToCSV` | `stok-takip-sistemi/CVS olarak veri cekme.gs:36` | `sheetName` |
 | stok-takip-sistemi | `exportAllTargetSheetsToCSV` | `stok-takip-sistemi/CVS olarak veri cekme.gs:43` | `sheetName` |
 | stok-takip-sistemi | `hp_tabloBul_` | `stok-takip-sistemi/Hazırlık Ajanı.gs:1037` | `c . ad` |

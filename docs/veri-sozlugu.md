@@ -48,6 +48,7 @@ Bütün e-tabloların listesi ve önerilen Drive düzeni: `docs/tablo-haritasi.m
 | Satış düşüm logu | STOK › Satis_Hareketleri | Stok motoru | Raporlar | — |
 | Fatura kalemleri | FATURA › Fatura_Kalemleri | `kalemleriAyir` | Alış motoru | — |
 | Tedarikçi, sevkiyat günü, şube | STOK › Tedarikçi Sevkiyat günleri | Elle | Alış, Sipariş ekranı | Şube sütunu eksikleri → SUBE_YOK (V1) |
+| Ev / özel alım işareti (stoğa ve maliyete girmez, borçta kalır) | FATURA › Ozel_Alimlar (fatura, kalem ya da '*' ürün) + STOK › Fatura_Ev_Alimlari (J notu 'Ev') | Alım Paneli (bap-alim-paneli) / elle | Alım Paneli, Alış Motoru (`ozelAlimHaritasi_`) | — |
 | Tedarikçi siparişleri | STOK › Siparis_Kayitlari | Mutfak paneli | Alış motoru (şube tahmini), Mal Kabul | — |
 | Üretim / Sayım / Zayi / Transfer girişleri | STOK › Uretim_Girisleri, Sayim_Girisleri, Zayi_Girisleri, Transferler | Mutfak paneli | Hazırlık, stok | — |
 | Hazırlık planı ↔ gerçek, sapma sebebi (otomatik + elle) | BAP Mutfak Hazırlık Planı › Hazirlik_Dogruluk (`Sebep (elle)` sütununu mutfak/sahip yazar) | Hazırlık ajanı (`hp_dogrulukKontrol`, 23:30) | Hazırlık ajanı (düzeltme çarpanı), mail | Hazirlik_Sapma_Ozet ve Hazirlik_Sapma_Sebep her gece buradan baştan üretilir, kopya değil |
