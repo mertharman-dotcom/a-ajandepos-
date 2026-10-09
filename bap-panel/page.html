@@ -515,14 +515,39 @@ function urunBlok(s,T){var U=s.gunluk.urunler||[];if(!s.gunluk.urunSutunu)return
 function fisSayfa(a){var s=VERI.satis;a.appendChild(ust("Günlük fiş","Yemeksepeti, Trendyol ve İyzico online siparişleri için gün sonunda kesilecek fiş; kesilen fişlerin kaydı ve farkı."));a.appendChild(nabizSeridi("satis"));var h=hatalarKutusu(["satis","fisKayit"]);if(h)a.appendChild(h);
   if(!s)return a.appendChild(bos("Satış verisi okunamadı."));a.appendChild(fisBlok(s));}
 
-function satis(a){var s=VERI.satis;a.appendChild(ust("Satışlar","Yalnız kapanmış siparişler sayılır; iptal ve iadeler hariç."));a.appendChild(nabizSeridi("satis"));var h=hatalarKutusu(["satis"]);if(h)a.appendChild(h);
-  a.appendChild(satisRakamlari());if(!s)return;
-  a.appendChild(el("div",{class:"iki"},[blok("Kanallar bugün",null,cubuklar(s.kanalBugun)),blok("Kanallar bu hafta","Pazartesi'den bugüne.",cubuklar(s.kanalHafta))]));
-  a.appendChild(subeBloklari(s));
-  a.appendChild(markaBlok(s));
-  a.appendChild(blok("Son 14 gün",null,seriGrafik(s.seri)));
-  a.appendChild(mahalleBlok(s));
-  if(s.iptalBugun)a.appendChild(el("div",{class:"bilgi",text:"Bugün "+s.iptalBugun+" sipariş iptal ya da iade oldu; ciroya katılmadı."}));}
+// Satışlar: en üstteki dönem seçimi (Bugün … Geçen ay) bütün sayfayı değiştirir; rakamlar gün gün özetin toplamıdır.
+var SATIS_DONEM="bugun";
+function satis(a){var s=VERI.satis;a.appendChild(ust("Satışlar","Yalnız kapanmış siparişler sayılır; iptal ve iadeler hariç."));
+  function tazelikEkle(){a.appendChild(nabizSeridi("satis"));var h=hatalarKutusu(["satis"]);if(h)a.appendChild(h);}
+  if(!s){tazelikEkle();return a.appendChild(satisRakamlari());}
+  if(!s.gunluk){tazelikEkle();a.appendChild(satisRakamlari());a.appendChild(subeBloklari(s));a.appendChild(mahalleBlok(s));return;}
+  var AR=donemAraliklari(s),ar=AR[SATIS_DONEM]||AR.bugun,tek=ar[0]===ar[1],bugunMu=SATIS_DONEM==="bugun",T=ozetTopla(s,ar),ad=(OZ_DONEMLER.filter(function(d){return d[0]===SATIS_DONEM;})[0]||[,""])[1];
+  var aralikYazi=SATIS_DONEM==="buAy"||SATIS_DONEM==="gecenAy"?AY_AD[+ar[0].slice(5,7)-1]+" "+ar[0].slice(0,4):(tek?tarihTr(ar[0]):tarihTr(ar[0])+" – "+tarihTr(ar[1]));
+  a.appendChild(el("div",{class:"hafta-sec",style:"margin:6px 0 16px"},[el("div",{class:"sekmeler",style:"margin:0",role:"group","aria-label":"Dönem"},OZ_DONEMLER.map(function(d){
+    return el("button",{type:"button","aria-pressed":SATIS_DONEM===d[0]?"true":"false",onclick:function(){SATIS_DONEM=d[0];ciz();}},[d[1]]);})),el("span",{style:"color:var(--gri);font-size:14px",text:aralikYazi+(tek?"":", "+T.gun+" gün")})]));
+  if(ar[0]<veriBasi(s))a.appendChild(el("p",{class:"fis-not",style:"margin:-8px 0 14px",text:"Panel "+tarihTr(veriBasi(s))+" sonrasını okuyor; dönemin öncesi sayılmadı."}));
+  tazelikEkle();
+  // Rakamlar: bugün canlı (açık siparişler, geçen haftanın aynı saati); diğer dönemler bir önceki eşdeğer dönemle karşılaştırılır.
+  if(bugunMu)a.appendChild(satisRakamlari());
+  else{var kar={m:null,s:""},oncekiAdet=null,od=oncekiDonem(s,SATIS_DONEM,ar);
+    if(od&&od.ar[0]>=veriBasi(s)){var P=ozetTopla(s,od.ar);if(P.ciro>0){var f=Math.round((T.ciro-P.ciro)/P.ciro*100);kar={m:(f>=0?"+":"")+f+"% "+od.ad,s:f>=0?"yukari":"asagi"};oncekiAdet="Önceki dönem "+P.adet;}}
+    var gunSay=Math.max(1,T.gun);
+    var R=[rakam(tek?"Ciro":ad+" ciro",para(T.ciro),kar.m,kar.s),rakam("Sipariş",String(T.adet),oncekiAdet),rakam("Ortalama sepet",T.adet?para(T.ciro/T.adet):"—",null)];
+    if(!tek)R.push(rakam("Günlük ortalama",para(T.ciro/gunSay),Math.round(T.adet/gunSay)+" sipariş / gün"));
+    R.push(rakam("İptal / iade",String(T.ip),T.ip?"%"+Math.round(T.ip/(T.adet+T.ip)*100)+" sipariş":null));
+    a.appendChild(el("div",{class:"rakamlar"},R));}
+  a.appendChild(blok(tek?"Kanallar":"Kanallar — "+ad,null,cubuklar(ikiliListe(T.k))));
+  if(s.cikanSube)a.appendChild(subeUyari(s.cikanSube));
+  var cs=s.cikanSube;
+  a.appendChild(el("div",{class:"iki"},[blok("Şubeye gelen siparişler","Siparişin Adisyo'da yazıldığı şube.",cubuklar(ikiliListe(T.s))),
+    blok("Mutfaklar","Ürünün fiilen çıktığı şube; çıkan şubesi boş siparişler gelen şubeye sayıldı."+(bugunMu&&cs&&cs.baskaSubedenBugun?" Bugün "+cs.baskaSubedenBugun+" sipariş diğer şubenin mutfağından çıktı.":""),cubuklar(ikiliListe(T.m)))]));
+  a.appendChild(markaBlok({markaDetay:Object.keys(T.b).map(function(k){var b=T.b[k];return {ad:k,ciro:b.c,adet:b.a,subeler:ikiliListe(b.s).map(function(x){return {ad:x.ad,ciro:x.deger,adet:x.adet};})};}).sort(function(x,y){return y.ciro-x.ciro;})},"Markalar"));
+  var seri=(tek?s.gunluk.gunler.filter(function(g){return g.gun<=ar[0]&&g.gun>gEkle(ar[0],-14);}):T.gunler).map(function(g){return {gun:g.gun,ciro:g.c,adet:g.a};});
+  a.appendChild(blok(tek?"Son 14 gün":"Günlere göre ciro",tek?"Her sütun bir iş günü; en koyu olan seçili gün.":"Her sütun bir iş günü.",seriGrafik(seri)));
+  var M=s.gunluk.mahalleler||[],mah=Object.keys(T.h).map(function(k){return {ad:M[k]||"?",ciro:T.h[k][0],adet:T.h[k][1]};}).sort(function(x,y){return y.adet-x.adet||y.ciro-x.ciro;}).slice(0,30);
+  a.appendChild(blok("Mahalleler","Kapanmış siparişlerin mahallelere göre adedi ve cirosu (en çok sipariş veren 30). Masa siparişlerinde mahalle olmaz.",mah.length?el("div",null,[tablo([["Mahalle"],["Sipariş",1],["Ciro",1],["Ortalama sepet",1]],mah.map(function(x){return [x.ad,String(x.adet),para(x.ciro),para(x.ciro/x.adet)];})),
+    T.hb?el("p",{class:"fis-not",text:T.hb+" siparişte mahalle yazılı değil; listeye girmedi."}):null]):bos("Bu dönemde mahallesi yazılı sipariş yok.")));
+  if(T.ip)a.appendChild(el("div",{class:"bilgi",text:(tek?(bugunMu?"Bugün ":"Bu gün "):"Bu dönemde ")+T.ip+" sipariş iptal ya da iade oldu; ciroya katılmadı."}));}
 
 function subeBloklari(s){var c=s.cikanSube,kap=el("div",null,[]);
   if(c){if(!c.sutunVar){kap.appendChild(el("div",{class:"uyari kotu"},[el("b",{text:"Sipariş tablosunda \"Ürün Çıkan Şube\" sütunu bulunamadı"}),el("div",{text:"Mutfak bazındaki rakamlar bu yüzden gelen şubeye göre gösteriliyor."})]));}
