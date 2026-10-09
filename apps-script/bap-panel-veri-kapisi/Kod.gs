@@ -3259,7 +3259,7 @@ function acikKanit_(ks, liste, ek) {
 
 // Sahibin isteği (09.10): tek çekimle eşleşmeyen kart hesabı için parçalı ödeme önerisi — iki çekimin toplamı (aynı kart ya da
 // iki farklı kart: 2 × Metropol, Metropol + Edenred …) ya da siparişten az tek çekim (kalanı kredi kartı / nakit / başka kart).
-// Parçalı öneri hiçbir zaman kendiliğinden kapatılmaz ('soru'). Hiçbir hesaba bağlanmayan kapıda çekimler ek.bosta'ya (son 7 iş günü).
+// Parçalı öneri yalnız çok kesinse 'emin' (hepsi siparişin kartı, ≤15 dk içinde, teslimden ≤90 dk, tek çözüm); gerisi 'soru'. Hiçbir hesaba bağlanmayan kapıda çekimler ek.bosta'ya (son 7 iş günü).
 function parcaliVeBosta_(liste, havuz, kmap, ek) {
   var SAAT = 3600000, ayrildi = {}, sinir = gunEkle_(isGunu_(simdi_()), -6), serbest = [];
   liste.forEach(function (x) { if (x.kartCekim && x.kartCekim.ref) ayrildi[x.kartKaynak + ':' + x.kartCekim.ref] = 1; });
@@ -3271,18 +3271,30 @@ function parcaliVeBosta_(liste, havuz, kmap, ek) {
     if (x.kartCekim || x.adisyo === 'odendi') return;
     var kendi = KART_KAYNAKLARI.filter(function (kk) { return kk.odeme.test(x.odeme); })[0]; if (!kendi) return;
     var k = kmap[x.id], rf = kartRef_(x.gun, x.teslim || (k ? k.teslim : ''), k ? k.ms : null); if (!rf) return;
-    var aday = serbest.filter(function (c) { return !ayrildi[c.k] && c.y.tutar < x.tutar - 0.5 && yakin(c.y, rf.ms); });
-    var en = null;
-    for (var i = 0; i < aday.length; i++) for (var j = i + 1; j < aday.length; j++) {
-      if (Math.abs(aday[i].y.tutar + aday[j].y.tutar - x.tutar) >= 0.5) continue;
-      var puan = (aday[i].kart === kendi.ad || aday[j].kart === kendi.ad ? 0 : 1) * 1e9 + Math.abs(aday[i].y.ms - rf.ms) + Math.abs(aday[j].y.ms - rf.ms);
-      if (!en || puan < en.puan) en = { a: aday[i], b: aday[j], puan: puan };
-    }
-    if (en) {
-      ayrildi[en.a.k] = ayrildi[en.b.k] = 1;
-      x.kartKarar = 'soru'; x.kartKaynak = en.a.kart === en.b.kart ? en.a.kart : en.a.kart + ' + ' + en.b.kart; x.kartZaman = 'parçalı';
-      x.kartParca = [en.a, en.b].map(function (c) { return { kart: c.kart, ref: c.y.ref, zaman: c.y.tam, tutar: c.y.tutar }; });
-      x.kartNeden = 'parçalı ödeme olabilir: ' + yaz(en.a) + ' + ' + yaz(en.b) + ' = ' + x.tutar + ' TL';
+    var aday = serbest.filter(function (c) { return !ayrildi[c.k] && c.y.tutar < x.tutar - 0.5 && yakin(c.y, rf.ms); })
+      .sort(function (p, q) { return Math.abs(p.y.ms - rf.ms) - Math.abs(q.y.ms - rf.ms); }).slice(0, 18);
+    // 2–4 çekimin toplamı = sipariş tutarı (09.10 örnek: Edenred 305 + 1.340 + 1.080 = 2.725, aynı kurye, 13:23–13:25)
+    var cozum = [];
+    (function ara(bas, secili, top) {
+      if (secili.length >= 2 && Math.abs(top - x.tutar) < 0.5) { cozum.push(secili.slice()); return; }
+      if (secili.length === 4 || top > x.tutar + 0.5 || cozum.length > 20) return;
+      for (var i = bas; i < aday.length; i++) { secili.push(aday[i]); ara(i + 1, secili, top + aday[i].y.tutar); secili.pop(); }
+    })(0, [], 0);
+    var bilgi = function (l) { var ms = l.map(function (c) { return c.y.ms; }), saatli = l.every(function (c) { return !c.y.saatYok; });
+      return { l: l, ayniKart: l.every(function (c) { return c.kart === kendi.ad; }), yayilim: saatli ? Math.max.apply(null, ms) - Math.min.apply(null, ms) : null,
+        uzak: saatli ? Math.max.apply(null, ms.map(function (m) { return Math.abs(m - rf.ms); })) : null }; };
+    var sira = cozum.map(bilgi).sort(function (p, q) { return (p.ayniKart ? 0 : 1) - (q.ayniKart ? 0 : 1) || (p.yayilim === null ? 1e12 : p.yayilim) - (q.yayilim === null ? 1e12 : q.yayilim); });
+    if (sira.length) {
+      var en = sira[0];
+      en.l.forEach(function (c) { ayrildi[c.k] = 1; });
+      x.kartKaynak = en.ayniKart ? kendi.ad : en.l.map(function (c) { return c.kart; }).filter(function (v, i, d) { return d.indexOf(v) === i; }).join(' + ');
+      x.kartParca = en.l.map(function (c) { return { kart: c.kart, ref: c.y.ref, zaman: c.y.tam, tutar: c.y.tutar }; });
+      var metin = en.l.map(yaz).join(' + ') + ' = ' + x.tutar + ' TL';
+      // Emin: hepsi siparişin kartı, ≤15 dk içinde, teslimden ≤90 dk, saati biliniyor ve başka çözüm yok → ajan kapatır
+      var emin = sira.length === 1 && en.ayniKart && rf.saatVar && en.yayilim !== null && en.yayilim <= 15 * 60000 && en.uzak <= 90 * 60000;
+      x.kartKarar = emin ? 'emin' : 'soru'; x.kartZaman = en.l.length + ' parça';
+      x.kartNeden = (emin ? en.l.length + ' parça ' + kendi.ad + ' çekimi, ' + Math.round(en.yayilim / 60000) + ' dk içinde, toplamı sipariş tutarı: ' : 'parçalı ödeme olabilir: ') + metin
+        + (sira.length > 1 ? ' (tutan ' + sira.length + ' farklı kombinasyon var)' : '');
       return;
     }
     var tek = aday.filter(function (c) { return c.kart === kendi.ad; }).sort(function (p, q) { return Math.abs(p.y.ms - rf.ms) - Math.abs(q.y.ms - rf.ms); })[0];
@@ -3552,12 +3564,13 @@ function kartAjanCalis_() {
     var sh = tahsilatSekmesi_(ss);
     emin.forEach(function (x) {
       sh.appendRow([x.tarih, x.no, "'" + x.id, x.kurye, x.odeme, x.tutar, 'Tahsil edildi',
-        x.kartKaynak + ' ajanı: çekim ' + x.kartCekim.zaman + ', ' + x.kartCekim.tutar + ' TL (' + x.kartNeden + ') [ref ' + x.kartKaynak + ':' + x.kartCekim.ref + ']', damga, x.kartKaynak + ' Ajanı']);
+        x.kartKaynak + ' ajanı: ' + (x.kartParca ? x.kartNeden : 'çekim ' + x.kartCekim.zaman + ', ' + x.kartCekim.tutar + ' TL (' + x.kartNeden + ')') + ' '
+          + (x.kartParca || [{ kart: x.kartKaynak, ref: x.kartCekim.ref }]).map(function (c) { return '[ref ' + c.kart + ':' + c.ref + ']'; }).join(''), damga, x.kartKaynak + ' Ajanı']);
       kapatilan++;
     });
     try { adisyo = tahsilatlariAdisyoyaIsle_(); } catch (err) { adisyo = { hata: String(err.message || err) }; }
   }
-  var kisa = function (x) { return { kart: x.kartKaynak, no: String(x.no || ''), gun: x.gun, kurye: x.kurye, tutar: x.tutar, cekim: x.kartCekim ? x.kartCekim.zaman : '' }; };
+  var kisa = function (x) { return { kart: x.kartKaynak, no: String(x.no || ''), gun: x.gun, kurye: x.kurye, tutar: x.tutar, cekim: x.kartCekim ? x.kartCekim.zaman : (x.kartParca ? x.kartParca.map(function (c) { return c.zaman; }).join(' + ') : '') }; };
   var rapor = { zaman: damga.slice(0, 16), kuru: KART_AJAN_KURU, emin: emin.length, kapatilan: kapatilan, soru: soru.length,
                 liste: emin.slice(0, 30).map(kisa), adisyo: adisyo };
   PropertiesService.getScriptProperties().setProperty('KART_AJAN', JSON.stringify(rapor));
