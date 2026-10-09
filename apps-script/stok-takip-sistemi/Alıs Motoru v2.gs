@@ -61,6 +61,7 @@ function alisIsle_() {
   var tedBilgi = tedarikciHaritasi_(sss);    // ünvan → {kisa, sube}
   var sipIdx  = siparisIndeksi_(sss);        // kisa ted → [{tarih, sube}]
   var stMap   = subeStokHaritasi_(sst);
+  var ozel    = ozelAlimHaritasi_(fss, sss);   // Alım Paneli'nde Ev/Kırtasiye/Diğer işaretli kalemler → stoğa girmez
 
   var kRows = kal.getDataRange().getValues();
   var hareketler = [], sonuc = [], sebepler = [], subeYaz = [], sipYaz = [], bekleyen = [], eksikAd = {};
@@ -79,6 +80,11 @@ function alisIsle_() {
     if (!urun || !adet) { sonuc.push(['']); sebepler.push(['adet/urun bos']); subeYaz.push([eskiSube]); sipYaz.push(['']); continue; }
 
     var ted = tedBilgi[norm_(unvan)] || { kisa: unvan, sube: '' };
+
+    // ---- Ev / özel alım: işletmenin değil, stoğa girmez. Durum 'OZEL' her çalışmada yeniden bakılır
+    //      (işaret kaldırılırsa kalem normal işlenir).
+    var ozTur = ozelAlimTuru_(ozel, fno, urun);
+    if (ozTur) { sonuc.push(['OZEL']); sebepler.push([ozTur + ' alımı (Alım Paneli)']); subeYaz.push([eskiSube]); sipYaz.push(['']); sayac.ozel = (sayac.ozel || 0) + 1; continue; }
 
     // ---- eşleşme: önce elle tablo, sonra HM, DS, AMB
     var es = esMap[norm_(urun)] || null;
@@ -354,6 +360,38 @@ function sonAlisFiyatlariniDoldur() {
   var n = sonAlisFiyatDoldur_(sss, kal.getDataRange().getValues(), eslesmeHaritasi_(eslesmeSekmesi_(sss)), hammaddeHaritasi_(sss), direktSatisHaritasi_(sss), ambalajHaritasi_(sss));
   try { SpreadsheetApp.getUi().alert('✅ ' + n + ' ürünün son alış fiyatı güncellendi.'); } catch (e) {}
   return n;
+}
+
+// ── Ev / özel alımlar ──
+// Kaynaklar (Alım Paneli'nin kullandıklarıyla aynı, kopya tutulmaz):
+//   Kolaybi Fatura Ham Veri › Ozel_Alimlar: A fatura no ('*' = bütün faturalar), B ürün (boş = bütün fatura), C tür (Ev/Kırtasiye/Diğer/Pasif)
+//   Stok Takip › J başlığı 'Not (elle…' olan sekmeler (Fatura_Ev_Alimlari): A ürün adı, J notu 'ev' olanlar
+// 'Pasif' Ev değildir (yalnız listeden gizler), stoğa girmeye devam eder.
+// büyük/küçük ve ı/i farkı yok sayılır ('FAIRY' = 'Fairy', 'ISLAK' = 'Islak')
+function ozNrm_(s) { return String(s || '').replace(/İ/g, 'i').toLowerCase().replace(/ı/g, 'i').replace(/[\s.,\-*/()'"&:;!?]/g, ''); }
+function ozNo_(v) { return String(v === null || v === undefined ? '' : v).replace(/\.0$/, '').trim(); }
+
+function ozelAlimHaritasi_(fss, sss) {
+  var h = {};
+  var sh = fss.getSheetByName('Ozel_Alimlar');
+  if (sh && sh.getLastRow() > 1) sh.getRange(2, 1, sh.getLastRow() - 1, 3).getValues().forEach(function (r) {
+    var no = ozNo_(r[0]), tur = String(r[2] || 'Ev').trim();
+    if (!no || tur === 'Pasif') return;
+    h[no + '|' + ozNrm_(r[1])] = tur;
+  });
+  sss.getSheets().forEach(function (s2) {
+    if (s2.getLastRow() < 2 || s2.getLastColumn() < 10) return;
+    if (String(s2.getRange(1, 10).getValue() || '').indexOf('Not (elle') !== 0) return;
+    s2.getRange(2, 1, s2.getLastRow() - 1, 10).getValues().forEach(function (r) {
+      if (r[0] && String(r[9] || '').trim().toLowerCase() === 'ev' && !h['*|' + ozNrm_(r[0])]) h['*|' + ozNrm_(r[0])] = 'Ev';
+    });
+  });
+  return h;
+}
+
+function ozelAlimTuru_(h, fno, urun) {
+  var no = ozNo_(fno), u = ozNrm_(urun);
+  return h[no + '|' + u] || h[no + '|'] || h['*|' + u] || '';
 }
 
 // ── V1/V2: stoğa girmeyen fatura kalemleri ──
