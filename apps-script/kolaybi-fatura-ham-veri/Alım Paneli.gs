@@ -174,12 +174,17 @@ function ap_veri_() {
   var odemeler = [], eslesmeyenOdeme = [];
   var tedKeys = Object.keys(tedKanon);
   if (os.getLastRow() > 1) {
-    os.getRange(2, 1, os.getLastRow() - 1, 6).getValues().forEach(function (r) {
-      if (!r[0]) return;
-      var yazilan = String(r[2] || '').replace(/\s+/g, ' ').trim();
+    // Başlığa göre okunur: yönetim paneli (Veri Kapısı toptanciOdemeGir_) de bu sekmeye yazar ve Odeme_ID'yi her zaman
+    // doldurmaz. Eskiden sabit sütun sırasıyla okunup kimliksiz satırlar atlanıyordu → o ödemeler borçtan düşülmüyordu (P66).
+    var oc = ap_odemeKolon_(os);
+    os.getRange(2, 1, os.getLastRow() - 1, oc.n).getValues().forEach(function (r, i) {
+      var yazilan = String(r[oc.ted] || '').replace(/\s+/g, ' ').trim();
+      var tutar = ap_sayi_(r[oc.tutar]);
+      if (!yazilan || !(tutar > 0) || r[oc.tarih] === '' || r[oc.tarih] === null) return;
       var eslesen = ap_tedarikciBul_(yazilan, tedKanon, tedKeys);
-      var o = { id: String(r[0]), tarih: ap_iso_(ap_tarih_(r[1])), ted: eslesen || yazilan, yazilanTed: yazilan,
-                tutar: ap_sayi_(r[3]), yontem: String(r[4] || ''), not: String(r[5] || ''), eslesti: !!eslesen };
+      var id = oc.id >= 0 ? String(r[oc.id] || '').trim() : '';
+      var o = { id: id, tarih: ap_iso_(ap_tarih_(r[oc.tarih])), ted: eslesen || yazilan, yazilanTed: yazilan,
+                tutar: tutar, yontem: oc.yontem >= 0 ? String(r[oc.yontem] || '') : '', not: oc.not >= 0 ? String(r[oc.not] || '') : '', eslesti: !!eslesen };
       if (!eslesen) eslesmeyenOdeme.push(o);
       odemeler.push(o);
     });
@@ -312,21 +317,40 @@ function ap_odemeEkle_(b) {
   if (!ted || !(tutar > 0)) return { ok: false, hata: 'Tedarikçi ve tutar gerekli' };
   var ss = SpreadsheetApp.getActiveSpreadsheet();
   ap_sekmeleriHazirla_(ss);
-  var sh = ss.getSheetByName(AP_ODEME);
+  var sh = ss.getSheetByName(AP_ODEME), oc = ap_odemeKolon_(sh);
   var tarih = b.tarih ? ap_tarih_(b.tarih) : new Date();
   var id = 'O' + Utilities.formatDate(new Date(), 'Europe/Istanbul', 'yyMMddHHmmss') + Math.floor(Math.random() * 90 + 10);
-  sh.insertRowsBefore(2, 1);
-  sh.getRange(2, 1, 1, 7).setValues([[id, tarih, ted, tutar, String(b.yontem || ''), String(b.not || ''), new Date()]]);
-  sh.getRange(2, 2).setNumberFormat('dd.MM.yyyy');
-  sh.getRange(2, 4).setNumberFormat('#,##0.00');
+  var satir = []; for (var i = 0; i < oc.n; i++) satir.push('');
+  if (oc.id >= 0) satir[oc.id] = id;
+  satir[oc.tarih] = tarih; satir[oc.ted] = ted; satir[oc.tutar] = tutar;
+  if (oc.yontem >= 0) satir[oc.yontem] = String(b.yontem || '');
+  if (oc.not >= 0) satir[oc.not] = String(b.not || '');
+  if (oc.kayit >= 0) satir[oc.kayit] = new Date();
+  var no = sh.getLastRow() + 1;
+  sh.getRange(no, 1, 1, oc.n).setValues([satir]);
+  sh.getRange(no, oc.tarih + 1).setNumberFormat('dd.MM.yyyy');
+  sh.getRange(no, oc.tutar + 1).setNumberFormat('#,##0.00');
   return { ok: true, id: id };
 }
 
+/** Odemeler sütunları başlıktan (Veri Kapısı ODEME_SUTUN ile aynı adlar); başlık bulunamazsa eski sabit sıra. */
+function ap_odemeKolon_(sh) {
+  var n = Math.max(7, sh.getLastColumn()), bas = sh.getRange(1, 1, 1, n).getValues()[0].map(function (x) { return ap_nrm_(x); });
+  var bul = function (adlar) { for (var i = 0; i < adlar.length; i++) { var j = bas.indexOf(ap_nrm_(adlar[i])); if (j >= 0) return j; } return -1; };
+  var c = { n: n, id: bul(['Odeme_ID']), tarih: bul(['Tarih']), ted: bul(['Tedarikçi', 'Toptancı', 'Firma']), tutar: bul(['Tutar']),
+            yontem: bul(['Yöntem', 'Ödeme_Yöntemi', 'Odeme Yontemi']), not: bul(['Not', 'Açıklama', 'Aciklama']), kayit: bul(['Kayıt_Zamanı', 'Kayit_Zamani', 'Girilme']) };
+  if (c.tarih < 0 || c.ted < 0 || c.tutar < 0) c = { n: n, id: 0, tarih: 1, ted: 2, tutar: 3, yontem: 4, not: 5, kayit: 6 };
+  return c;
+}
+
 function ap_odemeSil_(id) {
+  if (!String(id || '').trim()) return { ok: false, hata: 'Bu ödemenin kimliği yok (yönetim panelinden girilmiş); tablodan elle düzelt' };
   var ss = SpreadsheetApp.getActiveSpreadsheet();
   var sh = ss.getSheetByName(AP_ODEME);
   if (!sh || sh.getLastRow() < 2) return { ok: false, hata: 'Ödeme yok' };
-  var ids = sh.getRange(2, 1, sh.getLastRow() - 1, 1).getValues();
+  var oc = ap_odemeKolon_(sh);
+  if (oc.id < 0) return { ok: false, hata: 'Odemeler sekmesinde Odeme_ID sütunu yok' };
+  var ids = sh.getRange(2, oc.id + 1, sh.getLastRow() - 1, 1).getValues();
   for (var i = 0; i < ids.length; i++) if (String(ids[i][0]) === String(id)) { sh.deleteRow(i + 2); return { ok: true }; }
   return { ok: false, hata: 'Ödeme bulunamadı: ' + id };
 }

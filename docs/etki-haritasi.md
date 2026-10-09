@@ -1339,7 +1339,7 @@ Bağlı dosya: — (tabloları kimlikle açar) · 219 fonksiyon · 77 sekme
 
 ### Kolaybi Fatura Ham Veri (`apps-script/kolaybi-fatura-ham-veri`)
 
-Bağlı dosya: FATURA · 103 fonksiyon · 17 sekme
+Bağlı dosya: FATURA · 104 fonksiyon · 17 sekme
 
 - haftada bir 03:00 → kolaybiAlisTamTarama
 - her 2 saatte → kolaybiTumunuCek
@@ -1511,9 +1511,9 @@ Sekme adı koddan okunamadı (değişkenle ya da döngüyle açılıyor). Bu yer
 | bap-panel-veri-kapisi | `kokpitPanoKur` | `bap-panel-veri-kapisi/Kod.gs:1152` | `ad` |
 | bap-panel-veri-kapisi | `mobilFatura_` | `bap-panel-veri-kapisi/Kod.gs:1597` | `k . birikenSekme` |
 | bap-panel-veri-kapisi | `genel_` | `bap-panel-veri-kapisi/Kod.gs:1945` | `ad` |
-| kolaybi-fatura-ham-veri | `ap_hammaddeEkle_` | `kolaybi-fatura-ham-veri/Alım Paneli.gs:459` | `sekmeler [ s ]` |
-| kolaybi-fatura-ham-veri | `ap_eslestirmeVeri_` | `kolaybi-fatura-ham-veri/Alım Paneli.gs:506` | `ad` |
-| kolaybi-fatura-ham-veri | `ap_hammaddeHaritasi_` | `kolaybi-fatura-ham-veri/Alım Paneli.gs:641` | `ad` |
+| kolaybi-fatura-ham-veri | `ap_hammaddeEkle_` | `kolaybi-fatura-ham-veri/Alım Paneli.gs:483` | `sekmeler [ s ]` |
+| kolaybi-fatura-ham-veri | `ap_eslestirmeVeri_` | `kolaybi-fatura-ham-veri/Alım Paneli.gs:530` | `ad` |
+| kolaybi-fatura-ham-veri | `ap_hammaddeHaritasi_` | `kolaybi-fatura-ham-veri/Alım Paneli.gs:665` | `ad` |
 | kolaybi-fatura-ham-veri | `alisFaturaTeshis` | `kolaybi-fatura-ham-veri/Kolaybi Veri Cek.gs:711` | `ad` |
 | adisyo-siparis-toplayici | `adresEslesmeUygula` | `adisyo-siparis-toplayici/Adres Eslesme.gs:34` | `AE_ANA_SEKME` |
 | kurye-net-calisma-suresi | `denetimSnapshot` | `kurye-net-calisma-suresi/Kural.gs:166` | `ad` |

@@ -434,7 +434,7 @@ function rOzet(el) {
     <div class="card click" data-act="tab" data-v="ozel"><div class="lbl">Özel alımlar · bu ay</div><div class="val">${tl(ozelBuAy)}</div><div class="sub">ev / kırtasiye · işletme toplamına dahil değil</div></div>
   </div>
   ${(D.eslesmeyenOdeme || []).length ? `<div class="panel mb" style="border-color:var(--red)"><h2 class="red">Tedarikçisi eşleşmeyen ödemeler <span class="muted">borçtan düşülemedi</span></h2><table><tr><th>Tarih</th><th>Yazılan ad</th><th class="r">Tutar</th><th>Not</th><th></th></tr>
-    ${D.eslesmeyenOdeme.map(o => `<tr><td class="num">${tarihTR(o.tarih)}</td><td>${esc(o.yazilanTed)}</td><td class="r num">${fmt(o.tutar)}</td><td class="small muted">${esc(o.not)}</td><td><button class="btn sm danger" data-act="odeme-sil" data-v="${esc(o.id)}">sil</button></td></tr>`).join("")}</table>
+    ${D.eslesmeyenOdeme.map(o => `<tr><td class="num">${tarihTR(o.tarih)}</td><td>${esc(o.yazilanTed)}</td><td class="r num">${fmt(o.tutar)}</td><td class="small muted">${esc(o.not)}</td><td>${o.id ? `<button class="btn sm danger" data-act="odeme-sil" data-v="${esc(o.id)}">sil</button>` : ""}</td></tr>`).join("")}</table>
     <div class="body muted small">Bu ödemeleri silip doğru tedarikçiyi seçerek yeniden gir; ya da Odemeler sekmesinde adı düzelt.</div></div>` : ""}
   <div class="grid2">
     <div class="panel"><h2>Fiyatı artan ürünler <span class="muted">son alım, bir önceki farklı fiyata göre</span></h2>
@@ -520,7 +520,7 @@ function rTedDetay(el) {
         const a = s.no && acik[s.no];
         return `<tr class="${s.tur} ${a ? "open" : ""}"><td>${tarihTR(s.tarih)}</td><td class="desc">${esc(s.desc)}${a ? ` <span class="muted small">· vade ${tarihTR(a.vade)}${a.kalan !== a.tutar ? " · kalan " + fmt(a.kalan) : ""}</span>` : ""}</td>
           <td class="r">${s.borc ? fmt(s.borc) : ""}</td><td class="r">${s.alacak ? fmt(s.alacak) : ""}</td><td class="r bal">${fmt(s.bakiye)}</td>
-          <td class="r">${a && a.gecikme > 0 ? `<span class="stamp">${a.gecikme} gün gecikti</span>` : ""}${s.tur === "pay" ? `<button class="btn sm danger" data-act="odeme-sil" data-v="${esc(s.id)}">sil</button>` : ""}</td></tr>`;
+          <td class="r">${a && a.gecikme > 0 ? `<span class="stamp">${a.gecikme} gün gecikti</span>` : ""}${s.tur === "pay" && s.id ? `<button class="btn sm danger" data-act="odeme-sil" data-v="${esc(s.id)}">sil</button>` : ""}</td></tr>`;
       }).join("") : '<tr><td colspan="6" class="empty">Kayıt yok</td></tr>'}
     </table></div>`}
   </div>`;
