@@ -1233,7 +1233,7 @@ function siparisDuzelt(data) {
 // Grubun son siparişi kalır (WhatsApp'a gideni varsa o); bütün ürünleri kalan siparişte de olan diğerlerinin
 // Teslim_Durumu 'Mükerrer' olur. Kalan siparişte olmayan ürünü olan (sonradan eklenen kalem) dokunulmaz. Satır silinmez.
 // Başka kişinin 30 dk içinde aynı tedarikçiye aynı şubeden verdiği sipariş yalnız 'KONTROL' diye yazılır, dokunulmaz.
-const CIFT_SIPARIS_KURU = true;
+const CIFT_SIPARIS_KURU = false;   // 09.10 sahip onayı: kuru rapor 11 sipariş / 109 satır
 const CIFT_SIPARIS_DK = 20;
 
 function ciftSiparisBul() {
