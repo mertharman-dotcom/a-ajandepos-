@@ -1339,7 +1339,7 @@ Bağlı dosya: — (tabloları kimlikle açar) · 219 fonksiyon · 77 sekme
 
 ### Kolaybi Fatura Ham Veri (`apps-script/kolaybi-fatura-ham-veri`)
 
-Bağlı dosya: FATURA · 103 fonksiyon · 17 sekme
+Bağlı dosya: FATURA · 107 fonksiyon · 17 sekme
 
 - haftada bir 03:00 → kolaybiAlisTamTarama
 - her 2 saatte → kolaybiTumunuCek
@@ -1351,7 +1351,7 @@ Bağlı dosya: FATURA · 103 fonksiyon · 17 sekme
 - menü: Ürün listesini yenile → urunListesiOlustur
 - menü: Yeni faturaları kalemlere ayır → kalemleriAyir
 - tablo açılınca → onOpen
-- Web eylemleri (15): `action=eslestirme → ap_eslestirmeVeri_`, `action=eslestirme → ap_json_`, `action=veri → ap_json_`, `action=veri → ap_veri_`, `eslestirmeKaydet → ap_eslestirmeKaydet_`, `giderEkle → ap_giderEkle_`, `giderKategori → ap_giderKategori_`, `giderSil → ap_giderSil_`, `hammaddeEkle → ap_hammaddeEkle_`, `odemeEkle → ap_odemeEkle_`, `odemeSil → ap_odemeSil_`, `ozelIsaretle → ap_ozelIsaretle_`, `ozelUrun → ap_ozelUrun_`, `subeAta → ap_subeAta_`, `tedarikciKaydet → ap_tedarikciKaydet_`
+- Web eylemleri (14): `action=eslestirme → ap_eslestirmeVeri_`, `action=eslestirme → ap_json_`, `action=veri → ap_veriCevap_`, `eslestirmeKaydet → ap_eslestirmeKaydet_`, `giderEkle → ap_giderEkle_`, `giderKategori → ap_giderKategori_`, `giderSil → ap_giderSil_`, `hammaddeEkle → ap_hammaddeEkle_`, `odemeEkle → ap_odemeEkle_`, `odemeSil → ap_odemeSil_`, `ozelIsaretle → ap_ozelIsaretle_`, `ozelUrun → ap_ozelUrun_`, `subeAta → ap_subeAta_`, `tedarikciKaydet → ap_tedarikciKaydet_`
 
 ### Adisyo Sipariş Toplayıcı (`apps-script/adisyo-siparis-toplayici`)
 
@@ -1511,9 +1511,9 @@ Sekme adı koddan okunamadı (değişkenle ya da döngüyle açılıyor). Bu yer
 | bap-panel-veri-kapisi | `kokpitPanoKur` | `bap-panel-veri-kapisi/Kod.gs:1152` | `ad` |
 | bap-panel-veri-kapisi | `mobilFatura_` | `bap-panel-veri-kapisi/Kod.gs:1597` | `k . birikenSekme` |
 | bap-panel-veri-kapisi | `genel_` | `bap-panel-veri-kapisi/Kod.gs:1945` | `ad` |
-| kolaybi-fatura-ham-veri | `ap_hammaddeEkle_` | `kolaybi-fatura-ham-veri/Alım Paneli.gs:459` | `sekmeler [ s ]` |
-| kolaybi-fatura-ham-veri | `ap_eslestirmeVeri_` | `kolaybi-fatura-ham-veri/Alım Paneli.gs:506` | `ad` |
-| kolaybi-fatura-ham-veri | `ap_hammaddeHaritasi_` | `kolaybi-fatura-ham-veri/Alım Paneli.gs:641` | `ad` |
+| kolaybi-fatura-ham-veri | `ap_hammaddeEkle_` | `kolaybi-fatura-ham-veri/Alım Paneli.gs:489` | `sekmeler [ s ]` |
+| kolaybi-fatura-ham-veri | `ap_eslestirmeVeri_` | `kolaybi-fatura-ham-veri/Alım Paneli.gs:536` | `ad` |
+| kolaybi-fatura-ham-veri | `ap_hammaddeHaritasi_` | `kolaybi-fatura-ham-veri/Alım Paneli.gs:671` | `ad` |
 | kolaybi-fatura-ham-veri | `alisFaturaTeshis` | `kolaybi-fatura-ham-veri/Kolaybi Veri Cek.gs:711` | `ad` |
 | adisyo-siparis-toplayici | `adresEslesmeUygula` | `adisyo-siparis-toplayici/Adres Eslesme.gs:34` | `AE_ANA_SEKME` |
 | kurye-net-calisma-suresi | `denetimSnapshot` | `kurye-net-calisma-suresi/Kural.gs:166` | `ad` |
