@@ -2149,7 +2149,7 @@ function kartAjanBlok(a,A){var S=A.kartSoru||[],E=A.kartEmin||[],R=A.kartAjan;
           el("span",{style:"font-size:13px",text:x.kartNeden}),hesapDugmeleri(x,ciz)];}))]));
     if(E.length)kap.appendChild(el("div",{style:"margin-top:14px"},[el("h4",{style:"margin:0 0 6px",text:(A.kartKuru?"Emin oldukları — açılınca kendisi kapatacak (":"Emin oldukları — bir sonraki çalışmada kapatacak (")+E.length+")"}),
       tablo([["Tarih"],["Adisyon"],["Kurye"],["Kart"],["Tutar",1],["Çekim"],["Dayanak"]],E.map(function(x){
-        return [gunAd(x.gun)+(x.teslim?" "+x.teslim:""),adisyonLink(x),x.kurye,x.kartKaynak,para(x.tutar),x.kartCekim.zaman,el("span",{style:"font-size:13px",text:x.kartNeden})];}))]));
+        return [gunAd(x.gun)+(x.teslim?" "+x.teslim:""),adisyonLink(x),x.kurye,x.kartKaynak,para(x.tutar),x.kartCekim?x.kartCekim.zaman:(x.kartParca||[]).map(function(p){return p.zaman+" · "+para(p.tutar);}).join(" + "),el("span",{style:"font-size:13px",text:x.kartNeden})];}))]));
     if(!S.length&&!E.length)kap.appendChild(bos("Şu an sorulacak ya da kapatılacak yemek kartı hesabı yok."));
     // Hiçbir açık hesaba bağlanmayan kapıda çekimler: parçalı ödemenin öbür parçası, Adisyo'da başka ödemeyle kapanmış sipariş ya da fazla çekim olabilir
     var B=A.kartBosta||[];

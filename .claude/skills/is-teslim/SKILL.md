@@ -16,6 +16,7 @@ for f in $(git diff --name-only origin/main -- '*.gs' '*.js' '*.mjs'); do
 node tests/satis-motoru-testi.js "apps-script/stok-takip-sistemi/Satıs Motoru.gs"
 node tests/veri-kapisi-maliyet-testi.js
 node tests/veri-kapisi-direkt-satis-testi.js
+node tests/kart-ajani-parcali-testi.js
 node bap-panel/build.js          # bap-panel/ değiştiyse; üretilen worker.js de commit'e girer
 ```
 Değiştirdiğin hesaplamaya test yoksa ekle (`tests/` kalıbı: `vm` ile .gs yüklenir, sahte sekme verilir).

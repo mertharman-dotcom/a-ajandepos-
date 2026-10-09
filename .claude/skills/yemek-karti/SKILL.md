@@ -44,6 +44,7 @@ Ortak sekmeler: `Fatura Kesimleri`, `Mac Oturumları`, `Fatura Tahsil Onayı`. H
 - `acikKanit_` → her kurye açık hesabı için Adisyo 'Ödeme Alındı' kanıtı + `kartEslestir_`.
 - `kartEslestir_`: aynı tutar (±0,5 TL), ±3 saat. **'emin'** = tek aday çekim, o çekime uyan başka sipariş yok, teslim saati biliniyor ve çekim ≤90 dk uzakta. Paye (saatsiz) için: aynı gün + **cihaz kuryenin** (`kartCihazKisi_`) + tek aday. Diğerleri **'soru'** (`kartNeden`).
 - `kartAjanCalis_` saatlik (`puantajTaramasi` içinden). **`KART_AJAN_KURU = true`** → hiçbir şey yazmaz; rapor `KART_AJAN` özelliğine, panelde `kartAjanBlok`. Kapalıyken 'emin' olanlar KURYE › `Tahsilatlar`'a 'Tahsil edildi' + Kaynak '<Kart> Ajanı' yazar.
+- `parcaliVeBosta_` (P61): tek çekim yoksa 2–4 çekimin toplamı; hepsi siparişin kartı, ≤15 dk, teslimden ≤90 dk, tek çözüm → 'emin', gerisi 'soru'. Kapanan hesabın Not'una her çekim `[ref Kart:numara]`; `kullanilanRef_` bunları bir daha kullanmaz. Bağlanmayan kapıda çekimler `acik.kartBosta`. `KART_AJAN_KURU = false` (09.10). Test: `tests/kart-ajani-parcali-testi.js`.
 - İki taraflı kontrol `ykKontrol_` (7 iş günü, yalnız okur): eşleşen, parçalı (eksik/fazla), çekimsiz sipariş, siparişsiz çekim, bekleyen.
 - Mutabakat `yemekKarti_` (iş günü 10:00–03:00; şu an yalnız Pluxee, Edenred, Paye toplanır).
 
