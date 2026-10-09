@@ -231,6 +231,23 @@ Tablolarda yapılan her değişikliğin eski ve yeni değeri **STOK › Fiyat_Du
 | P59 | **Sahibin isteği 08.10:** kurye bazında haftalık yemek kartı farkları: siparişle tutmayan çekimler (600 TL sipariş, 60 TL çekim gibi), siparişsiz çekim, çekimsiz sipariş. `ykKontrol_` bunları kart bazında ve 7 günlük buluyor, kurye/hafta görünümü yok; Multinet/Tokenflex/Metropol kontrolde 'verisiz' | ☐ |
 | P60 | Kurye bordrosu iki yerde farklı hesaplanıyor: KURYE tablosu `bordroCiz` neti `max(0, …)` ile sınırlıyor, panel `kurye_()` sınırlamıyor → kesinti hakedişten büyükse panel eksi, tablo 0 gösterir | ☐ Sahibin kararı 08.10: **eksi görünsün** (panel doğru) → tablo `bordroCiz`'deki `max(0, …)` kalkacak |
 
+## MU · Müşteri veritabanı (Birlesik Musteri Veritabani, 09.10)
+
+Sağlık raporu: Toplayıcı projesinde `musteriSaglikRaporu()` — yalnız okur, sonucu Günlük'e yazar.
+
+| | Sorun | Öneri | Durum |
+|---|---|---|---|
+| MU1 | İsim ilk gelen haliyle donuyor: `musteriTazele` / `musteriUpsert_` ismi yalnız boşsa yazıyor. Yemeksepeti→DeliveryHero geçişinden sonra tam isim ("ATA KILIÇ") geliyor ama listede "ATA K." kalıyor | Kısaltılmış isim, aynı telefonla gelen tam isimle değiştirilsin (ilk kelime aynı + soyadı aynı harf); eski isim J'ye düşsün. Önce KURU | ☐ |
+| MU2 | Ana Musteri Listesi ~32.700 satır, 22.07 özetinde 20.347 tekil telefon. Aynı telefonun birden çok satırı ya da cep biçiminde olmayan numaralar olabilir (örneklerde 926…, 905327… görüldü) | Raporla say; çiftler tek satıra toplansın (sayılar toplanır, etiketler birleşir), bozuk numara ayrı listeye | ☐ rapor bekliyor |
+| MU3 | Telefonsuz adres anahtarı kırılgan: "İstanbul" → "i stanbul", posta kodu / "bina" / "floor" anahtara giriyor, aynı daire iki satıra bölünüyor (örn. aynı daire 26 + 17 sipariş iki ayrı müşteri) | Daha sıkı anahtar (`msYeniAnahtar_`); rapor kaç satırın birleşeceğini gösterir. Anahtar değişince Trendyol düşük puan uyarısı da aynı anahtarı kullanmalı (`tyAnahtar_`) | ☐ rapor bekliyor |
+| MU4 | İki ana liste: "Ana Musteri Listesi" + "Ana Musteri - Canli" (farklı sütun sırası, 7-8 haneli ve "90850345,91" gibi bozuk telefonlar) | 09.10 kontrol: depodaki hiçbir Apps Script ve 29 Make senaryosunun hiçbiri Canli'yi okumuyor/yazmıyor; sahibi de kullanmıyor → adı "ESKI_Ana Musteri - Canli" yapılsın (silinmez; bir şey bozulursa ad geri alınır) | ◐ sahip sekme adını değiştirecek |
+| MU5 | Telefon biçimi sekmeden sekmeye farklı: Ana 10 hane, Telafi 0+10, Sikayet / Degerlendirme 90+10 | Okurken hep son 10 hane (`son10_`) — kod zaten böyle yapıyor; elle girişlerde de 10 hane | ☐ |
+| MU6 | `yorumlariCek` (Trendyol.gs) Ana listede eşleşmeyen satırın TY işaretini kaldırırken Telefonsuz sütun numaralarını (H/I/J) kullanıyor; koşul hiç tutmadığı için eski TY işaretleri Ana listede hiç kalkmıyor | `TY.T` yerine `TY.A` (O/Q/P) | ☐ |
+| MU7 | Analiz için eksik alanlar: ilk sipariş tarihi, toplam ciro, son kanal (YS / TY / Getir / Direkt), şube. "G Getir-Trendyol Siparis Sayisi" kimse tarafından güncellenmiyor | Tazeleme bu alanları da tutsun → yeni / sadık / kaybolan müşteri ayrımı panelde gösterilebilir | ☐ |
+| MU8 | Kontrol Edilecek Eslesmeler'de "Kismen benziyor" satırlarında yanlış eşleşmeler "ok" almış (farklı mahalle). K sütununun başlığı yok | K'ya "Onay" başlığı; "Kismen" satırları yeniden gözden geçirilsin | ☐ sahip |
+| MU10 | Ana Musteri Listesi'ni canlı WhatsApp botu (Make 6667782 "Integration WhatsApp Business Cloud") A sütunundaki 10 haneli telefonla arıyor; bot ayrıca Sikayet_Log, Telafi_Listesi, Etiket_Girisi'ne satır ekliyor. Make 7000163 Degerlendirme_Tiklama'ya yazıyor. Kapalı `adisyo_webhook` (5178087) açılırsa Ana listeye ikinci kez sayım yazar | Ana listedeki çift birleştirme / telefon düzeltmesi A sütununu 10 hane bırakmalı ve satır silmemeli (bot eşleşmesi bozulmasın). `adisyo_webhook` kapalı kalmalı | ☐ |
+| MU9 | `Mahalle_Eksik_Musteri` sekmesi boş, başlığı bile yok | Kullanılmıyorsa ESKI_ yapılsın | ☐ sahip |
+
 ## Y · Yapı
 
 | | İş | Durum |

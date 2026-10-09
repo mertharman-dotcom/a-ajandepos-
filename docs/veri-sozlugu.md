@@ -14,6 +14,7 @@ tutamaz; gerekiyorsa sahipten okur. ⏳ = karar/geçiş bekliyor (bkz. `kontrol-
 | FATURA | Kolaybi Fatura Ham Veri | `1JJ6UZzh8rSX1FE9Cr-UPzEAaE-2aKtM10bEvjAv2P5w` |
 | YEMEKKARTI | BAP Yemek Kartı Tahsilatları (Pluxee, Edenred, Paye çekimleri) | `19RVXZQwKZRCW6xnZxSwhRHXte4VWhaVqruaTZRwVJbM` |
 | TRENDYOL | Trendyol Yorumlar (Trendyol API çeker; ayrıntı `docs/trendyol-api.md`) | `1KLWCEBwFMHCTrTnCYLhv2ctg5PvGtS9DNzoMXF-Z1JE` |
+| MUSTERI | Birlesik Musteri Veritabani (müşteri listesi, telafi, etiketler) | `1dcjX3o-6N9b8ndKt8ALj9MxLg-KZ3I16Z6DI-S9oV1Q` |
 | KURYE | Kurye Net Çalışma Süresi (HemenYolda köprüsü, Pluxee çekimi, açık hesaplar) | `1LG7naAbMM9aL3K0QNzzrjXomC2LXjx4rdSCYNYWzDQo` |
 | PERSONEL | BAP Personel (BAP_Personel projesi bağlı; puantaj, vardiya, izin) | `1WBniOC2h9SvD20bHZl3G4o0f4kUmjbXtIrNvYVyV8Hg` |
 | MUSTERI | Birlesik Musteri Veritabani | `1dcjX3o-6N9b8ndKt8ALj9MxLg-KZ3I16Z6DI-S9oV1Q` |
@@ -55,6 +56,8 @@ Bütün e-tabloların listesi ve önerilen Drive düzeni: `docs/tablo-haritasi.m
 | Üretim / Sayım / Zayi / Transfer girişleri | STOK › Uretim_Girisleri, Sayim_Girisleri, Zayi_Girisleri, Transferler | Mutfak paneli | Hazırlık, stok | — |
 | Hazırlık planı ↔ gerçek, sapma sebebi (otomatik + elle) | BAP Mutfak Hazırlık Planı › Hazirlik_Dogruluk (`Sebep (elle)` sütununu mutfak/sahip yazar) | Hazırlık ajanı (`hp_dogrulukKontrol`, 23:30) | Hazırlık ajanı (düzeltme çarpanı), mail | Hazirlik_Sapma_Ozet ve Hazirlik_Sapma_Sebep her gece buradan baştan üretilir, kopya değil |
 | Ürün maliyeti | STOK › Tbl_Maliyetler | Stok Takip içindeki `BAP Maliyet.gs` (04:00) — canlıda çalışan bu | Raporlar | Ayrı `BAP Maliyet` projesi emekliye ayrılacak (D17); stok motorundaki eski rapor silinecek (S8) |
+| Telefonlu müşteri (tek satır = tek telefonun son 10 hanesi; isim, mahalle, adres, sipariş sayısı, etiketler) | MUSTERI › Ana Musteri Listesi | `musteriTazele` (Toplayıcı, günde 5 kez), `etiketleriUygula`, `yorumlariCek` (TY işareti) | Toplayıcı (etiket uyarısı), memnuniyet listesi (`listelenenSenkron`), canlı WhatsApp botu (Make 6667782, A sütunundaki telefonla arar) | "Ana Musteri - Canli" kimsenin kullanmadığı eski kopya → ESKI_ (MU4). Adisyo'daki müşteri kartları kaynak değil: aynı kişi platform başına ayrı kart olabilir |
+| Telefonsuz müşteri (Getir / Trendyol, adres anahtarıyla) | MUSTERI › Telefonsuz (Getir-Trendyol) | `musteriTazele`, `yorumlariCek` | Sipariş anı düşük puan uyarısı | Anahtar iyileştirilecek (MU3) |
 | Trendyol yorum ve puanları | TRENDYOL › Degerlendirmeler | `yorumlariCek` (04:15) | Özet, puan tablosu, müşteri veritabanı | — |
 | Trendyol menüsü ve fiyatı (platformdaki hali) | TRENDYOL › Menu_Ham | `menuCek` (03:30) | Menu_Sorun, Menu_Fark | Asıl menü GENEL › Menü; bu yalnızca Trendyol'daki görüntü |
 | Trendyol puanı × sipariş adedi (gün × mağaza), yarın tahmini | TRENDYOL › Puan_Siparis, Puan_Tahmin | `gunlukPuanRaporu` (23:50) | Sahip, panel | Puan_Siparis her gece baştan üretilir; sipariş adedi SATIS'tan okunur, kopya değil |
