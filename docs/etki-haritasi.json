@@ -2960,6 +2960,31 @@
    ]
   },
   {
+   "anahtar": "FATURA › Alis_Teshis",
+   "dosya": "FATURA",
+   "dosyaAdi": "Kolaybi Fatura Ham Veri",
+   "sekme": "Alis_Teshis",
+   "yazan": [
+    {
+     "ad": "kolaybi-fatura-ham-veri › alisFaturaTeshis",
+     "yer": [
+      "apps-script/kolaybi-fatura-ham-veri/Kolaybi Veri Cek.gs:745"
+     ]
+    }
+   ],
+   "okuyan": [],
+   "olusturan": [
+    "kolaybi-fatura-ham-veri › alisFaturaTeshis"
+   ],
+   "dolayli": [],
+   "sutunlar": [],
+   "girisler": [],
+   "arayuzler": [],
+   "projeler": [
+    "kolaybi-fatura-ham-veri"
+   ]
+  },
+  {
    "anahtar": "FATURA › Cekim_Log",
    "dosya": "FATURA",
    "dosyaAdi": "Kolaybi Fatura Ham Veri",
@@ -3038,6 +3063,12 @@
      "yer": [
       "apps-script/stok-takip-sistemi/Alıs Motoru v2.gs:49"
      ]
+    },
+    {
+     "ad": "stok-takip-sistemi › eskiBekleyenleriKapat",
+     "yer": [
+      "apps-script/stok-takip-sistemi/Alıs Motoru v2.gs:410"
+     ]
     }
    ],
    "okuyan": [
@@ -3068,7 +3099,7 @@
     {
      "ad": "stok-takip-sistemi › sonAlisFiyatlariniDoldur",
      "yer": [
-      "apps-script/stok-takip-sistemi/Alıs Motoru v2.gs:277"
+      "apps-script/stok-takip-sistemi/Alıs Motoru v2.gs:352"
      ]
     }
    ],
@@ -4881,7 +4912,7 @@
     {
      "ad": "stok-takip-sistemi › fiyatlariGuncelle",
      "yer": [
-      "apps-script/stok-takip-sistemi/Satıs Motoru.gs:1367"
+      "apps-script/stok-takip-sistemi/Satıs Motoru.gs:1370"
      ]
     }
    ],
@@ -13875,7 +13906,7 @@
     {
      "ad": "stok-takip-sistemi › eskileriIsaretle",
      "yer": [
-      "apps-script/stok-takip-sistemi/Satıs Motoru.gs:1418"
+      "apps-script/stok-takip-sistemi/Satıs Motoru.gs:1422"
      ]
     },
     {
@@ -15146,6 +15177,31 @@
    ]
   },
   {
+   "anahtar": "STOK › Alis_Bekleyen_Ozet",
+   "dosya": "STOK",
+   "dosyaAdi": "BAP Stok Takip Sistemi",
+   "sekme": "Alis_Bekleyen_Ozet",
+   "yazan": [
+    {
+     "ad": "stok-takip-sistemi › alisBekleyenOzeti",
+     "yer": [
+      "apps-script/stok-takip-sistemi/Alıs Motoru v2.gs:394"
+     ]
+    }
+   ],
+   "okuyan": [],
+   "olusturan": [
+    "stok-takip-sistemi › alisBekleyenOzeti"
+   ],
+   "dolayli": [],
+   "sutunlar": [],
+   "girisler": [],
+   "arayuzler": [],
+   "projeler": [
+    "stok-takip-sistemi"
+   ]
+  },
+  {
    "anahtar": "STOK › Alis_Bekleyenler",
    "dosya": "STOK",
    "dosyaAdi": "BAP Stok Takip Sistemi",
@@ -15154,7 +15210,7 @@
     {
      "ad": "stok-takip-sistemi › bekleyenYaz_",
      "yer": [
-      "apps-script/stok-takip-sistemi/Alıs Motoru v2.gs:382"
+      "apps-script/stok-takip-sistemi/Alıs Motoru v2.gs:529"
      ]
     }
    ],
@@ -15163,6 +15219,12 @@
      "ad": "stok-takip-sistemi › ajBekleyen_",
      "yer": [
       "apps-script/stok-takip-sistemi/Stok Ajanı.gs:244"
+     ]
+    },
+    {
+     "ad": "stok-takip-sistemi › alisBekleyenOzeti",
+     "yer": [
+      "apps-script/stok-takip-sistemi/Alıs Motoru v2.gs:369"
      ]
     },
     {
@@ -15238,13 +15300,13 @@
     {
      "ad": "bap-panel-backend › getAmbalajUrunler",
      "yer": [
-      "apps-script/bap-panel-backend/Kod.gs:2049"
+      "apps-script/bap-panel-backend/Kod.gs:2180"
      ]
     },
     {
      "ad": "bap-panel-backend › zayiAmbalajBul_",
      "yer": [
-      "apps-script/bap-panel-backend/Kod.gs:1728"
+      "apps-script/bap-panel-backend/Kod.gs:1859"
      ]
     },
     {
@@ -15474,7 +15536,7 @@
     {
      "ad": "bap-panel-backend › zayiAmbalajKurallari_",
      "yer": [
-      "apps-script/bap-panel-backend/Kod.gs:1754"
+      "apps-script/bap-panel-backend/Kod.gs:1885"
      ]
     },
     {
@@ -15666,6 +15728,95 @@
    "arayuzler": [],
    "projeler": [
     "stok-takip-sistemi"
+   ]
+  },
+  {
+   "anahtar": "STOK › Cift_Siparis_Raporu",
+   "dosya": "STOK",
+   "dosyaAdi": "BAP Stok Takip Sistemi",
+   "sekme": "Cift_Siparis_Raporu",
+   "yazan": [
+    {
+     "ad": "bap-panel-backend › ciftSiparisBul",
+     "yer": [
+      "apps-script/bap-panel-backend/Kod.gs:1311"
+     ]
+    }
+   ],
+   "okuyan": [],
+   "olusturan": [
+    "bap-panel-backend › ciftSiparisBul"
+   ],
+   "dolayli": [],
+   "sutunlar": [
+    {
+     "ad": "Calisan",
+     "kesin": false,
+     "fn": [
+      "bap-panel-backend › ciftSiparisBul"
+     ]
+    },
+    {
+     "ad": "Miktar",
+     "kesin": false,
+     "fn": [
+      "bap-panel-backend › ciftSiparisBul"
+     ]
+    },
+    {
+     "ad": "Siparis_ID",
+     "kesin": false,
+     "fn": [
+      "bap-panel-backend › ciftSiparisBul"
+     ]
+    },
+    {
+     "ad": "Sipariş Numarası",
+     "kesin": false,
+     "fn": [
+      "bap-panel-backend › ciftSiparisBul"
+     ]
+    },
+    {
+     "ad": "Sube",
+     "kesin": false,
+     "fn": [
+      "bap-panel-backend › ciftSiparisBul"
+     ]
+    },
+    {
+     "ad": "Tedarikci",
+     "kesin": false,
+     "fn": [
+      "bap-panel-backend › ciftSiparisBul"
+     ]
+    },
+    {
+     "ad": "Teslim_Durumu",
+     "kesin": false,
+     "fn": [
+      "bap-panel-backend › ciftSiparisBul"
+     ]
+    },
+    {
+     "ad": "Urun_Adi",
+     "kesin": false,
+     "fn": [
+      "bap-panel-backend › ciftSiparisBul"
+     ]
+    },
+    {
+     "ad": "WP_Gonderildi",
+     "kesin": false,
+     "fn": [
+      "bap-panel-backend › ciftSiparisBul"
+     ]
+    }
+   ],
+   "girisler": [],
+   "arayuzler": [],
+   "projeler": [
+    "bap-panel-backend"
    ]
   },
   {
@@ -16213,7 +16364,7 @@
     {
      "ad": "stok-takip-sistemi › eslesmeSekmesi_",
      "yer": [
-      "apps-script/stok-takip-sistemi/Alıs Motoru v2.gs:364"
+      "apps-script/stok-takip-sistemi/Alıs Motoru v2.gs:511"
      ]
     },
     {
@@ -16233,7 +16384,7 @@
     {
      "ad": "stok-takip-sistemi › sonAlisFiyatlariniDoldur",
      "yer": [
-      "apps-script/stok-takip-sistemi/Alıs Motoru v2.gs:279"
+      "apps-script/stok-takip-sistemi/Alıs Motoru v2.gs:354"
      ]
     }
    ],
@@ -16320,6 +16471,99 @@
    ]
   },
   {
+   "anahtar": "STOK › Fiyat_Kontrol",
+   "dosya": "STOK",
+   "dosyaAdi": "BAP Stok Takip Sistemi",
+   "sekme": "Fiyat_Kontrol",
+   "yazan": [
+    {
+     "ad": "stok-takip-sistemi › fiyatOnaylariniUygula",
+     "yer": [
+      "apps-script/stok-takip-sistemi/Alıs Motoru v2.gs:332"
+     ]
+    },
+    {
+     "ad": "stok-takip-sistemi › sonAlisFiyatDoldur_",
+     "yer": [
+      "apps-script/stok-takip-sistemi/Alıs Motoru v2.gs:308"
+     ]
+    }
+   ],
+   "okuyan": [],
+   "olusturan": [
+    "stok-takip-sistemi › sonAlisFiyatDoldur_"
+   ],
+   "dolayli": [],
+   "sutunlar": [
+    {
+     "ad": "durum",
+     "kesin": true,
+     "fn": [
+      "stok-takip-sistemi › fiyatOnaylariniUygula"
+     ]
+    },
+    {
+     "ad": "onay",
+     "kesin": true,
+     "fn": [
+      "stok-takip-sistemi › fiyatOnaylariniUygula"
+     ]
+    },
+    {
+     "ad": "satir",
+     "kesin": true,
+     "fn": [
+      "stok-takip-sistemi › fiyatOnaylariniUygula"
+     ]
+    },
+    {
+     "ad": "tablo",
+     "kesin": true,
+     "fn": [
+      "stok-takip-sistemi › fiyatOnaylariniUygula"
+     ]
+    },
+    {
+     "ad": "urun",
+     "kesin": true,
+     "fn": [
+      "stok-takip-sistemi › fiyatOnaylariniUygula"
+     ]
+    },
+    {
+     "ad": "yeni_j",
+     "kesin": true,
+     "fn": [
+      "stok-takip-sistemi › fiyatOnaylariniUygula"
+     ]
+    }
+   ],
+   "girisler": [
+    {
+     "proje": "stok-takip-sistemi",
+     "tur": "zamanlayici",
+     "aciklama": "her gün 00:30",
+     "fn": "alisIsle"
+    },
+    {
+     "proje": "stok-takip-sistemi",
+     "tur": "zamanlayici",
+     "aciklama": "her gün 05:00",
+     "fn": "ajanGecelik"
+    },
+    {
+     "proje": "stok-takip-sistemi",
+     "tur": "zamanlayici",
+     "aciklama": "her gün 14:30",
+     "fn": "alisIsle"
+    }
+   ],
+   "arayuzler": [],
+   "projeler": [
+    "stok-takip-sistemi"
+   ]
+  },
+  {
    "anahtar": "STOK › Fiyat_Log",
    "dosya": "STOK",
    "dosyaAdi": "BAP Stok Takip Sistemi",
@@ -16328,7 +16572,7 @@
     {
      "ad": "stok-takip-sistemi › fiyatlariGuncelleOtomatik",
      "yer": [
-      "apps-script/stok-takip-sistemi/Satıs Motoru.gs:1554"
+      "apps-script/stok-takip-sistemi/Satıs Motoru.gs:1558"
      ]
     }
    ],
@@ -16658,20 +16902,20 @@
     {
      "ad": "stok-takip-sistemi › satisSiparisIdleriniDoldur",
      "yer": [
-      "apps-script/stok-takip-sistemi/Satıs Motoru.gs:1724"
+      "apps-script/stok-takip-sistemi/Satıs Motoru.gs:1728"
      ]
     },
     {
      "ad": "stok-takip-sistemi › sm_geriAl",
      "yer": [
-      "apps-script/stok-takip-sistemi/Satıs Motoru.gs:1441",
-      "apps-script/stok-takip-sistemi/Satıs Motoru.gs:1481"
+      "apps-script/stok-takip-sistemi/Satıs Motoru.gs:1445",
+      "apps-script/stok-takip-sistemi/Satıs Motoru.gs:1485"
      ]
     },
     {
      "ad": "stok-takip-sistemi › ymStokTakipBirimineGec",
      "yer": [
-      "apps-script/stok-takip-sistemi/Satıs Motoru.gs:1530"
+      "apps-script/stok-takip-sistemi/Satıs Motoru.gs:1534"
      ]
     }
    ],
@@ -16729,7 +16973,7 @@
     {
      "ad": "stok-takip-sistemi › sm_uyarilariYaz",
      "yer": [
-      "apps-script/stok-takip-sistemi/Satıs Motoru.gs:1630"
+      "apps-script/stok-takip-sistemi/Satıs Motoru.gs:1634"
      ]
     }
    ],
@@ -16780,13 +17024,13 @@
     {
      "ad": "bap-panel-backend › sayimKaydet",
      "yer": [
-      "apps-script/bap-panel-backend/Kod.gs:1946"
+      "apps-script/bap-panel-backend/Kod.gs:2077"
      ]
     },
     {
      "ad": "bap-panel-backend › sayimTopluKaydet",
      "yer": [
-      "apps-script/bap-panel-backend/Kod.gs:2207"
+      "apps-script/bap-panel-backend/Kod.gs:2338"
      ]
     }
    ],
@@ -16843,7 +17087,7 @@
     {
      "ad": "bap-panel-backend › siparisDuzelt",
      "yer": [
-      "apps-script/bap-panel-backend/Kod.gs:1179"
+      "apps-script/bap-panel-backend/Kod.gs:1220"
      ]
     }
    ],
@@ -16882,27 +17126,33 @@
    "sekme": "Siparis_Kayitlari",
    "yazan": [
     {
+     "ad": "bap-panel-backend › ciftSiparisBul",
+     "yer": [
+      "apps-script/bap-panel-backend/Kod.gs:1241"
+     ]
+    },
+    {
      "ad": "bap-panel-backend › getAcikSiparisler",
      "yer": [
-      "apps-script/bap-panel-backend/Kod.gs:1253"
+      "apps-script/bap-panel-backend/Kod.gs:1384"
      ]
     },
     {
      "ad": "bap-panel-backend › hepsiSubeDuzelt",
      "yer": [
-      "apps-script/bap-panel-backend/Kod.gs:1198"
+      "apps-script/bap-panel-backend/Kod.gs:1329"
      ]
     },
     {
      "ad": "bap-panel-backend › malKabul",
      "yer": [
-      "apps-script/bap-panel-backend/Kod.gs:1313"
+      "apps-script/bap-panel-backend/Kod.gs:1444"
      ]
     },
     {
      "ad": "bap-panel-backend › siparisDuzelt",
      "yer": [
-      "apps-script/bap-panel-backend/Kod.gs:1145"
+      "apps-script/bap-panel-backend/Kod.gs:1186"
      ]
     },
     {
@@ -16920,7 +17170,7 @@
     {
      "ad": "bap-panel-backend › siparisWpIsaretle",
      "yer": [
-      "apps-script/bap-panel-backend/Kod.gs:1132"
+      "apps-script/bap-panel-backend/Kod.gs:1173"
      ]
     }
    ],
@@ -16934,7 +17184,7 @@
     {
      "ad": "stok-takip-sistemi › siparisIndeksi_",
      "yer": [
-      "apps-script/stok-takip-sistemi/Alıs Motoru v2.gs:305"
+      "apps-script/stok-takip-sistemi/Alıs Motoru v2.gs:450"
      ]
     }
    ],
@@ -16947,13 +17197,22 @@
      "ad": "Calisan",
      "kesin": false,
      "fn": [
+      "bap-panel-backend › ciftSiparisBul",
       "bap-panel-backend › hepsiSubeDuzelt"
+     ]
+    },
+    {
+     "ad": "Miktar",
+     "kesin": false,
+     "fn": [
+      "bap-panel-backend › ciftSiparisBul"
      ]
     },
     {
      "ad": "Siparis_ID",
      "kesin": false,
      "fn": [
+      "bap-panel-backend › ciftSiparisBul",
       "bap-panel-backend › hepsiSubeDuzelt"
      ]
     },
@@ -16961,6 +17220,7 @@
      "ad": "Sipariş Numarası",
      "kesin": false,
      "fn": [
+      "bap-panel-backend › ciftSiparisBul",
       "bap-panel-backend › hepsiSubeDuzelt"
      ]
     },
@@ -16968,6 +17228,7 @@
      "ad": "Sube",
      "kesin": false,
      "fn": [
+      "bap-panel-backend › ciftSiparisBul",
       "bap-panel-backend › hepsiSubeDuzelt"
      ]
     },
@@ -16982,6 +17243,7 @@
      "ad": "Tedarikci",
      "kesin": false,
      "fn": [
+      "bap-panel-backend › ciftSiparisBul",
       "bap-panel-backend › hepsiSubeDuzelt"
      ]
     },
@@ -16989,7 +17251,22 @@
      "ad": "Teslim_Durumu",
      "kesin": false,
      "fn": [
+      "bap-panel-backend › ciftSiparisBul",
       "bap-panel-backend › hepsiSubeDuzelt"
+     ]
+    },
+    {
+     "ad": "Urun_Adi",
+     "kesin": false,
+     "fn": [
+      "bap-panel-backend › ciftSiparisBul"
+     ]
+    },
+    {
+     "ad": "WP_Gonderildi",
+     "kesin": false,
+     "fn": [
+      "bap-panel-backend › ciftSiparisBul"
      ]
     }
    ],
@@ -17125,7 +17402,7 @@
     {
      "ad": "bap-panel-backend › sayimTopluKaydet",
      "yer": [
-      "apps-script/bap-panel-backend/Kod.gs:2200"
+      "apps-script/bap-panel-backend/Kod.gs:2331"
      ]
     },
     {
@@ -17137,13 +17414,13 @@
     {
      "ad": "stok-takip-sistemi › alisTarihDuzelt",
      "yer": [
-      "apps-script/stok-takip-sistemi/Alıs Motoru v2.gs:430"
+      "apps-script/stok-takip-sistemi/Alıs Motoru v2.gs:577"
      ]
     },
     {
      "ad": "stok-takip-sistemi › degisimSutunuEkle",
      "yer": [
-      "apps-script/stok-takip-sistemi/Alıs Motoru v2.gs:424"
+      "apps-script/stok-takip-sistemi/Alıs Motoru v2.gs:571"
      ]
     },
     {
@@ -17155,7 +17432,7 @@
     {
      "ad": "stok-takip-sistemi › hareketSekmesiAc_",
      "yer": [
-      "apps-script/stok-takip-sistemi/Alıs Motoru v2.gs:369"
+      "apps-script/stok-takip-sistemi/Alıs Motoru v2.gs:516"
      ]
     }
    ],
@@ -17291,7 +17568,7 @@
     {
      "ad": "bap-panel-backend › hepsiSubeDuzelt",
      "yer": [
-      "apps-script/bap-panel-backend/Kod.gs:1240"
+      "apps-script/bap-panel-backend/Kod.gs:1371"
      ]
     }
    ],
@@ -17384,13 +17661,13 @@
     {
      "ad": "stok-takip-sistemi › sm_geriAl",
      "yer": [
-      "apps-script/stok-takip-sistemi/Satıs Motoru.gs:1460"
+      "apps-script/stok-takip-sistemi/Satıs Motoru.gs:1464"
      ]
     },
     {
      "ad": "stok-takip-sistemi › ymStokTakipBirimineGec",
      "yer": [
-      "apps-script/stok-takip-sistemi/Satıs Motoru.gs:1503"
+      "apps-script/stok-takip-sistemi/Satıs Motoru.gs:1507"
      ]
     }
    ],
@@ -17404,7 +17681,7 @@
     {
      "ad": "bap-panel-backend › zayiDSStokBul_",
      "yer": [
-      "apps-script/bap-panel-backend/Kod.gs:1835"
+      "apps-script/bap-panel-backend/Kod.gs:1966"
      ]
     },
     {
@@ -17814,13 +18091,13 @@
     {
      "ad": "bap-panel-backend › hmBul_",
      "yer": [
-      "apps-script/bap-panel-backend/Kod.gs:1698"
+      "apps-script/bap-panel-backend/Kod.gs:1829"
      ]
     },
     {
      "ad": "bap-panel-backend › uretimKaydet",
      "yer": [
-      "apps-script/bap-panel-backend/Kod.gs:1583"
+      "apps-script/bap-panel-backend/Kod.gs:1714"
      ]
     },
     {
@@ -17851,6 +18128,12 @@
      "ad": "stok-takip-sistemi › hmHaritasi",
      "yer": [
       "apps-script/stok-takip-sistemi/BAP Maliyet.gs:485"
+     ]
+    },
+    {
+     "ad": "stok-takip-sistemi › hmKisaHaritasi_",
+     "yer": [
+      "apps-script/stok-takip-sistemi/Alıs Motoru v2.gs:319"
      ]
     },
     {
@@ -18239,7 +18522,7 @@
     {
      "ad": "bap-panel-backend › urunZayiIsle_",
      "yer": [
-      "apps-script/bap-panel-backend/Kod.gs:1799"
+      "apps-script/bap-panel-backend/Kod.gs:1930"
      ]
     },
     {
@@ -19433,31 +19716,31 @@
     {
      "ad": "bap-panel-backend › transferDirektCikis",
      "yer": [
-      "apps-script/bap-panel-backend/Kod.gs:1549"
+      "apps-script/bap-panel-backend/Kod.gs:1680"
      ]
     },
     {
      "ad": "bap-panel-backend › transferOnayla",
      "yer": [
-      "apps-script/bap-panel-backend/Kod.gs:1498"
+      "apps-script/bap-panel-backend/Kod.gs:1629"
      ]
     },
     {
      "ad": "bap-panel-backend › transferReddet",
      "yer": [
-      "apps-script/bap-panel-backend/Kod.gs:1528"
+      "apps-script/bap-panel-backend/Kod.gs:1659"
      ]
     },
     {
      "ad": "bap-panel-backend › transferSheet",
      "yer": [
-      "apps-script/bap-panel-backend/Kod.gs:1366"
+      "apps-script/bap-panel-backend/Kod.gs:1497"
      ]
     },
     {
      "ad": "bap-panel-backend › transferTalep",
      "yer": [
-      "apps-script/bap-panel-backend/Kod.gs:1440"
+      "apps-script/bap-panel-backend/Kod.gs:1571"
      ]
     }
    ],
@@ -19465,7 +19748,7 @@
     {
      "ad": "bap-panel-backend › getTransferler",
      "yer": [
-      "apps-script/bap-panel-backend/Kod.gs:1458"
+      "apps-script/bap-panel-backend/Kod.gs:1589"
      ]
     }
    ],
@@ -19567,7 +19850,7 @@
     {
      "ad": "bap-panel-backend › uretimKaydet",
      "yer": [
-      "apps-script/bap-panel-backend/Kod.gs:1657"
+      "apps-script/bap-panel-backend/Kod.gs:1788"
      ]
     }
    ],
@@ -19877,7 +20160,7 @@
     {
      "ad": "bap-panel-backend › zayiGirisYaz_",
      "yer": [
-      "apps-script/bap-panel-backend/Kod.gs:1688"
+      "apps-script/bap-panel-backend/Kod.gs:1819"
      ]
     }
    ],
@@ -25046,7 +25329,7 @@
    "klasor": "stok-takip-sistemi",
    "ad": "Stok Takip Sistemi",
    "bagliDosya": "STOK",
-   "fonksiyonSayisi": 277,
+   "fonksiyonSayisi": 281,
    "girisler": [
     "ekran: Index.html → submitRecipeSuggestion",
     "haftada bir 09:00 → rc_kontrolEt",
@@ -25083,6 +25366,7 @@
     "SATIS › Satıs Verileri",
     "SATIS2 › Detay",
     "STOK › Ajan_Sorular",
+    "STOK › Alis_Bekleyen_Ozet",
     "STOK › Alis_Bekleyenler",
     "STOK › Ambalaj_Hammadde",
     "STOK › Ambalaj_Kurallari",
@@ -25095,6 +25379,7 @@
     "STOK › Fatura_Eksik_Urunler",
     "STOK › Fatura_Eslestirme",
     "STOK › Fatura_Ev_Alimlari",
+    "STOK › Fiyat_Kontrol",
     "STOK › Fiyat_Log",
     "STOK › Maliyet_Detay",
     "STOK › Recete_Onerileri",
@@ -25360,6 +25645,19 @@
       "STOK › Stok_Hareketleri"
      ]
     },
+    "alisBekleyenOzeti": {
+     "dosya": "apps-script/stok-takip-sistemi/Alıs Motoru v2.gs",
+     "satir": 368,
+     "cagirir": [
+      "fmtTarih_",
+      "num_",
+      "tarihCoz_"
+     ],
+     "sekmeler": [
+      "✎ STOK › Alis_Bekleyen_Ozet",
+      "STOK › Alis_Bekleyenler"
+     ]
+    },
     "alisIsle": {
      "dosya": "apps-script/stok-takip-sistemi/Alıs Motoru v2.gs",
      "satir": 41,
@@ -25402,7 +25700,7 @@
     },
     "alisTarihDuzelt": {
      "dosya": "apps-script/stok-takip-sistemi/Alıs Motoru v2.gs",
-     "satir": 429,
+     "satir": 576,
      "cagirir": [],
      "sekmeler": [
       "✎ STOK › Stok_Hareketleri"
@@ -25410,7 +25708,7 @@
     },
     "alisTetikleyiciKur": {
      "dosya": "apps-script/stok-takip-sistemi/Alıs Motoru v2.gs",
-     "satir": 411,
+     "satir": 558,
      "cagirir": [],
      "sekmeler": []
     },
@@ -25556,13 +25854,13 @@
     },
     "baslangicTarihi": {
      "dosya": "apps-script/stok-takip-sistemi/Satıs Motoru.gs",
-     "satir": 1658,
+     "satir": 1662,
      "cagirir": [],
      "sekmeler": []
     },
     "basliklariTamamla_": {
      "dosya": "apps-script/stok-takip-sistemi/Alıs Motoru v2.gs",
-     "satir": 374,
+     "satir": 521,
      "cagirir": [],
      "sekmeler": []
     },
@@ -25576,7 +25874,7 @@
     },
     "bekleyenYaz_": {
      "dosya": "apps-script/stok-takip-sistemi/Alıs Motoru v2.gs",
-     "satir": 380,
+     "satir": 527,
      "cagirir": [],
      "sekmeler": [
       "✎ STOK › Alis_Bekleyenler"
@@ -25641,7 +25939,7 @@
     },
     "degisimSutunuEkle": {
      "dosya": "apps-script/stok-takip-sistemi/Alıs Motoru v2.gs",
-     "satir": 423,
+     "satir": 570,
      "cagirir": [],
      "sekmeler": [
       "✎ STOK › Stok_Hareketleri"
@@ -25777,9 +26075,19 @@
       "STOK › Tedarikçi Sevkiyat günleri"
      ]
     },
+    "eskiBekleyenleriKapat": {
+     "dosya": "apps-script/stok-takip-sistemi/Alıs Motoru v2.gs",
+     "satir": 403,
+     "cagirir": [
+      "tarihCoz_"
+     ],
+     "sekmeler": [
+      "✎ FATURA › Fatura_Kalemleri"
+     ]
+    },
     "eskileriIsaretle": {
      "dosya": "apps-script/stok-takip-sistemi/Satıs Motoru.gs",
-     "satir": 1417,
+     "satir": 1421,
      "cagirir": [
       "isaretKolonuHazirla",
       "kaynakSayfa",
@@ -25791,7 +26099,7 @@
     },
     "eslesenSiparisler_": {
      "dosya": "apps-script/stok-takip-sistemi/Alıs Motoru v2.gs",
-     "satir": 335,
+     "satir": 482,
      "cagirir": [
       "norm_",
       "pencerede_"
@@ -25808,7 +26116,7 @@
     },
     "eslesmeSekmesi_": {
      "dosya": "apps-script/stok-takip-sistemi/Alıs Motoru v2.gs",
-     "satir": 361,
+     "satir": 508,
      "cagirir": [],
      "sekmeler": [
       "✎ STOK › Fatura_Eslestirme",
@@ -25849,7 +26157,7 @@
     },
     "fiyatlariGuncelle": {
      "dosya": "apps-script/stok-takip-sistemi/Satıs Motoru.gs",
-     "satir": 1363,
+     "satir": 1366,
      "cagirir": [
       "nrm",
       "sade",
@@ -25865,7 +26173,7 @@
     },
     "fiyatlariGuncelleOtomatik": {
      "dosya": "apps-script/stok-takip-sistemi/Satıs Motoru.gs",
-     "satir": 1549,
+     "satir": 1553,
      "cagirir": [
       "fiyatlariGuncelle",
       "stokDosyasi"
@@ -25875,9 +26183,20 @@
       "STOK › Fiyat_Log"
      ]
     },
+    "fiyatOnaylariniUygula": {
+     "dosya": "apps-script/stok-takip-sistemi/Alıs Motoru v2.gs",
+     "satir": 331,
+     "cagirir": [
+      "norm_",
+      "num_"
+     ],
+     "sekmeler": [
+      "✎ STOK › Fiyat_Kontrol"
+     ]
+    },
     "fiyatTetikleyiciKur": {
      "dosya": "apps-script/stok-takip-sistemi/Satıs Motoru.gs",
-     "satir": 1539,
+     "satir": 1543,
      "cagirir": [
       "sm_uyar"
      ],
@@ -25885,7 +26204,7 @@
     },
     "fmtTarih_": {
      "dosya": "apps-script/stok-takip-sistemi/Alıs Motoru v2.gs",
-     "satir": 409,
+     "satir": 556,
      "cagirir": [],
      "sekmeler": []
     },
@@ -25921,7 +26240,7 @@
     },
     "hareketSekmesiAc_": {
      "dosya": "apps-script/stok-takip-sistemi/Alıs Motoru v2.gs",
-     "satir": 368,
+     "satir": 515,
      "cagirir": [],
      "sekmeler": [
       "✎ STOK › Stok_Hareketleri"
@@ -25956,6 +26275,17 @@
       "nrm",
       "sade",
       "sayi"
+     ],
+     "sekmeler": [
+      "STOK › Tbl_Hammaddeler"
+     ]
+    },
+    "hmKisaHaritasi_": {
+     "dosya": "apps-script/stok-takip-sistemi/Alıs Motoru v2.gs",
+     "satir": 318,
+     "cagirir": [
+      "hammaddeHaritasi_",
+      "norm_"
      ],
      "sekmeler": [
       "STOK › Tbl_Hammaddeler"
@@ -26481,7 +26811,7 @@
     },
     "isaretKolonuHazirla": {
      "dosya": "apps-script/stok-takip-sistemi/Satıs Motoru.gs",
-     "satir": 1588,
+     "satir": 1592,
      "cagirir": [
       "sade"
      ],
@@ -26685,13 +27015,13 @@
     },
     "norm_": {
      "dosya": "apps-script/stok-takip-sistemi/Alıs Motoru v2.gs",
-     "satir": 392,
+     "satir": 539,
      "cagirir": [],
      "sekmeler": []
     },
     "notebookDusumleriniGeriAl": {
      "dosya": "apps-script/stok-takip-sistemi/Satıs Motoru.gs",
-     "satir": 1435,
+     "satir": 1439,
      "cagirir": [
       "sm_geriAl"
      ],
@@ -26699,7 +27029,7 @@
     },
     "nrm": {
      "dosya": "apps-script/stok-takip-sistemi/Satıs Motoru.gs",
-     "satir": 1718,
+     "satir": 1722,
      "cagirir": [
       "trKucuk"
      ],
@@ -26707,7 +27037,7 @@
     },
     "num_": {
      "dosya": "apps-script/stok-takip-sistemi/Alıs Motoru v2.gs",
-     "satir": 393,
+     "satir": 540,
      "cagirir": [],
      "sekmeler": []
     },
@@ -26732,7 +27062,7 @@
     },
     "onOpen": {
      "dosya": "apps-script/stok-takip-sistemi/Satıs Motoru.gs",
-     "satir": 1571,
+     "satir": 1575,
      "cagirir": [],
      "sekmeler": []
     },
@@ -26770,7 +27100,7 @@
     },
     "pencerede_": {
      "dosya": "apps-script/stok-takip-sistemi/Alıs Motoru v2.gs",
-     "satir": 316,
+     "satir": 463,
      "cagirir": [],
      "sekmeler": []
     },
@@ -27050,13 +27380,13 @@
     },
     "sade": {
      "dosya": "apps-script/stok-takip-sistemi/Satıs Motoru.gs",
-     "satir": 1709,
+     "satir": 1713,
      "cagirir": [],
      "sekmeler": []
     },
     "satisDusumleriniGeriAl": {
      "dosya": "apps-script/stok-takip-sistemi/Satıs Motoru.gs",
-     "satir": 1430,
+     "satir": 1434,
      "cagirir": [
       "sm_geriAl"
      ],
@@ -27094,7 +27424,7 @@
     },
     "satisSiparisIdleriniDoldur": {
      "dosya": "apps-script/stok-takip-sistemi/Satıs Motoru.gs",
-     "satir": 1722,
+     "satir": 1726,
      "cagirir": [
       "stokDosyasi"
      ],
@@ -27104,13 +27434,13 @@
     },
     "satisTarihi": {
      "dosya": "apps-script/stok-takip-sistemi/Satıs Motoru.gs",
-     "satir": 1647,
+     "satir": 1651,
      "cagirir": [],
      "sekmeler": []
     },
     "satisTetikleyiciKur": {
      "dosya": "apps-script/stok-takip-sistemi/Satıs Motoru.gs",
-     "satir": 1563,
+     "satir": 1567,
      "cagirir": [
       "sm_uyar"
      ],
@@ -27182,7 +27512,7 @@
     },
     "siparisIndeksi_": {
      "dosya": "apps-script/stok-takip-sistemi/Alıs Motoru v2.gs",
-     "satir": 304,
+     "satir": 449,
      "cagirir": [
       "norm_",
       "tarihCoz_"
@@ -27193,7 +27523,7 @@
     },
     "siparistenSube_": {
      "dosya": "apps-script/stok-takip-sistemi/Alıs Motoru v2.gs",
-     "satir": 324,
+     "satir": 471,
      "cagirir": [
       "norm_",
       "pencerede_"
@@ -27214,7 +27544,7 @@
     },
     "sm_benzerlik": {
      "dosya": "apps-script/stok-takip-sistemi/Satıs Motoru.gs",
-     "satir": 1700,
+     "satir": 1704,
      "cagirir": [],
      "sekmeler": []
     },
@@ -27228,7 +27558,7 @@
     },
     "sm_bool": {
      "dosya": "apps-script/stok-takip-sistemi/Satıs Motoru.gs",
-     "satir": 1682,
+     "satir": 1686,
      "cagirir": [
       "trKucuk"
      ],
@@ -27252,7 +27582,7 @@
     },
     "sm_durumKolonu": {
      "dosya": "apps-script/stok-takip-sistemi/Satıs Motoru.gs",
-     "satir": 1613,
+     "satir": 1617,
      "cagirir": [
       "sade"
      ],
@@ -27260,7 +27590,7 @@
     },
     "sm_geriAl": {
      "dosya": "apps-script/stok-takip-sistemi/Satıs Motoru.gs",
-     "satir": 1439,
+     "satir": 1443,
      "cagirir": [
       "nrm",
       "sm_sayi",
@@ -27285,7 +27615,7 @@
     },
     "sm_islendiMi": {
      "dosya": "apps-script/stok-takip-sistemi/Satıs Motoru.gs",
-     "satir": 1619,
+     "satir": 1623,
      "cagirir": [
       "sade"
      ],
@@ -27341,7 +27671,7 @@
     },
     "sm_sayi": {
      "dosya": "apps-script/stok-takip-sistemi/Satıs Motoru.gs",
-     "satir": 1671,
+     "satir": 1675,
      "cagirir": [],
      "sekmeler": []
     },
@@ -27363,7 +27693,7 @@
     },
     "sm_stokYaz": {
      "dosya": "apps-script/stok-takip-sistemi/Satıs Motoru.gs",
-     "satir": 1601,
+     "satir": 1605,
      "cagirir": [],
      "sekmeler": []
     },
@@ -27382,13 +27712,13 @@
     },
     "sm_uyar": {
      "dosya": "apps-script/stok-takip-sistemi/Satıs Motoru.gs",
-     "satir": 1694,
+     "satir": 1698,
      "cagirir": [],
      "sekmeler": []
     },
     "sm_uyarilariYaz": {
      "dosya": "apps-script/stok-takip-sistemi/Satıs Motoru.gs",
-     "satir": 1626,
+     "satir": 1630,
      "cagirir": [],
      "sekmeler": [
       "✎ STOK › Satis_Uyarilar",
@@ -27440,23 +27770,27 @@
     },
     "sm_yuvarla": {
      "dosya": "apps-script/stok-takip-sistemi/Satıs Motoru.gs",
-     "satir": 1692,
+     "satir": 1696,
      "cagirir": [],
      "sekmeler": []
     },
     "sonAlisFiyatDoldur_": {
      "dosya": "apps-script/stok-takip-sistemi/Alıs Motoru v2.gs",
-     "satir": 250,
+     "satir": 260,
      "cagirir": [
+      "fmtTarih_",
+      "hmKisaHaritasi_",
       "norm_",
       "num_",
       "tarihCoz_"
      ],
-     "sekmeler": []
+     "sekmeler": [
+      "✎ STOK › Fiyat_Kontrol"
+     ]
     },
     "sonAlisFiyatlariniDoldur": {
      "dosya": "apps-script/stok-takip-sistemi/Alıs Motoru v2.gs",
-     "satir": 276,
+     "satir": 351,
      "cagirir": [
       "ambalajHaritasi_",
       "direktSatisHaritasi_",
@@ -27478,7 +27812,7 @@
     },
     "stokKey_": {
      "dosya": "apps-script/stok-takip-sistemi/Alıs Motoru v2.gs",
-     "satir": 356,
+     "satir": 503,
      "cagirir": [
       "norm_"
      ],
@@ -27494,7 +27828,7 @@
     },
     "stokSatiri_": {
      "dosya": "apps-script/stok-takip-sistemi/Alıs Motoru v2.gs",
-     "satir": 349,
+     "satir": 496,
      "cagirir": [
       "stokKey_"
      ],
@@ -27502,7 +27836,7 @@
     },
     "subeCoz": {
      "dosya": "apps-script/stok-takip-sistemi/Satıs Motoru.gs",
-     "satir": 1663,
+     "satir": 1667,
      "cagirir": [
       "sade"
      ],
@@ -27510,7 +27844,7 @@
     },
     "subeStokHaritasi_": {
      "dosya": "apps-script/stok-takip-sistemi/Alıs Motoru v2.gs",
-     "satir": 341,
+     "satir": 488,
      "cagirir": [
       "num_",
       "stokKey_"
@@ -27542,13 +27876,13 @@
     },
     "tarihCoz_": {
      "dosya": "apps-script/stok-takip-sistemi/Alıs Motoru v2.gs",
-     "satir": 400,
+     "satir": 547,
      "cagirir": [],
      "sekmeler": []
     },
     "tedarikciHaritasi_": {
      "dosya": "apps-script/stok-takip-sistemi/Alıs Motoru v2.gs",
-     "satir": 285,
+     "satir": 430,
      "cagirir": [
       "norm_"
      ],
@@ -27580,7 +27914,7 @@
     },
     "trKucuk": {
      "dosya": "apps-script/stok-takip-sistemi/Satıs Motoru.gs",
-     "satir": 1714,
+     "satir": 1718,
      "cagirir": [],
      "sekmeler": []
     },
@@ -27676,7 +28010,7 @@
     },
     "ymStokTakipBirimineGec": {
      "dosya": "apps-script/stok-takip-sistemi/Satıs Motoru.gs",
-     "satir": 1498,
+     "satir": 1502,
      "cagirir": [
       "nrm",
       "sm_bul",
@@ -27725,6 +28059,13 @@
     },
     {
      "proje": "stok-takip-sistemi",
+     "fn": "fiyatOnaylariniUygula",
+     "dosya": "apps-script/stok-takip-sistemi/Alıs Motoru v2.gs",
+     "satir": 339,
+     "ifade": "String ( v [ i ] [ cT ] )"
+    },
+    {
+     "proje": "stok-takip-sistemi",
      "fn": "exportAllTargetSheetsToCSV",
      "dosya": "apps-script/stok-takip-sistemi/CVS olarak veri cekme.gs",
      "satir": 36,
@@ -27769,7 +28110,7 @@
      "proje": "stok-takip-sistemi",
      "fn": "fiyatlariGuncelle",
      "dosya": "apps-script/stok-takip-sistemi/Satıs Motoru.gs",
-     "satir": 1389,
+     "satir": 1392,
      "ifade": "sekmeAdi"
     },
     {
@@ -30859,7 +31200,7 @@
    "klasor": "kolaybi-fatura-ham-veri",
    "ad": "Kolaybi Fatura Ham Veri",
    "bagliDosya": "FATURA",
-   "fonksiyonSayisi": 98,
+   "fonksiyonSayisi": 99,
    "girisler": [
     "haftada bir 03:00 → kolaybiAlisTamTarama",
     "her 2 saatte → kolaybiTumunuCek",
@@ -30885,6 +31226,7 @@
     "web: tedarikciKaydet → ap_tedarikciKaydet_"
    ],
    "sekmeler": [
+    "FATURA › Alis_Teshis",
     "FATURA › Cekim_Log",
     "FATURA › Fatura_Kalemleri",
     "FATURA › Gider_Faturalari",
@@ -30901,6 +31243,22 @@
     "STOK › Tbl_Hammaddeler"
    ],
    "fonksiyonlar": {
+    "alisFaturaTeshis": {
+     "dosya": "apps-script/kolaybi-fatura-ham-veri/Kolaybi Veri Cek.gs",
+     "satir": 704,
+     "cagirir": [
+      "kbGet_",
+      "kbToken_",
+      "kc_faturalar_",
+      "kc_faturaTarihi_",
+      "kc_giderKategorileri_",
+      "kc_giderMi_",
+      "kc_iso_"
+     ],
+     "sekmeler": [
+      "✎ FATURA › Alis_Teshis"
+     ]
+    },
     "ap_benzerlik_": {
      "dosya": "apps-script/kolaybi-fatura-ham-veri/Alım Paneli.gs",
      "satir": 584,
@@ -31640,7 +31998,7 @@
     },
     "kolaybiTetikleyiciKur": {
      "dosya": "apps-script/kolaybi-fatura-ham-veri/Kolaybi Veri Cek.gs",
-     "satir": 700,
+     "satir": 756,
      "cagirir": [],
      "sekmeler": []
     },
@@ -31829,6 +32187,13 @@
      "fn": "ap_hammaddeHaritasi_",
      "dosya": "apps-script/kolaybi-fatura-ham-veri/Alım Paneli.gs",
      "satir": 555,
+     "ifade": "ad"
+    },
+    {
+     "proje": "kolaybi-fatura-ham-veri",
+     "fn": "alisFaturaTeshis",
+     "dosya": "apps-script/kolaybi-fatura-ham-veri/Kolaybi Veri Cek.gs",
+     "satir": 711,
      "ifade": "ad"
     }
    ]
@@ -36944,7 +37309,7 @@
    "klasor": "bap-panel-backend",
    "ad": "BAP PANEL Backend",
    "bagliDosya": null,
-   "fonksiyonSayisi": 82,
+   "fonksiyonSayisi": 86,
    "girisler": [
     "web: action=getAcikSiparisler → getAcikSiparisler",
     "web: action=getAmbalaj → getAmbalajUrunler",
@@ -36987,6 +37352,7 @@
     "PERSONEL › Personel",
     "STOK › Ambalaj_Hammadde",
     "STOK › Ambalaj_Kurallari",
+    "STOK › Cift_Siparis_Raporu",
     "STOK › Direktsatisurunler",
     "STOK › Sayim_Girisleri",
     "STOK › Siparis_Duzeltme_Log",
@@ -37016,6 +37382,24 @@
       "ymBirimHaritasi"
      ],
      "sekmeler": []
+    },
+    "ciftSiparisBul": {
+     "dosya": "apps-script/bap-panel-backend/Kod.gs",
+     "satir": 1239,
+     "cagirir": [
+      "nrm",
+      "sekmeBul",
+      "siparisBaseId_",
+      "siparisIdZamani_",
+      "siparisSheet",
+      "siparisUrunImzasi_",
+      "ss_"
+     ],
+     "sekmeler": [
+      "✎ STOK › Cift_Siparis_Raporu",
+      "✎ STOK › Siparis_Kayitlari",
+      "STOK › Cift_Siparis_Raporu"
+     ]
     },
     "doGet": {
      "dosya": "apps-script/bap-panel-backend/Kod.gs",
@@ -37093,7 +37477,7 @@
     },
     "evetMi": {
      "dosya": "apps-script/bap-panel-backend/Kod.gs",
-     "satir": 2039,
+     "satir": 2170,
      "cagirir": [
       "trKucuk"
      ],
@@ -37101,7 +37485,7 @@
     },
     "getAcikSiparisler": {
      "dosya": "apps-script/bap-panel-backend/Kod.gs",
-     "satir": 1252,
+     "satir": 1383,
      "cagirir": [
       "nrm",
       "siparisSheet",
@@ -37113,7 +37497,7 @@
     },
     "getAmbalajUrunler": {
      "dosya": "apps-script/bap-panel-backend/Kod.gs",
-     "satir": 2047,
+     "satir": 2178,
      "cagirir": [
       "evetMi",
       "koliMu",
@@ -37240,7 +37624,7 @@
     },
     "getTransferler": {
      "dosya": "apps-script/bap-panel-backend/Kod.gs",
-     "satir": 1456,
+     "satir": 1587,
      "cagirir": [
       "nrm",
       "transferSheet"
@@ -37251,7 +37635,7 @@
     },
     "getTransferUrunler": {
      "dosya": "apps-script/bap-panel-backend/Kod.gs",
-     "satir": 1374,
+     "satir": 1505,
      "cagirir": [
       "getDirektSatisUrunler",
       "getHammaddeler",
@@ -37332,7 +37716,7 @@
     },
     "hepsiSubeDuzelt": {
      "dosya": "apps-script/bap-panel-backend/Kod.gs",
-     "satir": 1196,
+     "satir": 1327,
      "cagirir": [
       "nrm",
       "sekmeBul",
@@ -37361,7 +37745,7 @@
     },
     "hmBul_": {
      "dosya": "apps-script/bap-panel-backend/Kod.gs",
-     "satir": 1697,
+     "satir": 1828,
      "cagirir": [
       "nrm",
       "sekmeBul"
@@ -37372,13 +37756,13 @@
     },
     "jsonRes": {
      "dosya": "apps-script/bap-panel-backend/Kod.gs",
-     "satir": 2029,
+     "satir": 2160,
      "cagirir": [],
      "sekmeler": []
     },
     "koliMu": {
      "dosya": "apps-script/bap-panel-backend/Kod.gs",
-     "satir": 2025,
+     "satir": 2156,
      "cagirir": [
       "trKucuk"
      ],
@@ -37386,7 +37770,7 @@
     },
     "malKabul": {
      "dosya": "apps-script/bap-panel-backend/Kod.gs",
-     "satir": 1308,
+     "satir": 1439,
      "cagirir": [
       "siparisSheet"
      ],
@@ -37396,7 +37780,7 @@
     },
     "nrm": {
      "dosya": "apps-script/bap-panel-backend/Kod.gs",
-     "satir": 2021,
+     "satir": 2152,
      "cagirir": [
       "trKucuk"
      ],
@@ -37422,7 +37806,7 @@
     },
     "sayimBirimCevir": {
      "dosya": "apps-script/bap-panel-backend/Kod.gs",
-     "satir": 2123,
+     "satir": 2254,
      "cagirir": [
       "getAmbalajUrunler",
       "getDirektSatisUrunler",
@@ -37439,7 +37823,7 @@
     },
     "sayimKaydet": {
      "dosya": "apps-script/bap-panel-backend/Kod.gs",
-     "satir": 1923,
+     "satir": 2054,
      "cagirir": [
       "hareketYaz",
       "sayimBirimCevir",
@@ -37455,7 +37839,7 @@
     },
     "sayimTopluKaydet": {
      "dosya": "apps-script/bap-panel-backend/Kod.gs",
-     "satir": 2187,
+     "satir": 2318,
      "cagirir": [
       "birimKarsilik",
       "sayimBirimCevir",
@@ -37473,7 +37857,7 @@
     },
     "sekmeBul": {
      "dosya": "apps-script/bap-panel-backend/Kod.gs",
-     "satir": 1995,
+     "satir": 2126,
      "cagirir": [
       "trSade"
      ],
@@ -37491,13 +37875,13 @@
     },
     "siparisBaseId_": {
      "dosya": "apps-script/bap-panel-backend/Kod.gs",
-     "satir": 1127,
+     "satir": 1168,
      "cagirir": [],
      "sekmeler": []
     },
     "siparisDuzelt": {
      "dosya": "apps-script/bap-panel-backend/Kod.gs",
-     "satir": 1144,
+     "satir": 1185,
      "cagirir": [
       "nrm",
       "sekmeBul",
@@ -37511,11 +37895,18 @@
       "STOK › Siparis_Duzeltme_Log"
      ]
     },
+    "siparisIdZamani_": {
+     "dosya": "apps-script/bap-panel-backend/Kod.gs",
+     "satir": 1136,
+     "cagirir": [],
+     "sekmeler": []
+    },
     "siparisKaydet": {
      "dosya": "apps-script/bap-panel-backend/Kod.gs",
      "satir": 1096,
      "cagirir": [
       "siparisSheet",
+      "siparisTekrarBul_",
       "tahminiTeslimGunu",
       "trKucuk"
      ],
@@ -37535,9 +37926,28 @@
       "STOK › Siparis_Kayitlari"
      ]
     },
+    "siparisTekrarBul_": {
+     "dosya": "apps-script/bap-panel-backend/Kod.gs",
+     "satir": 1146,
+     "cagirir": [
+      "nrm",
+      "siparisBaseId_",
+      "siparisIdZamani_",
+      "siparisUrunImzasi_"
+     ],
+     "sekmeler": []
+    },
+    "siparisUrunImzasi_": {
+     "dosya": "apps-script/bap-panel-backend/Kod.gs",
+     "satir": 1142,
+     "cagirir": [
+      "nrm"
+     ],
+     "sekmeler": []
+    },
     "siparisWpIsaretle": {
      "dosya": "apps-script/bap-panel-backend/Kod.gs",
-     "satir": 1131,
+     "satir": 1172,
      "cagirir": [
       "siparisBaseId_",
       "siparisSheet"
@@ -37562,7 +37972,7 @@
     },
     "stokDuzelt": {
      "dosya": "apps-script/bap-panel-backend/Kod.gs",
-     "satir": 1959,
+     "satir": 2090,
      "cagirir": [
       "hareketYaz",
       "stokSatirBul"
@@ -37643,7 +38053,7 @@
     },
     "tarihCoz": {
      "dosya": "apps-script/bap-panel-backend/Kod.gs",
-     "satir": 1976,
+     "satir": 2107,
      "cagirir": [],
      "sekmeler": []
     },
@@ -37692,13 +38102,13 @@
     },
     "telefonDuzenle": {
      "dosya": "apps-script/bap-panel-backend/Kod.gs",
-     "satir": 2010,
+     "satir": 2141,
      "cagirir": [],
      "sekmeler": []
     },
     "transferDirektCikis": {
      "dosya": "apps-script/bap-panel-backend/Kod.gs",
-     "satir": 1543,
+     "satir": 1674,
      "cagirir": [
       "nrm",
       "stokHareket",
@@ -37710,7 +38120,7 @@
     },
     "transferOnayla": {
      "dosya": "apps-script/bap-panel-backend/Kod.gs",
-     "satir": 1496,
+     "satir": 1627,
      "cagirir": [
       "stokHareket",
       "transferSheet"
@@ -37721,7 +38131,7 @@
     },
     "transferReddet": {
      "dosya": "apps-script/bap-panel-backend/Kod.gs",
-     "satir": 1526,
+     "satir": 1657,
      "cagirir": [
       "transferSheet"
      ],
@@ -37731,7 +38141,7 @@
     },
     "transferSheet": {
      "dosya": "apps-script/bap-panel-backend/Kod.gs",
-     "satir": 1362,
+     "satir": 1493,
      "cagirir": [
       "sekmeBul",
       "ss_"
@@ -37743,7 +38153,7 @@
     },
     "transferTalep": {
      "dosya": "apps-script/bap-panel-backend/Kod.gs",
-     "satir": 1434,
+     "satir": 1565,
      "cagirir": [
       "nrm",
       "transferSheet"
@@ -37754,19 +38164,19 @@
     },
     "trKucuk": {
      "dosya": "apps-script/bap-panel-backend/Kod.gs",
-     "satir": 2006,
+     "satir": 2137,
      "cagirir": [],
      "sekmeler": []
     },
     "trSade": {
      "dosya": "apps-script/bap-panel-backend/Kod.gs",
-     "satir": 1986,
+     "satir": 2117,
      "cagirir": [],
      "sekmeler": []
     },
     "uretimKaydet": {
      "dosya": "apps-script/bap-panel-backend/Kod.gs",
-     "satir": 1573,
+     "satir": 1704,
      "cagirir": [
       "getRecete",
       "nrm",
@@ -37783,7 +38193,7 @@
     },
     "urunAmbalajZayiIsle_": {
      "dosya": "apps-script/bap-panel-backend/Kod.gs",
-     "satir": 1777,
+     "satir": 1908,
      "cagirir": [
       "stokHareket",
       "yuvarla",
@@ -37795,7 +38205,7 @@
     },
     "urunZayiIsle_": {
      "dosya": "apps-script/bap-panel-backend/Kod.gs",
-     "satir": 1798,
+     "satir": 1929,
      "cagirir": [
       "hmBul_",
       "nrm",
@@ -37820,7 +38230,7 @@
     },
     "ymZayiMiktari_": {
      "dosya": "apps-script/bap-panel-backend/Kod.gs",
-     "satir": 1712,
+     "satir": 1843,
      "cagirir": [
       "getYariMamuller",
       "nrm",
@@ -37836,7 +38246,7 @@
     },
     "zayiAmbalajBul_": {
      "dosya": "apps-script/bap-panel-backend/Kod.gs",
-     "satir": 1727,
+     "satir": 1858,
      "cagirir": [
       "nrm",
       "sekmeBul",
@@ -37848,7 +38258,7 @@
     },
     "zayiAmbalajKurallari_": {
      "dosya": "apps-script/bap-panel-backend/Kod.gs",
-     "satir": 1753,
+     "satir": 1884,
      "cagirir": [
       "nrm",
       "sekmeBul",
@@ -37860,7 +38270,7 @@
     },
     "zayiDSStokBul_": {
      "dosya": "apps-script/bap-panel-backend/Kod.gs",
-     "satir": 1834,
+     "satir": 1965,
      "cagirir": [
       "nrm",
       "sekmeBul"
@@ -37871,7 +38281,7 @@
     },
     "zayiGirisYaz_": {
      "dosya": "apps-script/bap-panel-backend/Kod.gs",
-     "satir": 1687,
+     "satir": 1818,
      "cagirir": [
       "sekmeBul"
      ],
@@ -37881,7 +38291,7 @@
     },
     "zayiKaydet": {
      "dosya": "apps-script/bap-panel-backend/Kod.gs",
-     "satir": 1672,
+     "satir": 1803,
      "cagirir": [
       "zayiKaydetSartli"
      ],
@@ -37889,7 +38299,7 @@
     },
     "zayiKaydetSartli": {
      "dosya": "apps-script/bap-panel-backend/Kod.gs",
-     "satir": 1850,
+     "satir": 1981,
      "cagirir": [
       "getDirektSatisUrunler",
       "hmBul_",
@@ -37909,7 +38319,7 @@
     },
     "zayiUrunKategori_": {
      "dosya": "apps-script/bap-panel-backend/Kod.gs",
-     "satir": 1748,
+     "satir": 1879,
      "cagirir": [
       "getUrunler",
       "nrm"

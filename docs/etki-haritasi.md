@@ -15,7 +15,7 @@ Ajan için: `node araclar/etki-haritasi.mjs ara "<sekme / sütun / fonksiyon ad�
 | | Adet |
 |---|---|
 | Apps Script projesi | 16 |
-| Kodun dokunduğu sekme | 174 |
+| Kodun dokunduğu sekme | 178 |
 | Birden fazla projenin **yazdığı** sekme (risk) | 20 |
 | Arayüz dosyası (panel, köprü) | 11 |
 
@@ -185,6 +185,11 @@ Aynı sekmeye iki ayrı proje yazıyorsa birinin yaptığı değişiklik diğeri
 
 ### FATURA — Kolaybi Fatura Ham Veri
 
+#### Alis_Teshis
+
+- **Yazan:** `alisFaturaTeshis` (Kolaybi Fatura Ham Veri)
+- **Yoksa oluşturan:** `alisFaturaTeshis`
+
 #### Cekim_Log
 
 - **Yazan:** `kc_log_` (Kolaybi Fatura Ham Veri)
@@ -193,7 +198,7 @@ Aynı sekmeye iki ayrı proje yazıyorsa birinin yaptığı değişiklik diğeri
 
 #### Fatura_Kalemleri
 
-- **Yazan:** `ap_subeAta_` (Kolaybi Fatura Ham Veri), `geriDonukTaramaDuzelt` (Kolaybi Fatura Ham Veri), `haricKalemleriTemizle` (Kolaybi Fatura Ham Veri), `kalemleriAyir` (Kolaybi Fatura Ham Veri), `subeDoldur` (Kolaybi Fatura Ham Veri), `alisIsle_` (Stok Takip Sistemi)
+- **Yazan:** `ap_subeAta_` (Kolaybi Fatura Ham Veri), `geriDonukTaramaDuzelt` (Kolaybi Fatura Ham Veri), `haricKalemleriTemizle` (Kolaybi Fatura Ham Veri), `kalemleriAyir` (Kolaybi Fatura Ham Veri), `subeDoldur` (Kolaybi Fatura Ham Veri), `alisIsle_` (Stok Takip Sistemi), `eskiBekleyenleriKapat` (Stok Takip Sistemi)
 - **Okuyan:** `maliyetBolumu_` (BAP Rapor Ajanı), `ap_veri_` (Kolaybi Fatura Ham Veri), `urunListesiOlustur` (Kolaybi Fatura Ham Veri), `veriKontrol` (Kolaybi Fatura Ham Veri), `sonAlisFiyatlariniDoldur` (Stok Takip Sistemi)
 - **Yoksa oluşturan:** `kalemleriAyir`
 - Olası başka sütunlar: 22 (aynı fonksiyon birden fazla sekme açtığı için kesin değil; ayrıntı .html / `ara`)
@@ -723,10 +728,15 @@ Aynı sekmeye iki ayrı proje yazıyorsa birinin yaptığı değişiklik diğeri
 - **Yoksa oluşturan:** `ajSorulariYaz_`
 - **Zamanla çalışan:** her gün 05:00 (`ajanGecelik`)
 
+#### Alis_Bekleyen_Ozet
+
+- **Yazan:** `alisBekleyenOzeti` (Stok Takip Sistemi)
+- **Yoksa oluşturan:** `alisBekleyenOzeti`
+
 #### Alis_Bekleyenler
 
 - **Yazan:** `bekleyenYaz_` (Stok Takip Sistemi)
-- **Okuyan:** `ajBekleyen_` (Stok Takip Sistemi), `arsivKontrol` (Stok Takip Sistemi), `bekleyenleriGoster` (Stok Takip Sistemi), `denetim2` (Stok Takip Sistemi), `denetimRaporuBAP` (Stok Takip Sistemi)
+- **Okuyan:** `ajBekleyen_` (Stok Takip Sistemi), `alisBekleyenOzeti` (Stok Takip Sistemi), `arsivKontrol` (Stok Takip Sistemi), `bekleyenleriGoster` (Stok Takip Sistemi), `denetim2` (Stok Takip Sistemi), `denetimRaporuBAP` (Stok Takip Sistemi)
 - **Yoksa oluşturan:** `bekleyenYaz_`
 - Olası başka sütunlar: 1 (aynı fonksiyon birden fazla sekme açtığı için kesin değil; ayrıntı .html / `ara`)
 - **Zamanla çalışan:** her gün 00:30 (`alisIsle`), her gün 05:00 (`ajanGecelik`), her gün 14:30 (`alisIsle`)
@@ -754,6 +764,12 @@ Aynı sekmeye iki ayrı proje yazıyorsa birinin yaptığı değişiklik diğeri
 
 - **Yazan:** `rsBilesenListesiYaz` (Stok Takip Sistemi)
 - **Okuyan:** `rsReceteTablosuKur` (Stok Takip Sistemi)
+
+#### Cift_Siparis_Raporu
+
+- **Yazan:** `ciftSiparisBul` (BAP PANEL Backend)
+- **Yoksa oluşturan:** `ciftSiparisBul`
+- Olası başka sütunlar: 9 (aynı fonksiyon birden fazla sekme açtığı için kesin değil; ayrıntı .html / `ara`)
 
 #### Direktsatisurunler
 
@@ -796,6 +812,13 @@ Aynı sekmeye iki ayrı proje yazıyorsa birinin yaptığı değişiklik diğeri
 
 - **Yazan:** `eksikUrunler` (Stok Takip Sistemi)
 - Olası başka sütunlar: 4 (aynı fonksiyon birden fazla sekme açtığı için kesin değil; ayrıntı .html / `ara`)
+
+#### Fiyat_Kontrol
+
+- **Yazan:** `fiyatOnaylariniUygula` (Stok Takip Sistemi), `sonAlisFiyatDoldur_` (Stok Takip Sistemi)
+- **Yoksa oluşturan:** `sonAlisFiyatDoldur_`
+- **Adıyla aranan sütunlar:** `durum`, `onay`, `satir`, `tablo`, `urun`, `yeni_j`
+- **Zamanla çalışan:** her gün 00:30 (`alisIsle`), her gün 05:00 (`ajanGecelik`), her gün 14:30 (`alisIsle`)
 
 #### Fiyat_Log
 
@@ -853,10 +876,10 @@ Aynı sekmeye iki ayrı proje yazıyorsa birinin yaptığı değişiklik diğeri
 
 #### Siparis_Kayitlari
 
-- **Yazan:** `getAcikSiparisler` (BAP PANEL Backend), `hepsiSubeDuzelt` (BAP PANEL Backend), `malKabul` (BAP PANEL Backend), `siparisDuzelt` (BAP PANEL Backend), `siparisKaydet` (BAP PANEL Backend), `siparisSheet` (BAP PANEL Backend), `siparisWpIsaretle` (BAP PANEL Backend)
+- **Yazan:** `ciftSiparisBul` (BAP PANEL Backend), `getAcikSiparisler` (BAP PANEL Backend), `hepsiSubeDuzelt` (BAP PANEL Backend), `malKabul` (BAP PANEL Backend), `siparisDuzelt` (BAP PANEL Backend), `siparisKaydet` (BAP PANEL Backend), `siparisSheet` (BAP PANEL Backend), `siparisWpIsaretle` (BAP PANEL Backend)
 - **Okuyan:** `getPlanEkrani` (BAP PANEL Backend), `siparisIndeksi_` (Stok Takip Sistemi)
 - **Yoksa oluşturan:** `siparisSheet`
-- Olası başka sütunlar: 7 (aynı fonksiyon birden fazla sekme açtığı için kesin değil; ayrıntı .html / `ara`)
+- Olası başka sütunlar: 10 (aynı fonksiyon birden fazla sekme açtığı için kesin değil; ayrıntı .html / `ara`)
 - **Zamanla çalışan:** her gün 00:30 (`alisIsle`), her gün 05:00 (`ajanGecelik`), her gün 14:30 (`alisIsle`)
 - **Etkilenen arayüz:** Mutfak paneli (bap-sistem.pages.dev)
 
@@ -895,7 +918,7 @@ Aynı sekmeye iki ayrı proje yazıyorsa birinin yaptığı değişiklik diğeri
 #### Tbl_Hammaddeler
 
 - **Yazan:** `ap_hammaddeEkle_` (Kolaybi Fatura Ham Veri)
-- **Okuyan:** `getHammaddeler` (BAP PANEL Backend), `hmBirimHaritasi` (BAP PANEL Backend), `hmBul_` (BAP PANEL Backend), `uretimKaydet` (BAP PANEL Backend), `maliyetTanimlari_` (BAP Panel Veri Kapısı), `hmHaritasi` (BAP Maliyet Modülü), `hammaddeHaritasi_` (Stok Takip Sistemi), `hmBilgiHaritasi` (Stok Takip Sistemi), `hmHaritasi` (Stok Takip Sistemi), `rsBilesenleriTopla` (Stok Takip Sistemi)
+- **Okuyan:** `getHammaddeler` (BAP PANEL Backend), `hmBirimHaritasi` (BAP PANEL Backend), `hmBul_` (BAP PANEL Backend), `uretimKaydet` (BAP PANEL Backend), `maliyetTanimlari_` (BAP Panel Veri Kapısı), `hmHaritasi` (BAP Maliyet Modülü), `hammaddeHaritasi_` (Stok Takip Sistemi), `hmBilgiHaritasi` (Stok Takip Sistemi), `hmHaritasi` (Stok Takip Sistemi), `hmKisaHaritasi_` (Stok Takip Sistemi), `rsBilesenleriTopla` (Stok Takip Sistemi)
 - **Dolaylı yazabilir** (sekmeyi başka bir yapıya verip orada yazdırıyor olabilir): `hammaddeHaritasi_`
 - **Zamanla çalışan:** her gün (`maliyetRaporu`), tabloda düzenleme olunca (`detayTetik`), her 5 dk (`stokMotoru`), her gün 00:30 (`alisIsle`), her gün 05:00 (`ajanGecelik`), her gün 14:30 (`alisIsle`)
 - **Elle çalıştırılan:** menü: Manuel Satış İşle (`stokMotoru`)
@@ -1272,7 +1295,7 @@ Aynı sekmeye iki ayrı proje yazıyorsa birinin yaptığı değişiklik diğeri
 
 ### Stok Takip Sistemi (`apps-script/stok-takip-sistemi`)
 
-Bağlı dosya: STOK · 277 fonksiyon · 50 sekme
+Bağlı dosya: STOK · 281 fonksiyon · 52 sekme
 
 - ekran: Index.html → submitRecipeSuggestion
 - haftada bir 09:00 → rc_kontrolEt
@@ -1314,7 +1337,7 @@ Bağlı dosya: — (tabloları kimlikle açar) · 219 fonksiyon · 78 sekme
 
 ### Kolaybi Fatura Ham Veri (`apps-script/kolaybi-fatura-ham-veri`)
 
-Bağlı dosya: FATURA · 98 fonksiyon · 14 sekme
+Bağlı dosya: FATURA · 99 fonksiyon · 15 sekme
 
 - haftada bir 03:00 → kolaybiAlisTamTarama
 - her 2 saatte → kolaybiTumunuCek
@@ -1402,7 +1425,7 @@ Bağlı dosya: — (tabloları kimlikle açar) · 17 fonksiyon · 4 sekme
 
 ### BAP PANEL Backend (`apps-script/bap-panel-backend`)
 
-Bağlı dosya: — (tabloları kimlikle açar) · 82 fonksiyon · 21 sekme
+Bağlı dosya: — (tabloları kimlikle açar) · 86 fonksiyon · 22 sekme
 
 - Web eylemleri (36): `action=getAcikSiparisler → getAcikSiparisler`, `action=getAmbalaj → getAmbalajUrunler`, `action=getAmbalajStok → getAmbalajUrunler`, `action=getCalisanlar → getCalisanlar`, `action=getDirektSatis → getDirektSatisUrunler`, `action=getHammaddeler → getHammaddeler`, `action=getPerformans → performansOku_`, `action=getPlanEkrani → getPlanEkrani`, `action=getRecete → getRecete`, `action=getRecetesiOlmayanlar → doGetIsle_`, `action=getSiparisEkrani → getSiparisEkrani`, `action=getStokDurum → getStokDurum`, `action=getSubeler → doGetIsle_`, `action=getTransferler → getTransferler`, `action=getTransferUrunler → getTransferUrunler`, `action=getUrunler → doGetIsle_`, `action=getYariMamuller → doGetIsle_`, `action=getYariMamulRapor → getYariMamulRapor`, `action=getYariMamulStok → getYariMamulStok`, `action=getZayiDirektSatis → getDirektSatisUrunler`, `action=getZayiUrunler → getZayiUrunler`, `action=malKabul → malKabul`, `action=sayimKaydet → sayimKaydet`, `action=sayimTopluKaydet → sayimTopluKaydet`, `action=sifreKontrol → sifreKontrol`, `action=siparisDuzelt → siparisDuzelt`, `action=siparisKaydet → siparisKaydet`, `action=siparisWpIsaretle → siparisWpIsaretle`, `action=stokDuzelt → stokDuzelt`, `action=tekrarYenile → tekrarYenile`, `action=transferDirektCikis → transferDirektCikis`, `action=transferOnayla → transferOnayla`, `action=transferReddet → transferReddet`, `action=transferTalep → transferTalep`, `action=uretimKaydet → uretimKaydet`, `action=zayiKaydet → zayiKaydet`
 
@@ -1463,13 +1486,14 @@ Sekme adı koddan okunamadı (değişkenle ya da döngüyle açılıyor). Bu yer
 | Proje | Fonksiyon | Yer | İfade |
 |---|---|---|---|
 | stok-takip-sistemi | `ambalajTeshis` | `stok-takip-sistemi/Adsız.gs:145` | `KURAL_AD` |
+| stok-takip-sistemi | `fiyatOnaylariniUygula` | `stok-takip-sistemi/Alıs Motoru v2.gs:339` | `String ( v [ i ] [ cT ] )` |
 | stok-takip-sistemi | `exportAllTargetSheetsToCSV` | `stok-takip-sistemi/CVS olarak veri cekme.gs:36` | `sheetName` |
 | stok-takip-sistemi | `exportAllTargetSheetsToCSV` | `stok-takip-sistemi/CVS olarak veri cekme.gs:43` | `sheetName` |
 | stok-takip-sistemi | `hp_tabloBul_` | `stok-takip-sistemi/Hazırlık Ajanı.gs:1037` | `c . ad` |
 | stok-takip-sistemi | `eksikUrunler` | `stok-takip-sistemi/KolayBi ürün karşılaştırma.gs:41` | `HAM_SEKME` |
 | stok-takip-sistemi | `eksikUrunler` | `stok-takip-sistemi/KolayBi ürün karşılaştırma.gs:62` | `ad` |
 | stok-takip-sistemi | `eksikUrunler` | `stok-takip-sistemi/KolayBi ürün karşılaştırma.gs:100` | `ad` |
-| stok-takip-sistemi | `fiyatlariGuncelle` | `stok-takip-sistemi/Satıs Motoru.gs:1389` | `sekmeAdi` |
+| stok-takip-sistemi | `fiyatlariGuncelle` | `stok-takip-sistemi/Satıs Motoru.gs:1392` | `sekmeAdi` |
 | stok-takip-sistemi | `ajKatalogOku_` | `stok-takip-sistemi/Stok Ajanı.gs:163` | `t . ad` |
 | stok-takip-sistemi | `ajKisaAdYaz_` | `stok-takip-sistemi/Stok Ajanı.gs:186` | `tablo` |
 | stok-takip-sistemi | `ajEslestirme_` | `stok-takip-sistemi/Stok Ajanı.gs:197` | `t . ad` |
@@ -1487,6 +1511,7 @@ Sekme adı koddan okunamadı (değişkenle ya da döngüyle açılıyor). Bu yer
 | bap-panel-veri-kapisi | `genel_` | `bap-panel-veri-kapisi/Kod.gs:1954` | `ad` |
 | kolaybi-fatura-ham-veri | `ap_hammaddeEkle_` | `kolaybi-fatura-ham-veri/Alım Paneli.gs:448` | `sekmeler [ s ]` |
 | kolaybi-fatura-ham-veri | `ap_hammaddeHaritasi_` | `kolaybi-fatura-ham-veri/Alım Paneli.gs:555` | `ad` |
+| kolaybi-fatura-ham-veri | `alisFaturaTeshis` | `kolaybi-fatura-ham-veri/Kolaybi Veri Cek.gs:711` | `ad` |
 | adisyo-siparis-toplayici | `adresEslesmeUygula` | `adisyo-siparis-toplayici/Adres Eslesme.gs:34` | `AE_ANA_SEKME` |
 | kurye-net-calisma-suresi | `denetimSnapshot` | `kurye-net-calisma-suresi/Kural.gs:166` | `ad` |
 | kurye-net-calisma-suresi | `_wSekmeDokumu` | `kurye-net-calisma-suresi/Kurye Web.gs:111` | `ad` |
