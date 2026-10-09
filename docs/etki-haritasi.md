@@ -202,7 +202,7 @@ Aynı sekmeye iki ayrı proje yazıyorsa birinin yaptığı değişiklik diğeri
 - **Yazan:** `ap_subeAta_` (Kolaybi Fatura Ham Veri), `geriDonukTaramaDuzelt` (Kolaybi Fatura Ham Veri), `haricKalemleriTemizle` (Kolaybi Fatura Ham Veri), `kalemleriAyir` (Kolaybi Fatura Ham Veri), `subeDoldur` (Kolaybi Fatura Ham Veri), `alisIsle_` (Stok Takip Sistemi), `eskiBekleyenleriKapat` (Stok Takip Sistemi)
 - **Okuyan:** `maliyetBolumu_` (BAP Rapor Ajanı), `ap_veri_` (Kolaybi Fatura Ham Veri), `urunListesiOlustur` (Kolaybi Fatura Ham Veri), `veriKontrol` (Kolaybi Fatura Ham Veri), `sonAlisFiyatlariniDoldur` (Stok Takip Sistemi)
 - **Yoksa oluşturan:** `kalemleriAyir`
-- Olası başka sütunlar: 22 (aynı fonksiyon birden fazla sekme açtığı için kesin değil; ayrıntı .html / `ara`)
+- Olası başka sütunlar: 28 (aynı fonksiyon birden fazla sekme açtığı için kesin değil; ayrıntı .html / `ara`)
 - **Zamanla çalışan:** haftada bir 09:00 (`haftalikRapor`), haftada bir 03:00 (`kolaybiAlisTamTarama`), her gün 00:10 (`kalemleriAyir`), her gün 14:10 (`kalemleriAyir`), her gün 00:30 (`alisIsle`), her gün 05:00 (`ajanGecelik`), her gün 14:30 (`alisIsle`)
 - **Elle çalıştırılan:** menü: Hariç kalemleri Fatura_Kalemleri'nden temizle (`haricKalemleriTemizle`), menü: Ürün listesini yenile (`urunListesiOlustur`), menü: Yeni faturaları kalemlere ayır (`kalemleriAyir`)
 - **Etkilenen arayüz:** Cloudflare eski sayfalar
@@ -244,11 +244,11 @@ Aynı sekmeye iki ayrı proje yazıyorsa birinin yaptığı değişiklik diğeri
 #### Odeme_Plani
 
 - **Yazan:** `odemePlaniIsle_` (BAP Panel Veri Kapısı)
-- **Okuyan:** `odemePlanlari_` (BAP Panel Veri Kapısı)
+- **Okuyan:** `odemePlanlari_` (BAP Panel Veri Kapısı), `ap_veri_` (Kolaybi Fatura Ham Veri)
 - **Yoksa oluşturan:** `odemePlaniIsle_`
 - **Adıyla aranan sütunlar:** `Açıklama`, `Durum`, `Kayıt_Zamanı`, `Plan_ID`, `Plan_Tarihi`, `Tedarikçi`, `Tutar`
 - Olası başka sütunlar: 1 (aynı fonksiyon birden fazla sekme açtığı için kesin değil; ayrıntı .html / `ara`)
-- **Etkilenen arayüz:** Yönetim paneli (bap-panel Worker)
+- **Etkilenen arayüz:** Cloudflare eski sayfalar, Yönetim paneli (bap-panel Worker)
 
 #### Odemeler
 
@@ -256,7 +256,7 @@ Aynı sekmeye iki ayrı proje yazıyorsa birinin yaptığı değişiklik diğeri
 - **Okuyan:** `finans_` (BAP Panel Veri Kapısı), `ap_veri_` (Kolaybi Fatura Ham Veri), `setFoodOdemeleriniDuzelt` (Kolaybi Fatura Ham Veri), `veriKontrol` (Kolaybi Fatura Ham Veri)
 - **Yoksa oluşturan:** `toptanciOdemeGir_`, `ap_sekmeleriHazirla_`
 - **Adıyla aranan sütunlar:** `Tedarikçi`, `Tutar`
-- Olası başka sütunlar: 11 (aynı fonksiyon birden fazla sekme açtığı için kesin değil; ayrıntı .html / `ara`)
+- Olası başka sütunlar: 16 (aynı fonksiyon birden fazla sekme açtığı için kesin değil; ayrıntı .html / `ara`)
 - **Etkilenen arayüz:** Cloudflare eski sayfalar, Yönetim paneli (bap-panel Worker)
 
 #### Ozel_Alimlar
@@ -280,7 +280,7 @@ Aynı sekmeye iki ayrı proje yazıyorsa birinin yaptığı değişiklik diğeri
 
 - **Yazan:** `ap_subeAta_` (Kolaybi Fatura Ham Veri), `geriDonukTaramaDuzelt` (Kolaybi Fatura Ham Veri), `kolaybiFaturalariCek` (Kolaybi Fatura Ham Veri), `sayfa1Tekillestir` (Kolaybi Fatura Ham Veri), `subeDoldur` (Kolaybi Fatura Ham Veri), `vadeTarihleriniDoldur` (Kolaybi Fatura Ham Veri)
 - **Okuyan:** `nabizKontrol` (BAP Günlük Yedek), `finans_` (BAP Panel Veri Kapısı), `ap_veri_` (Kolaybi Fatura Ham Veri), `kalemleriAyir` (Kolaybi Fatura Ham Veri), `kolaybiGiderFaturalariCek` (Kolaybi Fatura Ham Veri), `veriKontrol` (Kolaybi Fatura Ham Veri)
-- Olası başka sütunlar: 27 (aynı fonksiyon birden fazla sekme açtığı için kesin değil; ayrıntı .html / `ara`)
+- Olası başka sütunlar: 32 (aynı fonksiyon birden fazla sekme açtığı için kesin değil; ayrıntı .html / `ara`)
 - **Zamanla çalışan:** her gün (`nabizKontrol`), haftada bir 03:00 (`kolaybiAlisTamTarama`), her gün 00:10 (`kalemleriAyir`), her gün 14:10 (`kalemleriAyir`)
 - **Elle çalıştırılan:** menü: Yeni faturaları kalemlere ayır (`kalemleriAyir`)
 - **Etkilenen arayüz:** Cloudflare eski sayfalar
@@ -1357,7 +1357,7 @@ Bağlı dosya: — (tabloları kimlikle açar) · 225 fonksiyon · 80 sekme
 
 ### Kolaybi Fatura Ham Veri (`apps-script/kolaybi-fatura-ham-veri`)
 
-Bağlı dosya: FATURA · 104 fonksiyon · 17 sekme
+Bağlı dosya: FATURA · 104 fonksiyon · 18 sekme
 
 - haftada bir 03:00 → kolaybiAlisTamTarama
 - her 2 saatte → kolaybiTumunuCek
@@ -1488,7 +1488,7 @@ Bağlı dosya: — (tabloları kimlikle açar) · 27 fonksiyon · 4 sekme
 | Dosya | Konuştuğu proje | Kullandığı eylem sayısı |
 |---|---|---|
 | `bap-sistem/index.html` (Mutfak paneli (bap-sistem.pages.dev)) | bap-panel-backend | 27 |
-| `bap-panel/page.html` (Yönetim paneli (bap-panel Worker)) | bap-panel-veri-kapisi | 22 |
+| `bap-panel/page.html` (Yönetim paneli (bap-panel Worker)) | bap-panel-veri-kapisi | 21 |
 | `bap-panel/worker.template.js` (Yönetim paneli (bap-panel Worker)) | bap-panel-veri-kapisi | 29 |
 | `mac-kopru/edenred.mjs` (MacBook köprüsü (mac-kopru)) | bap-yemek-karti, kurye-net-calisma-suresi | 6 |
 | `mac-kopru/metropol.mjs` (MacBook köprüsü (mac-kopru)) | bap-yemek-karti, kurye-net-calisma-suresi | 4 |
@@ -1529,9 +1529,9 @@ Sekme adı koddan okunamadı (değişkenle ya da döngüyle açılıyor). Bu yer
 | bap-panel-veri-kapisi | `kokpitPanoKur` | `bap-panel-veri-kapisi/Kod.gs:1152` | `ad` |
 | bap-panel-veri-kapisi | `mobilFatura_` | `bap-panel-veri-kapisi/Kod.gs:1600` | `k . birikenSekme` |
 | bap-panel-veri-kapisi | `genel_` | `bap-panel-veri-kapisi/Kod.gs:1948` | `ad` |
-| kolaybi-fatura-ham-veri | `ap_hammaddeEkle_` | `kolaybi-fatura-ham-veri/Alım Paneli.gs:483` | `sekmeler [ s ]` |
-| kolaybi-fatura-ham-veri | `ap_eslestirmeVeri_` | `kolaybi-fatura-ham-veri/Alım Paneli.gs:530` | `ad` |
-| kolaybi-fatura-ham-veri | `ap_hammaddeHaritasi_` | `kolaybi-fatura-ham-veri/Alım Paneli.gs:665` | `ad` |
+| kolaybi-fatura-ham-veri | `ap_hammaddeEkle_` | `kolaybi-fatura-ham-veri/Alım Paneli.gs:505` | `sekmeler [ s ]` |
+| kolaybi-fatura-ham-veri | `ap_eslestirmeVeri_` | `kolaybi-fatura-ham-veri/Alım Paneli.gs:552` | `ad` |
+| kolaybi-fatura-ham-veri | `ap_hammaddeHaritasi_` | `kolaybi-fatura-ham-veri/Alım Paneli.gs:687` | `ad` |
 | kolaybi-fatura-ham-veri | `alisFaturaTeshis` | `kolaybi-fatura-ham-veri/Kolaybi Veri Cek.gs:711` | `ad` |
 | adisyo-siparis-toplayici | `adresEslesmeUygula` | `adisyo-siparis-toplayici/Adres Eslesme.gs:34` | `AE_ANA_SEKME` |
 | kurye-net-calisma-suresi | `denetimSnapshot` | `kurye-net-calisma-suresi/Kural.gs:166` | `ad` |

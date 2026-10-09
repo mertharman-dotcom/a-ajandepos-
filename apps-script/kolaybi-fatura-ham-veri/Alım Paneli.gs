@@ -25,6 +25,7 @@ var AP_HM      = 'Tbl_Hammaddeler';
 var AP_OZEL    = 'Ozel_Alimlar';      // panelden işaretlenen ev/kırtasiye alımları (bu dosyada)
 var AP_SATIS   = 'Satis_Faturalari';
 var AP_GIDER   = 'Gider_Faturalari';
+var AP_PLAN    = 'Odeme_Plani';       // toptancıya söz verilen ödeme tarihleri (yazan: Veri Kapısı odemePlaniIsle_)
 var AP_EV_BASLIK = 'Not (elle';        // Stok Takip'te ürün bazlı "Ev" notu olan sekmelerin J başlığı
 var AP_VARSAYILAN_VADE = 30;   // tedarikçiye vade tanımlanmamışsa (gün)
 var AP_ACILIS_TARIHI   = '2026-01-01';  // açılış bakiyesinin tarihi (verinin başladığı ay)
@@ -206,6 +207,26 @@ function ap_veri_() {
   });
   if (eksik.length) ts.getRange(ts.getLastRow() + 1, 1, eksik.length, 4).setValues(eksik);
 
+  // --- ödeme planı (söz verilen ödeme tarihleri). Yazan: Veri Kapısı odemePlaniIsle_ (/api/odeme-plani). Burada yalnız okunur;
+  // hangi planın karşılandığı tarayıcıda, ödemelerle birlikte hesaplanır (Veri Kapısı odemePlanlari_ ile aynı kural).
+  var planlar = [];
+  var ps = ss.getSheetByName(AP_PLAN);
+  if (ps && ps.getLastRow() > 1) {
+    var pd = ps.getRange(1, 1, ps.getLastRow(), ps.getLastColumn()).getValues();
+    var pb = pd[0].map(function (x) { return ap_nrm_(x); });
+    var pk = function (ad) { return pb.indexOf(ap_nrm_(ad)); };
+    var pc = { id: pk('Plan_ID'), ted: pk('Tedarikçi'), tarih: pk('Plan_Tarihi'), tutar: pk('Tutar'), not: pk('Açıklama'), durum: pk('Durum'), kayit: pk('Kayıt_Zamanı') };
+    if (pc.ted >= 0 && pc.tarih >= 0) for (var pi = 1; pi < pd.length; pi++) {
+      var pr = pd[pi], pYaz = String(pr[pc.ted] || '').replace(/\s+/g, ' ').trim(), pBos = function (v) { return v === '' || v === null || v === undefined; };
+      if (!pYaz || pBos(pr[pc.tarih])) continue;                 // ap_tarih_ boşa "bugün" der; boş tarihli satır plan değildir
+      var pT = ap_tarih_(pr[pc.tarih]), pK = pc.kayit >= 0 && !pBos(pr[pc.kayit]) ? ap_tarih_(pr[pc.kayit]) : null;
+      planlar.push({ id: pc.id >= 0 ? String(pr[pc.id] || '') : '', ted: ap_tedarikciBul_(pYaz, tedKanon, tedKeys) || pYaz, yazilanTed: pYaz,
+                     tarih: ap_iso_(pT), tutar: pc.tutar >= 0 ? Math.round(ap_sayi_(pr[pc.tutar]) * 100) / 100 : 0,
+                     not: pc.not >= 0 ? String(pr[pc.not] || '') : '', iptal: pc.durum >= 0 && /[iİ]ptal/i.test(String(pr[pc.durum] || '')),
+                     kayit: ap_iso_(pK || pT) });
+    }
+  }
+
   var katSet = {};
   Object.keys(hmMap).forEach(function (k) { if (hmMap[k].kat) katSet[hmMap[k].kat] = true; });
 
@@ -221,6 +242,7 @@ function ap_veri_() {
     kalemler: kalemler,
     odemeler: odemeler,
     eslesmeyenOdeme: eslesmeyenOdeme,
+    planlar: planlar,
     tedarikciler: tedarikciler,
     hesap: ap_hesap_(faturalar, odemeler, tedarikciler)
   };

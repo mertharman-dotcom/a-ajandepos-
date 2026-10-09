@@ -149,6 +149,7 @@
     <a class="geri" href="/">← Yönetim paneli</a>
     <button class="nav on" data-act="tab" data-v="ozet">Özet</button>
     <button class="nav" data-act="tab" data-v="ted">Tedarikçiler <span class="badge" id="b-ted" hidden></span></button>
+    <button class="nav" data-act="tab" data-v="plan">Ödeme planı <span class="badge" id="b-plan" hidden></span></button>
     <button class="nav" data-act="tab" data-v="urun">Ürünler</button>
     <button class="nav" data-act="tab" data-v="ay">Aylık</button>
     <button class="nav" data-act="tab" data-v="fat">Faturalar <span class="badge" id="b-fat" hidden></span></button>
@@ -181,6 +182,7 @@
       <div><label>Ödeme biçimi</label><select name="yontem"><option>Havale/EFT</option><option>Nakit</option><option>Kredi kartı</option><option>Çek</option><option>Diğer</option></select></div>
       <div><label>Tarih</label><input type="date" name="tarih"></div>
       <div><label>Ödenen tutar ₺</label><input type="number" step="0.01" min="0" name="tutar" placeholder="0,00"></div>
+      <div style="grid-column:1/-1" class="small" id="modal-ipucu"></div>
       <div><label>Not <span class="muted">(isteğe bağlı)</span></label><input name="not"></div>
     </div>
     <div class="actions"><button class="btn" data-act="odeme-kapat">Vazgeç</button><button class="btn primary" data-act="odeme-kaydet">Ödemeyi kaydet</button></div>
@@ -243,6 +245,7 @@ let fdet = { ted: "", bas: "", bit: "", no: "" };
 let satisF = { musteri: "", sadeceAcik: true };
 let tedG = { gorunum: "ekstre", urun: "" };
 let pasifGoster = false;
+let planF = { ted: "", tarih: "", tutar: "", not: "" }, planIstek = null, planGonderiliyor = false;
 let giderF = { kat: "", ay: "" };
 let fatFiltre = { ted: "", q: "", bas: "", bit: "", sadeceBos: false, ekGoster: false, tur: "" };
 let ayFiltre = { ay: "" };
@@ -302,10 +305,23 @@ async function yukle() {
     D.hesap = hesapla();
     document.getElementById("son-guncelleme").textContent = "Güncellendi " + new Date(j.olusturma).toLocaleTimeString("tr-TR", { hour: "2-digit", minute: "2-digit" });
     render();
+    hashIsle();
     eslYukle(true);
   } catch (e) {
     document.getElementById("icerik").innerHTML = `<div class="empty">Veri alınamadı: ${esc(e.message)}</div>`;
   }
+}
+/** Yönetim panelinden gelen bağlantılar: /alim#odeme, #odeme=<toptancı>, #plan, #plan=<toptancı>, #ted=<toptancı>. Bir kez işlenir. */
+function hashIsle() {
+  const m = decodeURIComponent(location.hash.slice(1)).match(/^(odeme|plan|ted)(?:=(.*))?$/);
+  if (!m) return;
+  history.replaceState(null, "", location.pathname + location.search);
+  const bul = ad => { if (!ad) return ""; const n = ad.toLocaleLowerCase("tr").replace(/\s+/g, " ").trim(); const k = t => t.toLocaleLowerCase("tr").replace(/\s+/g, " ").trim(), l = Object.keys(D.tedarikciler);
+    return l.find(t => k(t) === n) || l.find(t => k(t).startsWith(n) || n.startsWith(k(t))) || ""; };
+  const ted = bul(m[2]);
+  if (m[1] === "odeme") odemeModalAc(ted);
+  else if (m[1] === "plan") { planF.ted = ted; tab = "plan"; render(); }
+  else if (ted) { secTed = ted; tab = "ted"; render(); }
 }
 // Kayıt istekleri otomatik tekrar denenmez (çift kayıt riski); bağlantı koparsa "yazılmış olabilir" denir.
 async function post(body) {
@@ -398,10 +414,12 @@ function render() {
   const bt = document.getElementById("b-ted"); bt.hidden = !gecikenTed; bt.textContent = gecikenTed;
   const bugun = bugunISO(), gecikenSatis = (D.satis || []).filter(x => !satisGecersiz(x) && x.kalan > 0 && x.vade && x.vade < bugun).length;
   const bs = document.getElementById("b-satis"); bs.hidden = !gecikenSatis; bs.textContent = gecikenSatis;
+  const yakinPlan = planHesapla().filter(p => (p.durum === "gecikti" || p.durum === "bekliyor") && p.tarih <= bugun).length;
+  const bp = document.getElementById("b-plan"); bp.hidden = !yakinPlan; bp.textContent = yakinPlan;
   document.querySelectorAll(".nav").forEach(b => b.classList.toggle("on", b.dataset.v === tab));
   document.querySelectorAll("#sube-seg button").forEach(b => b.classList.toggle("on", b.dataset.v === sube));
-  document.getElementById("baslik").textContent = { ozet: "Özet", ted: "Tedarikçiler", urun: "Ürünler", ay: "Aylık alımlar", fat: "Faturalar", fdet: "Fatura detayı", ozel: "Özel alımlar", esl: "Fatura eşleştirme", satis: "Satış faturaları", gider: "Genel giderler" }[tab];
-  ({ ozet: rOzet, ted: rTed, urun: rUrun, ay: rAy, fat: rFat, fdet: rFdet, ozel: rOzel, esl: rEsl, satis: rSatis, gider: rGider })[tab](document.getElementById("icerik"));
+  document.getElementById("baslik").textContent = { ozet: "Özet", ted: "Tedarikçiler", plan: "Ödeme planı", urun: "Ürünler", ay: "Aylık alımlar", fat: "Faturalar", fdet: "Fatura detayı", ozel: "Özel alımlar", esl: "Fatura eşleştirme", satis: "Satış faturaları", gider: "Genel giderler" }[tab];
+  ({ ozet: rOzet, ted: rTed, plan: rPlan, urun: rUrun, ay: rAy, fat: rFat, fdet: rFdet, ozel: rOzel, esl: rEsl, satis: rSatis, gider: rGider })[tab](document.getElementById("icerik"));
 }
 
 // ---------- ÖZET ----------
@@ -449,11 +467,108 @@ function rOzet(el) {
       ${geciken.length ? `<table><tr><th>Tedarikçi</th><th class="r">Geciken</th><th class="r">En eski</th></tr>
       ${geciken.map(([t, h]) => `<tr class="row" data-act="ted-git" data-v="${esc(t)}"><td>${esc(t)}</td><td class="r num red">${fmt(h.vadesiGecen)}</td><td class="r"><span class="tag red">${h.enEskiGecikme} gün</span></td></tr>`).join("")}</table>` : '<div class="empty">Vadesi geçen borç yok</div>'}
     </div>
+    <div class="panel"><h2>Son ödemeler <span class="muted">yönetim panelinden ve buradan girilenler</span></h2>
+      ${(() => { const l = D.odemeler.slice().sort((a, b) => b.tarih.localeCompare(a.tarih)).slice(0, 10); return l.length ? `<table><tr><th>Tarih</th><th>Tedarikçi</th><th class="r">Tutar</th><th>Yöntem</th></tr>${l.map(o => `<tr class="row" data-act="ted-git" data-v="${esc(o.ted)}"><td class="num">${tarihTR(o.tarih)}</td><td>${esc(o.ted)}${o.not ? `<div class="muted small">${esc(o.not)}</div>` : ""}</td><td class="r num">${fmt(o.tutar)}</td><td class="small">${esc(o.yontem || "—")}</td></tr>`).join("")}</table>` : '<div class="empty">Ödeme kaydı yok</div>'; })()}
+    </div>
+    <div class="panel"><h2>Söz verilen ödemeler <span class="muted">ödeme planı</span></h2>
+      ${(() => { const l = planHesapla().filter(p => p.durum === "bekliyor" || p.durum === "gecikti").slice(0, 8); return l.length ? `<table><tr><th>Tarih</th><th>Tedarikçi</th><th class="r">Söz</th></tr>${l.map(p => `<tr class="row" data-act="tab" data-v="plan"><td class="num">${tarihTR(p.tarih)}<div>${planTarihTag(p)}</div></td><td>${esc(p.ted)}</td><td class="r num">${p.tutar > 0 ? fmt(Math.max(0, p.tutar - (p.odenen || 0))) : "—"}</td></tr>`).join("")}</table>` : '<div class="empty">Açık ödeme planı yok · <button class="btn sm" data-act="tab" data-v="plan">Tarih belirle</button></div>'; })()}
+    </div>
     <div class="panel"><h2>Son 7 günün faturaları <span class="muted" id="son7-toplam"></span></h2>
       <div class="scroll" style="max-height:420px"><table><tr><th>Tarih</th><th>Tedarikçi</th><th>Şube</th><th class="r">Tutar</th></tr>
       ${(() => { const s7 = new Date(); s7.setDate(s7.getDate() - 7); const iso = s7.toISOString().slice(0, 10); const l = D.faturalar.filter(f => subeUyar(f.sube) && isl(f) && f.tarih >= iso).sort((a, b) => b.tarih.localeCompare(a.tarih)); setTimeout(() => { const e = document.getElementById("son7-toplam"); if (e) e.textContent = l.length + " fatura · " + tl(l.reduce((x, f) => x + f.tutar, 0)); }); return l.map(f => `<tr class="row" data-act="fdet-git" data-v="${esc(f.no)}"><td class="num">${tarihTR(f.tarih)}</td><td>${esc(f.ted)}</td><td>${subeTag(f.sube, f.eski)}</td><td class="r num">${fmt(f.tutar)}</td></tr>`).join("") || '<tr><td colspan="4" class="empty">Son 7 günde fatura yok</td></tr>'; })()}</table></div>
     </div>
   </div>`;
+}
+
+// ---------- ÖDEME PLANI ----------
+/* Toptancıya söz verilen ödeme tarihleri (Kolaybi Fatura Ham Veri › Odeme_Plani). Yazan: Veri Kapısı (/api/odeme-plani).
+ * Karşılandı kuralı Veri Kapısı odemePlanlari_ ile aynı: planın kaydından sonra o toptancıya girilen ödemeler, plan tarihi
+ * sırasıyla planlara dağıtılır; tutar boşsa herhangi bir ödeme planı kapatır. Yönetim Merkezi aynı listeyi hatırlatır. */
+function planHesapla() {
+  const bugun = bugunISO(), liste = (D.planlar || []).map(p => Object.assign({}, p)), grup = {};
+  liste.forEach(p => { if (!p.iptal) (grup[p.ted] = grup[p.ted] || []).push(p); });
+  Object.keys(grup).forEach(ted => {
+    const pl = grup[ted].sort((a, b) => a.tarih.localeCompare(b.tarih) || a.kayit.localeCompare(b.kayit));
+    const ilk = pl.reduce((m, p) => p.kayit < m ? p.kayit : m, pl[0].kayit);
+    const havuz = D.odemeler.filter(o => o.ted === ted && o.tarih >= ilk).sort((a, b) => a.tarih.localeCompare(b.tarih)).map(o => ({ tarih: o.tarih, kalan: o.tutar }));
+    pl.forEach(p => {
+      const gerek = p.tutar > 0 ? p.tutar : 0.01; let odenen = 0, son = "";
+      havuz.forEach(o => { if (gerek - odenen <= 0.005 || o.kalan <= 0.005 || o.tarih < p.kayit) return; const al = Math.min(o.kalan, gerek - odenen); o.kalan -= al; odenen += al; son = o.tarih; });
+      p.odenen = p.tutar > 0 ? Math.round(odenen * 100) / 100 : 0; p.odemeTarihi = son;
+      p.karsilandi = p.tutar > 0 ? gerek - odenen <= 0.5 : odenen > 0;   // tutarsız plan yalnız bir ödeme gelince kapanır
+    });
+  });
+  liste.forEach(p => { p.durum = p.iptal ? "iptal" : p.karsilandi ? "karsilandi" : p.tarih < bugun ? "gecikti" : "bekliyor"; });
+  return liste.sort((a, b) => a.tarih.localeCompare(b.tarih));
+}
+const gunKaldi = iso => Math.round((new Date(iso + "T12:00:00") - new Date(bugunISO() + "T12:00:00")) / 86400000);
+const planTarihTag = p => { const g = gunKaldi(p.tarih); return p.durum === "gecikti" ? `<span class="tag red">${-g} gün gecikti</span>` : g === 0 ? '<span class="tag red">bugün</span>' : g <= 7 ? `<span class="tag">${g} gün kaldı</span>` : `<span class="muted small">${g} gün kaldı</span>`; };
+function planSatirlari(liste, tedSutunu) {
+  return liste.map(p => { const h = D.hesap[p.ted] || {};
+    return `<tr><td class="num">${tarihTR(p.tarih)}<div>${planTarihTag(p)}</div></td>${tedSutunu ? `<td class="row" data-act="ted-git" data-v="${esc(p.ted)}" style="cursor:pointer">${esc(p.ted)}</td>` : ""}
+      <td class="r num">${p.tutar > 0 ? fmt(p.tutar) : '<span class="muted">tutarsız</span>'}</td><td class="r num">${p.odenen ? fmt(p.odenen) : "—"}</td><td class="r num">${fmt(Math.max(0, h.bakiye || 0))}</td>
+      <td class="small muted">${esc(p.not)}</td>
+      <td class="r" style="white-space:nowrap"><button class="btn sm primary" data-act="odeme-modal" data-v="${esc(p.ted)}" data-tutar="${p.tutar > 0 ? Math.max(0, p.tutar - (p.odenen || 0)) : ""}">Ödeme gir</button>
+        ${p.id ? `<button class="btn sm" data-act="plan-iptal" data-v="${esc(p.id)}">İptal</button>` : ""}</td></tr>`; }).join("");
+}
+function rPlan(el) {
+  const P = planHesapla(), acik = P.filter(p => p.durum === "bekliyor" || p.durum === "gecikti"), biten = P.filter(p => p.durum === "karsilandi").slice(-10).reverse();
+  const bugun = bugunISO(), hafta = (() => { const d = new Date(); d.setDate(d.getDate() + 7); return d.toISOString().slice(0, 10); })();
+  const geciken = acik.filter(p => p.durum === "gecikti"), buHafta = acik.filter(p => p.tarih >= bugun && p.tarih <= hafta);
+  const kalanT = l => l.reduce((s, p) => s + Math.max(0, (p.tutar || 0) - (p.odenen || 0)), 0);
+  const tedler = Object.keys(D.tedarikciler).sort((a, b) => ((D.hesap[b] || {}).vadesiGecen || 0) - ((D.hesap[a] || {}).vadesiGecen || 0) || Math.max(0, (D.hesap[b] || {}).bakiye || 0) - Math.max(0, (D.hesap[a] || {}).bakiye || 0) || a.localeCompare(b, "tr"));
+  const etiket = t => { const h = D.hesap[t] || {}; return esc(t) + (h.vadesiGecen > 0.5 ? " — vadesi geçen " + fmt0(h.vadesiGecen) + " ₺" : h.bakiye > 0.5 ? " — borç " + fmt0(h.bakiye) + " ₺" : ""); };
+  el.innerHTML = `
+  <div class="cards">
+    <div class="card ${geciken.length ? "alert" : ""}"><div class="lbl">Tarihi geçen söz</div><div class="val">${geciken.length}</div><div class="sub">${geciken.length ? tl(kalanT(geciken)) + " ödenmedi" : "geciken söz yok"}</div></div>
+    <div class="card"><div class="lbl">Önümüzdeki 7 gün</div><div class="val">${buHafta.length}</div><div class="sub">${buHafta.length ? tl(kalanT(buHafta)) + " ödenecek" : "bu hafta söz yok"}</div></div>
+    <div class="card"><div class="lbl">Açık planlar</div><div class="val">${acik.length}</div><div class="sub">toplam ${tl(kalanT(acik))}</div></div>
+  </div>
+  <div class="panel mb"><h2>Ödeme tarihi belirle <span class="muted">toptancıya söz verdiğin gün</span></h2>
+    <div class="body">
+      <div class="form" id="plan-form">
+        <div style="grid-column:1/-1"><label>Toptancı</label><select name="ted"><option value="">Toptancı seç…</option>${tedler.map(t => `<option value="${esc(t)}" ${t === planF.ted ? "selected" : ""}>${etiket(t)}</option>`).join("")}</select></div>
+        <div><label>Ödeme tarihi</label><input type="date" name="tarih" value="${esc(planF.tarih)}" min="${(() => { const d = new Date(); d.setDate(d.getDate() - 31); return d.toISOString().slice(0, 10); })()}"></div>
+        <div><label>Tutar ₺ <span class="muted">(isteğe bağlı)</span></label><input type="number" step="0.01" min="0" name="tutar" value="${esc(planF.tutar)}" placeholder="boş bırakılabilir"></div>
+        <div style="grid-column:1/-1"><label>Açıklama <span class="muted">(isteğe bağlı)</span></label><input name="not" maxlength="300" value="${esc(planF.not)}" placeholder="kime söz verildi, hangi faturalar…"></div>
+      </div>
+      <div style="display:flex;gap:10px;align-items:center;margin-top:12px;flex-wrap:wrap"><button class="btn primary" data-act="plan-kaydet" ${planGonderiliyor ? "disabled" : ""}>${planGonderiliyor ? "Kaydediliyor…" : "Tarihi kaydet"}</button>
+        <span class="muted small">Tarihi gelince yönetim panelinin Yönetim Merkezi'nde hatırlatılır; o toptancıya ödeme girilince kendiliğinden kapanır.</span></div>
+    </div></div>
+  <div class="panel mb"><h2>Açık planlar <span class="muted">en yakın tarih üstte</span></h2>
+    ${acik.length ? `<div class="scroll"><table><tr><th>Tarih</th><th>Tedarikçi</th><th class="r">Söz</th><th class="r">Ödenen</th><th class="r">Güncel borç</th><th>Açıklama</th><th></th></tr>${planSatirlari(acik, true)}</table></div>` : '<div class="empty">Planlanmış toptancı ödemesi yok</div>'}</div>
+  ${biten.length ? `<div class="panel"><h2>Son karşılananlar</h2><table><tr><th>Plan tarihi</th><th>Tedarikçi</th><th class="r">Söz</th><th>Ödendiği gün</th></tr>
+    ${biten.map(p => `<tr class="row" data-act="ted-git" data-v="${esc(p.ted)}"><td class="num">${tarihTR(p.tarih)}</td><td>${esc(p.ted)}</td><td class="r num">${p.tutar > 0 ? fmt(p.tutar) : "—"}</td><td class="num">${tarihTR(p.odemeTarihi)}</td></tr>`).join("")}</table></div>` : ""}`;
+}
+async function planGonder(govde) {
+  try {
+    const r = await fetch("/api/odeme-plani", { method: "POST", credentials: "same-origin", headers: { "content-type": "application/json", "x-bap-panel": "1" }, body: JSON.stringify(govde) });
+    return await r.json();
+  } catch (e) { return { belirsiz: true, hata: "Cevap alınamadı; kaydedilmiş olabilir. Yenile ile kontrol et, listede yoksa tekrar gönder (aynı kayıt iki kez yazılmaz)." }; }
+}
+async function planKaydet() {
+  if (planGonderiliyor) return;
+  const f = document.getElementById("plan-form"), once = [planF.ted, planF.tarih, planF.tutar, planF.not].join("|");
+  planF = { ted: f.querySelector("[name=ted]").value, tarih: f.querySelector("[name=tarih]").value, tutar: f.querySelector("[name=tutar]").value, not: f.querySelector("[name=not]").value.trim() };
+  if (once !== [planF.ted, planF.tarih, planF.tutar, planF.not].join("|")) planIstek = null;   // içerik değiştiyse yeni kayıt
+  if (!planF.ted || !planF.tarih) { toast("Toptancı ve tarih seç"); return; }
+  if (!planIstek) planIstek = "P" + Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+  planGonderiliyor = true; render();
+  const d = await planGonder({ istekNo: planIstek, islem: "ekle", tedarikci: planF.ted, tarih: planF.tarih, tutar: planF.tutar ? String(+planF.tutar) : "", aciklama: planF.not });
+  planGonderiliyor = false;
+  if (d && d.tamam) {
+    if (!(D.planlar || []).some(p => p.id && p.id === d.id)) (D.planlar = D.planlar || []).push({ id: d.id || "", ted: planF.ted, yazilanTed: d.ad || planF.ted, tarih: planF.tarih, tutar: +planF.tutar || 0, not: planF.not, iptal: false, kayit: bugunISO() });
+    toast((d.zatenKayitli ? "Zaten kaydedilmişti: " : "Kaydedildi: ") + planF.ted + ", " + tarihTR(planF.tarih));
+    planF = { ted: "", tarih: "", tutar: "", not: "" }; planIstek = null;
+  } else toast(d && d.belirsiz ? d.hata : "Kaydedilemedi: " + ((d && d.hata) || "bilinmeyen hata"));
+  render();
+}
+async function planIptal(id) {
+  const p = (D.planlar || []).find(x => x.id === id); if (!p) return;
+  if (!confirm(p.ted + " için " + tarihTR(p.tarih) + " ödeme planı iptal edilsin mi?\n(Satır silinmez, Durum 'İptal' olur.)")) return;
+  const d = await planGonder({ istekNo: "I" + Date.now().toString(36) + Math.random().toString(36).slice(2, 8), islem: "iptal", id });
+  if (d && d.tamam) { p.iptal = true; toast("Plan iptal edildi"); render(); }
+  else toast(d && d.belirsiz ? d.hata : "İptal edilemedi: " + ((d && d.hata) || "bilinmeyen hata"));
 }
 
 // ---------- TEDARİKÇİLER ----------
@@ -499,8 +614,10 @@ function rTedDetay(el) {
     </div>
     <div class="body" style="border-bottom:1px solid var(--line);display:flex;gap:8px;flex-wrap:wrap;align-items:center">
       <button class="btn primary" data-act="odeme-modal" data-v="${esc(t)}">+ Bu toptancıya ödeme gir</button>
+      <button class="btn" data-act="plan-git" data-v="${esc(t)}">Ödeme tarihi belirle</button>
       <span class="muted small">Ödemeler en eski faturadan başlayarak kapatılır.</span>
     </div>
+    ${(() => { const pl = planHesapla().filter(p => p.ted === t && (p.durum === "bekliyor" || p.durum === "gecikti")); return pl.length ? `<h2>Söz verilen ödemeler</h2><div class="scroll"><table><tr><th>Tarih</th><th class="r">Söz</th><th class="r">Ödenen</th><th class="r">Güncel borç</th><th>Açıklama</th><th></th></tr>${planSatirlari(pl, false)}</table></div>` : ""; })()}
     <div class="body" style="border-bottom:1px solid var(--line)">
       <div class="form">
         <div><label>Vade (gün)</label><input type="number" id="ted-vade" value="${ted.vade}" min="0"></div>
@@ -1026,15 +1143,22 @@ async function eslEv(v) {
 function eslRozet() { const bos = ESL ? ESL.satirlar.filter(eslBekliyor).length : 0; const b = document.getElementById("b-esl"); b.hidden = !bos; b.textContent = bos; }
 
 // ==================== İŞLEMLER ====================
-function odemeModalAc(ted) {
+function odemeModalAc(ted, tutar) {
   const sel = document.getElementById("modal-ted");
   const tedler = Object.keys(D.hesap).sort((a, b) => a.localeCompare(b, "tr"));
   sel.innerHTML = tedler.map(t => `<option ${t === ted ? "selected" : ""}>${esc(t)}</option>`).join("");
   const f = document.getElementById("modal-form");
-  f.querySelector("[name=tarih]").value = bugunISO(); f.querySelector("[name=tutar]").value = ""; f.querySelector("[name=not]").value = "";
-  odemeIstek = null;
+  f.querySelector("[name=tarih]").value = bugunISO(); f.querySelector("[name=tutar]").value = tutar ? String(Math.round(tutar * 100) / 100) : ""; f.querySelector("[name=not]").value = "";
+  odemeIstek = null; modalIpucu();
   document.getElementById("odeme-overlay").hidden = false;
   f.querySelector("[name=tutar]").focus();
+}
+/** Seçili toptancının güncel borcu; "borcun tamamını / vadesi geçeni yaz" kısayolları. */
+function modalIpucu() {
+  const ted = document.getElementById("modal-ted").value, h = D.hesap[ted], el = document.getElementById("modal-ipucu");
+  if (!h || !(h.bakiye > 0.5)) { el.innerHTML = ted ? '<span class="muted">Bu toptancının açık borcu görünmüyor; ödeme avans olarak düşülür.</span>' : ""; return; }
+  el.innerHTML = `Güncel borç <b class="num">${tl(h.bakiye)}</b>${h.vadesiGecen > 0.5 ? `, vadesi geçen <b class="num red">${tl(h.vadesiGecen)}</b>` : ""}.
+    <span style="display:inline-flex;gap:6px;margin-left:6px;flex-wrap:wrap">${h.vadesiGecen > 0.5 && Math.abs(h.vadesiGecen - h.bakiye) > 0.5 ? `<button class="btn sm" data-act="modal-tutar" data-v="${h.vadesiGecen}">Vadesi geçeni yaz</button>` : ""}<button class="btn sm" data-act="modal-tutar" data-v="${h.bakiye}">Borcun tamamını yaz</button></span>`;
 }
 // Ödeme, yönetim panelinin "Toptancı ödemeleri" ile aynı yoldan yazılır (/api/odeme → Veri Kapısı):
 // aynı gönderim iki kez yazılmaz, aynı gün aynı tutar varsa önce sorar, toptancı Tedarikciler listesinde olmalı.
@@ -1160,7 +1284,11 @@ document.addEventListener("click", e => {
     case "fat-bos": fatFiltre.sadeceBos = true; tab = "fat"; render(); break;
     case "fat-ac": if (e.target.closest("[data-stop]")) return; { const r = document.getElementById("fat-" + v); if (r) r.hidden = !r.hidden; } break;
     case "sube-ata": e.stopPropagation(); subeAta(el.dataset.no, v); break;
-    case "odeme-modal": odemeModalAc(v || secTed || ""); break;
+    case "odeme-modal": odemeModalAc(v || secTed || "", +el.dataset.tutar || 0); break;
+    case "modal-tutar": document.querySelector("#modal-form [name=tutar]").value = String(Math.round(+v * 100) / 100); break;
+    case "plan-git": planF.ted = v; tab = "plan"; render(); window.scrollTo(0, 0); break;
+    case "plan-kaydet": planKaydet(); break;
+    case "plan-iptal": planIptal(v); break;
     case "odeme-kapat": document.getElementById("odeme-overlay").hidden = true; break;
     case "odeme-kaydet": odemeKaydet(false); break;
     case "odeme-sil": odemeSil(v); break;
@@ -1189,6 +1317,8 @@ document.addEventListener("change", e => {
   if (el.dataset.act === "tur-sel") turAta(el.dataset.no, el.dataset.urun, el.value);
   if (el.dataset.act === "gider-kat") post({ action: "giderKategori", id: el.dataset.v, kategori: el.value }).then(() => { const g = (D.gider || []).find(x => x.id === el.dataset.v); if (g) g.kat = el.value; toast("Kategori: " + el.value); render(); }).catch(e => toast(e.message));
 });
+document.getElementById("modal-ted").addEventListener("change", modalIpucu);
+window.addEventListener("hashchange", () => { if (D) hashIsle(); });
 document.getElementById("esl-form").addEventListener("input", e => { if (e.target.name === "hedef") eslBilgiGoster(); });
 ["odeme-overlay", "hm-overlay", "esl-overlay"].forEach(id => document.getElementById(id).addEventListener("click", e => { if (e.target.id === id) e.target.hidden = true; }));
 document.addEventListener("keydown", e => { if (e.key === "Escape") { document.getElementById("odeme-overlay").hidden = true; document.getElementById("hm-overlay").hidden = true; document.getElementById("esl-overlay").hidden = true; } });

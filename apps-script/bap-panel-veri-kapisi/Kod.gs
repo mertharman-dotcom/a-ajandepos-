@@ -4543,7 +4543,8 @@ function odemePlanlari_(ss, odemeler, bugun) {
         var al = Math.min(o.kalan, gerek - odenen); o.kalan -= al; odenen += al; son = o.tarih;
       });
       x.odenen = x.tutar > 0 ? Math.round(odenen * 100) / 100 : (odenen > 0 ? 1 : 0);
-      x.karsilandi = gerek - odenen <= 0.5 || (x.tutar <= 0 && odenen > 0);
+      // Tutarsız planda gerek 0,01'dir; "kalan ≤ 0,5" onu ödeme olmadan da kapatırdı → tutarsız plan yalnız bir ödeme gelince kapanır.
+      x.karsilandi = x.tutar > 0 ? gerek - odenen <= 0.5 : odenen > 0;
       x.odemeTarihi = son;
     });
   });
