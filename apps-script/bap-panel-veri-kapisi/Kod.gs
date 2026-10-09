@@ -447,33 +447,24 @@ function yemekKartAdi_(odeme) {
  * Gün = iş günü (10:00 – ertesi 03:00). Pluxee / Edenred işlem zamanından, Paye raporun günü (mail konusu) üzerinden.
  * Çıktı: { gunler: { 'yyyy-mm-dd': { Pluxee: {t, a}, Edenred: {...}, Paye: {...} } }, son: { Pluxee: 'yyyy-mm-dd', ... } }
  */
+// Yemek kartı mutabakatı (panel › Yemek Kartları): gün × kart, terminale düşen KAPIDA çekim toplamı. Adisyo tarafı (satis.yemekKartSatis)
+// platform online ödemelerini saymaz; bu yüzden terminalde de yalnız kapıda çekimler toplanır (KART_KAYNAKLARI.oku online'ı ayıklar).
+// 09.10: önceki sürüm yalnız Pluxee / Edenred / Paye'yi ve onları online dahil topluyordu → her gün sahte "+9.000 TL" fark.
 function yemekKarti_() {
   var ss = tabloAc_(KAYNAK.yemekKarti.id), bas = gunEkle_(isGunu_(simdi_()), -29);
   var out = { gunler: {}, son: {} };
-  function ekle(kart, gun, tutar) {
-    if (!gun || gun < bas || !(tutar > 0)) return;
-    var g = out.gunler[gun] = out.gunler[gun] || {}, x = g[kart] = g[kart] || { t: 0, a: 0 };
-    x.t += tutar; x.a++;
-    if (!out.son[kart] || gun > out.son[kart]) out.son[kart] = gun;
-  }
-  function zaman(v) {   // Date, 'dd.MM.yyyy HH:mm' ya da '1 Eyl 2026 13:17'
-    var ms = zaman_(v);
-    // saati kaybolmuş tarih (tam 00:00:00) iş günü kaymasın: öğlene al
-    if (ms !== null) return (v instanceof Date && !v.getHours() && !v.getMinutes() && !v.getSeconds()) ? ms + 12 * 3600000 : ms;
-    var m = String(v || '').trim().match(/^(\d{1,2})\s+(\S+)\s+(\d{4})(?:\s+(\d{1,2}):(\d{2}))?/); if (!m) return null;
-    var ay = TR_AY[m[2].toLocaleLowerCase('tr-TR').slice(0, 3)]; if (ay === undefined) ay = TR_AY[norm_(m[2]).slice(0, 3)]; if (ay === undefined) return null;
-    return Date.UTC(+m[3], ay, +m[1], +(m[4] || 12), +(m[5] || 0));
-  }
-  [['Pluxee', 'İşlem Zamanı', 'Tutar (TL)'], ['Edenred', 'İşlem Zamanı', 'Tutar (TL)']].forEach(function (k) {
-    var t = satirlar_(ss, k[0]); if (!t.r.length) return;
-    var cz = kolon_(t.b, [k[1]]), ct = kolon_(t.b, [k[2], 'Tutar']);
-    t.r.forEach(function (r) { var ms = zaman(r[cz]); if (ms !== null) ekle(k[0], isGunu_(ms), sayi_(r[ct])); });
+  KART_KAYNAKLARI.forEach(function (kk) {
+    var v; try { v = kk.oku(ss); } catch (err) { v = null; }
+    if (!v || v.hata || !v.cekim) return;
+    var ad = kk.ad === 'SetCard' ? 'Setcard' : kk.ad;   // satış tarafının kart adı (yemekKartAdi_)
+    v.cekim.forEach(function (y) {
+      if (y.online) return;
+      var gun = isGunu_(y.ms); if (gun < bas || !(y.tutar > 0)) return;
+      var g = out.gunler[gun] = out.gunler[gun] || {}, x = g[ad] = g[ad] || { t: 0, a: 0 };
+      x.t = Math.round((x.t + y.tutar) * 100) / 100; x.a++;
+      if (!out.son[ad] || gun > out.son[ad]) out.son[ad] = gun;
+    });
   });
-  var p = satirlar_(ss, 'Paye');
-  if (p.r.length) {
-    var cg = kolon_(p.b, ['Rapor Günü']), ct = kolon_(p.b, ['Toplam Gün Sonu Tutarı', 'Tutar']);
-    if (ct >= 0) p.r.forEach(function (r) { ekle('Paye', gunStr_(r[cg]), sayi_(r[ct])); });
-  }
   return out;
 }
 
@@ -3117,7 +3108,7 @@ function kurye_() {
                kart: kn || null, kanitHata: kanitHata,
                kartSoru: acikL.filter(function (x) { return x.kartKarar === 'soru'; }).slice(0, 40),
                kartEmin: acikL.filter(function (x) { return x.kartKarar === 'emin'; }).slice(0, 40),
-               kartAjan: kartAjanRaporu_(), kartKuru: KART_AJAN_KURU, kartBosta: kek.bosta || [] };
+               kartAjan: kartAjanRaporu_(), kartKuru: KART_AJAN_KURU, kartBosta: kek.bosta || [], kartKapanan: kapali.ajan || [] };
 
   out.genel = {};
   KURYE_DONEMLER.forEach(function (d) { var g = genel[d], o = function (t) { return g.n ? Math.round(t / g.n * 10) / 10 : null; };
@@ -3605,7 +3596,8 @@ function tahsilatlar_(ss) {
   var t = sonSatirlar_(ss, 'Tahsilatlar', 5000), out = { idler: {}, son: [] }; if (!t) return out;
   var c = { id: kolon_(t.b, ['Sipariş ID']), no: kolon_(t.b, ['Adisyon No']), kurye: kolon_(t.b, ['Kurye']), tutar: kolon_(t.b, ['Tutar (TL)', 'Tutar']),
             islem: kolon_(t.b, ['İşlem']), zaman: kolon_(t.b, ['Kayıt Zamanı']), tarih: kolon_(t.b, ['Sipariş Tarihi', 'Tarih']), adisyo: kolon_(t.b, ['Adisyo Durumu']),
-            bahsis: kolon_(t.b, ['Bahşiş (TL)', 'Bahşiş']) };
+            bahsis: kolon_(t.b, ['Bahşiş (TL)', 'Bahşiş']), not: kolon_(t.b, ['Not']), kaynak: kolon_(t.b, ['Kaynak']), odeme: kolon_(t.b, ['Ödeme Yöntemi']) };
+  out.ajan = [];   // kart ajanının kapattıkları (son 7 gün; panel › Yemek Kartları › ajan)
   out.adisyoBekleyen = 0;
   // Bahşişler: kayıt zamanına göre son 30 gün ve bu hafta (Pazartesi'den), kurye bazında
   var bugun = isGunu_(simdi_()), dow = (new Date(bugun + 'T00:00:00Z').getUTCDay() + 6) % 7, hafta = gunEkle_(bugun, -dow), otuz = gunEkle_(bugun, -29), bh = {};
@@ -3615,12 +3607,17 @@ function tahsilatlar_(ss) {
     var ad = c.adisyo >= 0 ? String(r[c.adisyo] || '') : ''; if (!ad) out.adisyoBekleyen++;
     var bs = c.bahsis >= 0 ? sayi_(r[c.bahsis]) : 0;
     out.son.push({ id: id, no: r[c.no], kurye: r[c.kurye], tutar: sayi_(r[c.tutar]), islem: r[c.islem], zaman: String(r[c.zaman] || '').slice(0, 16), tarih: r[c.tarih], adisyo: ad, bahsis: bs });
+    var kyn = c.kaynak >= 0 ? String(r[c.kaynak] || '') : '';
+    if (/ajan/i.test(kyn)) { var kz = zaman_(r[c.zaman]);
+      if (kz !== null && isGunu_(kz) >= gunEkle_(bugun, -6)) out.ajan.push({ id: id, no: r[c.no], kurye: r[c.kurye], tutar: sayi_(r[c.tutar]), odeme: c.odeme >= 0 ? String(r[c.odeme] || '') : '',
+        kart: kyn.replace(/\s*ajan[ıi]?\s*$/i, ''), zaman: String(r[c.zaman] || '').slice(0, 16), not: c.not >= 0 ? String(r[c.not] || '').replace(/\s*\[ref [^\]]+\]/g, '') : '' }); }
     if (bs > 0) { var ms = zaman_(r[c.zaman]), g = ms === null ? '' : new Date(ms).toISOString().slice(0, 10);
       if (g >= otuz) { var kx = String(r[c.kurye] || '').trim() || '—', x = bh[kx] = bh[kx] || { ad: kx, hafta: 0, otuz: 0, adet: 0 };
         x.otuz += bs; x.adet++; out.bahsis.otuz += bs; out.bahsis.adet++; if (g >= hafta) { x.hafta += bs; out.bahsis.hafta += bs; } } }
   });
   out.bahsis.kisi = Object.keys(bh).map(function (k) { return bh[k]; }).sort(function (a, b) { return b.otuz - a.otuz; });
   out.son = out.son.reverse().slice(0, 15);
+  out.ajan = out.ajan.reverse().slice(0, 80);
   return out;
 }
 
