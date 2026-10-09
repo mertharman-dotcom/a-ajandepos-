@@ -529,7 +529,7 @@ Aynı sekmeye iki ayrı proje yazıyorsa birinin yaptığı değişiklik diğeri
 #### Tahsilatlar
 
 - **Yazan:** `hesapKapat_` (BAP Panel Veri Kapısı), `kartAjanCalis_` (BAP Panel Veri Kapısı), `tahsilatlariAdisyoyaIsle_` (BAP Panel Veri Kapısı), `tahsilatSekmesi_` (BAP Panel Veri Kapısı)
-- **Okuyan:** `tahsilatlar_` (BAP Panel Veri Kapısı)
+- **Okuyan:** `kullanilanRef_` (BAP Panel Veri Kapısı), `tahsilatlar_` (BAP Panel Veri Kapısı)
 - **Yoksa oluşturan:** `tahsilatSekmesi_`
 - **Adıyla aranan sütunlar:** `Adisyo Durumu`, `Adisyon No`, `Bahşiş`, `Bahşiş (TL)`, `İşlem`, `Kayıt Zamanı`, `Kaynak`, `Kurye`, `Not`, `Ödeme Yöntemi`, `Sipariş ID`, `Sipariş Tarihi`, `Tarih`, `Tutar`, `Tutar (TL)`
 - Olası başka sütunlar: 3 (aynı fonksiyon birden fazla sekme açtığı için kesin değil; ayrıntı .html / `ara`)
@@ -1108,7 +1108,7 @@ Aynı sekmeye iki ayrı proje yazıyorsa birinin yaptığı değişiklik diğeri
 - **Yazan:** `edenredYaz` (BAP Yemek Kartı), `_kopruEdenredYaz` (Kurye Net Çalışma Süresi)
 - **Okuyan:** `edenredCekimleri_` (BAP Panel Veri Kapısı)
 - **Yoksa oluşturan:** `edenredYaz`, `_kopruEdenredYaz`
-- **Adıyla aranan sütunlar:** `Günsonu Zamanı`, `İşlem Zamanı`, `Kart No`, `Kayıt Zamanı`, `Şube`, `Terminal No`, `Tutar`, `Tutar (TL)`
+- **Adıyla aranan sütunlar:** `Günsonu Zamanı`, `İşlem Zamanı`, `Kart No`, `Kayıt Zamanı`, `Ref`, `Şube`, `Terminal No`, `Tutar`, `Tutar (TL)`
 - **Etkilenen arayüz:** MacBook köprüsü (mac-kopru)
 
 #### Fatura Kesimleri
@@ -1181,7 +1181,7 @@ Aynı sekmeye iki ayrı proje yazıyorsa birinin yaptığı değişiklik diğeri
 #### Paye İşlemler
 
 - **Okuyan:** `payeCekimleri_` (BAP Panel Veri Kapısı)
-- **Adıyla aranan sütunlar:** `cihazsicil`, `Rapor Günü`
+- **Adıyla aranan sütunlar:** `cihazsicil`, `İşlem Numarası`, `Rapor Günü`
 
 #### Pluxee
 
@@ -1306,7 +1306,7 @@ Bağlı dosya: — (tabloları kimlikle açar) · 3 fonksiyon · 2 sekme
 
 ### BAP Panel Veri Kapısı (`apps-script/bap-panel-veri-kapisi`)
 
-Bağlı dosya: — (tabloları kimlikle açar) · 216 fonksiyon · 78 sekme
+Bağlı dosya: — (tabloları kimlikle açar) · 219 fonksiyon · 78 sekme
 
 - her saat → puantajTaramasi
 - tabloda düzenleme olunca → puantajTabloDegisti
