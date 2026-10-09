@@ -128,6 +128,25 @@ export default {
       } catch (e) { return json({ hata: 'Veri kapısına ulaşılamadı; cevap kaydedilmedi.' }, 502); }
     }
 
+    if (url.pathname === '/api/personel-ekle' && request.method === 'POST') {
+      // Yeni personel: yalnızca panelin kendisinden gelen istek kabul edilir.
+      if (request.headers.get('x-bap-panel') !== '1' || (request.headers.get('origin') || url.origin) !== url.origin) {
+        return json({ hata: 'İzin verilmeyen istek.' }, 403);
+      }
+      let govde;
+      try { govde = await request.json(); } catch (e) { return json({ hata: 'Geçersiz istek.' }, 400); }
+      const k = function (v, n) { return String(v == null ? '' : v).slice(0, n); };
+      const ileti = JSON.stringify({ key: env.GAS_KEY, tur: 'personelEkle', istekNo: k(govde.istekNo, 64), ad: k(govde.ad, 80), giris: k(govde.giris, 10),
+        sube: k(govde.sube, 20), departman: k(govde.departman, 60), maas: k(govde.maas, 12), sgk: k(govde.sgk, 6), telefon: k(govde.telefon, 20),
+        iban: k(govde.iban, 40), onay: govde.onay === '1' ? '1' : '' });
+      try {
+        const r = await fetch(env.GAS_URL, { method: 'POST', headers: { 'content-type': 'application/json' }, body: ileti, redirect: 'follow' });
+        const metin = await r.text();
+        try { return json(JSON.parse(metin), 200); }
+        catch (e) { return json({ belirsiz: true, hata: 'Veri kapısı beklenmeyen bir cevap verdi; kayıt yazılmış olabilir. Paneli yenileyip kontrol edin.' + gasHatasi(metin) }, 502); }
+      } catch (e) { return json({ belirsiz: true, hata: 'Veri kapısına ulaşılamadı; kayıt yazılmış olabilir. Paneli yenileyip kontrol edin.' }, 502); }
+    }
+
     if (url.pathname === '/api/avans' && request.method === 'POST') {
       // Personel avans / masraf girişi: yalnızca panelin kendisinden gelen istek kabul edilir.
       if (request.headers.get('x-bap-panel') !== '1' || (request.headers.get('origin') || url.origin) !== url.origin) {

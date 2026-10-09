@@ -1129,9 +1129,40 @@ function personelBilgi(a,p){var B=p.bilgiler;if(!B)return a.appendChild(bos("Per
   a.appendChild(el("div",{class:"rakamlar"},[rakam("Aktif personel",String(aktif.length)),rakam("Bilgisi eksik olan",String(eksikler.length),eksikler.length?"kartlarda kırmızı":"Hepsi tam",eksikler.length?"asagi":"yukari"),rakam("Eksik bilgi",String(toplamEksik),"alan"),rakam("Pasif / ayrılan",String(pasif.length)),rakam("Sorumlu","İK","İnsan Kaynakları")]));
   a.appendChild(el("div",{class:"bilgi",text:"Her personelin bütün bilgileri aşağıda. Boş alanı doldurabilir, dolu alanı ‘Değiştir’ ile güncelleyebilirsin; yazdığın değer doğrudan BAP Personel › Personel sekmesindeki ilgili hücreye yazılır, eski değer işlem kaydına (Islem_Loglari) düşer. Telefon, IBAN ve acil durum bilgileri burada yalnız son 4 hanesiyle görünür; değiştirirken tamamını yeniden yaz. Şifre panelden görülmez ve değiştirilmez. Maaş değişikliği bordroya, işten çıkış tarihi ve ‘Aktif’ QR girişine etki eder."}));
   var sek=el("div",{class:"sekmeler"},[["hepsi","Aktif personel ("+aktif.length+")"],["eksik","Sadece eksik olanlar ("+eksikler.length+")"],["pasif","Pasif / ayrılan ("+pasif.length+")"]].map(function(x){return el("button",{type:"button","aria-pressed":PB_FILTRE===x[0]?"true":"false",onclick:function(){PB_FILTRE=x[0];ciz();}},[x[1]]);}));
+  a.appendChild(yeniPersonelBlok());
   a.appendChild(sek);
   var liste=PB_FILTRE==="pasif"?pasif:(PB_FILTRE==="eksik"?eksikler:aktif.slice().sort(function(x,y){return y.eksik.length-x.eksik.length||x.ad.localeCompare(y.ad,"tr");}));
   a.appendChild(liste.length?el("div",{class:"liste"},liste.map(function(x){return personelKart(x,B.alanlar,PB_FILTRE==="pasif");})):bos(PB_FILTRE==="eksik"?"Aktif personelin bütün bilgileri tam.":"Kayıt yok."));}
+
+// Yeni personel: BAP Personel › Personel sekmesinin sonuna tek satır (Aktif = Evet). PIN'i kişi ilk QR girişinde kendisi belirler.
+var PE_FORM={acik:false,ad:"",giris:"",sube:"",departman:"",maas:"",sgk:"",telefon:"",iban:"",gonderiliyor:false,durum:"",sinif:"",istekNo:"",onayBekliyor:false};
+function bugunTr(){var d=new Date(Date.now()+3*36e5).toISOString().slice(0,10);return d.slice(8,10)+"."+d.slice(5,7)+"."+d.slice(0,4);}
+function yeniPersonelBlok(){var F=PE_FORM;
+  if(!F.acik)return el("div",{style:"margin:0 0 14px"},[el("button",{type:"button",class:"dugme",onclick:function(){F.acik=true;if(!F.giris)F.giris=bugunTr();F.durum="";ciz();}},["+ Yeni personel ekle"]),
+    F.durum?el("span",{class:"cevap-durum "+(F.sinif||""),style:"margin-left:10px",text:F.durum}):null]);
+  function alan(k,etiket,ozellik){var i=el(ozellik&&ozellik.secenek?"select":"input",Object.assign({class:"cevap-alan",style:"max-width:260px","aria-label":etiket},ozellik&&ozellik.secenek?{}:{type:"text",value:F[k],placeholder:(ozellik&&ozellik.ornek)||""},ozellik&&ozellik.sayisal?{inputmode:"numeric"}:{}),
+      ozellik&&ozellik.secenek?ozellik.secenek.map(function(o){var op=el("option",{value:o[0],text:o[1]});if(F[k]===o[0])op.setAttribute("selected","");return op;}):null);
+    i.addEventListener("input",function(){F[k]=i.value;F.onayBekliyor=false;});i.addEventListener("change",function(){F[k]=i.value;F.onayBekliyor=false;});
+    return el("div",{class:"cevap-alt",style:"margin-top:6px"},[el("span",{style:"min-width:150px;font-size:14px;color:var(--gri)",text:etiket+(ozellik&&ozellik.zorunlu?" *":"")}),i]);}
+  var dug=el("button",{type:"button",class:"dugme",onclick:gonder},[F.gonderiliyor?"Kaydediliyor…":(F.onayBekliyor?"Evet, yine de ekle":"Personeli ekle")]);if(F.gonderiliyor)dug.setAttribute("disabled","");
+  function gonder(){if(F.gonderiliyor)return;
+    if(!F.ad.trim()||F.ad.trim().indexOf(" ")<0){F.durum="Adını ve soyadını yaz.";F.sinif="kotu";return ciz();}
+    if(!F.sube){F.durum="Şube seç.";F.sinif="kotu";return ciz();}
+    if(!F.istekNo)F.istekNo=yeniIstekNo();var onay=F.onayBekliyor?"1":"";F.gonderiliyor=true;F.durum="Kaydediliyor…";F.sinif="";ciz();
+    fetch("/api/personel-ekle",{method:"POST",credentials:"same-origin",headers:{"content-type":"application/json","x-bap-panel":"1"},
+      body:JSON.stringify({istekNo:F.istekNo,ad:F.ad,giris:F.giris,sube:F.sube,departman:F.departman,maas:F.maas,sgk:F.sgk,telefon:F.telefon,iban:F.iban,onay:onay})})
+      .then(function(r){return r.json();}).then(function(d){F.gonderiliyor=false;
+        if(d&&d.tamam){var ad=d.ad;Object.assign(F,{acik:false,ad:"",giris:"",sube:"",departman:"",maas:"",sgk:"",telefon:"",iban:"",istekNo:"",onayBekliyor:false,
+          durum:"✓ "+ad+(d.zatenKayitli?" zaten eklenmişti.":" eklendi. Listede birazdan görünür; PIN'ini ilk QR girişinde kendisi belirleyecek."),sinif:"iyi"});ciz();yukle(true);return;}
+        F.onayBekliyor=!!(d&&d.tekrarMi);if(!F.onayBekliyor)F.istekNo="";F.durum=(d&&d.hata)||"Kaydedilemedi.";F.sinif=F.onayBekliyor?"":"kotu";ciz();})
+      .catch(function(){F.gonderiliyor=false;F.durum="Bağlantı koptu; personel eklenmiş olabilir. ‘Şimdi yenile’ ile listeye bakmadan tekrar gönderme.";F.sinif="kotu";ciz();});}
+  return blok("Yeni personel","BAP Personel › Personel sekmesine yeni satır olarak yazılır ve ‘Aktif’ işaretlenir; QR giriş-çıkış, vardiya ve bordro bu satırı kullanır. Yıldızlı alanlar zorunlu; boş bıraktıklarını sonra kartından doldurabilirsin.",
+    el("div",null,[alan("ad","Ad Soyad",{zorunlu:true,ornek:"Ayşe Yılmaz"}),alan("giris","İşe giriş tarihi",{zorunlu:true,ornek:"GG.AA.YYYY"}),
+      alan("sube","Şube",{zorunlu:true,secenek:[["","Seç"],["Erenköy","Erenköy"],["Fikirtepe","Fikirtepe"]]}),alan("departman","Departman / pozisyon",{ornek:"örn. Kurye, Bulaşıkçı, Usta"}),
+      alan("maas","Aylık maaş",{ornek:"örn. 35000",sayisal:true}),alan("sgk","SGK'lı mı",{secenek:[["","Seç"],["Evet","Evet"],["Hayır","Hayır"]]}),
+      alan("telefon","Telefon",{ornek:"5XX XXX XX XX",sayisal:true}),alan("iban","IBAN",{ornek:"TR.."}),
+      el("p",{style:"margin:12px 0 0;display:flex;gap:8px;align-items:center;flex-wrap:wrap"},[dug,F.gonderiliyor?null:el("button",{type:"button",class:"dugme",onclick:function(){F.acik=false;F.durum="";F.onayBekliyor=false;ciz();}},["Vazgeç"]),
+        F.durum?el("span",{class:"cevap-durum "+(F.sinif||""),role:"status",text:F.durum}):null])]));}
 
 var ORNEK={tarih:"GG.AA.YYYY",sayi:"örn. 45000",evethayir:"Evet / Hayır",sube:"Erenköy / Fikirtepe",telefon:"5XX XXX XX XX",iban:"TR.. .... ....",metin:""};
 function bilgiGoster(x,al){var d=x.degerler||{},m=x.maskeli||{};var v=al.goster?d[al.ad]:m[al.ad];if(v==null||v==="")return null;
@@ -2661,7 +2692,7 @@ nav();yerelOku(function(v){if(v&&!VERI){VERI=v;try{ciz();}catch(e){VERI=null;doc
   yukle(false,!!VERI);});setInterval(function(){if(document.hidden)return;
     if((AKTIF==="panolar"||AKTIF==="kararlar")&&(PANO.acik||PANO.gonderiliyor))return;
   if(AKTIF==="kurye"&&(KESINTI_FORM.miktar||KESINTI_FORM.aciklama||KESINTI_FORM.gonderiliyor||MESAI_DUZ.acik||MESAI_DUZ.gonderiliyor))return;
-  if(AKTIF==="personel"&&VARD_DUZEN)return;
+  if(AKTIF==="personel"&&(VARD_DUZEN||PE_FORM.acik))return;
   if(AKTIF==="musteri"&&[YORUM_FORM,IADE_FORM].some(function(S){return Object.keys(S).some(function(k){return S[k].kirli||S[k].gonderiliyor;});}))return;
   if(AKTIF==="fis"&&Object.keys(FIS.form).some(function(k){return FIS.form[k].kirli||FIS.form[k].gonderiliyor;}))return;yukle(true,true);},300000);
 })();

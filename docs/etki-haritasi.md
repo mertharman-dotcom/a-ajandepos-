@@ -635,7 +635,7 @@ Aynı sekmeye iki ayrı proje yazıyorsa birinin yaptığı değişiklik diğeri
 
 #### Islem_Loglari
 
-- **Yazan:** `avansGir_` (BAP Panel Veri Kapısı), `personelBilgiGir_` (BAP Panel Veri Kapısı), `puSatirHesapla_` (BAP Panel Veri Kapısı), `vardiyaGir_` (BAP Panel Veri Kapısı), `logEkle` (BAP_Personel), `loglariTemizle` (BAP_Personel)
+- **Yazan:** `avansGir_` (BAP Panel Veri Kapısı), `personelBilgiGir_` (BAP Panel Veri Kapısı), `personelEkle_` (BAP Panel Veri Kapısı), `puSatirHesapla_` (BAP Panel Veri Kapısı), `vardiyaGir_` (BAP Panel Veri Kapısı), `logEkle` (BAP_Personel), `loglariTemizle` (BAP_Personel)
 - Olası başka sütunlar: 10 (aynı fonksiyon birden fazla sekme açtığı için kesin değil; ayrıntı .html / `ara`)
 - **Zamanla çalışan:** her saat (`puantajTaramasi`), tabloda düzenleme olunca (`puantajTabloDegisti`), her gün 03:00 (`gece_kontrol`), her gün 17:00 (`gunlukDevamsizIsaretle`)
 - **Etkilenen arayüz:** Yönetim paneli (bap-panel Worker)
@@ -659,9 +659,9 @@ Aynı sekmeye iki ayrı proje yazıyorsa birinin yaptığı değişiklik diğeri
 
 #### Personel
 
-- **Yazan:** `personelBilgiGir_` (BAP Panel Veri Kapısı), `personelGuncelleKaydet` (BAP_Personel), `yeniPersonelEkle` (BAP_Personel)
+- **Yazan:** `personelBilgiGir_` (BAP Panel Veri Kapısı), `personelEkle_` (BAP Panel Veri Kapısı), `personelGuncelleKaydet` (BAP_Personel), `yeniPersonelEkle` (BAP_Personel)
 - **Okuyan:** `getCalisanlar` (BAP PANEL Backend), `sifreKontrol` (BAP PANEL Backend), `avansGir_` (BAP Panel Veri Kapısı), `bordroVeri_` (BAP Panel Veri Kapısı), `personel_` (BAP Panel Veri Kapısı), `personelBilgileri_` (BAP Panel Veri Kapısı), `vardiyaGir_` (BAP Panel Veri Kapısı), `personelBilgi` (BAP_Personel), `pinGuncelle` (BAP_Personel), `yoneticiHub` (BAP_Personel)
-- **Adıyla aranan sütunlar:** `Aktif`, `Departman`, `İsim Soyisim`, `Maaş`, `Sube`, `Şube`
+- **Adıyla aranan sütunlar:** `Aktif`, `Departman`, `IBAN`, `İsim Soyisim`, `İşe Giriş`, `Maaş`, `PIN`, `Pin`, `SGK lı`, `Sifre`, `Sube`, `Şifre`, `Şube`, `Telefon Numarası`
 - Olası başka sütunlar: 16 (aynı fonksiyon birden fazla sekme açtığı için kesin değil; ayrıntı .html / `ara`)
 - **Zamanla çalışan:** her gün 03:00 (`gece_kontrol`), her gün 17:00 (`gunlukDevamsizIsaretle`)
 - **Etkilenen arayüz:** Mutfak paneli (bap-sistem.pages.dev), Yönetim paneli (bap-panel Worker)
@@ -1349,11 +1349,11 @@ Bağlı dosya: — (tabloları kimlikle açar) · 3 fonksiyon · 2 sekme
 
 ### BAP Panel Veri Kapısı (`apps-script/bap-panel-veri-kapisi`)
 
-Bağlı dosya: — (tabloları kimlikle açar) · 225 fonksiyon · 80 sekme
+Bağlı dosya: — (tabloları kimlikle açar) · 226 fonksiyon · 80 sekme
 
 - her saat → puantajTaramasi
 - tabloda düzenleme olunca → puantajTabloDegisti
-- Web eylemleri (51): `islem=adisyo → tahsilatlariAdisyoyaIsle_`, `islem=ata → adisyoKuryeYaz_`, `islem=ata → norm_`, `islem=doldur → adisyoKuryeYaz_`, `islem=duzelt → adisyoKuryeYaz_`, `islem=geri → faturaTahsilIslem_`, `islem=iptal → odemePlaniIsle_`, `islem=kabul → iadeIslem_`, `islem=kalsin → kuryeEslestirIslem_`, `islem=kes → hesapKapat_`, `islem=onay → mesaiDuzelt_`, `islem=ret → iadeIslem_`, `islem=saat → mesaiDuzelt_`, `islem=sil → gunStr_`, `islem=sil → norm_`, `islem=sonPaket → mesaiDuzelt_`, `islem=tahsil → hesapKapat_`, `tur=ambalaj → tuketim_`, `tur=avans → avansGir_`, `tur=Avans → avansGir_`, `tur=eslestir → kuryeEslestirIslem_`, `tur=evethayir → dogrula_`, `tur=faturaTahsil → faturaTahsilIslem_`, `tur=fis → fisKaydet_`, `tur=hesap → hesapKapat_`, `tur=hesap → hesapOnBilgi_`, `tur=hesap → tahsilatlariAdisyoyaIsle_`, `tur=iadeIslem → iadeIslem_`, `tur=iban → dogrula_`, `tur=kesinti → kesintiGir_`, `tur=kesintiIptal → kesintiIptal_`, `tur=kokpit → kokpitCevap_`, `tur=kuryeOdendi → kuryeOdendiIsle_`, `tur=Mahsup → avansGir_`, `tur=Mahsup → norm_`, `tur=Masraf → avansGir_`, `tur=mesaiDuzelt → mesaiDuzelt_`, `tur=musteri → musteriDetay_`, `tur=odeme → toptanciOdemeGir_`, `tur=odemePlani → odemePlaniIsle_`, `tur=panoNot → panoNot_`, `tur=puantaj → puantajDuzelt_`, `tur=rota → rotaHesapla_`, `tur=sayi → sayi_`, `tur=setcardFatura → setcardFaturaIslem_`, `tur=sube → subeAnahtar_`, `tur=tarih → dogrula_`, `tur=telefon → dogrula_`, `tur=tuketim → tuketimCevap_`, `tur=vardiya → vardiyaGir_`, `tur=yorumOnay → yorumOnay_`
+- Web eylemleri (52): `islem=adisyo → tahsilatlariAdisyoyaIsle_`, `islem=ata → adisyoKuryeYaz_`, `islem=ata → norm_`, `islem=doldur → adisyoKuryeYaz_`, `islem=duzelt → adisyoKuryeYaz_`, `islem=geri → faturaTahsilIslem_`, `islem=iptal → odemePlaniIsle_`, `islem=kabul → iadeIslem_`, `islem=kalsin → kuryeEslestirIslem_`, `islem=kes → hesapKapat_`, `islem=onay → mesaiDuzelt_`, `islem=ret → iadeIslem_`, `islem=saat → mesaiDuzelt_`, `islem=sil → gunStr_`, `islem=sil → norm_`, `islem=sonPaket → mesaiDuzelt_`, `islem=tahsil → hesapKapat_`, `tur=ambalaj → tuketim_`, `tur=avans → avansGir_`, `tur=Avans → avansGir_`, `tur=eslestir → kuryeEslestirIslem_`, `tur=evethayir → dogrula_`, `tur=faturaTahsil → faturaTahsilIslem_`, `tur=fis → fisKaydet_`, `tur=hesap → hesapKapat_`, `tur=hesap → hesapOnBilgi_`, `tur=hesap → tahsilatlariAdisyoyaIsle_`, `tur=iadeIslem → iadeIslem_`, `tur=iban → dogrula_`, `tur=kesinti → kesintiGir_`, `tur=kesintiIptal → kesintiIptal_`, `tur=kokpit → kokpitCevap_`, `tur=kuryeOdendi → kuryeOdendiIsle_`, `tur=Mahsup → avansGir_`, `tur=Mahsup → norm_`, `tur=Masraf → avansGir_`, `tur=mesaiDuzelt → mesaiDuzelt_`, `tur=musteri → musteriDetay_`, `tur=odeme → toptanciOdemeGir_`, `tur=odemePlani → odemePlaniIsle_`, `tur=panoNot → panoNot_`, `tur=personelEkle → personelEkle_`, `tur=puantaj → puantajDuzelt_`, `tur=rota → rotaHesapla_`, `tur=sayi → sayi_`, `tur=setcardFatura → setcardFaturaIslem_`, `tur=sube → subeAnahtar_`, `tur=tarih → dogrula_`, `tur=telefon → dogrula_`, `tur=tuketim → tuketimCevap_`, `tur=vardiya → vardiyaGir_`, `tur=yorumOnay → yorumOnay_`
 
 ### Kolaybi Fatura Ham Veri (`apps-script/kolaybi-fatura-ham-veri`)
 
@@ -1488,8 +1488,8 @@ Bağlı dosya: — (tabloları kimlikle açar) · 27 fonksiyon · 4 sekme
 | Dosya | Konuştuğu proje | Kullandığı eylem sayısı |
 |---|---|---|
 | `bap-sistem/index.html` (Mutfak paneli (bap-sistem.pages.dev)) | bap-panel-backend | 27 |
-| `bap-panel/page.html` (Yönetim paneli (bap-panel Worker)) | bap-panel-veri-kapisi | 21 |
-| `bap-panel/worker.template.js` (Yönetim paneli (bap-panel Worker)) | bap-panel-veri-kapisi | 29 |
+| `bap-panel/page.html` (Yönetim paneli (bap-panel Worker)) | bap-panel-veri-kapisi | 22 |
+| `bap-panel/worker.template.js` (Yönetim paneli (bap-panel Worker)) | bap-panel-veri-kapisi | 30 |
 | `mac-kopru/edenred.mjs` (MacBook köprüsü (mac-kopru)) | bap-yemek-karti, kurye-net-calisma-suresi | 6 |
 | `mac-kopru/metropol.mjs` (MacBook köprüsü (mac-kopru)) | bap-yemek-karti, kurye-net-calisma-suresi | 4 |
 | `mac-kopru/multinet.mjs` (MacBook köprüsü (mac-kopru)) | bap-yemek-karti, kurye-net-calisma-suresi | 8 |

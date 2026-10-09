@@ -2809,6 +2809,56 @@ function personelBilgiGir_(d) {
   return { tamam: true, goster: gizli, degisti: !!eski };
 }
 
+// Panelden yeni personel: 'Personel' sekmesinin sonuna tek satır, sütunlar başlık adıyla (BAP_Personel › yeniPersonelEkle
+// ile aynı alanlar: ad, işe giriş, maaş, Aktif = TRUE, telefon, SGK, şube, departman, IBAN). PIN boş kalır; kişi ilk QR
+// girişinde kendi PIN'ini belirler. Aynı adla aktif personel varsa yazılmaz; aynı adla pasif kayıt varsa onay istenir.
+// Aynı istekNo ikinci kez gelirse yeniden yazılmaz (çift kayıt koruması).
+function personelEkle_(d) {
+  var cache = CacheService.getScriptCache(), istek = String(d.istekNo || '').slice(0, 64);
+  if (istek) { var onceki = cache.get('pe_' + istek); if (onceki) { try { var o = JSON.parse(onceki); o.zatenKayitli = true; return o; } catch (err) { } } }
+  var ad = String(d.ad || '').replace(/\s+/g, ' ').trim().slice(0, 80);
+  if (ad.length < 3 || ad.indexOf(' ') < 0) return { hata: 'Adını ve soyadını yaz.' };
+  function al(tur, v, bosOlur) { v = String(v || '').trim(); if (!v) return bosOlur ? { deger: '' } : { hata: 'Boş bırakılamaz.' }; return dogrula_(tur, v); }
+  var giris = al('tarih', d.giris || Utilities.formatDate(new Date(), TZ, 'dd.MM.yyyy'));
+  var sube = al('sube', d.sube), maas = al('sayi', d.maas, true), sgk = al('evethayir', d.sgk, true), tel = al('telefon', d.telefon, true), iban = al('iban', d.iban, true);
+  var hatali = [['İşe giriş', giris], ['Şube', sube], ['Maaş', maas], ['SGK', sgk], ['Telefon', tel], ['IBAN', iban]].filter(function (x) { return x[1].hata; })[0];
+  if (hatali) return { hata: hatali[0] + ': ' + hatali[1].hata };
+  var dept = String(d.departman || '').replace(/\s+/g, ' ').trim().slice(0, 60);
+
+  var ss = tabloAc_(KAYNAK.personel.id), ps = ss.getSheetByName('Personel');
+  if (!ps) return { hata: "Personel tablosunda 'Personel' sekmesi bulunamadı." };
+  var lc = ps.getLastColumn(), b = ps.getRange(1, 1, 1, lc).getDisplayValues()[0];
+  var c = { ad: kolon_(b, ['İsim Soyisim']), giris: kolon_(b, ['İşe Giriş']), maas: kolon_(b, ['Maaş']), aktif: kolon_(b, ['Aktif']),
+            tel: kolon_(b, ['Telefon Numarası']), sgk: kolon_(b, ['SGK lı']), sube: kolon_(b, ['Sube', 'Şube']), dept: kolon_(b, ['Departman']), iban: kolon_(b, ['IBAN']),
+            pin: kolon_(b, ['PIN', 'Pin', 'Şifre', 'Sifre']) };
+  if (c.ad < 0 || c.aktif < 0) return { hata: "Personel sekmesinde 'İsim Soyisim' ya da 'Aktif' sütunu bulunamadı." };
+  var v = ps.getLastRow() > 1 ? ps.getRange(2, 1, ps.getLastRow() - 1, lc).getDisplayValues() : [];
+  var ayni = v.filter(function (r) { return norm_(r[c.ad]) === norm_(ad); });
+  if (ayni.some(function (r) { return /^(true|evet|1)$/i.test(String(r[c.aktif]).trim()); })) return { hata: ad + ' zaten aktif personel listesinde.' };
+  if (ayni.length && d.onay !== '1') return { tekrarMi: true, hata: ad + ' adıyla eski (pasif) bir kayıt var. Aynı kişi geri döndüyse onun kartında ‘Aktif’i Evet yapman yeterli. Yine de yeni satır açılsın mı?' };
+
+  var r = []; for (var i = 0; i < lc; i++) r.push('');
+  r[c.ad] = ad; r[c.aktif] = true;
+  if (c.giris >= 0) r[c.giris] = giris.deger;
+  if (c.maas >= 0 && maas.deger !== '') r[c.maas] = maas.deger;
+  if (c.sgk >= 0) r[c.sgk] = sgk.deger === '' ? false : sgk.deger;
+  if (c.sube >= 0) r[c.sube] = sube.deger;
+  if (c.dept >= 0) r[c.dept] = dept;
+  if (c.tel >= 0) r[c.tel] = tel.deger;
+  if (c.iban >= 0) r[c.iban] = iban.deger;
+  var satir = ps.getLastRow() + 1;
+  [c.tel, c.iban, c.pin].forEach(function (k) { if (k >= 0) ps.getRange(satir, k + 1).setNumberFormat('@'); }); // baştaki 0 / uzun sayı bozulmasın
+  ps.getRange(satir, 1, 1, lc).setValues([r]);
+  var damga = Utilities.formatDate(new Date(), TZ, 'dd.MM.yyyy HH:mm:ss');
+  var ozet = ad + ' — ' + sube.deger + (dept ? ', ' + dept : '') + ', giriş ' + giris.deger + (maas.deger !== '' ? ', maaş ' + maas.deger : '');
+  var log = ss.getSheetByName('Islem_Loglari');
+  if (log) { log.insertRowAfter(1); log.getRange(2, 1, 1, 5).setValues([[damga, 'Yönetici (panel)', 'PERSONEL_EKLENDI', ozet, '-']]); }
+  try { cevapKaydet_('İnsan Kaynakları', 'BAP Personel › Personel', satir, 'Yeni personel: ' + ad, ozet, damga.slice(0, 16)); } catch (err) { }
+  var sonuc = { tamam: true, ad: ad, satir: satir };
+  if (istek) cache.put('pe_' + istek, JSON.stringify(sonuc), 600);
+  return sonuc;
+}
+
 function dogrula_(tur, s) {
   if (!s) return { hata: 'Boş bırakılamaz.' };
   if (tur === 'iban') { var t = s.replace(/\s+/g, '').toUpperCase(); if (!/^TR\d{24}$/.test(t)) return { hata: 'IBAN TR ile başlamalı ve 26 karakter olmalı.' };
@@ -4353,6 +4403,11 @@ function doPost(e) {
     var kv = LockService.getScriptLock(); if (!kv.tryLock(28000)) return json_(MESGUL_);
     try { return json_(vardiyaGir_(d)); }
     finally { kv.releaseLock(); CacheService.getScriptCache().remove('panel_v1_n'); }
+  }
+  if (d.tur === 'personelEkle') {
+    var kpe = LockService.getScriptLock(); if (!kpe.tryLock(28000)) return json_(MESGUL_);
+    try { return json_(personelEkle_(d)); } catch (err) { return json_({ hata: String(err.message || err) }); }
+    finally { kpe.releaseLock(); CacheService.getScriptCache().remove('panel_v2_n'); }
   }
   if (d.tur === 'avans') {
     var kav = LockService.getScriptLock(); if (!kav.tryLock(28000)) return json_(MESGUL_);
