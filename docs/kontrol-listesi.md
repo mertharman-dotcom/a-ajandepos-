@@ -199,6 +199,22 @@ Tablolarda yapılan her değişikliğin eski ve yeni değeri **STOK › Fiyat_Du
 | P53 | Siparis_Kayitlari: 13.09'dan beri sebze/Setfood/Sapori/Aliya/Metro siparişleri hep 'Bekliyor'. Sebep: sipariş ekranı şubeyi tedarikçinin sevkiyat satırından alıyordu ('Hepsi'); Mal Kabul yalnız Erenköy/Fikirtepe gösterdiği için bu siparişler hiçbir şubede çıkmıyor, zaman aşımına da düşmüyordu. Ayrıca WP_Gonderildi, WhatsApp açılmasa da EVET yazılıyordu; başlıklar K/L/P bir sütun kaymıştı (sahibi düzeltti 08.10) | ◐ 08.10 kod: sipariş artık seçili şubeyi yazar, 'Hepsi'/boş şube reddedilir, EVET yalnız WhatsApp açılınca. Eski satırlar: Backend `hepsiSubeDuzelt` KURU rapor → 'Sube_Duzeltme_Raporu'; sahibi onaylayınca uygulanacak. Düzeltilen eski 'Bekliyor'lar 7 günü geçtiği için Mal Kabul'ü açınca 'Zaman Asimi' olur |
 | P54 | Metropol fatura ödemeleri panelde görünmüyordu. `metropol.mjs` Fatura Ödeme Bilgileri'ni tarihsiz açıyordu → site yalnız son 2 faturayı veriyordu ('Metropol Ödeme'de 2 satır); panel de bu sekmeyi okumuyordu. Artık program ilk çalışmada 2026'nın tamamını ay ay, sonra son 120 günü (30 günlük parçalar) ister (`?&start=gg/aa/yyyy&end=…`); `--sadece-odeme` yalnız ödemeleri çeker; panel Fatura Seri + Seri No = KolayBi no ile eşler, 'Odendi' → 'tahsil edildi · Metropol sistemi', Kart durumu / Kart ödemesi dolar, Finans alacaktan düşer | ◐ 08.10 panel yayında. **Sahibi:** yeni `mac-kopru/metropol.mjs`'i Mac'te `~/bap-kopru`'ya kopyalasın; o zamana kadar yalnız son 2 fatura görünür |
 
+## MU · Müşteri veritabanı (Birlesik Musteri Veritabani, 09.10)
+
+Sağlık raporu: Toplayıcı projesinde `musteriSaglikRaporu()` — yalnız okur, sonucu Günlük'e yazar.
+
+| | Sorun | Öneri | Durum |
+|---|---|---|---|
+| MU1 | İsim ilk gelen haliyle donuyor: `musteriTazele` / `musteriUpsert_` ismi yalnız boşsa yazıyor. Yemeksepeti→DeliveryHero geçişinden sonra tam isim ("ATA KILIÇ") geliyor ama listede "ATA K." kalıyor | Kısaltılmış isim, aynı telefonla gelen tam isimle değiştirilsin (ilk kelime aynı + soyadı aynı harf); eski isim J'ye düşsün. Önce KURU | ☐ |
+| MU2 | Ana Musteri Listesi ~32.700 satır, 22.07 özetinde 20.347 tekil telefon. Aynı telefonun birden çok satırı ya da cep biçiminde olmayan numaralar olabilir (örneklerde 926…, 905327… görüldü) | Raporla say; çiftler tek satıra toplansın (sayılar toplanır, etiketler birleşir), bozuk numara ayrı listeye | ☐ rapor bekliyor |
+| MU3 | Telefonsuz adres anahtarı kırılgan: "İstanbul" → "i stanbul", posta kodu / "bina" / "floor" anahtara giriyor, aynı daire iki satıra bölünüyor (örn. aynı daire 26 + 17 sipariş iki ayrı müşteri) | Daha sıkı anahtar (`msYeniAnahtar_`); rapor kaç satırın birleşeceğini gösterir. Anahtar değişince Trendyol düşük puan uyarısı da aynı anahtarı kullanmalı (`tyAnahtar_`) | ☐ rapor bekliyor |
+| MU4 | İki ana liste: "Ana Musteri Listesi" + "Ana Musteri - Canli" (farklı sütun sırası, 7-8 haneli ve "90850345,91" gibi bozuk telefonlar). Bu depoda Canli'ye yazan kod yok, aktif Make senaryosu da yok | Kimse okumuyorsa adı "ESKI_Ana Musteri - Canli" yapılsın (silinmez) — sahip onayı | ☐ sahip onayı |
+| MU5 | Telefon biçimi sekmeden sekmeye farklı: Ana 10 hane, Telafi 0+10, Sikayet / Degerlendirme 90+10 | Okurken hep son 10 hane (`son10_`) — kod zaten böyle yapıyor; elle girişlerde de 10 hane | ☐ |
+| MU6 | `yorumlariCek` (Trendyol.gs) Ana listede eşleşmeyen satırın TY işaretini kaldırırken Telefonsuz sütun numaralarını (H/I/J) kullanıyor; koşul hiç tutmadığı için eski TY işaretleri Ana listede hiç kalkmıyor | `TY.T` yerine `TY.A` (O/Q/P) | ☐ |
+| MU7 | Analiz için eksik alanlar: ilk sipariş tarihi, toplam ciro, son kanal (YS / TY / Getir / Direkt), şube. "G Getir-Trendyol Siparis Sayisi" kimse tarafından güncellenmiyor | Tazeleme bu alanları da tutsun → yeni / sadık / kaybolan müşteri ayrımı panelde gösterilebilir | ☐ |
+| MU8 | Kontrol Edilecek Eslesmeler'de "Kismen benziyor" satırlarında yanlış eşleşmeler "ok" almış (farklı mahalle). K sütununun başlığı yok | K'ya "Onay" başlığı; "Kismen" satırları yeniden gözden geçirilsin | ☐ sahip |
+| MU9 | `Mahalle_Eksik_Musteri` sekmesi boş, başlığı bile yok | Kullanılmıyorsa ESKI_ yapılsın | ☐ sahip |
+
 ## Y · Yapı
 
 | | İş | Durum |
