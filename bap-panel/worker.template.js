@@ -469,6 +469,7 @@ export default {
       const hedef = new URL(env.ALIM_URL);
       hedef.searchParams.set('action', url.pathname === '/api/alim/veri' ? 'veri' : 'eslestirme');
       if (env.ALIM_KEY) hedef.searchParams.set('key', env.ALIM_KEY);
+      if (url.searchParams.get('fresh')) hedef.searchParams.set('fresh', '1');
       try {
         const r = await fetch(hedef.toString(), { redirect: 'follow' });
         const metin = await r.text();

@@ -303,8 +303,10 @@ function satis_() {
     if (seri[gun]) { seri[gun].ciro += tutar; seri[gun].adet++; }
     if (fis[gun]) fisEkle_(fis[gun], c.kanal >= 0 ? r[c.kanal] : '', c.tip >= 0 ? r[c.tip] : '', c.odeme >= 0 ? r[c.odeme] : '', c.tahsil >= 0 ? r[c.tahsil] : '', tutar);
     if (gun >= otuzBasi && c.odeme >= 0 && fisOdeme_(r[c.odeme], c.tahsil >= 0 ? r[c.tahsil] : '') === 'yemek') {
-      var kart = yemekKartAdi_(r[c.odeme]), yg = ykSatis[gun] = ykSatis[gun] || {}, yk = yg[kart] = yg[kart] || { t: 0, a: 0 };
+      var kart = yemekKartAdi_(r[c.odeme]), yg = ykSatis[gun] = ykSatis[gun] || {}, yk = yg[kart] = yg[kart] || { t: 0, a: 0, m: 0, ma: 0 };
       yk.t += tutar; yk.a++;
+      // Masa / gel-al (dükkanda, kurye yok — açık hesap takibi de yok; sahibi 09.10): kendi kanalımız ve sipariş tipi paket değil
+      if (fisPlatform_(c.kanal >= 0 ? r[c.kanal] : '') === 'ic' && !/paket/i.test(String(c.tip >= 0 ? r[c.tip] : ''))) { yk.m += tutar; yk.ma++; }
     }
     var gelen = subeAnahtar_(c.sube >= 0 ? r[c.sube] : ''), mutfak = c.cikan >= 0 ? subeAnahtar_(r[c.cikan]) : '';
     if (gun >= yediBasi && gun <= bugun) {
