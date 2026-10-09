@@ -85,10 +85,11 @@ var AKISLAR = [
     nerede: 'Apps Script › Trendyol Veri Çekme › yorumlariCek (04:15)', cozum: 'Trendyol Veri Çekme › Yürütmeler. Trendyol API anahtarı süresi dolmuş olabilir.' },
   { ad: 'Trendyol puan raporu', grup: 'Trendyol', dosya: 'TRENDYOL', sekme: 'Puan_Siparis', dk: 1560, acik: false,
     nerede: 'Apps Script › Trendyol Veri Çekme › gunlukPuanRaporu (23:50)', cozum: 'Trendyol Veri Çekme › Yürütmeler.' },
-  { ad: 'KolayBi çekimi', grup: 'Finans ve alım', dosya: 'FATURA', sekme: 'Cekim_Log', dk: 240, acik: false,
+  { ad: 'KolayBi çekimi', grup: 'Finans ve alım', dosya: 'FATURA', sekme: 'Cekim_Log', dk: 1440, acik: false,   // Zaman hücresi yalnız tarih gösterebiliyor → günlük bakılır
     nerede: 'Apps Script › Kolaybi Fatura Ham Veri › kolaybiTumunuCek (2 saatte bir)', cozum: 'Kolaybi Fatura Ham Veri › Yürütmeler. Çekim çalışıyor ama aşağıdaki "yeni fatura" eskiyse KolayBi\'ye fatura girilmiyordur.' },
-  { ad: 'KolayBi yeni fatura', grup: 'Finans ve alım', dosya: 'FATURA', sekme: 'Fatura_Kalemleri', dk: 4320, acik: false,
-    nerede: 'Apps Script › Kolaybi Fatura Ham Veri (saatlik)', cozum: 'Kolaybi Fatura Ham Veri › Yürütmeler. KolayBi API anahtarı değişmiş olabilir.' },
+  // 09.10: Sayfa1 (KolayBi'den gelen ham alış faturaları) en yeni fatura 05.10; çekim çalışıyor, KolayBi'de daha yeni ürünlü alış faturası yok.
+  { ad: 'KolayBi yeni fatura', grup: 'Finans ve alım', dosya: 'FATURA', sekme: 'Sayfa1', dk: 4320, acik: false,
+    nerede: 'KolayBi › Alış faturaları (ürün satırlı) → Kolaybi Fatura Ham Veri › Sayfa1', cozum: 'Çekim çalışıyorsa sorun KolayBi tarafındadır: tedarikçinin e-faturası KolayBi\'de kabul edilip ürün satırlarıyla alış faturasına çevrilmemiştir.' },
   { ad: 'Personel giriş-çıkış', grup: 'Personel', dosya: 'PERSONEL', sekme: 'Personel_Giris_Cikis', dk: 1440, acik: true,
     nerede: 'BAP_Personel (QR / web giriş)', cozum: 'Personel giriş ekranı açılıyor mu? BAP_Personel › Yürütmeler.' },
   { ad: 'Ajanların iş kaydı', grup: 'Yapay zekâ ajanları', dosya: 'ISKAYDI', sekme: '', dk: 1560, acik: false,
