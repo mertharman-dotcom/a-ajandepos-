@@ -37,7 +37,7 @@ Bütün e-tabloların listesi ve önerilen Drive düzeni: `docs/tablo-haritasi.m
 | Yarı mamul reçetesi | STOK › Tbl_YariMamulRecete | Elle | Hepsi | — |
 | Tekrar kullanılan malzeme (kaç partide bir yenilenir, ör. konfi yağı 10) | STOK › Tbl_YariMamulRecete, F sütunu `Tekrar_Parti` (C = parti başına ortalama pay) | Elle | Mutfak paneli (hazırlık ekranı) | — |
 | Tekrar kullanılan malzemenin yenilenme zamanları (sayaç) | STOK › Tekrar_Kullanim_Log (Zaman, Sube, Yari_Mamul, Malzeme, Sebep, Calisan) | Mutfak paneli (üretim kaydı, "Küf / bozulma" butonu) | Mutfak paneli | — |
-| Hammadde kartı: fatura adı (B), kısa ad (C), paket (F/H/I), son alış fiyatı (J), koli (P) | STOK › Tbl_Hammaddeler | Elle + Alış motoru (J) | Hepsi | J'yi iki kod yazıyor (S6) |
+| Hammadde kartı: fatura adı (B), kısa ad (C), paket (F/H/I), son alış fiyatı (J), koli (P) | STOK › Tbl_Hammaddeler | Elle + Alış motoru (J, tek yazan: `sonAlisFiyatDoldur_`, J = fatura fiyatı × H ÷ çarpan) | Hepsi | Fiyat senkronu (`fiyatlariGuncelle`) 09.10'dan beri J'ye yazmıyor (S6). Öneriler/şüpheliler STOK › Fiyat_Kontrol |
 | Ambalaj kartı | STOK › Ambalaj_Hammadde | Elle | Hepsi | — |
 | Direkt satış kartı (içecek vb.) | STOK › Direktsatisurunler | Elle | Hepsi | — |
 | Ambalaj kuralları | STOK › Ambalaj_Kurallari | Elle | Stok motoru, Maliyet | — |
