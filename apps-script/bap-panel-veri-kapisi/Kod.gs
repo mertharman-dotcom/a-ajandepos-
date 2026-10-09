@@ -1327,6 +1327,9 @@ function finans_() {
   out.borc = borc;
   // Ödeme ekranındaki toptancı listesi: borcu olmayanlar da seçilebilsin.
   out.tedarikciler = tumTed.sort(function (a, b) { return a.localeCompare(b, 'tr'); });
+  // Toptancı ödeme planları (söz verilen ödeme tarihleri) ve Haddy kurye faturaları — Yönetim Merkezi yapılacaklar listesi için
+  try { out.planlar = odemePlanlari_(ss, odemeler, bugun); } catch (err) { out.planHata = String(err.message || err); }
+  try { out.haddyFatura = haddyFaturalari_(ss, faturalar, bugun); } catch (err) { out.haddyHata = String(err.message || err); }
 
   // Yemek kartı / kurum alacakları (satış faturaları)
   var sf = satirlar_(ss, 'Satis_Faturalari');
@@ -3075,6 +3078,7 @@ function kurye_() {
   out.kuryeAdlari = Object.keys(adlar).sort(function (a, b) { return a.localeCompare(b, 'tr'); });
   // Kuryeye ödenecek: saat + paket − para kesintisi; Haddy'de KDV bu net tutar üzerinden (kurye panelindeki bordroyla aynı).
   // Bahşiş / eksik ödeme / ek ödeme KDV'den sonra eklenir, avans KDV'den sonra düşülür (kurye tablosundaki bordroCiz ile aynı).
+  try { out.odemeDurumu = kuryeOdemeDurumu_(ss); } catch (err) { out.odemeDurumu = {}; }
   out.bordro = Object.keys(haftalar).sort().reverse().map(function (hf) {
     return { hafta: hf, bitis: gunEkle_(hf, 6), kisiler: Object.keys(haftalar[hf]).map(function (k) { var b = haftalar[hf][k];
       var para = b.paraKesinti || 0, net = b.saat + b.paketTl - para, kdv = net * kuryeUcret_(b.ad).kdv, ekO = b.ekOdeme || 0, av = b.avans || 0;
@@ -4353,6 +4357,16 @@ function doPost(e) {
     try { return json_(avansGir_(d)); }
     finally { kav.releaseLock(); CacheService.getScriptCache().remove('panel_v1_n'); }
   }
+  if (d.tur === 'odemePlani') {
+    var kpl = LockService.getScriptLock(); if (!kpl.tryLock(28000)) return json_(MESGUL_);
+    try { return json_(odemePlaniIsle_(d)); } catch (err) { return json_({ hata: String(err.message || err) }); }
+    finally { kpl.releaseLock(); CacheService.getScriptCache().remove('panel_v2_n'); }
+  }
+  if (d.tur === 'kuryeOdendi') {
+    var kko = LockService.getScriptLock(); if (!kko.tryLock(28000)) return json_(MESGUL_);
+    try { return json_(kuryeOdendiIsle_(d)); } catch (err) { return json_({ hata: String(err.message || err) }); }
+    finally { kko.releaseLock(); CacheService.getScriptCache().remove('panel_v2_n'); }
+  }
   if (d.tur === 'odeme') {
     var k = LockService.getScriptLock(); if (!k.tryLock(28000)) return json_(MESGUL_);
     try { return json_(toptanciOdemeGir_(d)); }
@@ -4492,6 +4506,140 @@ function cevapKaydet_(bolum, kaynak, satir, konu, cevap, damga) {
 }
 
 /* ---------------- Yardımcılar ---------------- */
+
+/* ---------------- Toptancı ödeme planı (söz verilen ödeme tarihi) ----------------
+ * Kolaybi Fatura Ham Veri › Odeme_Plani: Plan_ID | Tedarikçi | Plan_Tarihi | Tutar | Açıklama | Durum | Kayıt_Zamanı | Kaynak
+ * Durum boş = planlı; 'İptal' = vazgeçildi (satır silinmez). Plan, kaydından sonra o toptancıya girilen ödemelerle
+ * (plan tarihi sırasıyla) karşılanınca 'karşılandı' sayılır; tutarsız plan herhangi bir ödemeyle karşılanır.
+ */
+var PLAN_SEKME = 'Odeme_Plani';
+var PLAN_BASLIK = ['Plan_ID', 'Tedarikçi', 'Plan_Tarihi', 'Tutar', 'Açıklama', 'Durum', 'Kayıt_Zamanı', 'Kaynak'];
+
+function odemePlanlari_(ss, odemeler, bugun) {
+  var p = satirlar_(ss, PLAN_SEKME);
+  if (!p.r.length) return [];
+  var c = { id: kolon_(p.b, ['Plan_ID']), ad: kolon_(p.b, ['Tedarikçi']), tarih: kolon_(p.b, ['Plan_Tarihi']), tutar: kolon_(p.b, ['Tutar']),
+            not: kolon_(p.b, ['Açıklama']), durum: kolon_(p.b, ['Durum']), kayit: kolon_(p.b, ['Kayıt_Zamanı']) };
+  var liste = [];
+  p.r.forEach(function (r, i) {
+    var ad = String(r[c.ad] || '').trim(), tms = zaman_(r[c.tarih]); if (!ad || tms === null) return;
+    var kms = zaman_(r[c.kayit]);
+    liste.push({ id: String(r[c.id] || ''), satir: i + 2, ad: ad, tarih: new Date(tms).toISOString().slice(0, 10), tutar: Math.round(sayi_(r[c.tutar]) * 100) / 100,
+      not: c.not >= 0 ? String(r[c.not] || '') : '', iptal: /[iİ]ptal/i.test(String(r[c.durum] || '')), kayit: kms === null ? tms : kms });
+  });
+  // Toptancı başına: kayıttan sonraki ödemeler, plan tarihi sırasıyla planlara dağıtılır
+  var gruplar = {};
+  liste.forEach(function (x) { if (!x.iptal) (gruplar[norm_(x.ad)] = gruplar[norm_(x.ad)] || []).push(x); });
+  Object.keys(gruplar).forEach(function (n) {
+    var pl = gruplar[n].sort(function (a, b) { return a.tarih.localeCompare(b.tarih) || a.kayit - b.kayit; });
+    var ilkKayit = Math.min.apply(null, pl.map(function (x) { return x.kayit; }));
+    var gunBas = function (ms) { return Math.floor(ms / 86400000) * 86400000; };
+    var ods = odemeler.filter(function (o) { return norm_(o.ad) === n && o.ms >= gunBas(ilkKayit); }).sort(function (a, b) { return a.ms - b.ms; });
+    var havuz = ods.map(function (o) { return { ms: o.ms, kalan: o.tutar, tarih: o.tarih }; });
+    pl.forEach(function (x) {
+      var gerek = x.tutar > 0 ? x.tutar : 0.01, odenen = 0, son = '';
+      havuz.forEach(function (o) {
+        if (gerek - odenen <= 0.005 || o.kalan <= 0.005 || o.ms < gunBas(x.kayit)) return;
+        var al = Math.min(o.kalan, gerek - odenen); o.kalan -= al; odenen += al; son = o.tarih;
+      });
+      x.odenen = x.tutar > 0 ? Math.round(odenen * 100) / 100 : (odenen > 0 ? 1 : 0);
+      x.karsilandi = gerek - odenen <= 0.5 || (x.tutar <= 0 && odenen > 0);
+      x.odemeTarihi = son;
+    });
+  });
+  return liste.map(function (x) {
+    return { id: x.id, ad: x.ad, tarih: x.tarih, tutar: x.tutar, not: x.not, odenen: x.tutar > 0 ? (x.odenen || 0) : 0, odemeTarihi: x.odemeTarihi || '',
+             durum: x.iptal ? 'iptal' : x.karsilandi ? 'karsilandi' : (x.tarih < bugun ? 'gecikti' : 'bekliyor') };
+  }).sort(function (a, b) { return a.tarih.localeCompare(b.tarih); });
+}
+
+function odemePlaniIsle_(d) {
+  var cache = CacheService.getScriptCache(), istek = String(d.istekNo || '').slice(0, 64);
+  var onceki = istek ? cache.get('plan_' + istek) : null;
+  if (onceki) { try { var o = JSON.parse(onceki); o.zatenKayitli = true; return o; } catch (err) { return { tamam: true, zatenKayitli: true }; } }
+  var ss = tabloAc_(KAYNAK.fatura.id);
+  var sh = ss.getSheetByName(PLAN_SEKME);
+  if (!sh) { sh = ss.insertSheet(PLAN_SEKME); sh.appendRow(PLAN_BASLIK); sh.setFrozenRows(1); sh.getRange(1, 1, 1, PLAN_BASLIK.length).setFontWeight('bold'); }
+  var b = sh.getRange(1, 1, 1, Math.max(PLAN_BASLIK.length, sh.getLastColumn())).getValues()[0].map(String), c = {};
+  PLAN_BASLIK.forEach(function (h) { c[h] = kolon_(b, [h]); });
+  var damga = Utilities.formatDate(new Date(), TZ, 'dd.MM.yyyy HH:mm:ss'), sonuc;
+  if (d.islem === 'iptal') {
+    var id = String(d.id || '').trim(); if (!id) return { hata: 'Plan seçilmedi.' };
+    var ids = sh.getLastRow() > 1 ? sh.getRange(2, c.Plan_ID + 1, sh.getLastRow() - 1, 1).getValues() : [];
+    var satir = -1; ids.forEach(function (r, i) { if (String(r[0]) === id) satir = i + 2; });
+    if (satir < 0) return { hata: 'Plan bulunamadı; paneli yenileyin.' };
+    sh.getRange(satir, c.Durum + 1).setValue('İptal');
+    sonuc = { tamam: true, id: id, iptal: true };
+  } else {
+    var td = satirlar_(ss, 'Tedarikciler'), dG = kolon_(td.b, ['Tedarikçi']), ad = '';
+    td.r.forEach(function (r) { var x = String(r[dG] || '').trim(); if (x && norm_(x) === norm_(d.tedarikci)) ad = x; });
+    if (!ad) return { hata: 'Toptancıyı listeden seçin.' };
+    var m = String(d.tarih || '').match(/^(\d{4})-(\d{2})-(\d{2})$/); if (!m) return { hata: 'Tarih seçin.' };
+    var tarih = new Date(+m[1], +m[2] - 1, +m[3], 12, 0, 0), fark = (tarih.getTime() - Date.now()) / 86400000;
+    if (fark < -31) return { hata: 'Bir aydan eski tarihe plan girilemez.' };
+    if (fark > 366) return { hata: 'Bir yıldan ileri tarihe plan girilemez.' };
+    var tutar = Math.round(sayi_(d.tutar) * 100) / 100;
+    if (tutar < 0 || tutar > 5000000) return { hata: 'Tutarı kontrol edin.' };
+    var yeniId = 'P' + Utilities.formatDate(new Date(), TZ, 'yyMMddHHmmss') + ('0' + Math.floor(Math.random() * 100)).slice(-2);
+    var row = []; for (var j = 0; j < b.length; j++) row.push('');
+    row[c.Plan_ID] = yeniId; row[c.Tedarikçi] = ad; row[c.Plan_Tarihi] = tarih; row[c.Tutar] = tutar || '';
+    row[c.Açıklama] = String(d.aciklama || '').replace(/\s+/g, ' ').trim().slice(0, 300); row[c.Kayıt_Zamanı] = damga; row[c.Kaynak] = 'Panel';
+    var no = sh.getLastRow() + 1;
+    sh.getRange(no, 1, 1, row.length).setValues([row]);
+    sh.getRange(no, c.Plan_Tarihi + 1).setNumberFormat('dd.mm.yyyy');
+    sonuc = { tamam: true, id: yeniId, ad: ad, tarih: Utilities.formatDate(tarih, TZ, 'dd.MM.yyyy'), tutar: tutar };
+  }
+  if (istek) cache.put('plan_' + istek, JSON.stringify(sonuc), 600);
+  return sonuc;
+}
+
+/* ---------------- Haddy kurye faturaları ----------------
+ * Haddy'nin haftalık genel gider faturası Kolaybi'ye alış ya da gider faturası olarak düşer. Tedarikçi adında aşağıdakilerden
+ * biri geçen faturalar okunur (Haddy'nin ticari ünvanı farklıysa buraya eklenir). Son 120 gün.
+ */
+var HADDY_FATURA_ADLARI = ['haddy'];
+function haddyMi_(ad) { var n = norm_(ad); return HADDY_FATURA_ADLARI.some(function (h) { return n.indexOf(norm_(h)) >= 0; }); }
+function haddyFaturalari_(ss, faturalar, bugun) {
+  var sinir = gunEkle_(bugun, -120), out = [], gor = {};
+  faturalar.forEach(function (f) { if (f.tarih >= sinir && haddyMi_(f.ad)) out.push({ tarih: f.tarih, ad: f.ad, tutar: Math.round(f.tutar * 100) / 100, kaynak: 'alış' }); });
+  var g = satirlar_(ss, 'Gider_Faturalari');
+  var cT = kolon_(g.b, ['Tarih']), cG = kolon_(g.b, ['Tedarikci', 'Tedarikçi']), cU = kolon_(g.b, ['Tutar']), cN = kolon_(g.b, ['Fatura_No']), cI = kolon_(g.b, ['Fatura_ID']);
+  g.r.forEach(function (r) {
+    var ad = String(r[cG] || '').trim(); if (!haddyMi_(ad)) return;
+    var ms = zaman_(r[cT]); if (ms === null) return;
+    var tarih = new Date(ms).toISOString().slice(0, 10); if (tarih < sinir) return;
+    var id = String(r[cI] || '').replace(/-\d+$/, ''); if (id && gor[id]) return; if (id) gor[id] = 1;   // çok satırlı gider tek fatura
+    out.push({ tarih: tarih, ad: ad, no: cN >= 0 ? String(r[cN] || '') : '', tutar: Math.round(sayi_(r[cU]) * 100) / 100, kaynak: 'gider' });
+  });
+  return out.sort(function (a, b) { return b.tarih.localeCompare(a.tarih); });
+}
+
+/* ---------------- Kurye haftalık ödemesi: ödendi işareti ----------------
+ * Kurye tablosu › Kurye_Odemeleri: Hafta (Pazartesi) | Bitiş | Durum (Ödendi / Geri alındı) | BAP_Tutar | Haddy_Tutar | Kayıt_Zamanı | Kaynak
+ * Her işaret yeni satırdır; bir haftanın son satırı geçerlidir (satır silinmez). Ödeme günü: haftanın bittiği Pazar'dan sonraki Cuma.
+ */
+var KURYE_ODEME_SEKME = 'Kurye_Odemeleri';
+var KURYE_ODEME_BASLIK = ['Hafta', 'Bitiş', 'Durum', 'BAP_Tutar', 'Haddy_Tutar', 'Kayıt_Zamanı', 'Kaynak'];
+function kuryeOdemeDurumu_(ss) {
+  var p = satirlar_(ss, KURYE_ODEME_SEKME), out = {};
+  var cH = kolon_(p.b, ['Hafta']), cD = kolon_(p.b, ['Durum']), cB = kolon_(p.b, ['BAP_Tutar']), cY = kolon_(p.b, ['Haddy_Tutar']), cK = kolon_(p.b, ['Kayıt_Zamanı']);
+  p.r.forEach(function (r) {
+    var ms = zaman_(r[cH]); if (ms === null) return;
+    var hf = new Date(ms).toISOString().slice(0, 10);
+    out[hf] = { odendi: /[öÖoO]dendi/.test(String(r[cD] || '')), bap: sayi_(r[cB]), haddy: sayi_(r[cY]), zaman: String(r[cK] || '') };
+  });
+  return out;
+}
+function kuryeOdendiIsle_(d) {
+  var hf = String(d.hafta || ''); if (!/^\d{4}-\d{2}-\d{2}$/.test(hf) || new Date(hf + 'T00:00:00Z').getUTCDay() !== 1) return { hata: 'Hafta geçersiz.' };
+  var ss = tabloAc_(KAYNAK.kurye.id), sh = ss.getSheetByName(KURYE_ODEME_SEKME);
+  if (!sh) { sh = ss.insertSheet(KURYE_ODEME_SEKME); sh.appendRow(KURYE_ODEME_BASLIK); sh.setFrozenRows(1); sh.getRange(1, 1, 1, KURYE_ODEME_BASLIK.length).setFontWeight('bold'); }
+  var odendi = d.islem !== 'geri', damga = Utilities.formatDate(new Date(), TZ, 'dd.MM.yyyy HH:mm:ss');
+  var bas = new Date(+hf.slice(0, 4), +hf.slice(5, 7) - 1, +hf.slice(8, 10), 12), bit = new Date(bas.getTime() + 6 * 86400000);
+  sh.appendRow([bas, bit, odendi ? 'Ödendi' : 'Geri alındı', Math.round(sayi_(d.bap) * 100) / 100, Math.round(sayi_(d.haddy) * 100) / 100, damga, 'Panel']);
+  sh.getRange(sh.getLastRow(), 1, 1, 2).setNumberFormat('dd.mm.yyyy');
+  return { tamam: true, hafta: hf, odendi: odendi };
+}
 
 function json_(o) { return ContentService.createTextOutput(JSON.stringify(o)).setMimeType(ContentService.MimeType.JSON); }
 
