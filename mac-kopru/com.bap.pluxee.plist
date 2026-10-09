@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>Label</key>
+	<string>com.bap.pluxee</string>
+	<key>ProgramArguments</key>
+	<array>
+		<string>/usr/local/bin/node</string>
+		<string>/Users/Handan/bap-kopru/pluxee.mjs</string>
+	</array>
+	<key>StandardErrorPath</key>
+	<string>/Users/Handan/bap-kopru/pluxee_cron.log</string>
+	<key>StandardOutPath</key>
+	<string>/Users/Handan/bap-kopru/pluxee_cron.log</string>
+	<!-- Pluxee günün işlemlerini gün sonundan (~00:15) sonra gösteriyor: 23:50 boş geçiyordu (09.10) → 01:05 + 12:00 -->
+	<key>StartCalendarInterval</key>
+	<array>
+		<dict>
+			<key>Hour</key>
+			<integer>1</integer>
+			<key>Minute</key>
+			<integer>5</integer>
+		</dict>
+		<dict>
+			<key>Hour</key>
+			<integer>12</integer>
+			<key>Minute</key>
+			<integer>0</integer>
+		</dict>
+	</array>
+	<key>WorkingDirectory</key>
+	<string>/Users/Handan/bap-kopru</string>
+</dict>
+</plist>
