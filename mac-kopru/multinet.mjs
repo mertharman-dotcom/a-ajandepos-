@@ -77,14 +77,14 @@ function terminaldenSor() {
    Sitenin güvenlik duvarı (F5) yalnız sitenin kendi isteklerine benzeyenleri geçirir (07.10: düz fetch "Request Rejected" aldı).
    Bu yüzden istek sayfanın içinden XMLHttpRequest ile (sitenin kullandığı yol) ve sitenin kendi isteğindeki başlıklarla atılır.
    Sitenin kendi aldığı yanıtlar da saklanır: güvenlik duvarı yine reddederse aynı istek için onlar kullanılır. */
-const OT = { csrf: '', customerId: null, basliklar: {}, yanit: {} };
+const OT = { csrf: '', customerId: null, merchantId: null, basliklar: {}, yanit: {} };
 const ATLA = /^(host|cookie|content-length|content-type|origin|referer|user-agent|accept-encoding|connection|sec-|:)/i;
 function dinle(page) {
   page.on('request', r => {
     if (!r.url().startsWith(KOK + '/api/')) return;
     const h = r.headers(); if (h['x-csrf-token']) OT.csrf = h['x-csrf-token'];
     for (const [k, v] of Object.entries(h)) if (!ATLA.test(k)) OT.basliklar[k] = v;
-    try { const b = JSON.parse(r.postData() || '{}'); if (b.customerId) OT.customerId = b.customerId; } catch (_) {}
+    try { const b = JSON.parse(r.postData() || '{}'); if (b.customerId) OT.customerId = b.customerId; if (b.merchantId) OT.merchantId = b.merchantId; } catch (_) {}
   });
   page.on('response', async r => {
     if (!r.url().startsWith(KOK + '/api/')) return;
@@ -165,6 +165,11 @@ async function girisYap(page) {
   log('oturum açıldı');
 }
 
+/* ---------- oturum çerezi: Chrome kapanınca silinen oturumluk çerez dosyada saklanır (her çalışmada SMS istenmesin) ---------- */
+const CEREZ = path.join(DIZIN, 'multinet-cerez.json');
+async function cerezYukle(c) { try { const x = JSON.parse(fs.readFileSync(CEREZ, 'utf8')); if (x.length) await c.addCookies(x); } catch (_) {} }
+async function cerezKaydet(c) { try { const x = (await c.cookies()).filter(k => /multiavantaj/i.test(k.domain)); if (x.length) fs.writeFileSync(CEREZ, JSON.stringify(x)); } catch (_) {} }
+
 /* ---------- ana ---------- */
 (async () => {
   let ctx;
@@ -173,16 +178,22 @@ async function girisYap(page) {
     const a = process.argv.filter(x => /^\d{2}\.\d{2}\.\d{4}$/.test(x)), tr = s => { const [g, m, y] = s.split('.'); return new Date(+y, +m - 1, +g); };
     const bit = a[1] ? tr(a[1]) : new Date(), bas = a[0] ? tr(a[0]) : new Date(Date.now() - GERI_GUN * 86400000);
     ctx = await chromium.launchPersistentContext(PROFIL, { executablePath: CHROME, headless: false, ignoreDefaultArgs: ['--enable-automation', '--no-sandbox'], args: ['--disable-blink-features=AutomationControlled'], locale: 'tr-TR', viewport: { width: 1280, height: 900 } });
+    await cerezYukle(ctx);
     const page = ctx.pages()[0] || await ctx.newPage(); dinle(page);
-    await page.goto(KOK + '/transactions', { waitUntil: 'networkidle' });
-    if (/\/auth\/login/.test(page.url())) { await girisYap(page); await page.goto(KOK + '/transactions', { waitUntil: 'networkidle' }); }
+    await page.goto(KOK + '/transactions', { waitUntil: 'domcontentloaded' }); await bekle(3000);
+    if (/\/auth\/login/.test(page.url())) { await girisYap(page); await cerezKaydet(ctx); await page.goto(KOK + '/transactions', { waitUntil: 'domcontentloaded' }); await bekle(3000); }
     else log('oturum zaten açık');
     for (let i = 0; i < 20 && (!OT.csrf || !OT.customerId); i++) await bekle(500);   // sayfa kendi isteklerini atınca dolar
     if (!OT.csrf || !OT.customerId) throw new Error('oturum bilgisi (csrf / müşteri no) yakalanamadı');
     log('sitenin istek başlıkları: ' + Object.keys(OT.basliklar).join(', ') + ' · sitenin kendi çağrıları: ' + Object.keys(OT.yanit).join(', '));
 
-    const sube = (await api(page, 'transactions/getBranches', { customerId: OT.customerId }, { yedekKullan: true }))[0];
-    if (!sube) throw new Error('şube bulunamadı');
+    // Şube (merchantId) bizim isteğimizle sorulmaz (güvenlik duvarı reddediyor, 09.10): sitenin kendi getBranches yanıtından ya da
+    // kendi isteklerinin gövdesinden alınır; sayfa henüz istemediyse işlemler sayfası yeniden açılıp beklenir. Son çare ayar.json › multinet.subeId.
+    const subeBul = () => { const y = OT.yanit['transactions/getBranches']; const l = y && (y.data || y).Result;
+      return (l && l[0] && l[0].Id) || OT.merchantId || null; };
+    for (let i = 0; i < 2 && !subeBul(); i++) { await page.goto(KOK + '/transactions', { waitUntil: 'domcontentloaded' }).catch(() => {}); for (let j = 0; j < 30 && !subeBul(); j++) await bekle(500); }
+    const sube = { Id: subeBul() || MN.subeId || 344514 };
+    log('şube: ' + sube.Id);
     // Fatura (sahibin kuralı 06.10: Salı 23:30, 3 gün vade). --fatura-zamanli: zamanlayıcıdan; ayar.json › multinet.otoFatura true ise keser,
     // değilse yalnız dener (kuru) ve kaydeder. --fatura-kes: elle, her zaman keser. --fatura-kuru: yalnız gösterir.
     const FZ = process.argv.includes('--fatura-zamanli');
@@ -228,5 +239,5 @@ async function girisYap(page) {
       if (fat.length) log('faturalar: ' + JSON.stringify(await yk({ tur: 'multinetFatura', faturalar: fat })));
     }
   } catch (e) { log('HATA: ' + e.message); process.exitCode = 1; }
-  finally { if (ctx) await ctx.close().catch(() => {}); }
+  finally { if (ctx) { await cerezKaydet(ctx); await ctx.close().catch(() => {}); } }
 })();
