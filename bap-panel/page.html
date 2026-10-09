@@ -46,6 +46,8 @@ button{font:inherit;color:inherit}
 .nav button[aria-current="page"]{background:var(--mavi-acik);color:var(--mavi-koyu);font-weight:600}
 .nav .rozet{font-size:12px;font-weight:600;background:var(--kotu);color:#fff;border-radius:10px;padding:0 7px;min-width:20px;text-align:center}
 .nav button:focus-visible{outline:2px solid var(--mavi-koyu)}
+.nav a.nav-dis{display:flex;justify-content:space-between;align-items:center;padding:7px 12px 9px 24px;border-radius:var(--r-kucuk);color:var(--gri);font-size:13.5px;text-decoration:none}
+.nav a.nav-dis:hover{background:var(--kum-acik);color:var(--mavi-koyu)}
 .yan-alt{margin-top:26px;padding:14px 12px 0;border-top:1px solid var(--cizgi);font-size:12.5px;color:var(--gri)}
 
 .ana{padding:30px 38px 60px;max-width:1240px;width:100%}
@@ -316,7 +318,9 @@ function bekleyenSayi(){return VERI&&VERI.hub?VERI.hub.bekleyen.length+kokpitBek
 function nav(){var n=document.getElementById("nav");n.textContent="";
   BOLUMLER.forEach(function(b){var rozet=null;if(b[0]==="kararlar"&&bekleyenSayi()>0)rozet=el("span",{class:"rozet",text:String(bekleyenSayi()),"aria-label":bekleyenSayi()+" bekleyen karar"});
     if(b[0]==="saglik"&&saglikSorun().length)rozet=el("span",{class:"rozet",text:String(saglikSorun().length),"aria-label":saglikSorun().length+" sistemde sorun"});
-    n.appendChild(el("button",{type:"button","aria-current":AKTIF===b[0]?"page":null,onclick:function(){git(b[0]);}},[el("span",{text:b[1]}),rozet]));});}
+    n.appendChild(el("button",{type:"button","aria-current":AKTIF===b[0]?"page":null,onclick:function(){git(b[0]);}},[el("span",{text:b[1]}),rozet]));
+    // Alım & Tedarikçi ayrı sayfada (/alim): verisi yalnız açılınca gelir, bu panelin açılışını yavaşlatmaz
+    if(b[0]==="alim")n.appendChild(el("a",{class:"nav-dis",href:"/alim"},[el("span",{text:"Alım & Tedarikçi detay"}),el("span",{text:"↗","aria-hidden":"true"})]));});}
 function git(id){AKTIF=id;history.replaceState(null,"","#"+id);ciz();window.scrollTo(0,0);}
 
 function ust(baslik,alt){var zaman=VERI&&VERI.olusturma?VERI.olusturma.replace("T"," ").slice(0,16):"";
@@ -897,7 +901,8 @@ function alimSayfa(a){var f=VERI.finans;a.appendChild(ust("Alımlar & giderler",
     blok("Son ödemeler",null,od.son.length?tablo([["Tarih"],["Tedarikçi"],["Tutar",1]],od.son.slice(0,10).map(function(x){return [tarihTr(x.tarih),tedHucre(x.ad),para(x.tutar)];})):bos("Ödeme kaydı yok."))]));}
 
 /* ---- Toptancı ödemesi girişi: Kolaybi Fatura Ham Veri › Odemeler sekmesine yazar ---- */
-function odemeGirDugmesi(){return el("p",{style:"margin:0 0 22px"},[el("button",{type:"button",class:"dugme ana-dugme",onclick:function(){git("odeme");}},["+ Toptancı ödemesi gir"])]);}
+function odemeGirDugmesi(){return el("p",{style:"margin:0 0 22px;display:flex;gap:10px;flex-wrap:wrap"},[el("button",{type:"button",class:"dugme ana-dugme",onclick:function(){git("odeme");}},["+ Toptancı ödemesi gir"]),
+  el("a",{class:"dugme",href:"/alim",style:"text-decoration:none;color:inherit"},["Ayrıntılı alım ekranı: tedarikçi cari, ürün fiyatları, Ev ayırma, fatura eşleştirme ↗"])]);}
 function bugunIst(){try{return new Intl.DateTimeFormat("en-CA",{timeZone:"Europe/Istanbul",year:"numeric",month:"2-digit",day:"2-digit"}).format(new Date());}catch(e){return new Date().toISOString().slice(0,10);}}
 function yeniIstekNo(){try{if(window.crypto&&crypto.randomUUID)return crypto.randomUUID();}catch(e){}return Date.now().toString(36)+Math.random().toString(36).slice(2);}
 // "12.500", "12.500,50", "12500,5", "12500.5" → sayı

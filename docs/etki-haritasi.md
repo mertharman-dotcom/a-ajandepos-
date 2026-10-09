@@ -16,7 +16,7 @@ Ajan için: `node araclar/etki-haritasi.mjs ara "<sekme / sütun / fonksiyon ad�
 |---|---|
 | Apps Script projesi | 16 |
 | Kodun dokunduğu sekme | 177 |
-| Birden fazla projenin **yazdığı** sekme (risk) | 20 |
+| Birden fazla projenin **yazdığı** sekme (risk) | 21 |
 | Arayüz dosyası (panel, köprü) | 11 |
 
 ### ⚠️ Birden fazla projenin yazdığı sekmeler
@@ -36,6 +36,7 @@ Aynı sekmeye iki ayrı proje yazıyorsa birinin yaptığı değişiklik diğeri
 | PERSONEL › Personel | BAP Panel Veri Kapısı, BAP_Personel |
 | PERSONEL › Vardiya | BAP Panel Veri Kapısı, BAP_Personel |
 | SATIS › Satıs Verileri | Adisyo Sipariş Toplayıcı, Stok Takip Sistemi |
+| STOK › Fatura_Eslestirme | Kolaybi Fatura Ham Veri, Stok Takip Sistemi |
 | STOK › Maliyet_Detay | BAP Maliyet Modülü, Stok Takip Sistemi |
 | STOK › Stok_Hareketleri | BAP PANEL Backend, Stok Takip Sistemi |
 | STOK › Sube_Stok | BAP PANEL Backend, Stok Takip Sistemi |
@@ -204,6 +205,7 @@ Aynı sekmeye iki ayrı proje yazıyorsa birinin yaptığı değişiklik diğeri
 - Olası başka sütunlar: 22 (aynı fonksiyon birden fazla sekme açtığı için kesin değil; ayrıntı .html / `ara`)
 - **Zamanla çalışan:** haftada bir 09:00 (`haftalikRapor`), haftada bir 03:00 (`kolaybiAlisTamTarama`), her gün 00:10 (`kalemleriAyir`), her gün 14:10 (`kalemleriAyir`), her gün 00:30 (`alisIsle`), her gün 05:00 (`ajanGecelik`), her gün 14:30 (`alisIsle`)
 - **Elle çalıştırılan:** menü: Hariç kalemleri Fatura_Kalemleri'nden temizle (`haricKalemleriTemizle`), menü: Ürün listesini yenile (`urunListesiOlustur`), menü: Yeni faturaları kalemlere ayır (`kalemleriAyir`)
+- **Etkilenen arayüz:** Cloudflare eski sayfalar
 
 #### Gider_Faturalari
 
@@ -212,6 +214,7 @@ Aynı sekmeye iki ayrı proje yazıyorsa birinin yaptığı değişiklik diğeri
 - **Yoksa oluşturan:** `ap_giderSekme_`, `kolaybiGiderFaturalariCek`
 - Olası başka sütunlar: 12 (aynı fonksiyon birden fazla sekme açtığı için kesin değil; ayrıntı .html / `ara`)
 - **Zamanla çalışan:** haftada bir 09:00 (`haftalikRapor`)
+- **Etkilenen arayüz:** Cloudflare eski sayfalar
 
 #### Gider_Kategorileri
 
@@ -227,6 +230,7 @@ Aynı sekmeye iki ayrı proje yazıyorsa birinin yaptığı değişiklik diğeri
 - **Yoksa oluşturan:** `haricSekmesiOlustur`
 - **Zamanla çalışan:** haftada bir 03:00 (`kolaybiAlisTamTarama`), her gün 00:10 (`kalemleriAyir`), her gün 14:10 (`kalemleriAyir`)
 - **Elle çalıştırılan:** menü: Hariç kalemleri Fatura_Kalemleri'nden temizle (`haricKalemleriTemizle`), menü: Hariç listesi sekmesini oluştur (`haricSekmesiOlustur`), menü: Ürün listesini yenile (`urunListesiOlustur`), menü: Yeni faturaları kalemlere ayır (`kalemleriAyir`)
+- **Etkilenen arayüz:** Cloudflare eski sayfalar
 
 #### Haric_Log
 
@@ -243,7 +247,7 @@ Aynı sekmeye iki ayrı proje yazıyorsa birinin yaptığı değişiklik diğeri
 - **Yoksa oluşturan:** `toptanciOdemeGir_`, `ap_sekmeleriHazirla_`
 - **Adıyla aranan sütunlar:** `Tedarikçi`, `Tutar`
 - Olası başka sütunlar: 11 (aynı fonksiyon birden fazla sekme açtığı için kesin değil; ayrıntı .html / `ara`)
-- **Etkilenen arayüz:** Yönetim paneli (bap-panel Worker)
+- **Etkilenen arayüz:** Cloudflare eski sayfalar, Yönetim paneli (bap-panel Worker)
 
 #### Ozel_Alimlar
 
@@ -251,6 +255,7 @@ Aynı sekmeye iki ayrı proje yazıyorsa birinin yaptığı değişiklik diğeri
 - **Okuyan:** `maliyetBolumu_` (BAP Rapor Ajanı), `ap_ozelHaritasi_` (Kolaybi Fatura Ham Veri), `ozelAlimHaritasi_` (Stok Takip Sistemi)
 - **Yoksa oluşturan:** `ap_sekmeleriHazirla_`
 - **Zamanla çalışan:** haftada bir 09:00 (`haftalikRapor`), her gün 00:30 (`alisIsle`), her gün 05:00 (`ajanGecelik`), her gün 14:30 (`alisIsle`)
+- **Etkilenen arayüz:** Cloudflare eski sayfalar
 
 #### Satis_Faturalari
 
@@ -259,7 +264,7 @@ Aynı sekmeye iki ayrı proje yazıyorsa birinin yaptığı değişiklik diğeri
 - **Yoksa oluşturan:** `kolaybiSatisFaturalariCek`
 - **Adıyla aranan sütunlar:** `EBelge_Durumu`, `Fatura_Durumu`, `Fatura_ID`, `Fatura_No`, `Kalan`, `Musteri`, `Nakit_Yonu`, `Odeme_Durumu`, `Odenen`, `Para_Birimi`, `Tarih`, `Tutar`, `Vade_Tarihi`
 - Olası başka sütunlar: 5 (aynı fonksiyon birden fazla sekme açtığı için kesin değil; ayrıntı .html / `ara`)
-- **Etkilenen arayüz:** Yönetim paneli (bap-panel Worker)
+- **Etkilenen arayüz:** Cloudflare eski sayfalar, Yönetim paneli (bap-panel Worker)
 
 #### Sayfa1
 
@@ -268,6 +273,7 @@ Aynı sekmeye iki ayrı proje yazıyorsa birinin yaptığı değişiklik diğeri
 - Olası başka sütunlar: 27 (aynı fonksiyon birden fazla sekme açtığı için kesin değil; ayrıntı .html / `ara`)
 - **Zamanla çalışan:** her gün (`nabizKontrol`), haftada bir 03:00 (`kolaybiAlisTamTarama`), her gün 00:10 (`kalemleriAyir`), her gün 14:10 (`kalemleriAyir`)
 - **Elle çalıştırılan:** menü: Yeni faturaları kalemlere ayır (`kalemleriAyir`)
+- **Etkilenen arayüz:** Cloudflare eski sayfalar
 
 #### Tedarikciler
 
@@ -275,7 +281,7 @@ Aynı sekmeye iki ayrı proje yazıyorsa birinin yaptığı değişiklik diğeri
 - **Okuyan:** `finans_` (BAP Panel Veri Kapısı), `toptanciOdemeGir_` (BAP Panel Veri Kapısı), `veriKontrol` (Kolaybi Fatura Ham Veri)
 - **Yoksa oluşturan:** `ap_sekmeleriHazirla_`
 - Olası başka sütunlar: 13 (aynı fonksiyon birden fazla sekme açtığı için kesin değil; ayrıntı .html / `ara`)
-- **Etkilenen arayüz:** Yönetim paneli (bap-panel Worker)
+- **Etkilenen arayüz:** Cloudflare eski sayfalar, Yönetim paneli (bap-panel Worker)
 
 #### Urun_Listesi
 
@@ -736,7 +742,7 @@ Aynı sekmeye iki ayrı proje yazıyorsa birinin yaptığı değişiklik diğeri
 #### Alis_Bekleyenler
 
 - **Yazan:** `bekleyenYaz_` (Stok Takip Sistemi)
-- **Okuyan:** `ajBekleyen_` (Stok Takip Sistemi), `alisBekleyenOzeti` (Stok Takip Sistemi), `arsivKontrol` (Stok Takip Sistemi), `bekleyenleriGoster` (Stok Takip Sistemi), `denetim2` (Stok Takip Sistemi), `denetimRaporuBAP` (Stok Takip Sistemi)
+- **Okuyan:** `ap_eslestirmeVeri_` (Kolaybi Fatura Ham Veri), `ajBekleyen_` (Stok Takip Sistemi), `alisBekleyenOzeti` (Stok Takip Sistemi), `arsivKontrol` (Stok Takip Sistemi), `bekleyenleriGoster` (Stok Takip Sistemi), `denetim2` (Stok Takip Sistemi), `denetimRaporuBAP` (Stok Takip Sistemi)
 - **Yoksa oluşturan:** `bekleyenYaz_`
 - Olası başka sütunlar: 1 (aynı fonksiyon birden fazla sekme açtığı için kesin değil; ayrıntı .html / `ara`)
 - **Zamanla çalışan:** her gün 00:30 (`alisIsle`), her gün 05:00 (`ajanGecelik`), her gün 14:30 (`alisIsle`)
@@ -803,9 +809,10 @@ Aynı sekmeye iki ayrı proje yazıyorsa birinin yaptığı değişiklik diğeri
 
 #### Fatura_Eslestirme
 
-- **Yazan:** `ajEslestirme_` (Stok Takip Sistemi), `alisIsle_` (Stok Takip Sistemi), `eslesmeSekmesi_` (Stok Takip Sistemi), `eslestirmeDoldur` (Stok Takip Sistemi)
-- **Okuyan:** `denetimRaporuBAP` (Stok Takip Sistemi), `sonAlisFiyatlariniDoldur` (Stok Takip Sistemi)
+- **Yazan:** `ap_eslestirmeKaydet_` (Kolaybi Fatura Ham Veri), `ajEslestirme_` (Stok Takip Sistemi), `alisIsle_` (Stok Takip Sistemi), `eslesmeSekmesi_` (Stok Takip Sistemi), `eslestirmeDoldur` (Stok Takip Sistemi)
+- **Okuyan:** `ap_eslestirmeVeri_` (Kolaybi Fatura Ham Veri), `denetimRaporuBAP` (Stok Takip Sistemi), `sonAlisFiyatlariniDoldur` (Stok Takip Sistemi)
 - **Yoksa oluşturan:** `eslesmeSekmesi_`
+- **Adıyla aranan sütunlar:** `Carpan`, `Çarpan`, `Fatura_Urun_Adi`, `Not`, `Stok_Urun_Adi`, `Tedarikci`, `Tedarikçi`, `Tip`
 - **Zamanla çalışan:** her gün 00:30 (`alisIsle`), her gün 05:00 (`ajanGecelik`), her gün 14:30 (`alisIsle`)
 
 #### Fatura_Ev_Alimlari
@@ -922,7 +929,7 @@ Aynı sekmeye iki ayrı proje yazıyorsa birinin yaptığı değişiklik diğeri
 - **Dolaylı yazabilir** (sekmeyi başka bir yapıya verip orada yazdırıyor olabilir): `hammaddeHaritasi_`
 - **Zamanla çalışan:** her gün (`maliyetRaporu`), tabloda düzenleme olunca (`detayTetik`), her 5 dk (`stokMotoru`), her gün 00:30 (`alisIsle`), her gün 05:00 (`ajanGecelik`), her gün 14:30 (`alisIsle`)
 - **Elle çalıştırılan:** menü: Manuel Satış İşle (`stokMotoru`)
-- **Etkilenen arayüz:** Mutfak paneli (bap-sistem.pages.dev), Yönetim paneli (bap-panel Worker)
+- **Etkilenen arayüz:** Cloudflare eski sayfalar, Mutfak paneli (bap-sistem.pages.dev), Yönetim paneli (bap-panel Worker)
 
 #### Tbl_Maliyetler
 
@@ -1332,7 +1339,7 @@ Bağlı dosya: — (tabloları kimlikle açar) · 219 fonksiyon · 77 sekme
 
 ### Kolaybi Fatura Ham Veri (`apps-script/kolaybi-fatura-ham-veri`)
 
-Bağlı dosya: FATURA · 99 fonksiyon · 15 sekme
+Bağlı dosya: FATURA · 103 fonksiyon · 17 sekme
 
 - haftada bir 03:00 → kolaybiAlisTamTarama
 - her 2 saatte → kolaybiTumunuCek
@@ -1344,7 +1351,7 @@ Bağlı dosya: FATURA · 99 fonksiyon · 15 sekme
 - menü: Ürün listesini yenile → urunListesiOlustur
 - menü: Yeni faturaları kalemlere ayır → kalemleriAyir
 - tablo açılınca → onOpen
-- Web eylemleri (12): `action=veri → ap_json_`, `action=veri → ap_veri_`, `giderEkle → ap_giderEkle_`, `giderKategori → ap_giderKategori_`, `giderSil → ap_giderSil_`, `hammaddeEkle → ap_hammaddeEkle_`, `odemeEkle → ap_odemeEkle_`, `odemeSil → ap_odemeSil_`, `ozelIsaretle → ap_ozelIsaretle_`, `ozelUrun → ap_ozelUrun_`, `subeAta → ap_subeAta_`, `tedarikciKaydet → ap_tedarikciKaydet_`
+- Web eylemleri (15): `action=eslestirme → ap_eslestirmeVeri_`, `action=eslestirme → ap_json_`, `action=veri → ap_json_`, `action=veri → ap_veri_`, `eslestirmeKaydet → ap_eslestirmeKaydet_`, `giderEkle → ap_giderEkle_`, `giderKategori → ap_giderKategori_`, `giderSil → ap_giderSil_`, `hammaddeEkle → ap_hammaddeEkle_`, `odemeEkle → ap_odemeEkle_`, `odemeSil → ap_odemeSil_`, `ozelIsaretle → ap_ozelIsaretle_`, `ozelUrun → ap_ozelUrun_`, `subeAta → ap_subeAta_`, `tedarikciKaydet → ap_tedarikciKaydet_`
 
 ### Adisyo Sipariş Toplayıcı (`apps-script/adisyo-siparis-toplayici`)
 
@@ -1469,7 +1476,7 @@ Bağlı dosya: — (tabloları kimlikle açar) · 27 fonksiyon · 4 sekme
 | `mac-kopru/metropol.mjs` (MacBook köprüsü (mac-kopru)) | bap-yemek-karti, kurye-net-calisma-suresi | 4 |
 | `mac-kopru/multinet.mjs` (MacBook köprüsü (mac-kopru)) | bap-yemek-karti, kurye-net-calisma-suresi | 8 |
 | `mac-kopru/topla.mjs` (MacBook köprüsü (mac-kopru)) | bap-yemek-karti, kurye-net-calisma-suresi | 4 |
-| `cloudflare/workers/bap-alim-paneli/index.html` (Cloudflare eski sayfalar) | projeler.json'da olmayan dağıtım | 0 |
+| `cloudflare/workers/bap-alim-paneli/index.html` (Cloudflare eski sayfalar) | kolaybi-fatura-ham-veri | 11 |
 | `cloudflare/workers/bap-genel-bilgiler/index.html` (Cloudflare eski sayfalar) | projeler.json'da olmayan dağıtım | 0 |
 | `cloudflare/workers/bap-genel-yonetm/index.html` (Cloudflare eski sayfalar) | projeler.json'da olmayan dağıtım | 0 |
 | `cloudflare/workers/kurye-takip/index.html` (Cloudflare eski sayfalar) | — | 0 |
@@ -1504,8 +1511,9 @@ Sekme adı koddan okunamadı (değişkenle ya da döngüyle açılıyor). Bu yer
 | bap-panel-veri-kapisi | `kokpitPanoKur` | `bap-panel-veri-kapisi/Kod.gs:1152` | `ad` |
 | bap-panel-veri-kapisi | `mobilFatura_` | `bap-panel-veri-kapisi/Kod.gs:1597` | `k . birikenSekme` |
 | bap-panel-veri-kapisi | `genel_` | `bap-panel-veri-kapisi/Kod.gs:1945` | `ad` |
-| kolaybi-fatura-ham-veri | `ap_hammaddeEkle_` | `kolaybi-fatura-ham-veri/Alım Paneli.gs:448` | `sekmeler [ s ]` |
-| kolaybi-fatura-ham-veri | `ap_hammaddeHaritasi_` | `kolaybi-fatura-ham-veri/Alım Paneli.gs:555` | `ad` |
+| kolaybi-fatura-ham-veri | `ap_hammaddeEkle_` | `kolaybi-fatura-ham-veri/Alım Paneli.gs:459` | `sekmeler [ s ]` |
+| kolaybi-fatura-ham-veri | `ap_eslestirmeVeri_` | `kolaybi-fatura-ham-veri/Alım Paneli.gs:506` | `ad` |
+| kolaybi-fatura-ham-veri | `ap_hammaddeHaritasi_` | `kolaybi-fatura-ham-veri/Alım Paneli.gs:641` | `ad` |
 | kolaybi-fatura-ham-veri | `alisFaturaTeshis` | `kolaybi-fatura-ham-veri/Kolaybi Veri Cek.gs:711` | `ad` |
 | adisyo-siparis-toplayici | `adresEslesmeUygula` | `adisyo-siparis-toplayici/Adres Eslesme.gs:34` | `AE_ANA_SEKME` |
 | kurye-net-calisma-suresi | `denetimSnapshot` | `kurye-net-calisma-suresi/Kural.gs:166` | `ad` |

@@ -42,7 +42,7 @@ Bütün e-tabloların listesi ve önerilen Drive düzeni: `docs/tablo-haritasi.m
 | Direkt satış kartı (içecek vb.) | STOK › Direktsatisurunler | Elle | Hepsi | — |
 | Ambalaj kuralları | STOK › Ambalaj_Kurallari | Elle | Stok motoru, Maliyet | — |
 | Satış adı ↔ reçete adı eşleştirmesi | ⏳ tek tablo kurulacak (K5) | — | — | Hazirlik_Eslestirme, Tbl_UrunEslestirme, stok motorundaki `DS_TAKMA_AD` |
-| Fatura adı ↔ stok kalemi eşleştirmesi | STOK › Fatura_Eslestirme | Elle / Alış motoru | Alış motoru | — |
+| Fatura adı ↔ stok kalemi eşleştirmesi | STOK › Fatura_Eslestirme | Alış motoru (eşleşmeyeni A'ya ekler) + Yönetim paneli › Alım & Tedarikçi › Fatura eşleştirme (B/C/D/F; `ap_eslestirmeKaydet_`) ya da elle | Alış motoru | — |
 | Şube stoğu | STOK › Sube_Stok | Satış, Alış, Üretim, Sayım, Transfer, Zayi | Panel, raporlar | ⏳ stok kalemi = kısa ad (K2) |
 | Stok hareket defteri | STOK › Stok_Hareketleri | Tüm motorlar | Raporlar | — |
 | Satış düşüm logu | STOK › Satis_Hareketleri | Stok motoru | Raporlar | — |

@@ -53,5 +53,9 @@ jobs:
           dep=$(jq -r '.projeler[] | select(.klasor=="bap-panel-veri-kapisi") | .deploymentId // ""' apps-script/projeler.json)
           [ -n "$dep" ] || { echo "::error::projeler.json'da bap-panel-veri-kapisi deploymentId boş"; exit 1; }
           # --keep-vars: GAS_KEY, ALLOWED_EMAIL gibi diğer ayarlara dokunmaz
+          # ALIM_URL: Alım & Tedarikçi ekranının arka ucu (Kolaybi Fatura Ham Veri web uygulaması), yine projeler.json'dan
+          alim=$(jq -r '.projeler[] | select(.klasor=="kolaybi-fatura-ham-veri") | .deploymentId // ""' apps-script/projeler.json)
+          [ -n "$alim" ] || { echo "::error::projeler.json'da kolaybi-fatura-ham-veri deploymentId boş"; exit 1; }
           npx -y wrangler@3 deploy bap-panel/worker.js --name bap-panel --compatibility-date 2024-09-23 --keep-vars \
-            --var "GAS_URL:https://script.google.com/macros/s/$dep/exec"
+            --var "GAS_URL:https://script.google.com/macros/s/$dep/exec" \
+            --var "ALIM_URL:https://script.google.com/macros/s/$alim/exec"

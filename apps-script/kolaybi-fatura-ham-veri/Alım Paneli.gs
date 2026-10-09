@@ -32,10 +32,19 @@ var AP_STOK_BASLANGIC  = '2026-08-13';  // bu tarihten eski faturalar stoğa gir
 // Faturanın bütün kalemleri bunlardan oluşuyorsa fatura "ek masraf" sayılır (listelerde gizlenir, borçta kalır)
 var AP_EK_MASRAF = ['yükleme bedeli', 'yukleme bedeli', 'nakliye', 'kargo', 'taşıma bedeli', 'hizmet bedeli', 'yuvarlama', 'iskonto', 'indirim', 'komisyon'];
 
+// Yönetim paneli (bap-panel Worker › /alim) bu adrese anahtarla gelir. Komut dosyası özelliği PANEL_KEY yazılıysa
+// anahtarsız istek reddedilir (eski bap-alim-paneli adresi de böylece kapanır); yazılı değilse eskisi gibi açıktır.
+function ap_yetkili_(key) {
+  var k = PropertiesService.getScriptProperties().getProperty('PANEL_KEY');
+  return !k || String(key || '') === k;
+}
+
 function doGet(e) {
   var action = (e && e.parameter && e.parameter.action) || 'veri';
   try {
+    if (!ap_yetkili_(e && e.parameter && e.parameter.key)) return ap_json_({ ok: false, hata: 'yetkisiz' });
     if (action === 'veri') return ap_json_(ap_veri_());
+    if (action === 'eslestirme') return ap_json_(ap_eslestirmeVeri_());
     return ap_json_({ ok: false, hata: 'Bilinmeyen action: ' + action });
   } catch (err) {
     return ap_json_({ ok: false, hata: String(err) });
@@ -47,8 +56,10 @@ function doPost(e) {
   lock.tryLock(10000);
   try {
     var b = JSON.parse((e && e.postData && e.postData.contents) || '{}');
+    if (!ap_yetkili_(b.key)) return ap_json_({ ok: false, hata: 'yetkisiz' });
     var sonuc;
     switch (b.action) {
+      case 'eslestirmeKaydet': sonuc = ap_eslestirmeKaydet_(b); break;
       case 'subeAta':         sonuc = ap_subeAta_(b.no, b.sube); break;
       case 'odemeEkle':       sonuc = ap_odemeEkle_(b); break;
       case 'odemeSil':        sonuc = ap_odemeSil_(b.id); break;
@@ -461,6 +472,81 @@ function ap_hammaddeEkle_(b) {
   sh.appendRow(satir);
   ap_cacheSil_('hmMap'); ap_cacheSil_('urunSekmeleri');
   return { ok: true, id: id, sekme: sekme };
+}
+
+// ==========================================
+// FATURA EŞLEŞTİRME (Stok Takip › Fatura_Eslestirme)
+// A Fatura_Urun_Adi (Alış Motoru yazar) | B Stok_Urun_Adi | C Carpan | D Not | E Tedarikci | F Tip | G Sube
+// Alış Motoru tanımadığı ürünü alta ekler; burası yalnız o satırın B/C/D/F hücrelerini doldurur.
+// ==========================================
+var AP_ESL = 'Fatura_Eslestirme';
+
+function ap_eslKolon_(bas, adlar, yedek) {
+  var b = bas.map(ap_nrm_);
+  for (var i = 0; i < adlar.length; i++) { var j = b.indexOf(ap_nrm_(adlar[i])); if (j >= 0) return j; }
+  return yedek;
+}
+
+function ap_eslestirmeVeri_() {
+  var ss = SpreadsheetApp.openById(AP_STOK_ID);
+  var sh = ss.getSheetByName(AP_ESL);
+  if (!sh) return { ok: false, hata: AP_ESL + ' sekmesi yok' };
+  var v = sh.getDataRange().getValues(), bas = v[0].map(String);
+  var c = { a: ap_eslKolon_(bas, ['Fatura_Urun_Adi'], 0), b: ap_eslKolon_(bas, ['Stok_Urun_Adi'], 1), c: ap_eslKolon_(bas, ['Carpan', 'Çarpan'], 2),
+            d: ap_eslKolon_(bas, ['Not'], 3), e: ap_eslKolon_(bas, ['Tedarikci', 'Tedarikçi'], 4), f: ap_eslKolon_(bas, ['Tip'], 5) };
+  var satirlar = [];
+  for (var i = 1; i < v.length; i++) {
+    var fa = String(v[i][c.a] || '').trim(); if (!fa) continue;
+    satirlar.push({ satir: i + 1, fatura: fa, hedef: String(v[i][c.b] || '').trim(), carpan: ap_sayi_(v[i][c.c]) || '',
+      not: String(v[i][c.d] || '').trim(), ted: String(v[i][c.e] || '').trim(), tip: String(v[i][c.f] || '').trim() });
+  }
+  // Stoktaki ürünler (seçim listesi): Tbl_Hammaddeler, ambalaj ve direkt satış sekmeleri
+  var stok = [];
+  ap_urunSekmeleri_(ss).forEach(function (ad) {
+    var d = ss.getSheetByName(ad).getDataRange().getValues();
+    var tip = ad === AP_HM ? 'HM' : /^direkt/i.test(ad) ? 'DS' : 'AMB';
+    for (var r = 1; r < d.length; r++) {
+      var tam = String(d[r][1] || '').trim(), kisa = String(d[r][2] || '').trim();
+      if (!tam && !kisa) continue;
+      stok.push({ sekme: ad, tip: tip, tam: tam, kisa: kisa || tam, paket: String(d[r][5] || '').trim(), icerik: ap_sayi_(d[r][7]),
+        olcu: String(d[r][8] || '').trim(), koli: ap_sayi_(d[r][15]) });
+    }
+  });
+  // Stoğa girmeyi bekleyen kalem sayısı (Alis_Bekleyenler, ESLESME_YOK): ürün → {n, son}
+  var bekleyen = {}, bs = ss.getSheetByName('Alis_Bekleyenler');
+  if (bs && bs.getLastRow() > 1) bs.getRange(2, 1, bs.getLastRow() - 1, 6).getValues().forEach(function (r) {
+    if (String(r[5]) !== 'ESLESME_YOK') return;
+    var k = ap_nrm_(r[3]), t = r[1] instanceof Date ? Utilities.formatDate(r[1], 'Europe/Istanbul', 'yyyy-MM-dd') : String(r[1] || '');
+    var o = bekleyen[k] = bekleyen[k] || { n: 0, son: '' }; o.n++; if (t > o.son) o.son = t;
+  });
+  return { ok: true, satirlar: satirlar, stok: stok, bekleyen: bekleyen };
+}
+
+/** {satir, fatura, hedef, carpan, tip, not} — not 'YOK SAY' ise hedef/çarpan gerekmez. */
+function ap_eslestirmeKaydet_(b) {
+  var satir = Math.floor(Number(b.satir)), fa = String(b.fatura || '').trim();
+  var yokSay = String(b.not || '').trim().toUpperCase() === 'YOK SAY';
+  var hedef = String(b.hedef || '').trim().slice(0, 200), carpan = ap_sayi_(b.carpan), tip = String(b.tip || 'HM').trim().toUpperCase();
+  if (!(satir > 1) || !fa) return { ok: false, hata: 'Satır bilgisi eksik' };
+  if (!yokSay && (!hedef || !(carpan > 0))) return { ok: false, hata: 'Stok ürünü ve çarpan gerekli' };
+  if (['HM', 'DS', 'AMB'].indexOf(tip) < 0) tip = 'HM';
+  if (carpan > 100000) return { ok: false, hata: 'Çarpan çok büyük görünüyor, kontrol et' };
+  var sh = SpreadsheetApp.openById(AP_STOK_ID).getSheetByName(AP_ESL);
+  if (!sh || satir > sh.getLastRow()) return { ok: false, hata: 'Satır bulunamadı' };
+  var bas = sh.getRange(1, 1, 1, sh.getLastColumn()).getValues()[0].map(String);
+  var c = { a: ap_eslKolon_(bas, ['Fatura_Urun_Adi'], 0), b: ap_eslKolon_(bas, ['Stok_Urun_Adi'], 1), c: ap_eslKolon_(bas, ['Carpan', 'Çarpan'], 2),
+            d: ap_eslKolon_(bas, ['Not'], 3), f: ap_eslKolon_(bas, ['Tip'], 5) };
+  // Sayfa açıkken satırlar kaymış olabilir: A hücresi aynı ürün değilse yazma
+  if (ap_nrm_(sh.getRange(satir, c.a + 1).getValue()) !== ap_nrm_(fa)) return { ok: false, hata: 'Tablo değişmiş; ekranı yenileyip tekrar dene' };
+  if (yokSay) {
+    sh.getRange(satir, c.d + 1).setValue('YOK SAY');
+  } else {
+    sh.getRange(satir, c.b + 1).setValue(hedef);
+    sh.getRange(satir, c.c + 1).setValue(carpan);
+    sh.getRange(satir, c.f + 1).setValue(tip);
+    if (String(sh.getRange(satir, c.d + 1).getValue()).trim().toUpperCase() === 'YOK SAY') sh.getRange(satir, c.d + 1).setValue('');
+  }
+  return { ok: true, satir: satir };
 }
 
 // ==========================================
