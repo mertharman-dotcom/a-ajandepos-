@@ -3108,7 +3108,7 @@ function kurye_() {
                kart: kn || null, kanitHata: kanitHata,
                kartSoru: acikL.filter(function (x) { return x.kartKarar === 'soru'; }).slice(0, 40),
                kartEmin: acikL.filter(function (x) { return x.kartKarar === 'emin'; }).slice(0, 40),
-               kartAjan: kartAjanRaporu_(), kartKuru: KART_AJAN_KURU, kartBosta: kek.bosta || [] };
+               kartAjan: kartAjanRaporu_(), kartKuru: KART_AJAN_KURU, kartBosta: kek.bosta || [], kartKapanan: kapali.ajan || [] };
 
   out.genel = {};
   KURYE_DONEMLER.forEach(function (d) { var g = genel[d], o = function (t) { return g.n ? Math.round(t / g.n * 10) / 10 : null; };
@@ -3596,7 +3596,8 @@ function tahsilatlar_(ss) {
   var t = sonSatirlar_(ss, 'Tahsilatlar', 5000), out = { idler: {}, son: [] }; if (!t) return out;
   var c = { id: kolon_(t.b, ['Sipariş ID']), no: kolon_(t.b, ['Adisyon No']), kurye: kolon_(t.b, ['Kurye']), tutar: kolon_(t.b, ['Tutar (TL)', 'Tutar']),
             islem: kolon_(t.b, ['İşlem']), zaman: kolon_(t.b, ['Kayıt Zamanı']), tarih: kolon_(t.b, ['Sipariş Tarihi', 'Tarih']), adisyo: kolon_(t.b, ['Adisyo Durumu']),
-            bahsis: kolon_(t.b, ['Bahşiş (TL)', 'Bahşiş']) };
+            bahsis: kolon_(t.b, ['Bahşiş (TL)', 'Bahşiş']), not: kolon_(t.b, ['Not']), kaynak: kolon_(t.b, ['Kaynak']), odeme: kolon_(t.b, ['Ödeme Yöntemi']) };
+  out.ajan = [];   // kart ajanının kapattıkları (son 7 gün; panel › Yemek Kartları › ajan)
   out.adisyoBekleyen = 0;
   // Bahşişler: kayıt zamanına göre son 30 gün ve bu hafta (Pazartesi'den), kurye bazında
   var bugun = isGunu_(simdi_()), dow = (new Date(bugun + 'T00:00:00Z').getUTCDay() + 6) % 7, hafta = gunEkle_(bugun, -dow), otuz = gunEkle_(bugun, -29), bh = {};
@@ -3606,12 +3607,17 @@ function tahsilatlar_(ss) {
     var ad = c.adisyo >= 0 ? String(r[c.adisyo] || '') : ''; if (!ad) out.adisyoBekleyen++;
     var bs = c.bahsis >= 0 ? sayi_(r[c.bahsis]) : 0;
     out.son.push({ id: id, no: r[c.no], kurye: r[c.kurye], tutar: sayi_(r[c.tutar]), islem: r[c.islem], zaman: String(r[c.zaman] || '').slice(0, 16), tarih: r[c.tarih], adisyo: ad, bahsis: bs });
+    var kyn = c.kaynak >= 0 ? String(r[c.kaynak] || '') : '';
+    if (/ajan/i.test(kyn)) { var kz = zaman_(r[c.zaman]);
+      if (kz !== null && isGunu_(kz) >= gunEkle_(bugun, -6)) out.ajan.push({ id: id, no: r[c.no], kurye: r[c.kurye], tutar: sayi_(r[c.tutar]), odeme: c.odeme >= 0 ? String(r[c.odeme] || '') : '',
+        kart: kyn.replace(/\s*ajan[ıi]?\s*$/i, ''), zaman: String(r[c.zaman] || '').slice(0, 16), not: c.not >= 0 ? String(r[c.not] || '').replace(/\s*\[ref [^\]]+\]/g, '') : '' }); }
     if (bs > 0) { var ms = zaman_(r[c.zaman]), g = ms === null ? '' : new Date(ms).toISOString().slice(0, 10);
       if (g >= otuz) { var kx = String(r[c.kurye] || '').trim() || '—', x = bh[kx] = bh[kx] || { ad: kx, hafta: 0, otuz: 0, adet: 0 };
         x.otuz += bs; x.adet++; out.bahsis.otuz += bs; out.bahsis.adet++; if (g >= hafta) { x.hafta += bs; out.bahsis.hafta += bs; } } }
   });
   out.bahsis.kisi = Object.keys(bh).map(function (k) { return bh[k]; }).sort(function (a, b) { return b.otuz - a.otuz; });
   out.son = out.son.reverse().slice(0, 15);
+  out.ajan = out.ajan.reverse().slice(0, 80);
   return out;
 }
 
