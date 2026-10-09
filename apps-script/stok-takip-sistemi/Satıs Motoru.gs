@@ -1360,6 +1360,9 @@ function sm_receteDurumuYaz(ctx, katalog, uyariMap) {
  * Koli ile alınan ürünlerde (F=Koli, P>1) koli fiyatı P'ye bölünerek paket fiyatı yazılır.
  * sessiz=true ise alert göstermez (maliyet raporu içinden çağrı).
  */
+// S6/M4: false → bu kod J'ye yazmaz (KolayBi Urun_Listesi fiyatı paket değil birim fiyatı; hellim/kasa ürünlerini bozuyordu).
+var FIYAT_SENKRON_J_YAZ = false;
+
 function fiyatlariGuncelle(sessiz) {
   var sonuc = { guncellenen: 0, eslesmeyen: [] };
   var kss;
@@ -1399,7 +1402,8 @@ function fiyatlariGuncelle(sessiz) {
       var koliIc = sm_sayi(d[r][15]);
       if (koliMu && koliIc > 1) fiyat = fiyat / koliIc;
       fiyat = Math.round(fiyat * 10000) / 10000;
-      if (sm_sayi(d[r][9]) !== fiyat) { sh.getRange(r + 1, 10).setValue(fiyat); sonuc.guncellenen++; }
+      // S6: J'yi artık yalnız Alış Motoru (sonAlisFiyatDoldur_) yazar; burası sayar ama yazmaz.
+      if (sm_sayi(d[r][9]) !== fiyat) { if (FIYAT_SENKRON_J_YAZ) sh.getRange(r + 1, 10).setValue(fiyat); sonuc.guncellenen++; }
     }
   });
 

@@ -697,6 +697,62 @@ function kolaybiTumunuCek() {
 }
 
 /** Her 2 saatte bir alış + satış çekimi. Eski kalemleriAyir tetikleyicileri de kaldırılır. */
+// ── T12 teşhis: son alışlar neden Sayfa1'e gelmiyor? ──
+// Editörden çalıştır: alisFaturaTeshis(). Hiçbir şeyi değiştirmez; 'Alis_Teshis' sekmesine yazar.
+// Son 30 günün BÜTÜN alış faturalarını (ürünlü/ürünsüz) çeker ve her biri için: Sayfa1'de mi, Gider_Faturalari'nda mı,
+// ürün satırı var mı, e-belge durumu ne. Ürünsüz girilen tedarikçi faturaları çekime hiç takılmaz (has_products=true).
+function alisFaturaTeshis() {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var token = kbToken_();
+  if (!token) throw new Error('Kolaybi token alınamadı');
+  var min = new Date(); min.setDate(min.getDate() - 30);
+  var minStr = kc_iso_(min);
+  var idSet = function (ad, kol) {
+    var m = {}, sh = ss.getSheetByName(ad);
+    if (sh && sh.getLastRow() > 1) sh.getRange(2, kol, sh.getLastRow() - 1, 1).getValues().forEach(function (r) {
+      var v = String(r[0] || '').replace(/\.0$/, '').trim().replace(/-\d+$/, ''); if (v) m[v] = true; });
+    return m;
+  };
+  var s1 = idSet(KC_KAYNAK, 1), gider = idSet(KC_GIDER_SEKME, 1);
+  var kategoriler = kc_giderKategorileri_(ss);
+  var urunlu = {};
+  kc_faturalar_(token, minStr).forEach(function (f) { urunlu[String(f.id)] = true; });
+
+  var satirlar = [], gorulen = {}, gunluk = {};
+  for (var page = 1; page <= 20; page++) {
+    var r = kbGet_('/invoices?type=purchase_invoice&min_issue_date=' + minStr + '&per_page=500&limit=500&page=' + page, token);
+    if (r.code !== 200) { satirlar.push(['HATA', '', '', '', '', '', '', '', '', 'purchase_invoice ' + r.code + ': ' + r.text.slice(0, 150)]); break; }
+    var body = JSON.parse(r.text);
+    var arr = (body && body.data) ? (Array.isArray(body.data) ? body.data : (body.data.data || [])) : [];
+    var yeni = 0;
+    arr.forEach(function (f) {
+      if (!f || gorulen[f.id]) return;
+      gorulen[f.id] = true; yeni++;
+      var id = String(f.id), ted = (f.associate && (f.associate.full_name || f.associate.name)) || '';
+      var t = kc_faturaTarihi_(f), lines = f.lines || [];
+      var nerede = s1[id] ? 'Sayfa1' : gider[id] ? 'Gider_Faturalari' : '— HİÇBİRİ';
+      var neden = s1[id] ? '' : urunlu[id] ? 'ürünlü ama Sayfa1\'de yok (gider tedarikçisi sayılmış olabilir)' :
+        kc_giderMi_(ted, kategoriler) ? 'gider tedarikçisi' : 'KolayBi\'de ÜRÜN SATIRI YOK → çekim almaz (has_products)';
+      var cds = f.commercial_doc_status || {};
+      satirlar.push([id, f.serial_no || '', t, ted, Number(f.total && f.total.grand_total) || 0, lines.length, urunlu[id] ? 'evet' : 'hayır',
+        nerede, (typeof cds === 'object' ? cds.value : cds) || '', f.e_document_status || '', neden]);
+      var g = kc_iso_(t); gunluk[g] = gunluk[g] || [0, 0]; gunluk[g][0]++; if (s1[id]) gunluk[g][1]++;
+    });
+    if (!yeni || arr.length < 500) break;
+  }
+  satirlar.sort(function (a, b) { return (b[2] instanceof Date ? b[2] : 0) - (a[2] instanceof Date ? a[2] : 0); });
+  var B = ['Fatura_ID', 'Fatura_No', 'Tarih', 'Tedarikci', 'Tutar', 'Satir_Sayisi', 'Urunlu', 'Nerede', 'Fatura_Durumu', 'EBelge_Durumu', 'Neden'];
+  var sh = ss.getSheetByName('Alis_Teshis') || ss.insertSheet('Alis_Teshis');
+  sh.clear();
+  var ozet = Object.keys(gunluk).sort().reverse().map(function (g) { return g + ': ' + gunluk[g][0] + ' fatura, ' + gunluk[g][1] + ' Sayfa1\'de'; });
+  sh.getRange(1, 1).setValue('Çalıştı: ' + new Date() + ' · son 30 gün ' + Object.keys(gorulen).length + ' alış faturası · gün gün: ' + ozet.slice(0, 15).join(' | '));
+  sh.getRange(2, 1, 1, B.length).setValues([B]).setFontWeight('bold');
+  if (satirlar.length) sh.getRange(3, 1, satirlar.length, B.length).setValues(satirlar.map(function (r) { while (r.length < B.length) r.push(''); return r; }));
+  sh.setFrozenRows(2);
+  Logger.log(ozet.join('\n'));
+  return ozet;
+}
+
 function kolaybiTetikleyiciKur() {
   ScriptApp.getProjectTriggers().forEach(function (t) {
     var f = t.getHandlerFunction();
