@@ -1127,7 +1127,7 @@ function personelBilgi(a,p){var B=p.bilgiler;if(!B)return a.appendChild(bos("Per
   var aktif=B.liste.filter(function(x){return x.aktif;}),eksikler=aktif.filter(function(x){return x.eksik.length;}),toplamEksik=eksikler.reduce(function(t,x){return t+x.eksik.length;},0);
   var pasif=B.liste.filter(function(x){return !x.aktif;});
   a.appendChild(el("div",{class:"rakamlar"},[rakam("Aktif personel",String(aktif.length)),rakam("Bilgisi eksik olan",String(eksikler.length),eksikler.length?"kartlarda kırmızı":"Hepsi tam",eksikler.length?"asagi":"yukari"),rakam("Eksik bilgi",String(toplamEksik),"alan"),rakam("Pasif / ayrılan",String(pasif.length)),rakam("Sorumlu","İK","İnsan Kaynakları")]));
-  a.appendChild(el("div",{class:"bilgi",text:"Her personelin bütün bilgileri aşağıda. Boş alanı doldurabilir, dolu alanı ‘Değiştir’ ile güncelleyebilirsin; yazdığın değer doğrudan BAP Personel › Personel sekmesindeki ilgili hücreye yazılır, eski değer işlem kaydına (Islem_Loglari) düşer. Telefon, IBAN ve acil durum bilgileri burada yalnız son 4 hanesiyle görünür; değiştirirken tamamını yeniden yaz. Şifre panelden görülmez ve değiştirilmez. Maaş değişikliği bordroya, işten çıkış tarihi ve ‘Aktif’ QR girişine etki eder."}));
+  a.appendChild(el("div",{class:"bilgi",text:"Her personelin bütün bilgileri aşağıda. Boş alanı doldurabilir, dolu alanı ‘Değiştir’ ile güncelleyebilirsin; yazdığın değer doğrudan BAP Personel › Personel sekmesindeki ilgili hücreye yazılır, eski değer işlem kaydına (Islem_Loglari) düşer. Telefon, IBAN ve acil durum bilgileri burada yalnız son 4 hanesiyle görünür; değiştirirken tamamını yeniden yaz. Şifre (PIN) burada belirlenir ya da değiştirilir ama hiç görünmez (dolu ise ‘••••’); unutan personele yeni şifre yazıp söylemen yeterli. Maaş değişikliği bordroya, işten çıkış tarihi ve ‘Aktif’ QR girişine etki eder."}));
   var sek=el("div",{class:"sekmeler"},[["hepsi","Aktif personel ("+aktif.length+")"],["eksik","Sadece eksik olanlar ("+eksikler.length+")"],["pasif","Pasif / ayrılan ("+pasif.length+")"]].map(function(x){return el("button",{type:"button","aria-pressed":PB_FILTRE===x[0]?"true":"false",onclick:function(){PB_FILTRE=x[0];ciz();}},[x[1]]);}));
   a.appendChild(yeniPersonelBlok());
   a.appendChild(sek);
@@ -1164,7 +1164,7 @@ function yeniPersonelBlok(){var F=PE_FORM;
       el("p",{style:"margin:12px 0 0;display:flex;gap:8px;align-items:center;flex-wrap:wrap"},[dug,F.gonderiliyor?null:el("button",{type:"button",class:"dugme",onclick:function(){F.acik=false;F.durum="";F.onayBekliyor=false;ciz();}},["Vazgeç"]),
         F.durum?el("span",{class:"cevap-durum "+(F.sinif||""),role:"status",text:F.durum}):null])]));}
 
-var ORNEK={tarih:"GG.AA.YYYY",sayi:"örn. 45000",evethayir:"Evet / Hayır",sube:"Erenköy / Fikirtepe",telefon:"5XX XXX XX XX",iban:"TR.. .... ....",metin:""};
+var ORNEK={tarih:"GG.AA.YYYY",sayi:"örn. 45000",evethayir:"Evet / Hayır",sube:"Erenköy / Fikirtepe",telefon:"5XX XXX XX XX",iban:"TR.. .... ....",pin:"4 haneli rakam",metin:""};
 function bilgiGoster(x,al){var d=x.degerler||{},m=x.maskeli||{};var v=al.goster?d[al.ad]:m[al.ad];if(v==null||v==="")return null;
   if(al.ad==="Maaş")return para(+String(v).replace(/\./g,"").replace(",","."));if(al.tur==="evethayir")return /true|evet|1/i.test(v)?"Evet":"Hayır";return String(v);}
 // Kişi kartı: bütün alanlar; boşsa kırmızı ‘eksik’ + giriş kutusu, doluysa değer + ‘Değiştir’.
@@ -1179,7 +1179,7 @@ function personelKart(x,alanlar,pasifMi){var d=x.degerler||{},acik=PB_ACIK[x.ad]
     if(!bos_&&!duzen)return el("div",{class:"cevap-alt",style:"margin-top:6px"},[ad,el("span",{style:"min-width:200px;font-weight:500",text:deger}),
       el("button",{type:"button",class:"dugme",style:"padding:3px 10px;font-size:13px",onclick:function(){PB_DUZEN[k]=true;ciz();}},["Değiştir"])]);
     var giris=al.tur==="evethayir"?el("select",{class:"cevap-alan",style:"max-width:280px","aria-label":x.ad+" "+al.etiket},[["","Seç"],["Evet","Evet"],["Hayır","Hayır"]].map(function(o){return el("option",{value:o[0],text:o[1]});}))
-      :el("input",{type:"text",class:"cevap-alan",style:"max-width:280px",placeholder:ORNEK[al.tur]||"","aria-label":x.ad+" "+al.etiket,inputmode:/telefon|sayi/.test(al.tur)?"numeric":null});
+      :el("input",{type:"text",class:"cevap-alan",style:"max-width:280px",placeholder:ORNEK[al.tur]||"","aria-label":x.ad+" "+al.etiket,inputmode:/telefon|sayi|pin/.test(al.tur)?"numeric":null});
     var dug=el("button",{type:"button",class:"dugme",onclick:function(){var c=String(giris.value||"").trim();if(!c){durum.textContent="Önce bilgiyi yaz.";return;}
       if(!bos_&&!confirm(x.ad+" — "+al.etiket+"\n\n"+deger+"  →  "+c+"\n\nDeğiştirilsin mi?"))return;
       dug.setAttribute("disabled","");durum.textContent="Kaydediliyor…";

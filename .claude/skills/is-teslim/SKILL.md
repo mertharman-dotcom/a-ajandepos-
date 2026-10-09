@@ -17,6 +17,7 @@ node tests/satis-motoru-testi.js "apps-script/stok-takip-sistemi/Satıs Motoru.g
 node tests/veri-kapisi-maliyet-testi.js
 node tests/veri-kapisi-direkt-satis-testi.js
 node tests/kart-ajani-parcali-testi.js
+node tests/personel-pin-testi.js
 node bap-panel/build.js          # bap-panel/ değiştiyse; üretilen worker.js de commit'e girer
 ```
 Değiştirdiğin hesaplamaya test yoksa ekle (`tests/` kalıbı: `vm` ile .gs yüklenir, sahte sekme verilir).

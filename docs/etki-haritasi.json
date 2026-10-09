@@ -27,7 +27,7 @@
     {
      "ad": "bap-panel-veri-kapisi › cevapKaydet_",
      "yer": [
-      "apps-script/bap-panel-veri-kapisi/Kod.gs:4562"
+      "apps-script/bap-panel-veri-kapisi/Kod.gs:4568"
      ]
     }
    ],
@@ -167,6 +167,13 @@
      "aciklama": "web: tur=personelEkle",
      "fn": "personelEkle_",
      "eylem": "personelEkle"
+    },
+    {
+     "proje": "bap-panel-veri-kapisi",
+     "tur": "web",
+     "aciklama": "web: tur=pin",
+     "fn": "personelBilgiGir_",
+     "eylem": "pin"
     },
     {
      "proje": "bap-panel-veri-kapisi",
@@ -3464,7 +3471,7 @@
     {
      "ad": "bap-panel-veri-kapisi › haddyFaturalari_",
      "yer": [
-      "apps-script/bap-panel-veri-kapisi/Kod.gs:4663"
+      "apps-script/bap-panel-veri-kapisi/Kod.gs:4669"
      ]
     },
     {
@@ -3841,7 +3848,7 @@
     {
      "ad": "bap-panel-veri-kapisi › odemePlaniIsle_",
      "yer": [
-      "apps-script/bap-panel-veri-kapisi/Kod.gs:4620"
+      "apps-script/bap-panel-veri-kapisi/Kod.gs:4626"
      ]
     }
    ],
@@ -3849,7 +3856,7 @@
     {
      "ad": "bap-panel-veri-kapisi › odemePlanlari_",
      "yer": [
-      "apps-script/bap-panel-veri-kapisi/Kod.gs:4576"
+      "apps-script/bap-panel-veri-kapisi/Kod.gs:4582"
      ]
     },
     {
@@ -3988,7 +3995,7 @@
     {
      "ad": "bap-panel-veri-kapisi › toptanciOdemeGir_",
      "yer": [
-      "apps-script/bap-panel-veri-kapisi/Kod.gs:4509"
+      "apps-script/bap-panel-veri-kapisi/Kod.gs:4515"
      ]
     },
     {
@@ -5044,13 +5051,13 @@
     {
      "ad": "bap-panel-veri-kapisi › odemePlaniIsle_",
      "yer": [
-      "apps-script/bap-panel-veri-kapisi/Kod.gs:4632"
+      "apps-script/bap-panel-veri-kapisi/Kod.gs:4638"
      ]
     },
     {
      "ad": "bap-panel-veri-kapisi › toptanciOdemeGir_",
      "yer": [
-      "apps-script/bap-panel-veri-kapisi/Kod.gs:4484"
+      "apps-script/bap-panel-veri-kapisi/Kod.gs:4490"
      ]
     },
     {
@@ -5977,7 +5984,7 @@
     {
      "ad": "bap-panel-veri-kapisi › subeSozlugu_",
      "yer": [
-      "apps-script/bap-panel-veri-kapisi/Kod.gs:4000"
+      "apps-script/bap-panel-veri-kapisi/Kod.gs:4006"
      ]
     }
    ],
@@ -6197,7 +6204,7 @@
     {
      "ad": "bap-panel-veri-kapisi › finansSoruCevapla_",
      "yer": [
-      "apps-script/bap-panel-veri-kapisi/Kod.gs:4448"
+      "apps-script/bap-panel-veri-kapisi/Kod.gs:4454"
      ]
     }
    ],
@@ -7160,13 +7167,13 @@
     {
      "ad": "bap-panel-veri-kapisi › acikListe_",
      "yer": [
-      "apps-script/bap-panel-veri-kapisi/Kod.gs:3200"
+      "apps-script/bap-panel-veri-kapisi/Kod.gs:3206"
      ]
     },
     {
      "ad": "bap-panel-veri-kapisi › musteriDetay_",
      "yer": [
-      "apps-script/bap-panel-veri-kapisi/Kod.gs:3695"
+      "apps-script/bap-panel-veri-kapisi/Kod.gs:3701"
      ]
     },
     {
@@ -7436,7 +7443,7 @@
     {
      "ad": "bap-panel-veri-kapisi › kurye_",
      "yer": [
-      "apps-script/bap-panel-veri-kapisi/Kod.gs:3029"
+      "apps-script/bap-panel-veri-kapisi/Kod.gs:3035"
      ]
     },
     {
@@ -8047,19 +8054,19 @@
     {
      "ad": "bap-panel-veri-kapisi › hesapKapat_",
      "yer": [
-      "apps-script/bap-panel-veri-kapisi/Kod.gs:3742"
+      "apps-script/bap-panel-veri-kapisi/Kod.gs:3748"
      ]
     },
     {
      "ad": "bap-panel-veri-kapisi › kesintiGir_",
      "yer": [
-      "apps-script/bap-panel-veri-kapisi/Kod.gs:3930"
+      "apps-script/bap-panel-veri-kapisi/Kod.gs:3936"
      ]
     },
     {
      "ad": "bap-panel-veri-kapisi › kesintiIptal_",
      "yer": [
-      "apps-script/bap-panel-veri-kapisi/Kod.gs:3893"
+      "apps-script/bap-panel-veri-kapisi/Kod.gs:3899"
      ]
     },
     {
@@ -8079,8 +8086,8 @@
     {
      "ad": "bap-panel-veri-kapisi › kurye_",
      "yer": [
-      "apps-script/bap-panel-veri-kapisi/Kod.gs:3100",
-      "apps-script/bap-panel-veri-kapisi/Kod.gs:3102"
+      "apps-script/bap-panel-veri-kapisi/Kod.gs:3106",
+      "apps-script/bap-panel-veri-kapisi/Kod.gs:3108"
      ]
     },
     {
@@ -8658,7 +8665,7 @@
     {
      "ad": "bap-panel-veri-kapisi › kuryeUcretOku_",
      "yer": [
-      "apps-script/bap-panel-veri-kapisi/Kod.gs:2907"
+      "apps-script/bap-panel-veri-kapisi/Kod.gs:2913"
      ]
     },
     {
@@ -8758,7 +8765,7 @@
     {
      "ad": "bap-panel-veri-kapisi › kuryeUcretOku_",
      "yer": [
-      "apps-script/bap-panel-veri-kapisi/Kod.gs:2907"
+      "apps-script/bap-panel-veri-kapisi/Kod.gs:2913"
      ]
     }
    ],
@@ -8780,13 +8787,13 @@
     {
      "ad": "bap-panel-veri-kapisi › eslestirmeKaydi_",
      "yer": [
-      "apps-script/bap-panel-veri-kapisi/Kod.gs:4217"
+      "apps-script/bap-panel-veri-kapisi/Kod.gs:4223"
      ]
     },
     {
      "ad": "bap-panel-veri-kapisi › kuryeEslestirIslem_",
      "yer": [
-      "apps-script/bap-panel-veri-kapisi/Kod.gs:4240"
+      "apps-script/bap-panel-veri-kapisi/Kod.gs:4246"
      ]
     }
    ],
@@ -8794,7 +8801,7 @@
     {
      "ad": "bap-panel-veri-kapisi › eslestirmeKararlari_",
      "yer": [
-      "apps-script/bap-panel-veri-kapisi/Kod.gs:4221"
+      "apps-script/bap-panel-veri-kapisi/Kod.gs:4227"
      ]
     }
    ],
@@ -8937,7 +8944,7 @@
     {
      "ad": "bap-panel-veri-kapisi › kuryeOdendiIsle_",
      "yer": [
-      "apps-script/bap-panel-veri-kapisi/Kod.gs:4694"
+      "apps-script/bap-panel-veri-kapisi/Kod.gs:4700"
      ]
     }
    ],
@@ -8945,7 +8952,7 @@
     {
      "ad": "bap-panel-veri-kapisi › kuryeOdemeDurumu_",
      "yer": [
-      "apps-script/bap-panel-veri-kapisi/Kod.gs:4682"
+      "apps-script/bap-panel-veri-kapisi/Kod.gs:4688"
      ]
     }
    ],
@@ -9466,7 +9473,7 @@
     {
      "ad": "bap-panel-veri-kapisi › mesaiDuzelt_",
      "yer": [
-      "apps-script/bap-panel-veri-kapisi/Kod.gs:3821"
+      "apps-script/bap-panel-veri-kapisi/Kod.gs:3827"
      ]
     }
    ],
@@ -9474,7 +9481,7 @@
     {
      "ad": "bap-panel-veri-kapisi › mesaiDuzeltmeListesi_",
      "yer": [
-      "apps-script/bap-panel-veri-kapisi/Kod.gs:3796"
+      "apps-script/bap-panel-veri-kapisi/Kod.gs:3802"
      ]
     },
     {
@@ -9829,49 +9836,49 @@
     {
      "ad": "bap-panel-veri-kapisi › acikKanit_",
      "yer": [
-      "apps-script/bap-panel-veri-kapisi/Kod.gs:3266"
+      "apps-script/bap-panel-veri-kapisi/Kod.gs:3272"
      ]
     },
     {
      "ad": "bap-panel-veri-kapisi › kurye_",
      "yer": [
-      "apps-script/bap-panel-veri-kapisi/Kod.gs:2952"
+      "apps-script/bap-panel-veri-kapisi/Kod.gs:2958"
      ]
     },
     {
      "ad": "bap-panel-veri-kapisi › kuryeEslestirme_",
      "yer": [
-      "apps-script/bap-panel-veri-kapisi/Kod.gs:4174"
+      "apps-script/bap-panel-veri-kapisi/Kod.gs:4180"
      ]
     },
     {
      "ad": "bap-panel-veri-kapisi › musteriDetay_",
      "yer": [
-      "apps-script/bap-panel-veri-kapisi/Kod.gs:3686"
+      "apps-script/bap-panel-veri-kapisi/Kod.gs:3692"
      ]
     },
     {
      "ad": "bap-panel-veri-kapisi › rotaHesapla_",
      "yer": [
-      "apps-script/bap-panel-veri-kapisi/Kod.gs:4068"
+      "apps-script/bap-panel-veri-kapisi/Kod.gs:4074"
      ]
     },
     {
      "ad": "bap-panel-veri-kapisi › seferler_",
      "yer": [
-      "apps-script/bap-panel-veri-kapisi/Kod.gs:4018"
+      "apps-script/bap-panel-veri-kapisi/Kod.gs:4024"
      ]
     },
     {
      "ad": "bap-panel-veri-kapisi › sipHesapOku_",
      "yer": [
-      "apps-script/bap-panel-veri-kapisi/Kod.gs:3227"
+      "apps-script/bap-panel-veri-kapisi/Kod.gs:3233"
      ]
     },
     {
      "ad": "bap-panel-veri-kapisi › tahsilatlariAdisyoyaIsle_",
      "yer": [
-      "apps-script/bap-panel-veri-kapisi/Kod.gs:4126"
+      "apps-script/bap-panel-veri-kapisi/Kod.gs:4132"
      ]
     },
     {
@@ -10726,25 +10733,25 @@
     {
      "ad": "bap-panel-veri-kapisi › hesapKapat_",
      "yer": [
-      "apps-script/bap-panel-veri-kapisi/Kod.gs:3733"
+      "apps-script/bap-panel-veri-kapisi/Kod.gs:3739"
      ]
     },
     {
      "ad": "bap-panel-veri-kapisi › kartAjanCalis_",
      "yer": [
-      "apps-script/bap-panel-veri-kapisi/Kod.gs:3611"
+      "apps-script/bap-panel-veri-kapisi/Kod.gs:3617"
      ]
     },
     {
      "ad": "bap-panel-veri-kapisi › tahsilatlariAdisyoyaIsle_",
      "yer": [
-      "apps-script/bap-panel-veri-kapisi/Kod.gs:4119"
+      "apps-script/bap-panel-veri-kapisi/Kod.gs:4125"
      ]
     },
     {
      "ad": "bap-panel-veri-kapisi › tahsilatSekmesi_",
      "yer": [
-      "apps-script/bap-panel-veri-kapisi/Kod.gs:3646"
+      "apps-script/bap-panel-veri-kapisi/Kod.gs:3652"
      ]
     }
    ],
@@ -10752,13 +10759,13 @@
     {
      "ad": "bap-panel-veri-kapisi › kullanilanRef_",
      "yer": [
-      "apps-script/bap-panel-veri-kapisi/Kod.gs:3361"
+      "apps-script/bap-panel-veri-kapisi/Kod.gs:3367"
      ]
     },
     {
      "ad": "bap-panel-veri-kapisi › tahsilatlar_",
      "yer": [
-      "apps-script/bap-panel-veri-kapisi/Kod.gs:3652"
+      "apps-script/bap-panel-veri-kapisi/Kod.gs:3658"
      ]
     }
    ],
@@ -12301,13 +12308,13 @@
     {
      "ad": "bap-panel-veri-kapisi › personelBilgiGir_",
      "yer": [
-      "apps-script/bap-panel-veri-kapisi/Kod.gs:2805"
+      "apps-script/bap-panel-veri-kapisi/Kod.gs:2810"
      ]
     },
     {
      "ad": "bap-panel-veri-kapisi › personelEkle_",
      "yer": [
-      "apps-script/bap-panel-veri-kapisi/Kod.gs:2854"
+      "apps-script/bap-panel-veri-kapisi/Kod.gs:2859"
      ]
     },
     {
@@ -12463,6 +12470,13 @@
      "aciklama": "web: tur=personelEkle",
      "fn": "personelEkle_",
      "eylem": "personelEkle"
+    },
+    {
+     "proje": "bap-panel-veri-kapisi",
+     "tur": "web",
+     "aciklama": "web: tur=pin",
+     "fn": "personelBilgiGir_",
+     "eylem": "pin"
     },
     {
      "proje": "bap-panel-veri-kapisi",
@@ -12999,13 +13013,13 @@
     {
      "ad": "bap-panel-veri-kapisi › personelBilgiGir_",
      "yer": [
-      "apps-script/bap-panel-veri-kapisi/Kod.gs:2795"
+      "apps-script/bap-panel-veri-kapisi/Kod.gs:2799"
      ]
     },
     {
      "ad": "bap-panel-veri-kapisi › personelEkle_",
      "yer": [
-      "apps-script/bap-panel-veri-kapisi/Kod.gs:2828"
+      "apps-script/bap-panel-veri-kapisi/Kod.gs:2833"
      ]
     },
     {
@@ -13055,7 +13069,7 @@
     {
      "ad": "bap-panel-veri-kapisi › personelBilgileri_",
      "yer": [
-      "apps-script/bap-panel-veri-kapisi/Kod.gs:2766"
+      "apps-script/bap-panel-veri-kapisi/Kod.gs:2770"
      ]
     },
     {
@@ -13398,6 +13412,13 @@
      "aciklama": "web: tur=personelEkle",
      "fn": "personelEkle_",
      "eylem": "personelEkle"
+    },
+    {
+     "proje": "bap-panel-veri-kapisi",
+     "tur": "web",
+     "aciklama": "web: tur=pin",
+     "fn": "personelBilgiGir_",
+     "eylem": "pin"
     },
     {
      "proje": "bap-panel-veri-kapisi",
@@ -14789,7 +14810,7 @@
     {
      "ad": "bap-panel-veri-kapisi › acikKanit_",
      "yer": [
-      "apps-script/bap-panel-veri-kapisi/Kod.gs:3276"
+      "apps-script/bap-panel-veri-kapisi/Kod.gs:3282"
      ]
     },
     {
@@ -14801,7 +14822,7 @@
     {
      "ad": "bap-panel-veri-kapisi › kuryeEslestirIslem_",
      "yer": [
-      "apps-script/bap-panel-veri-kapisi/Kod.gs:4240"
+      "apps-script/bap-panel-veri-kapisi/Kod.gs:4246"
      ]
     },
     {
@@ -14813,14 +14834,14 @@
     {
      "ad": "bap-panel-veri-kapisi › subeSozlugu_",
      "yer": [
-      "apps-script/bap-panel-veri-kapisi/Kod.gs:3994"
+      "apps-script/bap-panel-veri-kapisi/Kod.gs:4000"
      ]
     },
     {
      "ad": "bap-panel-veri-kapisi › tahsilatlariAdisyoyaIsle_",
      "yer": [
-      "apps-script/bap-panel-veri-kapisi/Kod.gs:4129",
-      "apps-script/bap-panel-veri-kapisi/Kod.gs:4131"
+      "apps-script/bap-panel-veri-kapisi/Kod.gs:4135",
+      "apps-script/bap-panel-veri-kapisi/Kod.gs:4137"
      ]
     },
     {
@@ -24406,7 +24427,7 @@
     {
      "ad": "bap-panel-veri-kapisi › edenredCekimleri_",
      "yer": [
-      "apps-script/bap-panel-veri-kapisi/Kod.gs:3496"
+      "apps-script/bap-panel-veri-kapisi/Kod.gs:3502"
      ]
     }
    ],
@@ -24877,7 +24898,7 @@
     {
      "ad": "bap-panel-veri-kapisi › metropolCekimleri_",
      "yer": [
-      "apps-script/bap-panel-veri-kapisi/Kod.gs:3542"
+      "apps-script/bap-panel-veri-kapisi/Kod.gs:3548"
      ]
     }
    ],
@@ -25144,7 +25165,7 @@
     {
      "ad": "bap-panel-veri-kapisi › multinetCekimleri_",
      "yer": [
-      "apps-script/bap-panel-veri-kapisi/Kod.gs:3511"
+      "apps-script/bap-panel-veri-kapisi/Kod.gs:3517"
      ]
     }
    ],
@@ -25482,7 +25503,7 @@
     {
      "ad": "bap-panel-veri-kapisi › payeCekimleri_",
      "yer": [
-      "apps-script/bap-panel-veri-kapisi/Kod.gs:3467"
+      "apps-script/bap-panel-veri-kapisi/Kod.gs:3473"
      ]
     }
    ],
@@ -25558,7 +25579,7 @@
     {
      "ad": "bap-panel-veri-kapisi › pluxeeCekimleri_",
      "yer": [
-      "apps-script/bap-panel-veri-kapisi/Kod.gs:3441"
+      "apps-script/bap-panel-veri-kapisi/Kod.gs:3447"
      ]
     },
     {
@@ -25751,7 +25772,7 @@
     {
      "ad": "bap-panel-veri-kapisi › setcardCekimleri_",
      "yer": [
-      "apps-script/bap-panel-veri-kapisi/Kod.gs:3557"
+      "apps-script/bap-panel-veri-kapisi/Kod.gs:3563"
      ]
     }
    ],
@@ -26063,7 +26084,7 @@
     {
      "ad": "bap-panel-veri-kapisi › tokenflexCekimleri_",
      "yer": [
-      "apps-script/bap-panel-veri-kapisi/Kod.gs:3527"
+      "apps-script/bap-panel-veri-kapisi/Kod.gs:3533"
      ]
     }
    ],
@@ -29642,7 +29663,7 @@
    "klasor": "bap-panel-veri-kapisi",
    "ad": "BAP Panel Veri Kapısı",
    "bagliDosya": null,
-   "fonksiyonSayisi": 226,
+   "fonksiyonSayisi": 227,
    "girisler": [
     "her saat → puantajTaramasi",
     "tabloda düzenleme olunca → puantajTabloDegisti",
@@ -29688,6 +29709,11 @@
     "web: tur=odemePlani → odemePlaniIsle_",
     "web: tur=panoNot → panoNot_",
     "web: tur=personelEkle → personelEkle_",
+    "web: tur=pin → dogrula_",
+    "web: tur=pin → kolon_",
+    "web: tur=pin → maskele_",
+    "web: tur=pin → personelBilgiGir_",
+    "web: tur=pin → personelKolon_",
     "web: tur=puantaj → puantajDuzelt_",
     "web: tur=rota → rotaHesapla_",
     "web: tur=sayi → sayi_",
@@ -29784,7 +29810,7 @@
    "fonksiyonlar": {
     "acikKanit_": {
      "dosya": "apps-script/bap-panel-veri-kapisi/Kod.gs",
-     "satir": 3261,
+     "satir": 3267,
      "cagirir": [
       "gunStr_",
       "kartEslestir_",
@@ -29806,7 +29832,7 @@
     },
     "acikListe_": {
      "dosya": "apps-script/bap-panel-veri-kapisi/Kod.gs",
-     "satir": 3198,
+     "satir": 3204,
      "cagirir": [
       "gunStr_",
       "kolon_",
@@ -29821,7 +29847,7 @@
     },
     "adisyoKuryeYaz_": {
      "dosya": "apps-script/bap-panel-veri-kapisi/Kod.gs",
-     "satir": 4227,
+     "satir": 4233,
      "cagirir": [],
      "sekmeler": []
     },
@@ -29840,13 +29866,13 @@
     },
     "adresTemizle_": {
      "dosya": "apps-script/bap-panel-veri-kapisi/Kod.gs",
-     "satir": 3977,
+     "satir": 3983,
      "cagirir": [],
      "sekmeler": []
     },
     "al_": {
      "dosya": "apps-script/bap-panel-veri-kapisi/Kod.gs",
-     "satir": 4726,
+     "satir": 4732,
      "cagirir": [],
      "sekmeler": []
     },
@@ -29889,7 +29915,7 @@
     },
     "ayniKurye_": {
      "dosya": "apps-script/bap-panel-veri-kapisi/Kod.gs",
-     "satir": 4165,
+     "satir": 4171,
      "cagirir": [
       "norm_"
      ],
@@ -29897,7 +29923,7 @@
     },
     "beklenenYol_": {
      "dosya": "apps-script/bap-panel-veri-kapisi/Kod.gs",
-     "satir": 2894,
+     "satir": 2900,
      "cagirir": [],
      "sekmeler": []
     },
@@ -29981,7 +30007,7 @@
     },
     "cevapKaydet_": {
      "dosya": "apps-script/bap-panel-veri-kapisi/Kod.gs",
-     "satir": 4552,
+     "satir": 4558,
      "cagirir": [
       "tabloAc_"
      ],
@@ -30015,7 +30041,7 @@
     },
     "depEsle_": {
      "dosya": "apps-script/bap-panel-veri-kapisi/Kod.gs",
-     "satir": 4789,
+     "satir": 4795,
      "cagirir": [
       "norm_"
      ],
@@ -30029,7 +30055,7 @@
     },
     "dkOku_": {
      "dosya": "apps-script/bap-panel-veri-kapisi/Kod.gs",
-     "satir": 3771,
+     "satir": 3777,
      "cagirir": [],
      "sekmeler": []
     },
@@ -30047,7 +30073,7 @@
     },
     "dogrula_": {
      "dosya": "apps-script/bap-panel-veri-kapisi/Kod.gs",
-     "satir": 2862,
+     "satir": 2867,
      "cagirir": [
       "sayi_",
       "subeAnahtar_"
@@ -30056,7 +30082,7 @@
     },
     "doPost": {
      "dosya": "apps-script/bap-panel-veri-kapisi/Kod.gs",
-     "satir": 4328,
+     "satir": 4334,
      "cagirir": [
       "avansGir_",
       "faturaTahsilIslem_",
@@ -30103,7 +30129,7 @@
     },
     "edenredCekimleri_": {
      "dosya": "apps-script/bap-panel-veri-kapisi/Kod.gs",
-     "satir": 3495,
+     "satir": 3501,
      "cagirir": [
       "kartSekmesi_",
       "kartTam_",
@@ -30118,7 +30144,7 @@
     },
     "ek_": {
      "dosya": "apps-script/bap-panel-veri-kapisi/Kod.gs",
-     "satir": 4757,
+     "satir": 4763,
      "cagirir": [],
      "sekmeler": []
     },
@@ -30146,7 +30172,7 @@
     },
     "eslestirmeKararlari_": {
      "dosya": "apps-script/bap-panel-veri-kapisi/Kod.gs",
-     "satir": 4220,
+     "satir": 4226,
      "cagirir": [
       "kolon_",
       "sonSatirlar_",
@@ -30158,7 +30184,7 @@
     },
     "eslestirmeKaydi_": {
      "dosya": "apps-script/bap-panel-veri-kapisi/Kod.gs",
-     "satir": 4215,
+     "satir": 4221,
      "cagirir": [
       "tabloAc_"
      ],
@@ -30219,7 +30245,7 @@
     },
     "finansSoruCevapla_": {
      "dosya": "apps-script/bap-panel-veri-kapisi/Kod.gs",
-     "satir": 4447,
+     "satir": 4453,
      "cagirir": [
       "cevapKaydet_",
       "kolon_",
@@ -30347,7 +30373,7 @@
     },
     "gunEkle_": {
      "dosya": "apps-script/bap-panel-veri-kapisi/Kod.gs",
-     "satir": 4754,
+     "satir": 4760,
      "cagirir": [],
      "sekmeler": []
     },
@@ -30377,7 +30403,7 @@
     },
     "gunStr_": {
      "dosya": "apps-script/bap-panel-veri-kapisi/Kod.gs",
-     "satir": 4268,
+     "satir": 4274,
      "cagirir": [
       "zaman_"
      ],
@@ -30385,13 +30411,13 @@
     },
     "gz_": {
      "dosya": "apps-script/bap-panel-veri-kapisi/Kod.gs",
-     "satir": 4265,
+     "satir": 4271,
      "cagirir": [],
      "sekmeler": []
     },
     "haddyFaturalari_": {
      "dosya": "apps-script/bap-panel-veri-kapisi/Kod.gs",
-     "satir": 4660,
+     "satir": 4666,
      "cagirir": [
       "gunEkle_",
       "haddyMi_",
@@ -30406,7 +30432,7 @@
     },
     "haddyMi_": {
      "dosya": "apps-script/bap-panel-veri-kapisi/Kod.gs",
-     "satir": 4659,
+     "satir": 4665,
      "cagirir": [
       "norm_"
      ],
@@ -30414,7 +30440,7 @@
     },
     "hesapKapat_": {
      "dosya": "apps-script/bap-panel-veri-kapisi/Kod.gs",
-     "satir": 3711,
+     "satir": 3717,
      "cagirir": [
       "acikListe_",
       "cevapKaydet_",
@@ -30436,7 +30462,7 @@
     },
     "hesapOnBilgi_": {
      "dosya": "apps-script/bap-panel-veri-kapisi/Kod.gs",
-     "satir": 3704,
+     "satir": 3710,
      "cagirir": [
       "acikListe_",
       "isGunu_",
@@ -30458,7 +30484,7 @@
     },
     "hmYaz_": {
      "dosya": "apps-script/bap-panel-veri-kapisi/Kod.gs",
-     "satir": 3772,
+     "satir": 3778,
      "cagirir": [],
      "sekmeler": []
     },
@@ -30507,7 +30533,7 @@
     },
     "iptalMi_": {
      "dosya": "apps-script/bap-panel-veri-kapisi/Kod.gs",
-     "satir": 4705,
+     "satir": 4711,
      "cagirir": [
       "norm_"
      ],
@@ -30515,7 +30541,7 @@
     },
     "isGunu_": {
      "dosya": "apps-script/bap-panel-veri-kapisi/Kod.gs",
-     "satir": 4753,
+     "satir": 4759,
      "cagirir": [],
      "sekmeler": []
     },
@@ -30536,13 +30562,13 @@
     },
     "json_": {
      "dosya": "apps-script/bap-panel-veri-kapisi/Kod.gs",
-     "satir": 4702,
+     "satir": 4708,
      "cagirir": [],
      "sekmeler": []
     },
     "kartAjanCalis_": {
      "dosya": "apps-script/bap-panel-veri-kapisi/Kod.gs",
-     "satir": 3603,
+     "satir": 3609,
      "cagirir": [
       "acikKanit_",
       "acikListe_",
@@ -30559,7 +30585,7 @@
     },
     "kartAjani": {
      "dosya": "apps-script/bap-panel-veri-kapisi/Kod.gs",
-     "satir": 3595,
+     "satir": 3601,
      "cagirir": [
       "kartAjanCalis_"
      ],
@@ -30567,13 +30593,13 @@
     },
     "kartAjanRaporu_": {
      "dosya": "apps-script/bap-panel-veri-kapisi/Kod.gs",
-     "satir": 3627,
+     "satir": 3633,
      "cagirir": [],
      "sekmeler": []
     },
     "kartCihazKisi_": {
      "dosya": "apps-script/bap-panel-veri-kapisi/Kod.gs",
-     "satir": 3373,
+     "satir": 3379,
      "cagirir": [
       "kolon_",
       "sonSatirlar_",
@@ -30583,7 +30609,7 @@
     },
     "kartEslestir_": {
      "dosya": "apps-script/bap-panel-veri-kapisi/Kod.gs",
-     "satir": 3389,
+     "satir": 3395,
      "cagirir": [
       "isGunu_",
       "kartRef_",
@@ -30609,13 +30635,13 @@
     },
     "kartRef_": {
      "dosya": "apps-script/bap-panel-veri-kapisi/Kod.gs",
-     "satir": 3577,
+     "satir": 3583,
      "cagirir": [],
      "sekmeler": []
     },
     "kartSekmesi_": {
      "dosya": "apps-script/bap-panel-veri-kapisi/Kod.gs",
-     "satir": 3434,
+     "satir": 3440,
      "cagirir": [
       "sonSatirlar_",
       "tabloAc_"
@@ -30624,7 +30650,7 @@
     },
     "kartTam_": {
      "dosya": "apps-script/bap-panel-veri-kapisi/Kod.gs",
-     "satir": 3574,
+     "satir": 3580,
      "cagirir": [],
      "sekmeler": []
     },
@@ -30636,7 +30662,7 @@
     },
     "kesintiGir_": {
      "dosya": "apps-script/bap-panel-veri-kapisi/Kod.gs",
-     "satir": 3907,
+     "satir": 3913,
      "cagirir": [
       "cevapKaydet_",
       "gunStr_",
@@ -30653,7 +30679,7 @@
     },
     "kesintiIptal_": {
      "dosya": "apps-script/bap-panel-veri-kapisi/Kod.gs",
-     "satir": 3891,
+     "satir": 3897,
      "cagirir": [
       "cevapKaydet_",
       "gunStr_",
@@ -30669,13 +30695,13 @@
     },
     "kesintiYonu_": {
      "dosya": "apps-script/bap-panel-veri-kapisi/Kod.gs",
-     "satir": 3881,
+     "satir": 3887,
      "cagirir": [],
      "sekmeler": []
     },
     "kisiAyni_": {
      "dosya": "apps-script/bap-panel-veri-kapisi/Kod.gs",
-     "satir": 3384,
+     "satir": 3390,
      "cagirir": [
       "norm_"
      ],
@@ -30683,7 +30709,7 @@
     },
     "kodsuz_": {
      "dosya": "apps-script/bap-panel-veri-kapisi/Kod.gs",
-     "satir": 4796,
+     "satir": 4802,
      "cagirir": [],
      "sekmeler": []
     },
@@ -30738,7 +30764,7 @@
     },
     "kolon_": {
      "dosya": "apps-script/bap-panel-veri-kapisi/Kod.gs",
-     "satir": 4712,
+     "satir": 4718,
      "cagirir": [
       "norm_"
      ],
@@ -30752,7 +30778,7 @@
     },
     "kullanilanRef_": {
      "dosya": "apps-script/bap-panel-veri-kapisi/Kod.gs",
-     "satir": 3360,
+     "satir": 3366,
      "cagirir": [
       "kolon_",
       "sonSatirlar_"
@@ -30763,7 +30789,7 @@
     },
     "kuralBaglantiTesti": {
      "dosya": "apps-script/bap-panel-veri-kapisi/Kod.gs",
-     "satir": 3847,
+     "satir": 3853,
      "cagirir": [
       "kuralYenile_"
      ],
@@ -30771,13 +30797,13 @@
     },
     "kuralYenile_": {
      "dosya": "apps-script/bap-panel-veri-kapisi/Kod.gs",
-     "satir": 3850,
+     "satir": 3856,
      "cagirir": [],
      "sekmeler": []
     },
     "kurye_": {
      "dosya": "apps-script/bap-panel-veri-kapisi/Kod.gs",
-     "satir": 2934,
+     "satir": 2940,
      "cagirir": [
       "acikKanit_",
       "acikListe_",
@@ -30823,7 +30849,7 @@
     },
     "kuryeBoslariDoldur": {
      "dosya": "apps-script/bap-panel-veri-kapisi/Kod.gs",
-     "satir": 4256,
+     "satir": 4262,
      "cagirir": [
       "kuryeEslestirIslem_",
       "kuryeEslestirme_",
@@ -30833,7 +30859,7 @@
     },
     "kuryeEsle_": {
      "dosya": "apps-script/bap-panel-veri-kapisi/Kod.gs",
-     "satir": 3635,
+     "satir": 3641,
      "cagirir": [
       "norm_"
      ],
@@ -30841,7 +30867,7 @@
     },
     "kuryeEslestirIslem_": {
      "dosya": "apps-script/bap-panel-veri-kapisi/Kod.gs",
-     "satir": 4239,
+     "satir": 4245,
      "cagirir": [
       "adisyoKuryeYaz_",
       "eslestirmeKaydi_",
@@ -30857,7 +30883,7 @@
     },
     "kuryeEslestirme_": {
      "dosya": "apps-script/bap-panel-veri-kapisi/Kod.gs",
-     "satir": 4171,
+     "satir": 4177,
      "cagirir": [
       "adisyoSatirlari_",
       "ayniKurye_",
@@ -30879,7 +30905,7 @@
     },
     "kuryeMaliyet_": {
      "dosya": "apps-script/bap-panel-veri-kapisi/Kod.gs",
-     "satir": 2929,
+     "satir": 2935,
      "cagirir": [
       "kuryeUcret_"
      ],
@@ -30887,7 +30913,7 @@
     },
     "kuryeOdemeDurumu_": {
      "dosya": "apps-script/bap-panel-veri-kapisi/Kod.gs",
-     "satir": 4681,
+     "satir": 4687,
      "cagirir": [
       "kolon_",
       "satirlar_",
@@ -30900,7 +30926,7 @@
     },
     "kuryeOdendiIsle_": {
      "dosya": "apps-script/bap-panel-veri-kapisi/Kod.gs",
-     "satir": 4691,
+     "satir": 4697,
      "cagirir": [
       "sayi_",
       "tabloAc_"
@@ -30912,7 +30938,7 @@
     },
     "kuryeUcret_": {
      "dosya": "apps-script/bap-panel-veri-kapisi/Kod.gs",
-     "satir": 2922,
+     "satir": 2928,
      "cagirir": [
       "norm_"
      ],
@@ -30920,7 +30946,7 @@
     },
     "kuryeUcretOku_": {
      "dosya": "apps-script/bap-panel-veri-kapisi/Kod.gs",
-     "satir": 2906,
+     "satir": 2912,
      "cagirir": [
       "kolon_",
       "sayi_"
@@ -30942,19 +30968,19 @@
     },
     "mahalleAdi_": {
      "dosya": "apps-script/bap-panel-veri-kapisi/Kod.gs",
-     "satir": 3967,
+     "satir": 3973,
      "cagirir": [],
      "sekmeler": []
     },
     "mahEkle_": {
      "dosya": "apps-script/bap-panel-veri-kapisi/Kod.gs",
-     "satir": 4772,
+     "satir": 4778,
      "cagirir": [],
      "sekmeler": []
     },
     "mahSirala_": {
      "dosya": "apps-script/bap-panel-veri-kapisi/Kod.gs",
-     "satir": 4776,
+     "satir": 4782,
      "cagirir": [],
      "sekmeler": []
     },
@@ -30997,7 +31023,7 @@
     },
     "markaKok_": {
      "dosya": "apps-script/bap-panel-veri-kapisi/Kod.gs",
-     "satir": 4765,
+     "satir": 4771,
      "cagirir": [
       "norm_"
      ],
@@ -31005,13 +31031,13 @@
     },
     "maskele_": {
      "dosya": "apps-script/bap-panel-veri-kapisi/Kod.gs",
-     "satir": 2874,
+     "satir": 2880,
      "cagirir": [],
      "sekmeler": []
     },
     "mesaiDuzelt_": {
      "dosya": "apps-script/bap-panel-veri-kapisi/Kod.gs",
-     "satir": 3806,
+     "satir": 3812,
      "cagirir": [
       "cevapKaydet_",
       "gunStr_",
@@ -31026,7 +31052,7 @@
     },
     "mesaiDuzeltmeListesi_": {
      "dosya": "apps-script/bap-panel-veri-kapisi/Kod.gs",
-     "satir": 3795,
+     "satir": 3801,
      "cagirir": [
       "gunStr_",
       "kolon_",
@@ -31038,7 +31064,7 @@
     },
     "mesaiKontrolSatiri_": {
      "dosya": "apps-script/bap-panel-veri-kapisi/Kod.gs",
-     "satir": 3774,
+     "satir": 3780,
      "cagirir": [
       "dkOku_",
       "hmYaz_"
@@ -31047,7 +31073,7 @@
     },
     "metropolCekimleri_": {
      "dosya": "apps-script/bap-panel-veri-kapisi/Kod.gs",
-     "satir": 3541,
+     "satir": 3547,
      "cagirir": [
       "kartSekmesi_",
       "kartTam_",
@@ -31117,7 +31143,7 @@
     },
     "multinetCekimleri_": {
      "dosya": "apps-script/bap-panel-veri-kapisi/Kod.gs",
-     "satir": 3510,
+     "satir": 3516,
      "cagirir": [
       "kartSekmesi_",
       "kartTam_",
@@ -31175,7 +31201,7 @@
     },
     "musteriDetay_": {
      "dosya": "apps-script/bap-panel-veri-kapisi/Kod.gs",
-     "satir": 3683,
+     "satir": 3689,
      "cagirir": [
       "kolon_",
       "sayi_",
@@ -31213,7 +31239,7 @@
     },
     "norm_": {
      "dosya": "apps-script/bap-panel-veri-kapisi/Kod.gs",
-     "satir": 4706,
+     "satir": 4712,
      "cagirir": [],
      "sekmeler": []
     },
@@ -31234,7 +31260,7 @@
     },
     "odemePlaniIsle_": {
      "dosya": "apps-script/bap-panel-veri-kapisi/Kod.gs",
-     "satir": 4614,
+     "satir": 4620,
      "cagirir": [
       "kolon_",
       "norm_",
@@ -31250,7 +31276,7 @@
     },
     "odemePlanlari_": {
      "dosya": "apps-script/bap-panel-veri-kapisi/Kod.gs",
-     "satir": 4575,
+     "satir": 4581,
      "cagirir": [
       "kolon_",
       "norm_",
@@ -31341,7 +31367,7 @@
     },
     "parcaliVeBosta_": {
      "dosya": "apps-script/bap-panel-veri-kapisi/Kod.gs",
-     "satir": 3310,
+     "satir": 3316,
      "cagirir": [
       "gunEkle_",
       "isGunu_",
@@ -31352,7 +31378,7 @@
     },
     "payeCekimleri_": {
      "dosya": "apps-script/bap-panel-veri-kapisi/Kod.gs",
-     "satir": 3466,
+     "satir": 3472,
      "cagirir": [
       "gunStr_",
       "isGunu_",
@@ -31404,13 +31430,14 @@
     },
     "personelBilgiGir_": {
      "dosya": "apps-script/bap-panel-veri-kapisi/Kod.gs",
-     "satir": 2790,
+     "satir": 2794,
      "cagirir": [
       "cevapKaydet_",
       "dogrula_",
       "kolon_",
       "maskele_",
       "norm_",
+      "personelKolon_",
       "tabloAc_"
      ],
      "sekmeler": [
@@ -31420,10 +31447,11 @@
     },
     "personelBilgileri_": {
      "dosya": "apps-script/bap-panel-veri-kapisi/Kod.gs",
-     "satir": 2765,
+     "satir": 2769,
      "cagirir": [
       "kolon_",
-      "maskele_"
+      "maskele_",
+      "personelKolon_"
      ],
      "sekmeler": [
       "PERSONEL › Personel"
@@ -31431,7 +31459,7 @@
     },
     "personelEkle_": {
      "dosya": "apps-script/bap-panel-veri-kapisi/Kod.gs",
-     "satir": 2816,
+     "satir": 2821,
      "cagirir": [
       "cevapKaydet_",
       "dogrula_",
@@ -31444,9 +31472,17 @@
       "✎ PERSONEL › Personel"
      ]
     },
+    "personelKolon_": {
+     "dosya": "apps-script/bap-panel-veri-kapisi/Kod.gs",
+     "satir": 2767,
+     "cagirir": [
+      "kolon_"
+     ],
+     "sekmeler": []
+    },
     "pluxeeCekimleri_": {
      "dosya": "apps-script/bap-panel-veri-kapisi/Kod.gs",
-     "satir": 3440,
+     "satir": 3446,
      "cagirir": [
       "kartSekmesi_",
       "kartTam_",
@@ -31592,13 +31628,13 @@
     },
     "refAl_": {
      "dosya": "apps-script/bap-panel-veri-kapisi/Kod.gs",
-     "satir": 3573,
+     "satir": 3579,
      "cagirir": [],
      "sekmeler": []
     },
     "rotaHesapla_": {
      "dosya": "apps-script/bap-panel-veri-kapisi/Kod.gs",
-     "satir": 4061,
+     "satir": 4067,
      "cagirir": [
       "adresTemizle_",
       "gunStr_",
@@ -31619,7 +31655,7 @@
     },
     "saatDk_": {
      "dosya": "apps-script/bap-panel-veri-kapisi/Kod.gs",
-     "satir": 3987,
+     "satir": 3993,
      "cagirir": [],
      "sekmeler": []
     },
@@ -31668,13 +31704,13 @@
     },
     "sayi_": {
      "dosya": "apps-script/bap-panel-veri-kapisi/Kod.gs",
-     "satir": 4729,
+     "satir": 4735,
      "cagirir": [],
      "sekmeler": []
     },
     "seferler_": {
      "dosya": "apps-script/bap-panel-veri-kapisi/Kod.gs",
-     "satir": 4017,
+     "satir": 4023,
      "cagirir": [
       "gunEkle_",
       "gunStr_",
@@ -31702,7 +31738,7 @@
     },
     "setcardCekimleri_": {
      "dosya": "apps-script/bap-panel-veri-kapisi/Kod.gs",
-     "satir": 3556,
+     "satir": 3562,
      "cagirir": [
       "kartSekmesi_",
       "kartTam_",
@@ -31772,7 +31808,7 @@
     },
     "simdi_": {
      "dosya": "apps-script/bap-panel-veri-kapisi/Kod.gs",
-     "satir": 4750,
+     "satir": 4756,
      "cagirir": [
       "zaman_"
      ],
@@ -31780,13 +31816,13 @@
     },
     "siparisNo_": {
      "dosya": "apps-script/bap-panel-veri-kapisi/Kod.gs",
-     "satir": 3632,
+     "satir": 3638,
      "cagirir": [],
      "sekmeler": []
     },
     "siparisSubesi_": {
      "dosya": "apps-script/bap-panel-veri-kapisi/Kod.gs",
-     "satir": 4009,
+     "satir": 4015,
      "cagirir": [
       "gunEkle_",
       "norm_"
@@ -31817,7 +31853,7 @@
     },
     "sipHesapOku_": {
      "dosya": "apps-script/bap-panel-veri-kapisi/Kod.gs",
-     "satir": 3226,
+     "satir": 3232,
      "cagirir": [
       "kolon_",
       "siparisNo_",
@@ -31829,7 +31865,7 @@
     },
     "sirala_": {
      "dosya": "apps-script/bap-panel-veri-kapisi/Kod.gs",
-     "satir": 4759,
+     "satir": 4765,
      "cagirir": [],
      "sekmeler": []
     },
@@ -31841,7 +31877,7 @@
     },
     "sonSatirlar_": {
      "dosya": "apps-script/bap-panel-veri-kapisi/Kod.gs",
-     "satir": 4274,
+     "satir": 4280,
      "cagirir": [
       "kolon_",
       "olcEkle_",
@@ -31851,7 +31887,7 @@
     },
     "sonSatirlarOku_": {
      "dosya": "apps-script/bap-panel-veri-kapisi/Kod.gs",
-     "satir": 4303,
+     "satir": 4309,
      "cagirir": [
       "kolon_"
      ],
@@ -31865,7 +31901,7 @@
     },
     "subeAnahtar_": {
      "dosya": "apps-script/bap-panel-veri-kapisi/Kod.gs",
-     "satir": 4782,
+     "satir": 4788,
      "cagirir": [
       "norm_"
      ],
@@ -31879,7 +31915,7 @@
     },
     "subeSozlugu_": {
      "dosya": "apps-script/bap-panel-veri-kapisi/Kod.gs",
-     "satir": 3990,
+     "satir": 3996,
      "cagirir": [
       "gunStr_",
       "kolon_",
@@ -31909,7 +31945,7 @@
     },
     "sureDk_": {
      "dosya": "apps-script/bap-panel-veri-kapisi/Kod.gs",
-     "satir": 2877,
+     "satir": 2883,
      "cagirir": [],
      "sekmeler": []
     },
@@ -31921,7 +31957,7 @@
     },
     "tablo_": {
      "dosya": "apps-script/bap-panel-veri-kapisi/Kod.gs",
-     "satir": 4719,
+     "satir": 4725,
      "cagirir": [],
      "sekmeler": []
     },
@@ -31949,7 +31985,7 @@
     },
     "tahsilatlar_": {
      "dosya": "apps-script/bap-panel-veri-kapisi/Kod.gs",
-     "satir": 3651,
+     "satir": 3657,
      "cagirir": [
       "gunEkle_",
       "isGunu_",
@@ -31966,7 +32002,7 @@
     },
     "tahsilatlariAdisyoyaIsle_": {
      "dosya": "apps-script/bap-panel-veri-kapisi/Kod.gs",
-     "satir": 4118,
+     "satir": 4124,
      "cagirir": [
       "kolon_",
       "siparisNo_",
@@ -31982,7 +32018,7 @@
     },
     "tahsilatSekmesi_": {
      "dosya": "apps-script/bap-panel-veri-kapisi/Kod.gs",
-     "satir": 3644,
+     "satir": 3650,
      "cagirir": [],
      "sekmeler": [
       "✎ KURYE › Tahsilatlar",
@@ -32025,7 +32061,7 @@
     },
     "testMi_": {
      "dosya": "apps-script/bap-panel-veri-kapisi/Kod.gs",
-     "satir": 4727,
+     "satir": 4733,
      "cagirir": [],
      "sekmeler": []
     },
@@ -32041,7 +32077,7 @@
     },
     "tokenflexCekimleri_": {
      "dosya": "apps-script/bap-panel-veri-kapisi/Kod.gs",
-     "satir": 3526,
+     "satir": 3532,
      "cagirir": [
       "kartSekmesi_",
       "kartTam_",
@@ -32057,13 +32093,13 @@
     },
     "topla_": {
      "dosya": "apps-script/bap-panel-veri-kapisi/Kod.gs",
-     "satir": 4758,
+     "satir": 4764,
      "cagirir": [],
      "sekmeler": []
     },
     "toptanciOdemeGir_": {
      "dosya": "apps-script/bap-panel-veri-kapisi/Kod.gs",
-     "satir": 4476,
+     "satir": 4482,
      "cagirir": [
       "cevapKaydet_",
       "kolon_",
@@ -32165,7 +32201,7 @@
     },
     "yalnizKapida_": {
      "dosya": "apps-script/bap-panel-veri-kapisi/Kod.gs",
-     "satir": 3251,
+     "satir": 3257,
      "cagirir": [],
      "sekmeler": []
     },
@@ -32248,13 +32284,13 @@
     },
     "z_": {
      "dosya": "apps-script/bap-panel-veri-kapisi/Kod.gs",
-     "satir": 4756,
+     "satir": 4762,
      "cagirir": [],
      "sekmeler": []
     },
     "zaman_": {
      "dosya": "apps-script/bap-panel-veri-kapisi/Kod.gs",
-     "satir": 4740,
+     "satir": 4746,
      "cagirir": [],
      "sekmeler": []
     }

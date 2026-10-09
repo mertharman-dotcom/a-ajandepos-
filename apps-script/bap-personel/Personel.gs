@@ -1166,7 +1166,7 @@ function doGet(e) {
       pinGuncelle(ss, ad, yeniPin);
       return msg("PIN Güncellendi", htmlEsc(ad) + " - Yeni PIN kodun oluşturuldu. QR'ı tekrar okutup bu PIN ile devam edebilirsin.", "#22a559", new Date(), null, "✓");
     }
-    if (islem === "ilkPinOlustur") {
+    if (islem === "ilkPinOlustur" && !pObj.pin) { // PIN zaten varsa ilk PIN yolu kapalı; yoksa linkle başkasının PIN'i değiştirilebiliyordu (P74)
       var yeniPin2 = (P.yeniPin || "").toString().trim();
       if (!/^[0-9]{4}$/.test(yeniPin2)) return ilkPinEkran(ad, kod, "PIN 4 haneli rakam olmalı.");
       pinGuncelle(ss, ad, yeniPin2);

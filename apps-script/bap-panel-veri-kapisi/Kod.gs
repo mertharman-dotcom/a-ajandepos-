@@ -2759,14 +2759,18 @@ var PERSONEL_ALANLAR = [
   { ad: 'Acil durum kişisi telefon', etiket: 'Acil durum telefonu', tur: 'telefon', goster: false },
   // İsteğe bağlı: eksik sayılmaz ama panelden değiştirilebilir
   { ad: 'İşten Çıkış', etiket: 'İşten çıkış tarihi', tur: 'tarih', goster: true, istege: true },
-  { ad: 'Aktif', etiket: 'Aktif çalışıyor mu', tur: 'evethayir', goster: true, istege: true }
+  { ad: 'Aktif', etiket: 'Aktif çalışıyor mu', tur: 'evethayir', goster: true, istege: true },
+  // QR giriş ve personel bilgi ekranı şifresi (BAP_Personel › pinGate). Değeri panele hiç gönderilmez, yalnız ‘••••’ (P73).
+  { ad: 'PIN', adaylar: ['PIN', 'Pin', 'Şifre', 'Sifre'], etiket: 'Şifre (PIN)', tur: 'pin', goster: false, istege: true }
 ];
+// BAP_Personel PIN'i F sütunundan (6.) okur (personelBilgi: data[i][5]); başlık başka sütundaysa yazma, yanlış hücreye gitmesin.
+function personelKolon_(b, a) { var c = kolon_(b, a.adaylar || [a.ad]); return a.tur === 'pin' && c !== 5 ? -1 : c; }
 
 function personelBilgileri_(ss) {
   var ps = ss.getSheetByName('Personel'); if (!ps) return null;
   var v = ps.getDataRange().getDisplayValues(), b = v[0];
   var cA = kolon_(b, ['İsim Soyisim']), cAk = kolon_(b, ['Aktif']), cC = kolon_(b, ['İşten Çıkış']);
-  var idx = PERSONEL_ALANLAR.map(function (a) { return kolon_(b, [a.ad]); });
+  var idx = PERSONEL_ALANLAR.map(function (a) { return personelKolon_(b, a); });
   var liste = [];
   for (var i = 1; i < v.length; i++) {
     var r = v[i]; if (!String(r[cA]).trim()) continue;
@@ -2786,7 +2790,7 @@ function personelBilgileri_(ss) {
 }
 
 // Sahip panelden personel bilgisini girer. Boş hücreye doğrudan yazılır; dolu hücre yalnız d.degistir === '1' ile değiştirilir
-// ve eski değer (hassas alanlarda maskeli) Islem_Loglari'na yazılır. Şifre panelden hiç değiştirilemez.
+// ve eski değer (hassas alanlarda maskeli) Islem_Loglari'na yazılır. Şifre (PIN) yazılabilir ama hiçbir yerde açık gösterilmez.
 function personelBilgiGir_(d) {
   var alan = PERSONEL_ALANLAR.filter(function (a) { return a.ad === d.alan; })[0];
   if (!alan) return { hata: 'Bu alan panelden girilemez.' };
@@ -2794,11 +2798,12 @@ function personelBilgiGir_(d) {
   if (deger.hata) return { hata: deger.hata };
   var ss = tabloAc_(KAYNAK.personel.id), ps = ss.getSheetByName('Personel');
   var v = ps.getDataRange().getDisplayValues(), b = v[0];
-  var cA = kolon_(b, ['İsim Soyisim']), cX = kolon_(b, [alan.ad]), satir = +d.satir;
+  var cA = kolon_(b, ['İsim Soyisim']), cX = personelKolon_(b, alan), satir = +d.satir;
   if (cX < 0 || !(satir >= 2 && satir <= v.length)) return { hata: 'Personel satırı bulunamadı.' };
   if (norm_(v[satir - 1][cA]) !== norm_(d.ad)) return { hata: 'Personel listesi değişmiş; sayfayı yenileyip tekrar deneyin.' };
   var eski = String(v[satir - 1][cX]).trim();
   if (eski !== '' && d.degistir !== '1') return { hata: 'Bu bilgi zaten dolu; değiştirmek için ‘Değiştir’ ile gönderin.' };
+  if (alan.tur === 'pin') ps.getRange(satir, cX + 1).setNumberFormat('@'); // baştaki 0 kaybolmasın (0123)
   ps.getRange(satir, cX + 1).setValue(deger.deger);
   var damga = Utilities.formatDate(new Date(), TZ, 'dd.MM.yyyy HH:mm:ss');
   var gizli = alan.goster ? String(deger.deger) : maskele_(String(deger.deger));
@@ -2866,6 +2871,7 @@ function dogrula_(tur, s) {
   if (tur === 'telefon') { var n = s.replace(/\D/g, '').replace(/^90/, '').replace(/^0/, ''); if (!/^\d{10}$/.test(n)) return { hata: 'Telefon 10 haneli olmalı (5XX XXX XX XX).' }; return { deger: n }; }
   if (tur === 'tarih') { var m = s.match(/^(\d{1,2})[.\/-](\d{1,2})[.\/-](\d{4})$/); if (!m) return { hata: 'Tarih GG.AA.YYYY biçiminde olmalı.' };
     return { deger: ('0' + m[1]).slice(-2) + '.' + ('0' + m[2]).slice(-2) + '.' + m[3] }; }
+  if (tur === 'pin') { if (!/^\d{4}$/.test(s)) return { hata: 'Şifre 4 haneli rakam olmalı.' }; return { deger: s }; }
   if (tur === 'sayi') { var x = sayi_(s); if (!(x > 0)) return { hata: 'Geçerli bir tutar yazın.' }; return { deger: x }; }
   if (tur === 'evethayir') { if (/^(evet|var|true|1|sgkl[ıi])$/i.test(s)) return { deger: true }; if (/^(hay[ıi]r|yok|false|0)$/i.test(s)) return { deger: false }; return { hata: 'Evet ya da Hayır yazın.' }; }
   if (tur === 'sube') { var sb = subeAnahtar_(s); if (!/Erenköy|Fikirtepe/.test(sb)) return { hata: 'Erenköy ya da Fikirtepe yazın.' }; return { deger: sb.replace('BAP ', '') }; }
