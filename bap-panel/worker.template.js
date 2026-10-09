@@ -184,6 +184,28 @@ export default {
       } catch (e) { return json({ belirsiz: true, hata: 'Veri kapısına ulaşılamadı; ödeme kaydedilmiş olabilir.' }, 502); }
     }
 
+    if ((url.pathname === '/api/odeme-plani' || url.pathname === '/api/kurye-odendi') && request.method === 'POST') {
+      // Toptancı ödeme planı (söz verilen tarih) ve kurye haftası 'ödendi' işareti — Yönetim Merkezi yapılacaklar listesi.
+      if (request.headers.get('x-bap-panel') !== '1' || (request.headers.get('origin') || url.origin) !== url.origin) {
+        return json({ hata: 'İzin verilmeyen istek.' }, 403);
+      }
+      let govde;
+      try { govde = await request.json(); } catch (e) { return json({ hata: 'Geçersiz istek.' }, 400); }
+      const plan = url.pathname === '/api/odeme-plani';
+      const ileti = JSON.stringify(plan
+        ? { key: env.GAS_KEY, tur: 'odemePlani', istekNo: String(govde.istekNo || '').slice(0, 64), islem: govde.islem === 'iptal' ? 'iptal' : 'ekle',
+            id: String(govde.id || '').slice(0, 40), tedarikci: String(govde.tedarikci || '').slice(0, 200), tarih: String(govde.tarih || '').slice(0, 10),
+            tutar: String(govde.tutar || '').slice(0, 20), aciklama: String(govde.aciklama || '').slice(0, 300) }
+        : { key: env.GAS_KEY, tur: 'kuryeOdendi', hafta: String(govde.hafta || '').slice(0, 10), islem: govde.islem === 'geri' ? 'geri' : 'odendi',
+            bap: String(govde.bap || '').slice(0, 20), haddy: String(govde.haddy || '').slice(0, 20) });
+      try {
+        const r = await fetch(env.GAS_URL, { method: 'POST', headers: { 'content-type': 'application/json' }, body: ileti, redirect: 'follow' });
+        const metin = await r.text();
+        try { return json(JSON.parse(metin), 200); }
+        catch (e) { return json({ belirsiz: true, hata: 'Veri kapısı beklenmeyen bir cevap verdi; kayıt yazılmış olabilir. Paneli yenileyip kontrol edin.' + gasHatasi(metin) }, 502); }
+      } catch (e) { return json({ belirsiz: true, hata: 'Veri kapısına ulaşılamadı; kayıt yazılmış olabilir.' }, 502); }
+    }
+
     if (url.pathname === '/api/eslestir' && request.method === 'POST') {
       // Adisyo kurye eşleştirmesi: yalnızca panelin kendisinden gelen istek kabul edilir.
       if (request.headers.get('x-bap-panel') !== '1' || (request.headers.get('origin') || url.origin) !== url.origin) {
