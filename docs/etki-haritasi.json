@@ -7,9 +7,9 @@
   "FATURA": "Kolaybi Fatura Ham Veri",
   "YEMEKKARTI": "BAP Yemek Kartı Tahsilatları (Pluxee, Edenred, Paye çekimleri)",
   "TRENDYOL": "Trendyol Yorumlar (Trendyol API çeker; ayrıntı `docs/trendyol-api.md`)",
+  "MUSTERI": "Birlesik Musteri Veritabani",
   "KURYE": "Kurye Net Çalışma Süresi (HemenYolda köprüsü, Pluxee çekimi, açık hesaplar)",
   "PERSONEL": "BAP Personel (BAP_Personel projesi bağlı; puantaj, vardiya, izin)",
-  "MUSTERI": "Birlesik Musteri Veritabani",
   "HUB": "BAP AI HUB (ajan görevleri, kokpit)",
   "ISKAYDI": "BAP İş Kaydı",
   "GIDER": "BAP Aylık Gider Takibi",
@@ -11201,6 +11201,93 @@
    ]
   },
   {
+   "anahtar": "MUSTERI › Ana Musteri - Canli",
+   "dosya": "MUSTERI",
+   "dosyaAdi": "Birlesik Musteri Veritabani",
+   "sekme": "Ana Musteri - Canli",
+   "yazan": [],
+   "okuyan": [
+    {
+     "ad": "adisyo-siparis-toplayici › musteriSaglikRaporu",
+     "yer": [
+      "apps-script/adisyo-siparis-toplayici/Musteri Saglik.gs:101"
+     ]
+    }
+   ],
+   "olusturan": [],
+   "dolayli": [],
+   "sutunlar": [
+    {
+     "ad": "Adisyo Siparis Sayisi",
+     "kesin": false,
+     "fn": [
+      "adisyo-siparis-toplayici › musteriSaglikRaporu"
+     ]
+    },
+    {
+     "ad": "Adres",
+     "kesin": false,
+     "fn": [
+      "adisyo-siparis-toplayici › musteriSaglikRaporu"
+     ]
+    },
+    {
+     "ad": "Adres Anahtarı",
+     "kesin": false,
+     "fn": [
+      "adisyo-siparis-toplayici › musteriSaglikRaporu"
+     ]
+    },
+    {
+     "ad": "Adres Anahtari",
+     "kesin": false,
+     "fn": [
+      "adisyo-siparis-toplayici › musteriSaglikRaporu"
+     ]
+    },
+    {
+     "ad": "Isim",
+     "kesin": false,
+     "fn": [
+      "adisyo-siparis-toplayici › musteriSaglikRaporu"
+     ]
+    },
+    {
+     "ad": "İsim",
+     "kesin": false,
+     "fn": [
+      "adisyo-siparis-toplayici › musteriSaglikRaporu"
+     ]
+    },
+    {
+     "ad": "Mahalle",
+     "kesin": false,
+     "fn": [
+      "adisyo-siparis-toplayici › musteriSaglikRaporu"
+     ]
+    },
+    {
+     "ad": "Sipariş sayısı",
+     "kesin": false,
+     "fn": [
+      "adisyo-siparis-toplayici › musteriSaglikRaporu"
+     ]
+    },
+    {
+     "ad": "Telefon",
+     "kesin": false,
+     "fn": [
+      "adisyo-siparis-toplayici › musteriSaglikRaporu"
+     ]
+    }
+   ],
+   "girisler": [],
+   "arayuzler": [],
+   "projeler": [
+    "adisyo-siparis-toplayici"
+   ]
+  },
+  {
    "anahtar": "MUSTERI › Ana Musteri Listesi",
    "dosya": "MUSTERI",
    "dosyaAdi": "Birlesik Musteri Veritabani",
@@ -11251,6 +11338,12 @@
      ]
     },
     {
+     "ad": "adisyo-siparis-toplayici › musteriSaglikRaporu",
+     "yer": [
+      "apps-script/adisyo-siparis-toplayici/Musteri Saglik.gs:25"
+     ]
+    },
+    {
      "ad": "adisyo-siparis-toplayici › tySutunlariniAc",
      "yer": [
       "apps-script/adisyo-siparis-toplayici/Adisyon Sipariş Toplayıcı.gs:1271"
@@ -11265,7 +11358,71 @@
    ],
    "olusturan": [],
    "dolayli": [],
-   "sutunlar": [],
+   "sutunlar": [
+    {
+     "ad": "Adisyo Siparis Sayisi",
+     "kesin": false,
+     "fn": [
+      "adisyo-siparis-toplayici › musteriSaglikRaporu"
+     ]
+    },
+    {
+     "ad": "Adres",
+     "kesin": false,
+     "fn": [
+      "adisyo-siparis-toplayici › musteriSaglikRaporu"
+     ]
+    },
+    {
+     "ad": "Adres Anahtarı",
+     "kesin": false,
+     "fn": [
+      "adisyo-siparis-toplayici › musteriSaglikRaporu"
+     ]
+    },
+    {
+     "ad": "Adres Anahtari",
+     "kesin": false,
+     "fn": [
+      "adisyo-siparis-toplayici › musteriSaglikRaporu"
+     ]
+    },
+    {
+     "ad": "Isim",
+     "kesin": false,
+     "fn": [
+      "adisyo-siparis-toplayici › musteriSaglikRaporu"
+     ]
+    },
+    {
+     "ad": "İsim",
+     "kesin": false,
+     "fn": [
+      "adisyo-siparis-toplayici › musteriSaglikRaporu"
+     ]
+    },
+    {
+     "ad": "Mahalle",
+     "kesin": false,
+     "fn": [
+      "adisyo-siparis-toplayici › musteriSaglikRaporu"
+     ]
+    },
+    {
+     "ad": "Sipariş sayısı",
+     "kesin": false,
+     "fn": [
+      "adisyo-siparis-toplayici › musteriSaglikRaporu"
+     ]
+    },
+    {
+     "ad": "Telefon",
+     "kesin": false,
+     "fn": [
+      "adisyo-siparis-toplayici › musteriSaglikRaporu"
+     ]
+    }
+   ],
    "girisler": [
     {
      "proje": "adisyo-siparis-toplayici",
@@ -11704,6 +11861,12 @@
    ],
    "okuyan": [
     {
+     "ad": "adisyo-siparis-toplayici › musteriSaglikRaporu",
+     "yer": [
+      "apps-script/adisyo-siparis-toplayici/Musteri Saglik.gs:77"
+     ]
+    },
+    {
      "ad": "adisyo-siparis-toplayici › tyHarita_",
      "yer": [
       "apps-script/adisyo-siparis-toplayici/Sipariş anı uyar.gs:40"
@@ -11724,7 +11887,71 @@
    ],
    "olusturan": [],
    "dolayli": [],
-   "sutunlar": [],
+   "sutunlar": [
+    {
+     "ad": "Adisyo Siparis Sayisi",
+     "kesin": false,
+     "fn": [
+      "adisyo-siparis-toplayici › musteriSaglikRaporu"
+     ]
+    },
+    {
+     "ad": "Adres",
+     "kesin": false,
+     "fn": [
+      "adisyo-siparis-toplayici › musteriSaglikRaporu"
+     ]
+    },
+    {
+     "ad": "Adres Anahtarı",
+     "kesin": false,
+     "fn": [
+      "adisyo-siparis-toplayici › musteriSaglikRaporu"
+     ]
+    },
+    {
+     "ad": "Adres Anahtari",
+     "kesin": false,
+     "fn": [
+      "adisyo-siparis-toplayici › musteriSaglikRaporu"
+     ]
+    },
+    {
+     "ad": "Isim",
+     "kesin": false,
+     "fn": [
+      "adisyo-siparis-toplayici › musteriSaglikRaporu"
+     ]
+    },
+    {
+     "ad": "İsim",
+     "kesin": false,
+     "fn": [
+      "adisyo-siparis-toplayici › musteriSaglikRaporu"
+     ]
+    },
+    {
+     "ad": "Mahalle",
+     "kesin": false,
+     "fn": [
+      "adisyo-siparis-toplayici › musteriSaglikRaporu"
+     ]
+    },
+    {
+     "ad": "Sipariş sayısı",
+     "kesin": false,
+     "fn": [
+      "adisyo-siparis-toplayici › musteriSaglikRaporu"
+     ]
+    },
+    {
+     "ad": "Telefon",
+     "kesin": false,
+     "fn": [
+      "adisyo-siparis-toplayici › musteriSaglikRaporu"
+     ]
+    }
+   ],
    "girisler": [
     {
      "proje": "adisyo-siparis-toplayici",
@@ -14524,6 +14751,12 @@
      ]
     },
     {
+     "ad": "adisyo-siparis-toplayici › musteriSaglikRaporu",
+     "yer": [
+      "apps-script/adisyo-siparis-toplayici/Musteri Saglik.gs:56"
+     ]
+    },
+    {
      "ad": "adisyo-siparis-toplayici › musteriTazele",
      "yer": [
       "apps-script/adisyo-siparis-toplayici/musterı tazeleme.gs:48"
@@ -14649,11 +14882,39 @@
    "dolayli": [],
    "sutunlar": [
     {
+     "ad": "Adisyo Siparis Sayisi",
+     "kesin": false,
+     "fn": [
+      "adisyo-siparis-toplayici › musteriSaglikRaporu"
+     ]
+    },
+    {
      "ad": "Adisyon No",
      "kesin": false,
      "fn": [
       "bap-panel-veri-kapisi › acikKanit_",
       "bap-panel-veri-kapisi › tahsilatlariAdisyoyaIsle_"
+     ]
+    },
+    {
+     "ad": "Adres",
+     "kesin": false,
+     "fn": [
+      "adisyo-siparis-toplayici › musteriSaglikRaporu"
+     ]
+    },
+    {
+     "ad": "Adres Anahtarı",
+     "kesin": false,
+     "fn": [
+      "adisyo-siparis-toplayici › musteriSaglikRaporu"
+     ]
+    },
+    {
+     "ad": "Adres Anahtari",
+     "kesin": false,
+     "fn": [
+      "adisyo-siparis-toplayici › musteriSaglikRaporu"
      ]
     },
     {
@@ -14771,11 +15032,25 @@
      ]
     },
     {
+     "ad": "Isim",
+     "kesin": false,
+     "fn": [
+      "adisyo-siparis-toplayici › musteriSaglikRaporu"
+     ]
+    },
+    {
      "ad": "İptal",
      "kesin": false,
      "fn": [
       "adisyo-siparis-toplayici › saRapor_",
       "adisyo-siparis-toplayici › subeAtamaKurulum"
+     ]
+    },
+    {
+     "ad": "İsim",
+     "kesin": false,
+     "fn": [
+      "adisyo-siparis-toplayici › musteriSaglikRaporu"
      ]
     },
     {
@@ -14829,6 +15104,7 @@
       "adisyo-siparis-toplayici › dataSheet_",
       "adisyo-siparis-toplayici › eskiVeriyiDonustur",
       "adisyo-siparis-toplayici › ilkKurulum",
+      "adisyo-siparis-toplayici › musteriSaglikRaporu",
       "adisyo-siparis-toplayici › saRapor_",
       "adisyo-siparis-toplayici › subeAtamaKurulum",
       "bap-panel-veri-kapisi › siparisVerisiOku_"
@@ -15004,6 +15280,13 @@
      ]
     },
     {
+     "ad": "Sipariş sayısı",
+     "kesin": false,
+     "fn": [
+      "adisyo-siparis-toplayici › musteriSaglikRaporu"
+     ]
+    },
+    {
      "ad": "Sipariş Tarihi",
      "kesin": true,
      "fn": [
@@ -15070,6 +15353,13 @@
       "adisyo-siparis-toplayici › dataSheet_",
       "adisyo-siparis-toplayici › eskiVeriyiDonustur",
       "adisyo-siparis-toplayici › ilkKurulum"
+     ]
+    },
+    {
+     "ad": "Telefon",
+     "kesin": false,
+     "fn": [
+      "adisyo-siparis-toplayici › musteriSaglikRaporu"
      ]
     },
     {
@@ -33104,7 +33394,7 @@
    "klasor": "adisyo-siparis-toplayici",
    "ad": "Adisyo Sipariş Toplayıcı",
    "bagliDosya": "SATIS",
-   "fonksiyonSayisi": 111,
+   "fonksiyonSayisi": 118,
    "girisler": [
     "her 15 dk → etiketleriUygula",
     "her 5 dk → siparisDongusu",
@@ -33124,6 +33414,7 @@
     "KURYE › Açık Hesaplar",
     "KURYE › Siparişler",
     "MUSTERI › Adres_Aday",
+    "MUSTERI › Ana Musteri - Canli",
     "MUSTERI › Ana Musteri Listesi",
     "MUSTERI › Etiket_Girisi",
     "MUSTERI › Kontrol Edilecek Eşleşmeler",
@@ -33527,6 +33818,48 @@
      "cagirir": [],
      "sekmeler": []
     },
+    "msAyniKisi_": {
+     "dosya": "apps-script/adisyo-siparis-toplayici/Musteri Saglik.gs",
+     "satir": 135,
+     "cagirir": [
+      "nrm_"
+     ],
+     "sekmeler": []
+    },
+    "msBitir_": {
+     "dosya": "apps-script/adisyo-siparis-toplayici/Musteri Saglik.gs",
+     "satir": 110,
+     "cagirir": [],
+     "sekmeler": []
+    },
+    "msKisaIsim_": {
+     "dosya": "apps-script/adisyo-siparis-toplayici/Musteri Saglik.gs",
+     "satir": 130,
+     "cagirir": [],
+     "sekmeler": []
+    },
+    "msSekmeOku_": {
+     "dosya": "apps-script/adisyo-siparis-toplayici/Musteri Saglik.gs",
+     "satir": 116,
+     "cagirir": [],
+     "sekmeler": []
+    },
+    "msSutun_": {
+     "dosya": "apps-script/adisyo-siparis-toplayici/Musteri Saglik.gs",
+     "satir": 123,
+     "cagirir": [
+      "nrm_"
+     ],
+     "sekmeler": []
+    },
+    "msYeniAnahtar_": {
+     "dosya": "apps-script/adisyo-siparis-toplayici/Musteri Saglik.gs",
+     "satir": 142,
+     "cagirir": [
+      "tzAnahtar_"
+     ],
+     "sekmeler": []
+    },
     "musteriEtiketleri_": {
      "dosya": "apps-script/adisyo-siparis-toplayici/Adisyon Sipariş Toplayıcı.gs",
      "satir": 933,
@@ -33535,6 +33868,27 @@
      ],
      "sekmeler": [
       "MUSTERI › Ana Musteri Listesi"
+     ]
+    },
+    "musteriSaglikRaporu": {
+     "dosya": "apps-script/adisyo-siparis-toplayici/Musteri Saglik.gs",
+     "satir": 18,
+     "cagirir": [
+      "dataSheet_",
+      "msAyniKisi_",
+      "msBitir_",
+      "msKisaIsim_",
+      "msSekmeOku_",
+      "msSutun_",
+      "msYeniAnahtar_",
+      "son10_",
+      "tzAnahtar_"
+     ],
+     "sekmeler": [
+      "MUSTERI › Ana Musteri - Canli",
+      "MUSTERI › Ana Musteri Listesi",
+      "MUSTERI › Telefonsuz (Getir-Trendyol)",
+      "SATIS › Satıs Verileri"
      ]
     },
     "musteriTazele": {
