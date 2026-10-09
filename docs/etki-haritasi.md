@@ -15,7 +15,7 @@ Ajan için: `node araclar/etki-haritasi.mjs ara "<sekme / sütun / fonksiyon ad�
 | | Adet |
 |---|---|
 | Apps Script projesi | 16 |
-| Kodun dokunduğu sekme | 178 |
+| Kodun dokunduğu sekme | 177 |
 | Birden fazla projenin **yazdığı** sekme (risk) | 20 |
 | Arayüz dosyası (panel, köprü) | 11 |
 
@@ -1196,11 +1196,6 @@ Aynı sekmeye iki ayrı proje yazıyorsa birinin yaptığı değişiklik diğeri
 - **Adıyla aranan sütunlar:** `Durum`, `Fatura No`, `Fatura Tarihi`, `Ödeme Tarihi`, `Son Kontrol`, `Tutar (TL)`, `Ürün`, `Vade`
 - **Etkilenen arayüz:** MacBook köprüsü (mac-kopru)
 
-#### Paye
-
-- **Okuyan:** `yemekKarti_` (BAP Panel Veri Kapısı)
-- **Adıyla aranan sütunlar:** `Rapor Günü`, `Toplam Gün Sonu Tutarı`, `Tutar`
-
 #### Paye İşlemler
 
 - **Okuyan:** `payeCekimleri_` (BAP Panel Veri Kapısı)
@@ -1329,7 +1324,7 @@ Bağlı dosya: — (tabloları kimlikle açar) · 3 fonksiyon · 2 sekme
 
 ### BAP Panel Veri Kapısı (`apps-script/bap-panel-veri-kapisi`)
 
-Bağlı dosya: — (tabloları kimlikle açar) · 219 fonksiyon · 78 sekme
+Bağlı dosya: — (tabloları kimlikle açar) · 219 fonksiyon · 77 sekme
 
 - her saat → puantajTaramasi
 - tabloda düzenleme olunca → puantajTabloDegisti
@@ -1505,10 +1500,10 @@ Sekme adı koddan okunamadı (değişkenle ya da döngüyle açılıyor). Bu yer
 | stok-takip-sistemi | `eslestirmeDoldur` | `stok-takip-sistemi/fatura eşleştirme doldur.gs:43` | `k . tablo` |
 | stok-takip-sistemi | `oneriUret` | `stok-takip-sistemi/kısa ad onerıcı.gs:37` | `tablo` |
 | stok-takip-sistemi | `onerileriUygula` | `stok-takip-sistemi/kısa ad onerıcı.gs:107` | `tablo` |
-| bap-panel-veri-kapisi | `kokpitPanoKur` | `bap-panel-veri-kapisi/Kod.gs:1160` | `ad` |
-| bap-panel-veri-kapisi | `kokpitPanoKur` | `bap-panel-veri-kapisi/Kod.gs:1161` | `ad` |
-| bap-panel-veri-kapisi | `mobilFatura_` | `bap-panel-veri-kapisi/Kod.gs:1606` | `k . birikenSekme` |
-| bap-panel-veri-kapisi | `genel_` | `bap-panel-veri-kapisi/Kod.gs:1954` | `ad` |
+| bap-panel-veri-kapisi | `kokpitPanoKur` | `bap-panel-veri-kapisi/Kod.gs:1151` | `ad` |
+| bap-panel-veri-kapisi | `kokpitPanoKur` | `bap-panel-veri-kapisi/Kod.gs:1152` | `ad` |
+| bap-panel-veri-kapisi | `mobilFatura_` | `bap-panel-veri-kapisi/Kod.gs:1597` | `k . birikenSekme` |
+| bap-panel-veri-kapisi | `genel_` | `bap-panel-veri-kapisi/Kod.gs:1945` | `ad` |
 | kolaybi-fatura-ham-veri | `ap_hammaddeEkle_` | `kolaybi-fatura-ham-veri/Alım Paneli.gs:448` | `sekmeler [ s ]` |
 | kolaybi-fatura-ham-veri | `ap_hammaddeHaritasi_` | `kolaybi-fatura-ham-veri/Alım Paneli.gs:555` | `ad` |
 | kolaybi-fatura-ham-veri | `alisFaturaTeshis` | `kolaybi-fatura-ham-veri/Kolaybi Veri Cek.gs:711` | `ad` |

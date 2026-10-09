@@ -2549,7 +2549,7 @@ function ykKontrolBlok(a){var K=VERI.ykKontrol;if(!K)return;
 /* ---------------- Yemek kartı mutabakatı (Yemek Kartları) ----------------
  Adisyo'da POS'tan geçen yemek kartı satışı (online platform yemek kartı hariç) ile terminal gün sonu çekimi, iş günü bazında.
  Terminal verisi: BAP Yemek Kartı Tahsilatları (Pluxee, Edenred: işlem zamanı; Paye: gün sonu raporu). */
-var YK_KARTLAR=["Pluxee","Edenred","Paye","Multinet","Setcard","Metropol","Tokenflex","Diğer"],YK_TERMINAL={Pluxee:1,Edenred:1,Paye:1};
+var YK_KARTLAR=["Pluxee","Edenred","Paye","Multinet","Setcard","Metropol","Tokenflex","Diğer"],YK_TERMINAL={Pluxee:1,Edenred:1,Paye:1,Multinet:1,Setcard:1,Metropol:1,Tokenflex:1};
 function ykMutabakat(a){var S=VERI.satis,Y=VERI.yemekKarti;if(!S||!S.yemekKartSatis)return;var A=S.yemekKartSatis,T=(Y&&Y.gunler)||{},son=(Y&&Y.son)||{};
   var gunler=[];for(var i=1;i<=14;i++)gunler.push(gunEkleTr(S.bugun,-i));
   var kartlar=YK_KARTLAR.filter(function(k){return gunler.some(function(g){return (A[g]&&A[g][k])||(T[g]&&T[g][k]);});});
@@ -2564,7 +2564,7 @@ function ykMutabakat(a){var S=VERI.satis,Y=VERI.yemekKarti;if(!S||!S.yemekKartSa
     else hucre=el("span",{title:"Adisyo "+para(ad)+(A[g]&&A[g][k]?" ("+A[g][k].a+" sipariş)":"")+" · terminal "+para(te)+(T[g]&&T[g][k]?" ("+T[g][k].a+" işlem/cihaz)":"")},[para(te)+" / "+para(ad)+" ",Math.abs(fark)<1?el("span",{class:"etiket e-iyi",text:"tamam"}):el("span",{class:"etiket "+(fark<0?"e-kotu":"e-dikkat"),text:(fark>0?"+":"")+para(fark)})]);
     r.push(hucre);});return r;});
   var topSatir=["Toplam (raporu gelen günler)"].concat(kartlar.map(function(k){if(!YK_TERMINAL[k])return para(top[k].a)+" (Adisyo)";var f=top[k].t-top[k].a;return el("b",{text:para(top[k].t)+" / "+para(top[k].a)+"  "+(Math.abs(f)<1?"✓":(f>0?"+":"")+para(f))});}));
-  a.appendChild(blok("Yemek kartı mutabakatı — son 14 gün","Her hücre: terminale düşen (gün sonu) / Adisyo'da o kartla kapanan satış. Kırmızı fark: Adisyo'da satış var, terminalde eksik — kuryenin çekmediği ya da yanlış ödeme yöntemi girilmiş sipariş olabilir. Sarı: terminalde fazla (yanlış yöntem girilmiş olabilir). Gün = iş günü (10:00–03:00). Platformda online ödenen yemek kartları sayılmaz. Paye raporu ertesi gece, Pluxee/Edenred gün sonu MacBook'tan gelir; gelmeyen günler 'rapor bekleniyor'.",
+  a.appendChild(blok("Yemek kartı mutabakatı — son 14 gün","Kapıda (kuryenin cihazıyla) alınan yemek kartı ödemeleri, gün gün. Her hücre: kartın sisteminde o gün çekilen tutar / Adisyo'da o kartla kapanan kapıda satış. Yeşil ‘tamam’: ikisi tutuyor. Kırmızı (−): Adisyo'da satış var ama kart çekimi eksik — kurye çekmemiş ya da ödeme türü yanlış girilmiş olabilir; hangi siparişler olduğu yukarıdaki iki taraflı kontrolde. Sarı (+): çekim fazla — Adisyo'da başka ödeme türüyle girilmiş sipariş olabilir. Online (Trendyol / Yemeksepeti'de ödenen) kart ödemeleri bu tabloya girmez. ‘Rapor bekleniyor’: o günün çekimleri henüz gelmedi (Paye ertesi gün, Mac'teki kartlar gece)",
     tablo([["Gün"]].concat(kartlar.map(function(k){return [k+(YK_TERMINAL[k]?" (terminal / Adisyo)":""),1];})),satir.concat([topSatir]))));}
 function gunEkleTr(g,k){return new Date(Date.parse(g+"T00:00:00Z")+k*86400000).toISOString().slice(0,10);}
 var CIZ={genel:genelSayfa,merkez:merkez,saglik:saglikSayfa,ozet:ozet,fis:fisSayfa,satis:satis,maliyet:maliyetSayfa,kararlar:kararlar,panolar:panolarSayfa,ai:ai,

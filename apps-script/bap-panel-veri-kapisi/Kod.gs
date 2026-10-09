@@ -447,33 +447,24 @@ function yemekKartAdi_(odeme) {
  * Gün = iş günü (10:00 – ertesi 03:00). Pluxee / Edenred işlem zamanından, Paye raporun günü (mail konusu) üzerinden.
  * Çıktı: { gunler: { 'yyyy-mm-dd': { Pluxee: {t, a}, Edenred: {...}, Paye: {...} } }, son: { Pluxee: 'yyyy-mm-dd', ... } }
  */
+// Yemek kartı mutabakatı (panel › Yemek Kartları): gün × kart, terminale düşen KAPIDA çekim toplamı. Adisyo tarafı (satis.yemekKartSatis)
+// platform online ödemelerini saymaz; bu yüzden terminalde de yalnız kapıda çekimler toplanır (KART_KAYNAKLARI.oku online'ı ayıklar).
+// 09.10: önceki sürüm yalnız Pluxee / Edenred / Paye'yi ve onları online dahil topluyordu → her gün sahte "+9.000 TL" fark.
 function yemekKarti_() {
   var ss = tabloAc_(KAYNAK.yemekKarti.id), bas = gunEkle_(isGunu_(simdi_()), -29);
   var out = { gunler: {}, son: {} };
-  function ekle(kart, gun, tutar) {
-    if (!gun || gun < bas || !(tutar > 0)) return;
-    var g = out.gunler[gun] = out.gunler[gun] || {}, x = g[kart] = g[kart] || { t: 0, a: 0 };
-    x.t += tutar; x.a++;
-    if (!out.son[kart] || gun > out.son[kart]) out.son[kart] = gun;
-  }
-  function zaman(v) {   // Date, 'dd.MM.yyyy HH:mm' ya da '1 Eyl 2026 13:17'
-    var ms = zaman_(v);
-    // saati kaybolmuş tarih (tam 00:00:00) iş günü kaymasın: öğlene al
-    if (ms !== null) return (v instanceof Date && !v.getHours() && !v.getMinutes() && !v.getSeconds()) ? ms + 12 * 3600000 : ms;
-    var m = String(v || '').trim().match(/^(\d{1,2})\s+(\S+)\s+(\d{4})(?:\s+(\d{1,2}):(\d{2}))?/); if (!m) return null;
-    var ay = TR_AY[m[2].toLocaleLowerCase('tr-TR').slice(0, 3)]; if (ay === undefined) ay = TR_AY[norm_(m[2]).slice(0, 3)]; if (ay === undefined) return null;
-    return Date.UTC(+m[3], ay, +m[1], +(m[4] || 12), +(m[5] || 0));
-  }
-  [['Pluxee', 'İşlem Zamanı', 'Tutar (TL)'], ['Edenred', 'İşlem Zamanı', 'Tutar (TL)']].forEach(function (k) {
-    var t = satirlar_(ss, k[0]); if (!t.r.length) return;
-    var cz = kolon_(t.b, [k[1]]), ct = kolon_(t.b, [k[2], 'Tutar']);
-    t.r.forEach(function (r) { var ms = zaman(r[cz]); if (ms !== null) ekle(k[0], isGunu_(ms), sayi_(r[ct])); });
+  KART_KAYNAKLARI.forEach(function (kk) {
+    var v; try { v = kk.oku(ss); } catch (err) { v = null; }
+    if (!v || v.hata || !v.cekim) return;
+    var ad = kk.ad === 'SetCard' ? 'Setcard' : kk.ad;   // satış tarafının kart adı (yemekKartAdi_)
+    v.cekim.forEach(function (y) {
+      if (y.online) return;
+      var gun = isGunu_(y.ms); if (gun < bas || !(y.tutar > 0)) return;
+      var g = out.gunler[gun] = out.gunler[gun] || {}, x = g[ad] = g[ad] || { t: 0, a: 0 };
+      x.t = Math.round((x.t + y.tutar) * 100) / 100; x.a++;
+      if (!out.son[ad] || gun > out.son[ad]) out.son[ad] = gun;
+    });
   });
-  var p = satirlar_(ss, 'Paye');
-  if (p.r.length) {
-    var cg = kolon_(p.b, ['Rapor Günü']), ct = kolon_(p.b, ['Toplam Gün Sonu Tutarı', 'Tutar']);
-    if (ct >= 0) p.r.forEach(function (r) { ekle('Paye', gunStr_(r[cg]), sayi_(r[ct])); });
-  }
   return out;
 }
 
