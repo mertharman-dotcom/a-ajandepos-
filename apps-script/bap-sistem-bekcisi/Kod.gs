@@ -266,6 +266,9 @@ function scriptHatalari_(simdi) {
     + '&userProcessFilter.startTime=' + encodeURIComponent(bas)
     + '&userProcessFilter.statuses=FAILED&userProcessFilter.statuses=TIMED_OUT';
   var cev = gapi_(url);
+  // Bekçinin varsayılan Google Cloud projesinde Apps Script API açılamıyor (sahibin o projeye erişimi yok, T13).
+  // Bu durumda satır hiç yazılmaz: kalıcı bir uyarı gürültü olur. Durmalar yine veri akışı kontrollerinden yakalanır.
+  if (cev.hata && /has not been used in project|is disabled|PERMISSION_DENIED|403/.test(cev.hata)) { Logger.log('Apps Script API kapalı, hata kayıtları atlandı (T13).'); return []; }
   if (cev.hata) return [{ grup: 'Apps Script', ad: 'Apps Script çalışma kayıtları', durum: 'UYARI', detay: 'Okunamadı: ' + cev.hata,
     nerede: 'Google Apps Script API', cozum: 'https://script.google.com/home/usersettings adresinde "Google Apps Script API" ayarını AÇIK yap. Açıksa bekçi projesinde kurulumuTamamla() bir kez daha çalıştırılıp izin verilmeli.' }];
   var gruplar = {};
