@@ -3031,7 +3031,7 @@
     {
      "ad": "kolaybi-fatura-ham-veri › ap_subeAta_",
      "yer": [
-      "apps-script/kolaybi-fatura-ham-veri/Alım Paneli.gs:299"
+      "apps-script/kolaybi-fatura-ham-veri/Alım Paneli.gs:329"
      ]
     },
     {
@@ -3081,7 +3081,7 @@
     {
      "ad": "kolaybi-fatura-ham-veri › ap_veri_",
      "yer": [
-      "apps-script/kolaybi-fatura-ham-veri/Alım Paneli.gs:127"
+      "apps-script/kolaybi-fatura-ham-veri/Alım Paneli.gs:157"
      ]
     },
     {
@@ -3323,7 +3323,7 @@
      "proje": "kolaybi-fatura-ham-veri",
      "tur": "web",
      "aciklama": "web: action=veri",
-     "fn": "ap_veri_",
+     "fn": "ap_veriCevap_",
      "eylem": "veri"
     },
     {
@@ -3370,25 +3370,25 @@
     {
      "ad": "kolaybi-fatura-ham-veri › ap_giderEkle_",
      "yer": [
-      "apps-script/kolaybi-fatura-ham-veri/Alım Paneli.gs:403"
+      "apps-script/kolaybi-fatura-ham-veri/Alım Paneli.gs:433"
      ]
     },
     {
      "ad": "kolaybi-fatura-ham-veri › ap_giderKategori_",
      "yer": [
-      "apps-script/kolaybi-fatura-ham-veri/Alım Paneli.gs:425"
+      "apps-script/kolaybi-fatura-ham-veri/Alım Paneli.gs:455"
      ]
     },
     {
      "ad": "kolaybi-fatura-ham-veri › ap_giderSekme_",
      "yer": [
-      "apps-script/kolaybi-fatura-ham-veri/Alım Paneli.gs:391"
+      "apps-script/kolaybi-fatura-ham-veri/Alım Paneli.gs:421"
      ]
     },
     {
      "ad": "kolaybi-fatura-ham-veri › ap_giderSil_",
      "yer": [
-      "apps-script/kolaybi-fatura-ham-veri/Alım Paneli.gs:414"
+      "apps-script/kolaybi-fatura-ham-veri/Alım Paneli.gs:444"
      ]
     },
     {
@@ -3420,7 +3420,7 @@
     {
      "ad": "kolaybi-fatura-ham-veri › ap_giderOku_",
      "yer": [
-      "apps-script/kolaybi-fatura-ham-veri/Alım Paneli.gs:377"
+      "apps-script/kolaybi-fatura-ham-veri/Alım Paneli.gs:407"
      ]
     }
    ],
@@ -3538,7 +3538,7 @@
      "proje": "kolaybi-fatura-ham-veri",
      "tur": "web",
      "aciklama": "web: action=veri",
-     "fn": "ap_veri_",
+     "fn": "ap_veriCevap_",
      "eylem": "veri"
     },
     {
@@ -3689,7 +3689,7 @@
      "proje": "kolaybi-fatura-ham-veri",
      "tur": "web",
      "aciklama": "web: action=veri",
-     "fn": "ap_veri_",
+     "fn": "ap_veriCevap_",
      "eylem": "veri"
     }
    ],
@@ -3778,19 +3778,19 @@
     {
      "ad": "kolaybi-fatura-ham-veri › ap_odemeEkle_",
      "yer": [
-      "apps-script/kolaybi-fatura-ham-veri/Alım Paneli.gs:315"
+      "apps-script/kolaybi-fatura-ham-veri/Alım Paneli.gs:345"
      ]
     },
     {
      "ad": "kolaybi-fatura-ham-veri › ap_odemeSil_",
      "yer": [
-      "apps-script/kolaybi-fatura-ham-veri/Alım Paneli.gs:327"
+      "apps-script/kolaybi-fatura-ham-veri/Alım Paneli.gs:357"
      ]
     },
     {
      "ad": "kolaybi-fatura-ham-veri › ap_sekmeleriHazirla_",
      "yer": [
-      "apps-script/kolaybi-fatura-ham-veri/Alım Paneli.gs:558"
+      "apps-script/kolaybi-fatura-ham-veri/Alım Paneli.gs:588"
      ]
     }
    ],
@@ -3804,7 +3804,7 @@
     {
      "ad": "kolaybi-fatura-ham-veri › ap_veri_",
      "yer": [
-      "apps-script/kolaybi-fatura-ham-veri/Alım Paneli.gs:173"
+      "apps-script/kolaybi-fatura-ham-veri/Alım Paneli.gs:203"
      ]
     },
     {
@@ -3951,7 +3951,7 @@
      "proje": "kolaybi-fatura-ham-veri",
      "tur": "web",
      "aciklama": "web: action=veri",
-     "fn": "ap_veri_",
+     "fn": "ap_veriCevap_",
      "eylem": "veri"
     },
     {
@@ -4008,19 +4008,19 @@
     {
      "ad": "kolaybi-fatura-ham-veri › ap_ozelIsaretle_",
      "yer": [
-      "apps-script/kolaybi-fatura-ham-veri/Alım Paneli.gs:353"
+      "apps-script/kolaybi-fatura-ham-veri/Alım Paneli.gs:383"
      ]
     },
     {
      "ad": "kolaybi-fatura-ham-veri › ap_ozelUrun_",
      "yer": [
-      "apps-script/kolaybi-fatura-ham-veri/Alım Paneli.gs:438"
+      "apps-script/kolaybi-fatura-ham-veri/Alım Paneli.gs:468"
      ]
     },
     {
      "ad": "kolaybi-fatura-ham-veri › ap_sekmeleriHazirla_",
      "yer": [
-      "apps-script/kolaybi-fatura-ham-veri/Alım Paneli.gs:568"
+      "apps-script/kolaybi-fatura-ham-veri/Alım Paneli.gs:598"
      ]
     }
    ],
@@ -4034,7 +4034,7 @@
     {
      "ad": "kolaybi-fatura-ham-veri › ap_ozelHaritasi_",
      "yer": [
-      "apps-script/kolaybi-fatura-ham-veri/Alım Paneli.gs:576"
+      "apps-script/kolaybi-fatura-ham-veri/Alım Paneli.gs:606"
      ]
     },
     {
@@ -4072,7 +4072,7 @@
      "proje": "kolaybi-fatura-ham-veri",
      "tur": "web",
      "aciklama": "web: action=veri",
-     "fn": "ap_veri_",
+     "fn": "ap_veriCevap_",
      "eylem": "veri"
     },
     {
@@ -4160,7 +4160,7 @@
     {
      "ad": "kolaybi-fatura-ham-veri › ap_satisOku_",
      "yer": [
-      "apps-script/kolaybi-fatura-ham-veri/Alım Paneli.gs:364"
+      "apps-script/kolaybi-fatura-ham-veri/Alım Paneli.gs:394"
      ]
     },
     {
@@ -4350,7 +4350,7 @@
      "proje": "kolaybi-fatura-ham-veri",
      "tur": "web",
      "aciklama": "web: action=veri",
-     "fn": "ap_veri_",
+     "fn": "ap_veriCevap_",
      "eylem": "veri"
     }
    ],
@@ -4372,7 +4372,7 @@
     {
      "ad": "kolaybi-fatura-ham-veri › ap_subeAta_",
      "yer": [
-      "apps-script/kolaybi-fatura-ham-veri/Alım Paneli.gs:295"
+      "apps-script/kolaybi-fatura-ham-veri/Alım Paneli.gs:325"
      ]
     },
     {
@@ -4422,7 +4422,7 @@
     {
      "ad": "kolaybi-fatura-ham-veri › ap_veri_",
      "yer": [
-      "apps-script/kolaybi-fatura-ham-veri/Alım Paneli.gs:96"
+      "apps-script/kolaybi-fatura-ham-veri/Alım Paneli.gs:126"
      ]
     },
     {
@@ -4693,7 +4693,7 @@
      "proje": "kolaybi-fatura-ham-veri",
      "tur": "web",
      "aciklama": "web: action=veri",
-     "fn": "ap_veri_",
+     "fn": "ap_veriCevap_",
      "eylem": "veri"
     },
     {
@@ -4722,19 +4722,19 @@
     {
      "ad": "kolaybi-fatura-ham-veri › ap_sekmeleriHazirla_",
      "yer": [
-      "apps-script/kolaybi-fatura-ham-veri/Alım Paneli.gs:563"
+      "apps-script/kolaybi-fatura-ham-veri/Alım Paneli.gs:593"
      ]
     },
     {
      "ad": "kolaybi-fatura-ham-veri › ap_tedarikciKaydet_",
      "yer": [
-      "apps-script/kolaybi-fatura-ham-veri/Alım Paneli.gs:339"
+      "apps-script/kolaybi-fatura-ham-veri/Alım Paneli.gs:369"
      ]
     },
     {
      "ad": "kolaybi-fatura-ham-veri › ap_veri_",
      "yer": [
-      "apps-script/kolaybi-fatura-ham-veri/Alım Paneli.gs:189"
+      "apps-script/kolaybi-fatura-ham-veri/Alım Paneli.gs:219"
      ]
     },
     {
@@ -4892,7 +4892,7 @@
      "proje": "kolaybi-fatura-ham-veri",
      "tur": "web",
      "aciklama": "web: action=veri",
-     "fn": "ap_veri_",
+     "fn": "ap_veriCevap_",
      "eylem": "veri"
     },
     {
@@ -15259,7 +15259,7 @@
     {
      "ad": "kolaybi-fatura-ham-veri › ap_eslestirmeVeri_",
      "yer": [
-      "apps-script/kolaybi-fatura-ham-veri/Alım Paneli.gs:516"
+      "apps-script/kolaybi-fatura-ham-veri/Alım Paneli.gs:546"
      ]
     },
     {
@@ -16413,7 +16413,7 @@
     {
      "ad": "kolaybi-fatura-ham-veri › ap_eslestirmeKaydet_",
      "yer": [
-      "apps-script/kolaybi-fatura-ham-veri/Alım Paneli.gs:534"
+      "apps-script/kolaybi-fatura-ham-veri/Alım Paneli.gs:564"
      ]
     },
     {
@@ -16445,7 +16445,7 @@
     {
      "ad": "kolaybi-fatura-ham-veri › ap_eslestirmeVeri_",
      "yer": [
-      "apps-script/kolaybi-fatura-ham-veri/Alım Paneli.gs:492"
+      "apps-script/kolaybi-fatura-ham-veri/Alım Paneli.gs:522"
      ]
     },
     {
@@ -18234,7 +18234,7 @@
     {
      "ad": "kolaybi-fatura-ham-veri › ap_hammaddeEkle_",
      "yer": [
-      "apps-script/kolaybi-fatura-ham-veri/Alım Paneli.gs:462"
+      "apps-script/kolaybi-fatura-ham-veri/Alım Paneli.gs:492"
      ]
     }
    ],
@@ -31345,7 +31345,7 @@
    "klasor": "kolaybi-fatura-ham-veri",
    "ad": "Kolaybi Fatura Ham Veri",
    "bagliDosya": "FATURA",
-   "fonksiyonSayisi": 103,
+   "fonksiyonSayisi": 107,
    "girisler": [
     "haftada bir 03:00 → kolaybiAlisTamTarama",
     "her 2 saatte → kolaybiTumunuCek",
@@ -31359,8 +31359,7 @@
     "tablo açılınca → onOpen",
     "web: action=eslestirme → ap_eslestirmeVeri_",
     "web: action=eslestirme → ap_json_",
-    "web: action=veri → ap_json_",
-    "web: action=veri → ap_veri_",
+    "web: action=veri → ap_veriCevap_",
     "web: eslestirmeKaydet → ap_eslestirmeKaydet_",
     "web: giderEkle → ap_giderEkle_",
     "web: giderKategori → ap_giderKategori_",
@@ -31411,31 +31410,31 @@
     },
     "ap_benzerlik_": {
      "dosya": "apps-script/kolaybi-fatura-ham-veri/Alım Paneli.gs",
-     "satir": 670,
+     "satir": 700,
      "cagirir": [],
      "sekmeler": []
     },
     "ap_cacheGet_": {
      "dosya": "apps-script/kolaybi-fatura-ham-veri/Alım Paneli.gs",
-     "satir": 691,
+     "satir": 721,
      "cagirir": [],
      "sekmeler": []
     },
     "ap_cacheSet_": {
      "dosya": "apps-script/kolaybi-fatura-ham-veri/Alım Paneli.gs",
-     "satir": 681,
+     "satir": 711,
      "cagirir": [],
      "sekmeler": []
     },
     "ap_cacheSil_": {
      "dosya": "apps-script/kolaybi-fatura-ham-veri/Alım Paneli.gs",
-     "satir": 701,
+     "satir": 731,
      "cagirir": [],
      "sekmeler": []
     },
     "ap_ekMasrafMi_": {
      "dosya": "apps-script/kolaybi-fatura-ham-veri/Alım Paneli.gs",
-     "satir": 602,
+     "satir": 632,
      "cagirir": [
       "ap_nrm_",
       "fk_haricListesi"
@@ -31444,7 +31443,7 @@
     },
     "ap_eslestirmeKaydet_": {
      "dosya": "apps-script/kolaybi-fatura-ham-veri/Alım Paneli.gs",
-     "satir": 526,
+     "satir": 556,
      "cagirir": [
       "ap_eslKolon_",
       "ap_nrm_",
@@ -31456,7 +31455,7 @@
     },
     "ap_eslestirmeVeri_": {
      "dosya": "apps-script/kolaybi-fatura-ham-veri/Alım Paneli.gs",
-     "satir": 490,
+     "satir": 520,
      "cagirir": [
       "ap_eslKolon_",
       "ap_nrm_",
@@ -31470,7 +31469,7 @@
     },
     "ap_eslKolon_": {
      "dosya": "apps-script/kolaybi-fatura-ham-veri/Alım Paneli.gs",
-     "satir": 484,
+     "satir": 514,
      "cagirir": [
       "ap_nrm_"
      ],
@@ -31478,7 +31477,7 @@
     },
     "ap_evUrunleri_": {
      "dosya": "apps-script/kolaybi-fatura-ham-veri/Alım Paneli.gs",
-     "satir": 586,
+     "satir": 616,
      "cagirir": [
       "ap_nrm_"
      ],
@@ -31486,7 +31485,7 @@
     },
     "ap_giderEkle_": {
      "dosya": "apps-script/kolaybi-fatura-ham-veri/Alım Paneli.gs",
-     "satir": 399,
+     "satir": 429,
      "cagirir": [
       "ap_giderSekme_",
       "ap_r2_",
@@ -31499,7 +31498,7 @@
     },
     "ap_giderKategori_": {
      "dosya": "apps-script/kolaybi-fatura-ham-veri/Alım Paneli.gs",
-     "satir": 424,
+     "satir": 454,
      "cagirir": [
       "ap_no_"
      ],
@@ -31509,7 +31508,7 @@
     },
     "ap_giderOku_": {
      "dosya": "apps-script/kolaybi-fatura-ham-veri/Alım Paneli.gs",
-     "satir": 376,
+     "satir": 406,
      "cagirir": [
       "ap_iso_",
       "ap_no_",
@@ -31522,7 +31521,7 @@
     },
     "ap_giderSekme_": {
      "dosya": "apps-script/kolaybi-fatura-ham-veri/Alım Paneli.gs",
-     "satir": 388,
+     "satir": 418,
      "cagirir": [],
      "sekmeler": [
       "✎ FATURA › Gider_Faturalari",
@@ -31531,7 +31530,7 @@
     },
     "ap_giderSil_": {
      "dosya": "apps-script/kolaybi-fatura-ham-veri/Alım Paneli.gs",
-     "satir": 413,
+     "satir": 443,
      "cagirir": [
       "ap_no_"
      ],
@@ -31541,7 +31540,7 @@
     },
     "ap_hammaddeEkle_": {
      "dosya": "apps-script/kolaybi-fatura-ham-veri/Alım Paneli.gs",
-     "satir": 449,
+     "satir": 479,
      "cagirir": [
       "ap_cacheSil_",
       "ap_nrm_",
@@ -31554,7 +31553,7 @@
     },
     "ap_hammaddeHaritasi_": {
      "dosya": "apps-script/kolaybi-fatura-ham-veri/Alım Paneli.gs",
-     "satir": 636,
+     "satir": 666,
      "cagirir": [
       "ap_nrm_",
       "ap_sayi_",
@@ -31564,7 +31563,7 @@
     },
     "ap_hesap_": {
      "dosya": "apps-script/kolaybi-fatura-ham-veri/Alım Paneli.gs",
-     "satir": 225,
+     "satir": 255,
      "cagirir": [
       "ap_iso_",
       "ap_r2_"
@@ -31573,31 +31572,31 @@
     },
     "ap_iso_": {
      "dosya": "apps-script/kolaybi-fatura-ham-veri/Alım Paneli.gs",
-     "satir": 719,
+     "satir": 749,
      "cagirir": [],
      "sekmeler": []
     },
     "ap_json_": {
      "dosya": "apps-script/kolaybi-fatura-ham-veri/Alım Paneli.gs",
-     "satir": 83,
+     "satir": 113,
      "cagirir": [],
      "sekmeler": []
     },
     "ap_no_": {
      "dosya": "apps-script/kolaybi-fatura-ham-veri/Alım Paneli.gs",
-     "satir": 705,
+     "satir": 735,
      "cagirir": [],
      "sekmeler": []
     },
     "ap_nrm_": {
      "dosya": "apps-script/kolaybi-fatura-ham-veri/Alım Paneli.gs",
-     "satir": 734,
+     "satir": 764,
      "cagirir": [],
      "sekmeler": []
     },
     "ap_odemeEkle_": {
      "dosya": "apps-script/kolaybi-fatura-ham-veri/Alım Paneli.gs",
-     "satir": 310,
+     "satir": 340,
      "cagirir": [
       "ap_sayi_",
       "ap_sekmeleriHazirla_",
@@ -31609,7 +31608,7 @@
     },
     "ap_odemeSil_": {
      "dosya": "apps-script/kolaybi-fatura-ham-veri/Alım Paneli.gs",
-     "satir": 325,
+     "satir": 355,
      "cagirir": [],
      "sekmeler": [
       "✎ FATURA › Odemeler"
@@ -31617,7 +31616,7 @@
     },
     "ap_ozelHaritasi_": {
      "dosya": "apps-script/kolaybi-fatura-ham-veri/Alım Paneli.gs",
-     "satir": 574,
+     "satir": 604,
      "cagirir": [
       "ap_no_",
       "ap_nrm_"
@@ -31628,7 +31627,7 @@
     },
     "ap_ozelIsaretle_": {
      "dosya": "apps-script/kolaybi-fatura-ham-veri/Alım Paneli.gs",
-     "satir": 348,
+     "satir": 378,
      "cagirir": [
       "ap_no_",
       "ap_nrm_",
@@ -31640,7 +31639,7 @@
     },
     "ap_ozelUrun_": {
      "dosya": "apps-script/kolaybi-fatura-ham-veri/Alım Paneli.gs",
-     "satir": 433,
+     "satir": 463,
      "cagirir": [
       "ap_nrm_",
       "ap_sekmeleriHazirla_"
@@ -31649,15 +31648,33 @@
       "✎ FATURA › Ozel_Alimlar"
      ]
     },
+    "ap_paketOku_": {
+     "dosya": "apps-script/kolaybi-fatura-ham-veri/Alım Paneli.gs",
+     "satir": 102,
+     "cagirir": [],
+     "sekmeler": []
+    },
+    "ap_paketSil_": {
+     "dosya": "apps-script/kolaybi-fatura-ham-veri/Alım Paneli.gs",
+     "satir": 111,
+     "cagirir": [],
+     "sekmeler": []
+    },
+    "ap_paketYaz_": {
+     "dosya": "apps-script/kolaybi-fatura-ham-veri/Alım Paneli.gs",
+     "satir": 93,
+     "cagirir": [],
+     "sekmeler": []
+    },
     "ap_r2_": {
      "dosya": "apps-script/kolaybi-fatura-ham-veri/Alım Paneli.gs",
-     "satir": 732,
+     "satir": 762,
      "cagirir": [],
      "sekmeler": []
     },
     "ap_satisOku_": {
      "dosya": "apps-script/kolaybi-fatura-ham-veri/Alım Paneli.gs",
-     "satir": 363,
+     "satir": 393,
      "cagirir": [
       "ap_iso_",
       "ap_no_",
@@ -31670,13 +31687,13 @@
     },
     "ap_sayi_": {
      "dosya": "apps-script/kolaybi-fatura-ham-veri/Alım Paneli.gs",
-     "satir": 723,
+     "satir": 753,
      "cagirir": [],
      "sekmeler": []
     },
     "ap_sekmeleriHazirla_": {
      "dosya": "apps-script/kolaybi-fatura-ham-veri/Alım Paneli.gs",
-     "satir": 556,
+     "satir": 586,
      "cagirir": [],
      "sekmeler": [
       "✎ FATURA › Odemeler",
@@ -31689,7 +31706,7 @@
     },
     "ap_subeAta_": {
      "dosya": "apps-script/kolaybi-fatura-ham-veri/Alım Paneli.gs",
-     "satir": 290,
+     "satir": 320,
      "cagirir": [
       "ap_no_"
      ],
@@ -31700,13 +31717,13 @@
     },
     "ap_tarih_": {
      "dosya": "apps-script/kolaybi-fatura-ham-veri/Alım Paneli.gs",
-     "satir": 707,
+     "satir": 737,
      "cagirir": [],
      "sekmeler": []
     },
     "ap_tedarikciBul_": {
      "dosya": "apps-script/kolaybi-fatura-ham-veri/Alım Paneli.gs",
-     "satir": 657,
+     "satir": 687,
      "cagirir": [
       "ap_benzerlik_",
       "ap_nrm_"
@@ -31715,7 +31732,7 @@
     },
     "ap_tedarikciKaydet_": {
      "dosya": "apps-script/kolaybi-fatura-ham-veri/Alım Paneli.gs",
-     "satir": 334,
+     "satir": 364,
      "cagirir": [
       "ap_sayi_",
       "ap_sekmeleriHazirla_"
@@ -31726,13 +31743,13 @@
     },
     "ap_urunSekmeleri_": {
      "dosya": "apps-script/kolaybi-fatura-ham-veri/Alım Paneli.gs",
-     "satir": 621,
+     "satir": 651,
      "cagirir": [],
      "sekmeler": []
     },
     "ap_veri_": {
      "dosya": "apps-script/kolaybi-fatura-ham-veri/Alım Paneli.gs",
-     "satir": 91,
+     "satir": 121,
      "cagirir": [
       "ap_cacheGet_",
       "ap_cacheSet_",
@@ -31759,6 +31776,16 @@
       "FATURA › Sayfa1"
      ]
     },
+    "ap_veriCevap_": {
+     "dosya": "apps-script/kolaybi-fatura-ham-veri/Alım Paneli.gs",
+     "satir": 87,
+     "cagirir": [
+      "ap_paketOku_",
+      "ap_paketYaz_",
+      "ap_veri_"
+     ],
+     "sekmeler": []
+    },
     "ap_yetkili_": {
      "dosya": "apps-script/kolaybi-fatura-ham-veri/Alım Paneli.gs",
      "satir": 37,
@@ -31777,7 +31804,7 @@
      "cagirir": [
       "ap_eslestirmeVeri_",
       "ap_json_",
-      "ap_veri_",
+      "ap_veriCevap_",
       "ap_yetkili_"
      ],
      "sekmeler": []
@@ -31796,6 +31823,7 @@
       "ap_odemeSil_",
       "ap_ozelIsaretle_",
       "ap_ozelUrun_",
+      "ap_paketSil_",
       "ap_subeAta_",
       "ap_tedarikciKaydet_",
       "ap_yetkili_"
@@ -32373,21 +32401,21 @@
      "proje": "kolaybi-fatura-ham-veri",
      "fn": "ap_hammaddeEkle_",
      "dosya": "apps-script/kolaybi-fatura-ham-veri/Alım Paneli.gs",
-     "satir": 459,
+     "satir": 489,
      "ifade": "sekmeler [ s ]"
     },
     {
      "proje": "kolaybi-fatura-ham-veri",
      "fn": "ap_eslestirmeVeri_",
      "dosya": "apps-script/kolaybi-fatura-ham-veri/Alım Paneli.gs",
-     "satir": 506,
+     "satir": 536,
      "ifade": "ad"
     },
     {
      "proje": "kolaybi-fatura-ham-veri",
      "fn": "ap_hammaddeHaritasi_",
      "dosya": "apps-script/kolaybi-fatura-ham-veri/Alım Paneli.gs",
-     "satir": 641,
+     "satir": 671,
      "ifade": "ad"
     },
     {

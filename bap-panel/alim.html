@@ -285,27 +285,56 @@ function normFiyat(k) {
 }
 const urunAdi = (ad, tamAd) => esc(ad) + (tamAd && tamAd !== ad ? `<div class="muted small">${esc(tamAd)}</div>` : "");
 
-async function yukle() {
-  document.getElementById("icerik").innerHTML = '<div class="loading">Veriler yükleniyor…</div>';
+// Açılış: önce bu tarayıcıda saklanan son paket (anında), sonra sunucunun önbelleği, en son arkadan taze veri (fresh=1).
+// Taze veri gelince ekran sessizce yenilenir; bir pencere açıksa ya da bir alana yazılıyorsa o bitene kadar bekler.
+let YUKLENIYOR = false, BEKLEYEN = null;
+function isle(j) {
+  if (typeof Chart !== "undefined") { Chart.defaults.font.family = "Onest"; Chart.defaults.color = cssv("--gri"); Chart.defaults.borderColor = cssv("--cizgi"); }
+  D = j;
+  D.fEk = {}; D.faturalar.forEach(f => { if (f.ek) D.fEk[f.no] = true; });
+  D.kalemler.forEach(k => { k.ad = k.kisa || k.urun; const n = normFiyat(k); k.nFiyat = n.fiyat; k.nBirim = n.birim; k.nOk = n.ok; k.nTahmin = !!n.tahmin; });
+  D.kalemNo = {}; D.kalemler.forEach(k => (D.kalemNo[k.no] = D.kalemNo[k.no] || []).push(k));
+  D.hesap = hesapla();
+  render();
+}
+function guncellemeYaz() {
+  const t = D && D.olusturma ? "Güncellendi " + new Date(D.olusturma).toLocaleTimeString("tr-TR", { hour: "2-digit", minute: "2-digit" }) : "—";
+  document.getElementById("son-guncelleme").textContent = (YUKLENIYOR ? "Güncelleniyor… · " : "") + t;
+}
+function mesgul() {
+  const ac = ["odeme-overlay", "hm-overlay", "esl-overlay"].some(id => { const x = document.getElementById(id); return x && !x.hidden; });
+  const a = document.activeElement; return ac || !!(a && /^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName));
+}
+function uygula(j) { if (D && D.olusturma && j.olusturma && j.olusturma < D.olusturma) return; if (mesgul()) { BEKLEYEN = j; return; } BEKLEYEN = null; isle(j); }
+setInterval(() => { if (BEKLEYEN && !mesgul()) { const j = BEKLEYEN; BEKLEYEN = null; isle(j); guncellemeYaz(); } }, 1500);
+const YEREL = { ac(cb) { try { const r = indexedDB.open("bap-alim", 1); r.onupgradeneeded = () => r.result.createObjectStore("veri"); r.onsuccess = () => cb(r.result); r.onerror = () => cb(null); } catch (e) { cb(null); } },
+  oku() { return new Promise(res => { const t = setTimeout(() => res(null), 1500); YEREL.ac(db => { if (!db) return res(null); try { const q = db.transaction("veri", "readonly").objectStore("veri").get("son");
+    q.onsuccess = () => { clearTimeout(t); const v = q.result; res(v && Date.now() - v.zaman < 7 * 864e5 ? v.veri : null); }; q.onerror = () => res(null); } catch (e) { res(null); } }); }); },
+  yaz(j) { YEREL.ac(db => { if (!db) return; try { db.transaction("veri", "readwrite").objectStore("veri").put({ zaman: Date.now(), veri: j }, "son"); } catch (e) { } }); } };
+async function getir(taze) {
+  const r = await fetch("/api/alim/veri" + (taze ? "?fresh=1" : ""), { cache: "no-store", credentials: "same-origin" });
+  const metin = await r.text();
+  let j;
+  try { j = JSON.parse(metin); }
+  catch (e) { throw new Error("Sunucu JSON döndürmedi (HTTP " + r.status + "). " + (metin ? metin.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").slice(0, 200) : "")); }
+  if (!j.ok) throw new Error(j.hata || "API hatası");
+  return j;
+}
+async function yukle(taze) {
+  if (YUKLENIYOR) return; YUKLENIYOR = true;
+  const ilk = !D;
+  if (ilk) { const y = await YEREL.oku(); if (y && y.faturalar) { try { isle(y); } catch (e) { D = null; } } }
+  if (!D) document.getElementById("icerik").innerHTML = '<div class="loading">Veriler yükleniyor…</div>';
+  guncellemeYaz();
   try {
-    const r = await fetch("/api/alim/veri", { cache: "no-store", credentials: "same-origin" });
-    const metin = await r.text();
-    let j;
-    try { j = JSON.parse(metin); }
-    catch (e) { throw new Error("Sunucu JSON döndürmedi (HTTP " + r.status + "). " + (metin ? metin.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").slice(0, 200) : "")); }
-    if (!j.ok) throw new Error(j.hata || "API hatası");
-    if (typeof Chart !== "undefined") { Chart.defaults.font.family = "Onest"; Chart.defaults.color = cssv("--gri"); Chart.defaults.borderColor = cssv("--cizgi"); }
-    D = j;
-    D.fEk = {}; D.faturalar.forEach(f => { if (f.ek) D.fEk[f.no] = true; });
-    D.kalemler.forEach(k => { k.ad = k.kisa || k.urun; const n = normFiyat(k); k.nFiyat = n.fiyat; k.nBirim = n.birim; k.nOk = n.ok; k.nTahmin = !!n.tahmin; });
-    D.kalemNo = {}; D.kalemler.forEach(k => (D.kalemNo[k.no] = D.kalemNo[k.no] || []).push(k));
-    D.hesap = hesapla();
-    document.getElementById("son-guncelleme").textContent = "Güncellendi " + new Date(j.olusturma).toLocaleTimeString("tr-TR", { hour: "2-digit", minute: "2-digit" });
-    render();
-    eslYukle(true);
+    if (!taze) { const j = await getir(false); uygula(j); YEREL.yaz(j); }
+    guncellemeYaz();
+    const t = await getir(true); uygula(t); YEREL.yaz(t);
   } catch (e) {
-    document.getElementById("icerik").innerHTML = `<div class="empty">Veri alınamadı: ${esc(e.message)}</div>`;
-  }
+    if (!D) document.getElementById("icerik").innerHTML = `<div class="empty">Veri alınamadı: ${esc(e.message)}</div>`;
+    else toast("Taze veri alınamadı: " + e.message);
+  } finally { YUKLENIYOR = false; guncellemeYaz(); }
+  if (ilk) eslYukle(true);
 }
 // Kayıt istekleri otomatik tekrar denenmez (çift kayıt riski); bağlantı koparsa "yazılmış olabilir" denir.
 async function post(body) {
@@ -1147,7 +1176,7 @@ document.addEventListener("click", e => {
   switch (act) {
     case "tab": tab = v; if (tab !== "fat") fatFiltre.sadeceBos = false; render(); break;
     case "sube": sube = v; render(); break;
-    case "yenile": yukle(); break;
+    case "yenile": yukle(true); break;
     case "ted": secTed = v; tedG.urun = ""; render(); break;
     case "ted-gorunum": tedG.gorunum = v; render(); break;
     case "ted-urun": tedG.urun = v; render(); break;

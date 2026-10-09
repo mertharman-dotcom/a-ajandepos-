@@ -43,7 +43,7 @@ function doGet(e) {
   var action = (e && e.parameter && e.parameter.action) || 'veri';
   try {
     if (!ap_yetkili_(e && e.parameter && e.parameter.key)) return ap_json_({ ok: false, hata: 'yetkisiz' });
-    if (action === 'veri') return ap_json_(ap_veri_());
+    if (action === 'veri') return ap_veriCevap_(e.parameter.fresh);
     if (action === 'eslestirme') return ap_json_(ap_eslestirmeVeri_());
     return ap_json_({ ok: false, hata: 'Bilinmeyen action: ' + action });
   } catch (err) {
@@ -53,7 +53,7 @@ function doGet(e) {
 
 function doPost(e) {
   var lock = LockService.getScriptLock();
-  lock.tryLock(10000);
+  var kilitli = lock.tryLock(10000);   // P66: alınamazsa da devam ediyor (Kolaybi çekimi kilidi uzun tutabiliyor); karar sahibinde
   try {
     var b = JSON.parse((e && e.postData && e.postData.contents) || '{}');
     if (!ap_yetkili_(b.key)) return ap_json_({ ok: false, hata: 'yetkisiz' });
@@ -76,9 +76,39 @@ function doPost(e) {
   } catch (err) {
     return ap_json_({ ok: false, hata: String(err) });
   } finally {
-    lock.releaseLock();
+    ap_paketSil_();   // panelden yapılan her değişiklikten sonra önbellekteki paket geçersiz
+    if (kilitli) lock.releaseLock();
   }
 }
+
+// Alım ekranının paketi önbellekte (6 saat, sıkıştırılmış) tutulur: ekran açılınca hemen bu verilir, ekran arkadan
+// fresh=1 ile tazesini ister (her açılışta bütün sekmeleri baştan okumak 10+ sn sürüyordu; 09.10).
+var AP_PAKET_ON = 'apv_', AP_PAKET_SN = 21600;
+function ap_veriCevap_(fresh) {
+  if (!fresh) { var c = ap_paketOku_(); if (c) return ContentService.createTextOutput(c).setMimeType(ContentService.MimeType.JSON); }
+  var metin = JSON.stringify(ap_veri_());
+  ap_paketYaz_(metin);
+  return ContentService.createTextOutput(metin).setMimeType(ContentService.MimeType.JSON);
+}
+function ap_paketYaz_(metin) {
+  try {
+    var z = Utilities.base64Encode(Utilities.gzip(Utilities.newBlob(metin, 'application/json')).getBytes());
+    var n = Math.ceil(z.length / 90000), o = {}; if (n > 80) return;
+    for (var i = 0; i < n; i++) o[AP_PAKET_ON + i] = z.substr(i * 90000, 90000);
+    o[AP_PAKET_ON + 'n'] = String(n);
+    CacheService.getScriptCache().putAll(o, AP_PAKET_SN);
+  } catch (err) { }
+}
+function ap_paketOku_() {
+  try {
+    var c = CacheService.getScriptCache(), n = +c.get(AP_PAKET_ON + 'n'); if (!n) return null;
+    var keys = []; for (var i = 0; i < n; i++) keys.push(AP_PAKET_ON + i);
+    var o = c.getAll(keys), s = '';
+    for (i = 0; i < n; i++) { if (o[keys[i]] == null) return null; s += o[keys[i]]; }
+    return Utilities.ungzip(Utilities.newBlob(Utilities.base64Decode(s), 'application/x-gzip')).getDataAsString();
+  } catch (err) { return null; }
+}
+function ap_paketSil_() { try { CacheService.getScriptCache().remove(AP_PAKET_ON + 'n'); } catch (err) { } }
 
 function ap_json_(o) {
   return ContentService.createTextOutput(JSON.stringify(o)).setMimeType(ContentService.MimeType.JSON);
