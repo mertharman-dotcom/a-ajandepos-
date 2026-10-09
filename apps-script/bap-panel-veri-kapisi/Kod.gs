@@ -3101,7 +3101,8 @@ function kurye_() {
   var al = acikListe_(ss, kapali, bugun, siparisSaat, sipHesap), acikL = al.liste, haric = al.haric; tur('açık hesap listesi');
   // Kasada Adisyo'ya 'Ödeme Alındı' işlenmiş olanlar açık sayılmaz; yemek kartı (Pluxee / Paye / Edenred) çekimi bulunanlar işaretlenir.
   var adisyoOdendi = [], kanitHata = '';
-  try { var kn = acikKanit_(ss, acikL); acikL = acikL.filter(function (x) { if (x.adisyo === 'odendi') { adisyoOdendi.push(x); return false; } return true; }); }
+  var kek = {};
+  try { var kn = acikKanit_(ss, acikL, kek); acikL = acikL.filter(function (x) { if (x.adisyo === 'odendi') { adisyoOdendi.push(x); return false; } return true; }); }
   catch (err) { kanitHata = String(err.message || err); }
   acikL.sort(function (x, y) { return y.yas - x.yas || y.tutar - x.tutar; });
   (kapali.son || []).forEach(function (x) { x.saat = siparisSaat[x.id] || ''; });
@@ -3116,7 +3117,7 @@ function kurye_() {
                kart: kn || null, kanitHata: kanitHata,
                kartSoru: acikL.filter(function (x) { return x.kartKarar === 'soru'; }).slice(0, 40),
                kartEmin: acikL.filter(function (x) { return x.kartKarar === 'emin'; }).slice(0, 40),
-               kartAjan: kartAjanRaporu_(), kartKuru: KART_AJAN_KURU };
+               kartAjan: kartAjanRaporu_(), kartKuru: KART_AJAN_KURU, kartBosta: kek.bosta || [] };
 
   out.genel = {};
   KURYE_DONEMLER.forEach(function (d) { var g = genel[d], o = function (t) { return g.n ? Math.round(t / g.n * 10) / 10 : null; };
@@ -3210,8 +3211,10 @@ var KART_KAYNAKLARI = [
   { ad: 'Metropol', odeme: /metropol/i,   oku: function (ks) { return metropolCekimleri_(ks); } },
   { ad: 'SetCard', odeme: /set\s*card/i,  oku: function (ks) { var v = setcardCekimleri_(ks); if (v && v.cekim && !v.hata) v.cekim = v.cekim.filter(function (y) { return !y.online; }); return v; }, tumu: function (ks) { return setcardCekimleri_(ks); } }
 ];
-function acikKanit_(ks, liste) {
+function acikKanit_(ks, liste, ek) {
   var ozet = {}; if (!liste.length) return ozet;
+  // Daha önce bir hesaba bağlanmış çekimler (Tahsilatlar › Not içindeki [ref Kart:numara]) ikinci kez kullanılmaz.
+  var kullanilan = kullanilanRef_(ks), havuz = [];
   // Kurye sistemi: sipariş ID → sipariş anı ve adisyon no; ayrıca tüm siparişler (aynı çekime başka sipariş de uyuyor mu diye)
   var s = sonSatirlar_(ks, 'Siparişler', 9000, ['Tarih', 'Sipariş ID', 'Adisyon No', 'Sipariş Saati', 'Teslim Saati', 'Ödeme Yöntemi', 'Tutar (TL)']), kmap = {}, tum = [];
   if (s) { var cs = { t: kolon_(s.b, ['Tarih']), id: kolon_(s.b, ['Sipariş ID']), no: kolon_(s.b, ['Adisyon No']), sa: kolon_(s.b, ['Sipariş Saati']),
@@ -3243,11 +3246,63 @@ function acikKanit_(ks, liste) {
     tur(kk.ad + ' okuma');
     if (!veri) return;
     if (veri.hata) { ozet[kk.ad] = { hata: veri.hata }; return; }
+    veri.cekim = veri.cekim.filter(function (y) { return !kullanilan[kk.ad + ':' + y.ref]; });
+    havuz.push({ kk: kk, veri: veri });
     kartEslestir_(kk, veri, liste.filter(function (x) { return kk.odeme.test(x.odeme); }), tum.filter(function (o) { return kk.odeme.test(o.odeme); }), kmap);
     tur(kk.ad + ' eşleştirme');
     ozet[kk.ad] = { son: veri.son === null ? null : new Date(veri.son).toISOString().slice(0, 16).replace('T', ' '), adet: veri.cekim.length, gunler: veri.gunler ? Object.keys(veri.gunler).length : null };
   });
+  parcaliVeBosta_(liste, havuz, kmap, ek);
+  tur('parçalı / boşta');
   return ozet;
+}
+
+// Sahibin isteği (09.10): tek çekimle eşleşmeyen kart hesabı için parçalı ödeme önerisi — iki çekimin toplamı (aynı kart ya da
+// iki farklı kart: 2 × Metropol, Metropol + Edenred …) ya da siparişten az tek çekim (kalanı kredi kartı / nakit / başka kart).
+// Parçalı öneri hiçbir zaman kendiliğinden kapatılmaz ('soru'). Hiçbir hesaba bağlanmayan kapıda çekimler ek.bosta'ya (son 7 iş günü).
+function parcaliVeBosta_(liste, havuz, kmap, ek) {
+  var SAAT = 3600000, ayrildi = {}, sinir = gunEkle_(isGunu_(simdi_()), -6), serbest = [];
+  liste.forEach(function (x) { if (x.kartCekim && x.kartCekim.ref) ayrildi[x.kartKaynak + ':' + x.kartCekim.ref] = 1; });
+  havuz.forEach(function (h) { h.veri.cekim.forEach(function (y) { var k = h.kk.ad + ':' + y.ref;
+    if (!ayrildi[k] && isGunu_(y.ms) >= sinir) serbest.push({ kart: h.kk.ad, y: y, k: k }); }); });
+  var yakin = function (y, ms) { return y.saatYok ? isGunu_(y.ms) === isGunu_(ms) : Math.abs(y.ms - ms) <= 3 * SAAT; };
+  var yaz = function (c) { return c.kart + ' ' + c.y.tam + ' ' + c.y.tutar + ' TL' + (c.y.kurye ? ' (' + c.y.kurye + ')' : ''); };
+  liste.forEach(function (x) {
+    if (x.kartCekim || x.adisyo === 'odendi') return;
+    var kendi = KART_KAYNAKLARI.filter(function (kk) { return kk.odeme.test(x.odeme); })[0]; if (!kendi) return;
+    var k = kmap[x.id], rf = kartRef_(x.gun, x.teslim || (k ? k.teslim : ''), k ? k.ms : null); if (!rf) return;
+    var aday = serbest.filter(function (c) { return !ayrildi[c.k] && c.y.tutar < x.tutar - 0.5 && yakin(c.y, rf.ms); });
+    var en = null;
+    for (var i = 0; i < aday.length; i++) for (var j = i + 1; j < aday.length; j++) {
+      if (Math.abs(aday[i].y.tutar + aday[j].y.tutar - x.tutar) >= 0.5) continue;
+      var puan = (aday[i].kart === kendi.ad || aday[j].kart === kendi.ad ? 0 : 1) * 1e9 + Math.abs(aday[i].y.ms - rf.ms) + Math.abs(aday[j].y.ms - rf.ms);
+      if (!en || puan < en.puan) en = { a: aday[i], b: aday[j], puan: puan };
+    }
+    if (en) {
+      ayrildi[en.a.k] = ayrildi[en.b.k] = 1;
+      x.kartKarar = 'soru'; x.kartKaynak = en.a.kart === en.b.kart ? en.a.kart : en.a.kart + ' + ' + en.b.kart; x.kartZaman = 'parçalı';
+      x.kartParca = [en.a, en.b].map(function (c) { return { kart: c.kart, ref: c.y.ref, zaman: c.y.tam, tutar: c.y.tutar }; });
+      x.kartNeden = 'parçalı ödeme olabilir: ' + yaz(en.a) + ' + ' + yaz(en.b) + ' = ' + x.tutar + ' TL';
+      return;
+    }
+    var tek = aday.filter(function (c) { return c.kart === kendi.ad; }).sort(function (p, q) { return Math.abs(p.y.ms - rf.ms) - Math.abs(q.y.ms - rf.ms); })[0];
+    if (tek) {
+      ayrildi[tek.k] = 1;
+      x.kartKarar = 'soru'; x.kartKaynak = tek.kart; x.kartZaman = 'parçalı?';
+      x.kartParca = [{ kart: tek.kart, ref: tek.y.ref, zaman: tek.y.tam, tutar: tek.y.tutar }];
+      x.kartNeden = 'parçalı olabilir: ' + yaz(tek) + ' çekilmiş, kalan ' + Math.round((x.tutar - tek.y.tutar) * 100) / 100 + ' TL başka yolla mı (kredi kartı / nakit / başka kart)?';
+    }
+  });
+  if (ek) ek.bosta = serbest.filter(function (c) { return !ayrildi[c.k] && !c.y.online; }).sort(function (p, q) { return q.y.ms - p.y.ms; }).slice(0, 80)
+    .map(function (c) { return { kart: c.kart, zaman: c.y.tam, tutar: c.y.tutar, kurye: c.y.kurye || '', terminal: c.y.terminal || '' }; });
+}
+
+// Tahsilatlar › Not içinde "[ref Kart:numara]" ile kayıtlı (bir hesaba bağlanmış) çekimler.
+function kullanilanRef_(ks) {
+  var t = sonSatirlar_(ks, 'Tahsilatlar', 5000), out = {}; if (!t) return out;
+  var c = kolon_(t.b, ['Not']); if (c < 0) return out;
+  t.v.forEach(function (r) { String(r[c] || '').replace(/\[ref ([^:\]]+):([^\]]+)\]/g, function (_, k, v) { out[k.trim() + ':' + v.trim()] = 1; return _; }); });
+  return out;
 }
 
 // Bir kart kaynağının çekimlerini açık hesaplarla karşılaştırır, x.kart* alanlarını doldurur.
@@ -3297,7 +3352,7 @@ function kartEslestir_(kk, veri, liste, tum, kmap) {
       return;
     }
     var b = aday[0], fark = b.saatYok ? null : Math.round(Math.abs(b.ms - rf.ms) / 60000), rk = rakipler(b, x.id), neden = [];
-    x.kartZaman = b.zaman; x.kartCekim = { zaman: b.tam, tutar: b.tutar, farkDk: fark };
+    x.kartZaman = b.zaman; x.kartCekim = { zaman: b.tam, tutar: b.tutar, farkDk: fark, ref: b.ref };
     if (aday.length > 1) neden.push('aynı tutarda ' + aday.length + ' çekim var (' + aday.slice(0, 3).map(function (y) { return y.tam; }).join(', ') + ')');
     if (rk.length) neden.push('bu çekim ' + rk.slice(0, 3).map(function (o) { return 'adisyon ' + (o.no || o.id); }).join(', ') + ' siparişine de uyuyor');
     var kendi = b.kurye && x.kurye ? kisiAyni_(b.kurye, x.kurye) : null;   // çekim kuryenin kendi cihazından mı
@@ -3326,6 +3381,7 @@ function kartSekmesi_(ks, ad, n) {
 function pluxeeCekimleri_(ks) {
   var px = kartSekmesi_(ks, 'Pluxee', 3000); if (!px) return null;
   var cz = kolon_(px.b, ['İşlem Zamanı']), ct = kolon_(px.b, ['Tutar (TL)', 'Tutar']), cter = kolon_(px.b, ['Terminal No']), cekim = [], son = null;
+  var cref = kolon_(px.b, ['RRN']);   // çekimin kendi numarası (kapatılan hesaba bağlanır, ikinci kez kullanılmaz)
   if (cz < 0 || ct < 0) return { hata: "Pluxee sekmesinde 'İşlem Zamanı' ya da 'Tutar' sütunu yok" };
   px.v.forEach(function (r) { var ham = String(r[cz] || '').trim(), m = ham.match(/^(\d{1,2})\s+(\S+)\s+(\d{4})\s+(\d{1,2}):(\d{2})/), ms = null;
     if (m) { var ay = TR_AY[m[2].toLocaleLowerCase('tr-TR').slice(0, 3)]; if (ay === undefined) ay = TR_AY[norm_(m[2]).slice(0, 3)];
@@ -3334,7 +3390,7 @@ function pluxeeCekimleri_(ks) {
     if (ms === null) return;
     m = [0, 0, 0, 0, new Date(ms).toISOString().slice(11, 13), new Date(ms).toISOString().slice(14, 16)];
     var ter = cter >= 0 ? String(r[cter] || '').replace(/^'/, '').trim() : '';
-    cekim.push({ ms: ms, tutar: sayi_(r[ct]), zaman: ('0' + m[4]).slice(-2) + ':' + m[5], tam: kartTam_(ms), terminal: ter, online: !!ONLINE_TERMINAL.Pluxee[ter] });
+    cekim.push({ ref: refAl_(r, cref, ms, sayi_(r[ct])), ms: ms, tutar: sayi_(r[ct]), zaman: ('0' + m[4]).slice(-2) + ':' + m[5], tam: kartTam_(ms), terminal: ter, online: !!ONLINE_TERMINAL.Pluxee[ter] });
     if (son === null || ms > son) son = ms; });
   return { cekim: cekim, son: son };
 }
@@ -3353,6 +3409,7 @@ function payeCekimleri_(ks) {
   if (!p) return null;
   var c = { z: kolon_(p.b, PAYE_SUTUN.zaman), s: kolon_(p.b, PAYE_SUTUN.saat), t: kolon_(p.b, PAYE_SUTUN.tutar), tip: kolon_(p.b, PAYE_SUTUN.tip), g: kolon_(p.b, ['Rapor Günü']) };
   // Cihaz Sicil Numarası = çekimi yapan telefon (90532…) → kişi (Tokenflex / Metropol kullanıcı listelerinden)
+  c.ref = kolon_(p.b, ['İşlem Numarası']);
   c.cihaz = p.b.map(function (h) { return norm_(h); }).findIndex(function (h) { return h.indexOf('cihazsicil') === 0; });
   if (c.z < 0 || c.t < 0) return { hata: "Paye sekmesinde zaman ya da tutar sütunu bulunamadı. Başlıklar: " + p.b.filter(String).join(' | ') };
   var satis = [], iptal = [], gunler = {}, son = null;
@@ -3364,7 +3421,7 @@ function payeCekimleri_(ks) {
     var saatYok = !/\d{1,2}:\d{2}/.test(zs + ' ' + saat);
     // Saatsiz satır gece 00:00 okunur; iş günü 03:00'te döndüğü için önceki güne düşüyordu (08.10: 06.10 çekimleri "Paye çekimi yok"). Öğlene al.
     if (saatYok) ms += 12 * 3600000;
-    var y = { ms: ms, tutar: Math.abs(tutar), saatYok: saatYok, zaman: saatYok ? '—' : kartTam_(ms).slice(6), tam: saatYok ? kartTam_(ms).slice(0, 5) : kartTam_(ms),
+    var y = { ref: refAl_(r, c.ref, ms, Math.abs(tutar)), ms: ms, tutar: Math.abs(tutar), saatYok: saatYok, zaman: saatYok ? '—' : kartTam_(ms).slice(6), tam: saatYok ? kartTam_(ms).slice(0, 5) : kartTam_(ms),
               kurye: c.cihaz >= 0 ? (kartCihazKisi_()[String(r[c.cihaz] || '').replace(/\D/g, '').slice(-10)] || '') : '' };
     if (tutar < 0 || (c.tip >= 0 && /iptal|iade|^ret|geri/.test(norm_(r[c.tip])))) iptal.push(y); else satis.push(y);
     if (!saatYok && (son === null || ms > son)) son = ms;
@@ -3379,11 +3436,12 @@ function payeCekimleri_(ks) {
 function edenredCekimleri_(ks) {
   var e = kartSekmesi_(ks, 'Edenred', 6000); if (!e) return null;
   var cz = kolon_(e.b, ['İşlem Zamanı']), ct = kolon_(e.b, ['Tutar (TL)', 'Tutar']), cter = kolon_(e.b, ['Terminal No']), cekim = [], son = null;
+  var cref = kolon_(e.b, ['Ref']);   // çekimin kendi numarası (kapatılan hesaba bağlanır, ikinci kez kullanılmaz)
   if (cz < 0 || ct < 0) return { hata: "Edenred sekmesinde 'İşlem Zamanı' ya da 'Tutar' sütunu yok" };
   e.v.forEach(function (r) {
     var ms = zaman_(r[cz]), t = sayi_(r[ct]); if (ms === null || !(t > 0)) return;
     var ter = cter >= 0 ? String(r[cter] || '').replace(/^'/, '').trim() : '';
-    var tam = kartTam_(ms); cekim.push({ ms: ms, tutar: t, zaman: tam.slice(6), tam: tam, terminal: ter, online: !!ONLINE_TERMINAL.Edenred[ter] });
+    var tam = kartTam_(ms); cekim.push({ ref: refAl_(r, cref, ms, t), ms: ms, tutar: t, zaman: tam.slice(6), tam: tam, terminal: ter, online: !!ONLINE_TERMINAL.Edenred[ter] });
     if (son === null || ms > son) son = ms;
   });
   return { cekim: cekim, son: son };
@@ -3393,12 +3451,13 @@ function edenredCekimleri_(ks) {
 function multinetCekimleri_(ks) {
   var e = kartSekmesi_(ks, 'Multinet', 8000); if (!e) return null;
   var cz = kolon_(e.b, ['İşlem Zamanı']), ct = kolon_(e.b, ['Tutar (TL)']), ca = kolon_(e.b, ['Açıklama']), cd = kolon_(e.b, ['Durum']), cter = kolon_(e.b, ['Terminal No']), cekim = [], son = null;
+  var cref = kolon_(e.b, ['Ref']);   // çekimin kendi numarası (kapatılan hesaba bağlanır, ikinci kez kullanılmaz)
   if (cz < 0 || ct < 0) return { hata: "Multinet sekmesinde 'İşlem Zamanı' ya da 'Tutar (TL)' sütunu yok" };
   e.v.forEach(function (r) {
     if (cd >= 0 && /iptal|iade/.test(norm_(r[cd]))) return;
     var ms = zaman_(r[cz]), t = sayi_(r[ct]); if (ms === null || !(t > 0)) return;
     var ac = ca >= 0 ? String(r[ca] || '').trim() : '';
-    var tam = kartTam_(ms); cekim.push({ ms: ms, tutar: t, zaman: tam.slice(6), tam: tam, online: !/multipos/i.test(ac), terminal: ac, kurye: cter >= 0 ? String(r[cter] || '').trim() : '' });
+    var tam = kartTam_(ms); cekim.push({ ref: refAl_(r, cref, ms, t), ms: ms, tutar: t, zaman: tam.slice(6), tam: tam, online: !/multipos/i.test(ac), terminal: ac, kurye: cter >= 0 ? String(r[cter] || '').trim() : '' });
     if (son === null || ms > son) son = ms;
   });
   return { cekim: cekim, son: son };
@@ -3408,11 +3467,12 @@ function multinetCekimleri_(ks) {
 function tokenflexCekimleri_(ks) {
   var e = kartSekmesi_(ks, 'Tokenflex', 6000); if (!e) return null;
   var cz = kolon_(e.b, ['İşlem Zamanı']), ct = kolon_(e.b, ['Tutar (TL)']), cd = kolon_(e.b, ['Durum']), cter = kolon_(e.b, ['Terminal No']), cku = kolon_(e.b, ['Cihaz / Kullanıcı']), cekim = [], son = null;
+  var cref = kolon_(e.b, ['Ref']);   // çekimin kendi numarası (kapatılan hesaba bağlanır, ikinci kez kullanılmaz)
   if (cz < 0 || ct < 0) return { hata: "Tokenflex sekmesinde 'İşlem Zamanı' ya da 'Tutar (TL)' sütunu yok" };
   e.v.forEach(function (r) {
     if (cd >= 0 && String(r[cd]).trim() && !/basarili/.test(norm_(r[cd]))) return;
     var ms = zaman_(r[cz]), t = sayi_(r[ct]); if (ms === null || !(t > 0)) return;
-    var tam = kartTam_(ms); cekim.push({ ms: ms, tutar: t, zaman: tam.slice(6), tam: tam, terminal: cter >= 0 ? String(r[cter] || '').trim() : '', kurye: cku >= 0 ? String(r[cku] || '').trim() : '' });
+    var tam = kartTam_(ms); cekim.push({ ref: refAl_(r, cref, ms, t), ms: ms, tutar: t, zaman: tam.slice(6), tam: tam, terminal: cter >= 0 ? String(r[cter] || '').trim() : '', kurye: cku >= 0 ? String(r[cku] || '').trim() : '' });
     if (son === null || ms > son) son = ms;
   });
   return { cekim: cekim, son: son };
@@ -3422,11 +3482,12 @@ function tokenflexCekimleri_(ks) {
 function metropolCekimleri_(ks) {
   var e = kartSekmesi_(ks, 'Metropol', 6000); if (!e) return null;
   var cz = kolon_(e.b, ['İşlem Zamanı']), ct = kolon_(e.b, ['Tutar (TL)']), cy = kolon_(e.b, ['İşlem Türü']), cter = kolon_(e.b, ['Terminal No']), cku = kolon_(e.b, ['Cihaz / Kullanıcı']), cekim = [], son = null;
+  var cref = kolon_(e.b, ['İşlem No']);   // çekimin kendi numarası (kapatılan hesaba bağlanır, ikinci kez kullanılmaz)
   if (cz < 0 || ct < 0) return { hata: "Metropol sekmesinde 'İşlem Zamanı' ya da 'Tutar (TL)' sütunu yok" };
   e.v.forEach(function (r) {
     if (cy >= 0 && /iptal|iade/.test(norm_(r[cy]))) return;
     var ms = zaman_(r[cz]), t = sayi_(r[ct]); if (ms === null || !(t > 0)) return;
-    var tam = kartTam_(ms); cekim.push({ ms: ms, tutar: t, zaman: tam.slice(6), tam: tam, terminal: cter >= 0 ? String(r[cter] || '').trim() : '', kurye: cku >= 0 ? String(r[cku] || '').trim() : '' });
+    var tam = kartTam_(ms); cekim.push({ ref: refAl_(r, cref, ms, t), ms: ms, tutar: t, zaman: tam.slice(6), tam: tam, terminal: cter >= 0 ? String(r[cter] || '').trim() : '', kurye: cku >= 0 ? String(r[cku] || '').trim() : '' });
     if (son === null || ms > son) son = ms;
   });
   return { cekim: cekim, son: son };
@@ -3436,18 +3497,21 @@ function metropolCekimleri_(ks) {
 function setcardCekimleri_(ks) {
   var e = kartSekmesi_(ks, 'SetCard', 6000); if (!e) return null;
   var cz = kolon_(e.b, ['İşlem Zamanı']), ct = kolon_(e.b, ['Tutar (TL)']), cy = kolon_(e.b, ['İşlem Türü']), cter = kolon_(e.b, ['Terminal']), cku = kolon_(e.b, ['Cihaz / Kullanıcı']), cekim = [], son = null;
+  var cref = kolon_(e.b, ['STI ID']);   // çekimin kendi numarası (kapatılan hesaba bağlanır, ikinci kez kullanılmaz)
   if (cz < 0 || ct < 0) return { hata: "SetCard sekmesinde 'İşlem Zamanı' ya da 'Tutar (TL)' sütunu yok" };
   e.v.forEach(function (r) {
     if (cy >= 0 && /iptal|iade/.test(norm_(r[cy]))) return;
     var ms = zaman_(r[cz]), t = sayi_(r[ct]); if (ms === null || !(t > 0)) return;
     var ter = cter >= 0 ? String(r[cter] || '').trim() : '';
     // 'Trendyol Pos' = Trendyol'da online ödenen SetCard; 'Mobil Pos' = kurye / dükkan terminali (kapıda)
-    var tam = kartTam_(ms); cekim.push({ ms: ms, tutar: t, zaman: tam.slice(6), tam: tam, online: /trendyol/i.test(ter), terminal: ter, kurye: cku >= 0 ? String(r[cku] || '').trim() : '' });
+    var tam = kartTam_(ms); cekim.push({ ref: refAl_(r, cref, ms, t), ms: ms, tutar: t, zaman: tam.slice(6), tam: tam, online: /trendyol/i.test(ter), terminal: ter, kurye: cku >= 0 ? String(r[cku] || '').trim() : '' });
     if (son === null || ms > son) son = ms;
   });
   return { cekim: cekim, son: son };
 }
 
+// Çekim numarası: sekmedeki tekil numara (RRN, Ref, İşlem No, STI ID, İşlem Numarası); yoksa zaman|tutar.
+function refAl_(r, c, ms, t) { var v = c >= 0 ? String(r[c] == null ? '' : r[c]).replace(/^'/, '').trim() : ''; return v || (ms + '|' + t); }
 function kartTam_(ms) { return new Date(ms).toISOString().replace(/^\d{4}-(\d{2})-(\d{2})T(\d{2}:\d{2}).*/, '$2.$1 $3'); }
 
 // Siparişin kart çekimiyle karşılaştırılacak anı: teslim saati (yoksa sipariş saati + 30 dk). Gece 04:00'ten önceki teslim ertesi güne düşer.
@@ -3467,7 +3531,7 @@ function kartRef_(gun, teslim, siparisMs) {
  * o yüzden yanlışlık görülürse depoya bildirilmeli).
  */
 // KURU = true iken hiçbir şey yazmaz; neyi kapatacağını rapora yazar (panelde görünür). Sahibi raporu onaylayınca false yapılır.
-var KART_AJAN_KURU = true;
+var KART_AJAN_KURU = false;   // sahibi 09.10: "ajanı aç, emin olduklarını kendisi kapatsın"
 
 function kartAjani() {
   // Kuru çalışma yalnız okur ve raporu ScriptProperties'e yazar: kilit tutmasın (panel kayıtları beklemesin).
@@ -3488,7 +3552,7 @@ function kartAjanCalis_() {
     var sh = tahsilatSekmesi_(ss);
     emin.forEach(function (x) {
       sh.appendRow([x.tarih, x.no, "'" + x.id, x.kurye, x.odeme, x.tutar, 'Tahsil edildi',
-        x.kartKaynak + ' ajanı: çekim ' + x.kartCekim.zaman + ', ' + x.kartCekim.tutar + ' TL (' + x.kartNeden + ')', damga, x.kartKaynak + ' Ajanı']);
+        x.kartKaynak + ' ajanı: çekim ' + x.kartCekim.zaman + ', ' + x.kartCekim.tutar + ' TL (' + x.kartNeden + ') [ref ' + x.kartKaynak + ':' + x.kartCekim.ref + ']', damga, x.kartKaynak + ' Ajanı']);
       kapatilan++;
     });
     try { adisyo = tahsilatlariAdisyoyaIsle_(); } catch (err) { adisyo = { hata: String(err.message || err) }; }
