@@ -2145,15 +2145,20 @@ function kartAjanBlok(a,A){var S=A.kartSoru||[],E=A.kartEmin||[],R=A.kartAjan;
   function ciz(){kap.textContent="";
     if(S.length)kap.appendChild(el("div",null,[el("h4",{style:"margin:0 0 6px",text:"Emin olamadıkları ("+S.length+") — sen karar ver"}),
       tablo([["Tarih"],["Adisyon"],["Kurye"],["Kart"],["Tutar",1],["Çekim"],["Neden emin değil"],["Karar"]],S.map(function(x){
-        return [gunAd(x.gun)+(x.teslim?" "+x.teslim:""),adisyonLink(x),x.kurye,x.kartKaynak,para(x.tutar),x.kartCekim?x.kartCekim.zaman+" · "+para(x.kartCekim.tutar):"—",
+        return [gunAd(x.gun)+(x.teslim?" "+x.teslim:""),adisyonLink(x),x.kurye,x.kartKaynak,para(x.tutar),x.kartCekim?x.kartCekim.zaman+" · "+para(x.kartCekim.tutar):x.kartParca?x.kartParca.map(function(p){return p.kart+" "+p.zaman+" · "+para(p.tutar);}).join(" + "):"—",
           el("span",{style:"font-size:13px",text:x.kartNeden}),hesapDugmeleri(x,ciz)];}))]));
     if(E.length)kap.appendChild(el("div",{style:"margin-top:14px"},[el("h4",{style:"margin:0 0 6px",text:(A.kartKuru?"Emin oldukları — açılınca kendisi kapatacak (":"Emin oldukları — bir sonraki çalışmada kapatacak (")+E.length+")"}),
       tablo([["Tarih"],["Adisyon"],["Kurye"],["Kart"],["Tutar",1],["Çekim"],["Dayanak"]],E.map(function(x){
         return [gunAd(x.gun)+(x.teslim?" "+x.teslim:""),adisyonLink(x),x.kurye,x.kartKaynak,para(x.tutar),x.kartCekim.zaman,el("span",{style:"font-size:13px",text:x.kartNeden})];}))]));
-    if(!S.length&&!E.length)kap.appendChild(bos("Şu an sorulacak ya da kapatılacak yemek kartı hesabı yok."));}
+    if(!S.length&&!E.length)kap.appendChild(bos("Şu an sorulacak ya da kapatılacak yemek kartı hesabı yok."));
+    // Hiçbir açık hesaba bağlanmayan kapıda çekimler: parçalı ödemenin öbür parçası, Adisyo'da başka ödemeyle kapanmış sipariş ya da fazla çekim olabilir
+    var B=A.kartBosta||[];
+    if(B.length)kap.appendChild(el("div",{style:"margin-top:14px"},[el("h4",{style:"margin:0 0 6px",text:"Hiçbir hesaba bağlanmayan kapıda çekimler — son 7 gün ("+B.length+")"}),
+      el("p",{class:"aciklama",style:"margin:0 0 6px;font-size:13px",text:"Kart çekilmiş ama kuryedeki bir açık hesapla eşleşmemiş. Parçalı ödemenin öbür parçası (2 × Metropol, yarısı Metropol yarısı Edenred…), kasada başka ödemeyle kapatılmış bir sipariş ya da fazla çekim olabilir."}),
+      tablo([["Çekim"],["Kart"],["Tutar",1],["Cihaz / kurye"]],B.map(function(c){return [c.zaman,c.kart,para(c.tutar),c.kurye||c.terminal||"—"];}))]));}
   ciz();
-  a.appendChild(blok("Kurye açık hesap ajanı (Pluxee, Paye, Edenred, SetCard)",(A.kartKuru?"DENEME MODUNDA: hiçbir şeyi kapatmıyor, yalnız ne yapacağını gösteriyor. ‘Emin oldukları’ listesi doğruysa söyle, açalım. ":
-    "Saatte bir çalışır. ")+"Emin olmak için: kartta tam olarak bir çekim aynı tutarda, teslimden en fazla 90 dk uzakta ve o çekime uyan başka sipariş yok. Biri tutmazsa kapatmaz, aşağıda sana sorar. Paye gün sonu raporu ertesi gece geldiği için Paye hesapları bir gün sonra kapanır. "+son,kap));}
+  a.appendChild(blok("Kurye açık hesap ajanı (bütün yemek kartları)",(A.kartKuru?"DENEME MODUNDA: hiçbir şeyi kapatmıyor, yalnız ne yapacağını gösteriyor. ‘Emin oldukları’ listesi doğruysa söyle, açalım. ":
+    "Saatte bir çalışır; kapattığı her hesabı çekimin kendi numarasına bağlar (Tahsilatlar › Not), aynı çekim ikinci bir hesaba kullanılmaz. Tek çekim tutmazsa iki çekimin toplamına bakar (parçalı ödeme) ve sana sorar. ")+"Emin olmak için: kartta tam olarak bir çekim aynı tutarda, teslimden en fazla 90 dk uzakta ve o çekime uyan başka sipariş yok. Biri tutmazsa kapatmaz, aşağıda sana sorar. Paye gün sonu raporu ertesi gece geldiği için Paye hesapları bir gün sonra kapanır. "+son,kap));}
 
 function kuryeAcik(a,K){var A=K.acik;
   a.appendChild(el("div",{class:"rakamlar"},[rakam("Dünden eski açık",para(A.eski.toplam),A.eski.adet+" kayıt",A.eski.adet?"asagi":""),rakam("Bir aydan eski",String(A.eski.ayUstu),A.eski.ayUstu?"tahsil edilmedi ya da işaretlenmedi":null,A.eski.ayUstu?"asagi":""),
