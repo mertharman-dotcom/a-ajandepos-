@@ -2484,6 +2484,7 @@ function tahsilHucre(x){var kap=el("span",{style:"display:flex;gap:6px;flex-wrap
     if(t){var ys=t.kaynak==="Yönetici onayı";kap.appendChild(el("span",{class:"etiket e-iyi",text:"tahsil edildi"}));
       kap.appendChild(el("span",{class:"kucuk",style:"color:var(--gri);font-size:12px",text:(ys?"yönetici onayı":t.kaynak+" sistemi")+(t.tarih?" · "+trTarih(t.tarih):"")}));
       if(ys)kap.appendChild(el("button",{type:"button",class:"dugme",style:"padding:2px 8px;font-size:12px",onclick:function(ev){if(confirm(String(x.no).slice(-6)+" faturasının tahsil onayı geri alınsın mı?"))gonder("geri",ev.target);}},["geri al"]));}
+    else if(x.kb&&x.kb.sorunlu){kap.appendChild(el("span",{class:"etiket e-notr",title:"KolayBi'de iptal / reddedilmiş fatura: tahsil edilmez"+(x.kb.yenisi?"; yerine kesilen fatura listede":""),text:x.kb.yenisi?"geçersiz · yenisi var":"geçersiz fatura"}));}   // iptal faturaya 'Tahsil edildi' yok (sahibi 09.10)
     else if(x.no&&x.kb){kap.appendChild(el("span",{class:"etiket e-notr",text:"bekliyor"}));
       kap.appendChild(el("button",{type:"button",class:"dugme",style:"padding:2px 8px;font-size:12px",onclick:function(ev){
         if(confirm((x.kart?x.kart+" ":"")+"faturası "+String(x.no).slice(-6)+" ("+para(x.tutar)+") tahsil edildi olarak işaretlensin mi?\nYönetici onayı olarak kaydedilir; KolayBi'ye bir şey yazılmaz."))gonder("onay",ev.target);}},["Tahsil edildi"]));}
