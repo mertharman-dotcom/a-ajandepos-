@@ -256,7 +256,7 @@ Aynı sekmeye iki ayrı proje yazıyorsa birinin yaptığı değişiklik diğeri
 - **Okuyan:** `finans_` (BAP Panel Veri Kapısı), `ap_veri_` (Kolaybi Fatura Ham Veri), `setFoodOdemeleriniDuzelt` (Kolaybi Fatura Ham Veri), `veriKontrol` (Kolaybi Fatura Ham Veri)
 - **Yoksa oluşturan:** `toptanciOdemeGir_`, `ap_sekmeleriHazirla_`
 - **Adıyla aranan sütunlar:** `Tedarikçi`, `Tutar`
-- Olası başka sütunlar: 16 (aynı fonksiyon birden fazla sekme açtığı için kesin değil; ayrıntı .html / `ara`)
+- Olası başka sütunlar: 18 (aynı fonksiyon birden fazla sekme açtığı için kesin değil; ayrıntı .html / `ara`)
 - **Etkilenen arayüz:** Cloudflare eski sayfalar, Yönetim paneli (bap-panel Worker)
 
 #### Ozel_Alimlar
@@ -273,14 +273,14 @@ Aynı sekmeye iki ayrı proje yazıyorsa birinin yaptığı değişiklik diğeri
 - **Okuyan:** `finans_` (BAP Panel Veri Kapısı), `kolaybiSatis_` (BAP Panel Veri Kapısı), `ap_satisOku_` (Kolaybi Fatura Ham Veri), `geriDonukTaramaDuzelt` (Kolaybi Fatura Ham Veri)
 - **Yoksa oluşturan:** `kolaybiSatisFaturalariCek`
 - **Adıyla aranan sütunlar:** `EBelge_Durumu`, `Fatura_Durumu`, `Fatura_ID`, `Fatura_No`, `Kalan`, `Musteri`, `Nakit_Yonu`, `Odeme_Durumu`, `Odenen`, `Para_Birimi`, `Tarih`, `Tutar`, `Vade_Tarihi`
-- Olası başka sütunlar: 5 (aynı fonksiyon birden fazla sekme açtığı için kesin değil; ayrıntı .html / `ara`)
+- Olası başka sütunlar: 7 (aynı fonksiyon birden fazla sekme açtığı için kesin değil; ayrıntı .html / `ara`)
 - **Etkilenen arayüz:** Cloudflare eski sayfalar, Yönetim paneli (bap-panel Worker)
 
 #### Sayfa1
 
 - **Yazan:** `ap_subeAta_` (Kolaybi Fatura Ham Veri), `geriDonukTaramaDuzelt` (Kolaybi Fatura Ham Veri), `kolaybiFaturalariCek` (Kolaybi Fatura Ham Veri), `sayfa1Tekillestir` (Kolaybi Fatura Ham Veri), `subeDoldur` (Kolaybi Fatura Ham Veri), `vadeTarihleriniDoldur` (Kolaybi Fatura Ham Veri)
 - **Okuyan:** `nabizKontrol` (BAP Günlük Yedek), `finans_` (BAP Panel Veri Kapısı), `ap_veri_` (Kolaybi Fatura Ham Veri), `kalemleriAyir` (Kolaybi Fatura Ham Veri), `kolaybiGiderFaturalariCek` (Kolaybi Fatura Ham Veri), `veriKontrol` (Kolaybi Fatura Ham Veri)
-- Olası başka sütunlar: 32 (aynı fonksiyon birden fazla sekme açtığı için kesin değil; ayrıntı .html / `ara`)
+- Olası başka sütunlar: 34 (aynı fonksiyon birden fazla sekme açtığı için kesin değil; ayrıntı .html / `ara`)
 - **Zamanla çalışan:** her gün (`nabizKontrol`), haftada bir 03:00 (`kolaybiAlisTamTarama`), her gün 00:10 (`kalemleriAyir`), her gün 14:10 (`kalemleriAyir`)
 - **Elle çalıştırılan:** menü: Yeni faturaları kalemlere ayır (`kalemleriAyir`)
 - **Etkilenen arayüz:** Cloudflare eski sayfalar
@@ -290,7 +290,7 @@ Aynı sekmeye iki ayrı proje yazıyorsa birinin yaptığı değişiklik diğeri
 - **Yazan:** `ap_sekmeleriHazirla_` (Kolaybi Fatura Ham Veri), `ap_tedarikciKaydet_` (Kolaybi Fatura Ham Veri), `ap_veri_` (Kolaybi Fatura Ham Veri), `geriDonukTaramaDuzelt` (Kolaybi Fatura Ham Veri)
 - **Okuyan:** `finans_` (BAP Panel Veri Kapısı), `odemePlaniIsle_` (BAP Panel Veri Kapısı), `toptanciOdemeGir_` (BAP Panel Veri Kapısı), `veriKontrol` (Kolaybi Fatura Ham Veri)
 - **Yoksa oluşturan:** `ap_sekmeleriHazirla_`
-- Olası başka sütunlar: 19 (aynı fonksiyon birden fazla sekme açtığı için kesin değil; ayrıntı .html / `ara`)
+- Olası başka sütunlar: 21 (aynı fonksiyon birden fazla sekme açtığı için kesin değil; ayrıntı .html / `ara`)
 - **Etkilenen arayüz:** Cloudflare eski sayfalar, Yönetim paneli (bap-panel Worker)
 
 #### Urun_Listesi
@@ -349,12 +349,12 @@ Aynı sekmeye iki ayrı proje yazıyorsa birinin yaptığı değişiklik diğeri
 - **Yazan:** `finansSoruCevapla_` (BAP Panel Veri Kapısı)
 - **Okuyan:** `finans_` (BAP Panel Veri Kapısı)
 - **Adıyla aranan sütunlar:** `Cevap`, `Durum`, `Konu`, `Neden önemli`, `Tutar etkisi`
-- Olası başka sütunlar: 13 (aynı fonksiyon birden fazla sekme açtığı için kesin değil; ayrıntı .html / `ara`)
+- Olası başka sütunlar: 15 (aynı fonksiyon birden fazla sekme açtığı için kesin değil; ayrıntı .html / `ara`)
 
 #### Özet
 
 - **Okuyan:** `finans_` (BAP Panel Veri Kapısı)
-- Olası başka sütunlar: 13 (aynı fonksiyon birden fazla sekme açtığı için kesin değil; ayrıntı .html / `ara`)
+- Olası başka sütunlar: 15 (aynı fonksiyon birden fazla sekme açtığı için kesin değil; ayrıntı .html / `ara`)
 
 ### HUB — BAP AI HUB (ajan görevleri, kokpit)
 
@@ -1356,7 +1356,7 @@ Bağlı dosya: — (tabloları kimlikle açar) · 3 fonksiyon · 2 sekme
 
 ### BAP Panel Veri Kapısı (`apps-script/bap-panel-veri-kapisi`)
 
-Bağlı dosya: — (tabloları kimlikle açar) · 226 fonksiyon · 80 sekme
+Bağlı dosya: — (tabloları kimlikle açar) · 227 fonksiyon · 80 sekme
 
 - her saat → puantajTaramasi
 - tabloda düzenleme olunca → puantajTabloDegisti
@@ -1534,8 +1534,8 @@ Sekme adı koddan okunamadı (değişkenle ya da döngüyle açılıyor). Bu yer
 | stok-takip-sistemi | `onerileriUygula` | `stok-takip-sistemi/kısa ad onerıcı.gs:107` | `tablo` |
 | bap-panel-veri-kapisi | `kokpitPanoKur` | `bap-panel-veri-kapisi/Kod.gs:1153` | `ad` |
 | bap-panel-veri-kapisi | `kokpitPanoKur` | `bap-panel-veri-kapisi/Kod.gs:1154` | `ad` |
-| bap-panel-veri-kapisi | `mobilFatura_` | `bap-panel-veri-kapisi/Kod.gs:1602` | `k . birikenSekme` |
-| bap-panel-veri-kapisi | `genel_` | `bap-panel-veri-kapisi/Kod.gs:1950` | `ad` |
+| bap-panel-veri-kapisi | `mobilFatura_` | `bap-panel-veri-kapisi/Kod.gs:1613` | `k . birikenSekme` |
+| bap-panel-veri-kapisi | `genel_` | `bap-panel-veri-kapisi/Kod.gs:1961` | `ad` |
 | kolaybi-fatura-ham-veri | `ap_hammaddeEkle_` | `kolaybi-fatura-ham-veri/Alım Paneli.gs:535` | `sekmeler [ s ]` |
 | kolaybi-fatura-ham-veri | `ap_eslestirmeVeri_` | `kolaybi-fatura-ham-veri/Alım Paneli.gs:582` | `ad` |
 | kolaybi-fatura-ham-veri | `ap_hammaddeHaritasi_` | `kolaybi-fatura-ham-veri/Alım Paneli.gs:717` | `ad` |

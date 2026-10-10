@@ -1265,13 +1265,16 @@ function finans_() {
   // Alış faturaları
   var al = satirlar_(ss, 'Sayfa1');
   var cT = kolon_(al.b, ['Tarih']), cG = kolon_(al.b, ['Gönderen', 'Tedarikçi']), cU = kolon_(al.b, ['Tutar']), cN = kolon_(al.b, ['Fatura_No']);
+  var cV = kolon_(al.b, ['Vade_Tarihi', 'Vade Tarihi', 'Vade']);
   var gorulen = {}, faturalar = [], aylik = {}, tedBuAy = {};
+  var TED = tedEslestirici_();   // Alım ekranıyla aynı ad eşleştirmesi: "Sapori" ödemesi "SAPORİ GIDA … LTD. ŞTİ." borcundan düşer (P72)
   var alis = { buAy: 0, buAyAdet: 0, gecenAy: 0, gecenAyAyniDonem: 0 };
   al.r.forEach(function (r) {
     var no = String(r[cN] || ''), ms = zaman_(r[cT]); if (ms === null) return;
     if (no && gorulen[no]) return; if (no) gorulen[no] = 1;
     var t = sayi_(r[cU]), tarih = new Date(ms).toISOString().slice(0, 10), a2 = tarih.slice(0, 7), ad = String(r[cG] || '').trim();
-    faturalar.push({ ms: ms, tarih: tarih, ad: ad, tutar: t });
+    var vms = cV >= 0 && r[cV] !== '' && r[cV] !== null ? zaman_(r[cV]) : null;
+    faturalar.push({ ms: ms, tarih: tarih, ad: ad, tutar: t, k: TED.ekle(ad), vadeMs: vms });
     aylik[a2] = (aylik[a2] || 0) + t;
     if (a2 === ay) { alis.buAy += t; alis.buAyAdet++; var x = tedBuAy[ad] = tedBuAy[ad] || { ad: ad, tutar: 0, adet: 0 }; x.tutar += t; x.adet++; }
     if (a2 === gAy) { alis.gecenAy += t; if (+tarih.slice(8, 10) <= gun) alis.gecenAyAyniDonem += t; }
@@ -1291,7 +1294,8 @@ function finans_() {
   od.r.forEach(function (r, i) {
     var ms = zaman_(r[oT]); if (ms === null) return;
     var t = sayi_(r[oU]), tarih = new Date(ms).toISOString().slice(0, 10), y = oY >= 0 ? String(r[oY] || '').trim() : '';
-    odemeler.push({ ms: ms, sira: i, tarih: tarih, ad: String(r[oG] || '').trim(), tutar: t, yontem: y, aciklama: oA >= 0 ? String(r[oA] || '').trim() : '' });
+    var oAd = String(r[oG] || '').trim();
+    odemeler.push({ ms: ms, sira: i, tarih: tarih, ad: oAd, k: TED.bul(oAd), tutar: t, yontem: y, aciklama: oA >= 0 ? String(r[oA] || '').trim() : '' });
     if (y) yontemler[y] = 1;
     if (tarih.slice(0, 7) === ay) { odeme.buAy += t; odeme.buAyAdet++; }
   });
@@ -1304,20 +1308,27 @@ function finans_() {
   // Tedarikçi borcu ve vadesi geçen (ödemeler en eski faturadan kapatılır)
   var td = satirlar_(ss, 'Tedarikciler');
   var dG = kolon_(td.b, ['Tedarikçi']), dV = kolon_(td.b, ['Vade_Gun']), dA = kolon_(td.b, ['Acilis_Bakiye']);
-  var borc = { toplam: 0, vadesiGecen: 0, tedarikciSayisi: 0, vgTedarikci: 0, liste: [] }, tumTed = [];
+  var borc = { toplam: 0, vadesiGecen: 0, tedarikciSayisi: 0, vgTedarikci: 0, liste: [] }, tumTed = [], tedSatir = {}, tedSira = [];
+  // Aynı toptancıya giden birden çok Tedarikciler satırı tek hesapta toplanır (Alım ekranı gibi son satırın vade/açılışı geçerli).
   td.r.forEach(function (r) {
     var ad = String(r[dG] || '').trim(); if (!ad) return;
     tumTed.push(ad);
-    var n = norm_(ad), vade = sayi_(r[dV]) || 30, acilis = sayi_(r[dA]);
-    var fat = faturalar.filter(function (f) { return norm_(f.ad) === n; }).sort(function (a, b) { return a.ms - b.ms; });
-    var odenen = odemeler.filter(function (o) { return norm_(o.ad) === n; }).reduce(function (t, o) { return t + o.tutar; }, 0);
+    var k = TED.bul(ad);
+    if (!tedSatir[k]) tedSira.push(k);
+    tedSatir[k] = { ad: tedSatir[k] ? tedSatir[k].ad : ad, vade: sayi_(r[dV]) || 30, acilis: sayi_(r[dA]) };
+  });
+  tedSira.forEach(function (n) {
+    var ad = tedSatir[n].ad, vade = tedSatir[n].vade, acilis = tedSatir[n].acilis;
+    var fat = faturalar.filter(function (f) { return f.k === n; }).sort(function (a, b) { return a.ms - b.ms; });
+    var odenen = odemeler.filter(function (o) { return o.k === n; }).reduce(function (t, o) { return t + o.tutar; }, 0);
     var kalanOdeme = odenen, acilisKalan = Math.max(0, acilis - kalanOdeme); kalanOdeme = Math.max(0, kalanOdeme - acilis);
     var vg = acilisKalan, enEski = acilisKalan > 0 ? 'açılış bakiyesi' : null;
     var toplamFat = 0;
     fat.forEach(function (f) {
       toplamFat += f.tutar;
       var acik = Math.max(0, f.tutar - kalanOdeme); kalanOdeme = Math.max(0, kalanOdeme - f.tutar);
-      if (acik > 0.5 && (simdi - f.ms) / 86400000 > vade) { vg += acik; if (!enEski) enEski = f.tarih; }
+      var gecti = f.vadeMs !== null && f.vadeMs !== undefined ? simdi - f.vadeMs > 86400000 : (simdi - f.ms) / 86400000 > vade;   // faturanın kendi vadesi önce
+      if (acik > 0.5 && gecti) { vg += acik; if (!enEski) enEski = f.tarih; }
     });
     var b = acilis + toplamFat - odenen;
     if (Math.abs(b) < 0.5 && vg < 0.5) return;
@@ -1330,7 +1341,7 @@ function finans_() {
   // Ödeme ekranındaki toptancı listesi: borcu olmayanlar da seçilebilsin.
   out.tedarikciler = tumTed.sort(function (a, b) { return a.localeCompare(b, 'tr'); });
   // Toptancı ödeme planları (söz verilen ödeme tarihleri) ve Haddy kurye faturaları — Yönetim Merkezi yapılacaklar listesi için
-  try { out.planlar = odemePlanlari_(ss, odemeler, bugun); } catch (err) { out.planHata = String(err.message || err); }
+  try { out.planlar = odemePlanlari_(ss, odemeler, bugun, TED); } catch (err) { out.planHata = String(err.message || err); }
   try { out.haddyFatura = haddyFaturalari_(ss, faturalar, bugun); } catch (err) { out.haddyHata = String(err.message || err); }
 
   // Yemek kartı / kurum alacakları (satış faturaları)
@@ -4572,7 +4583,8 @@ function cevapKaydet_(bolum, kaynak, satir, konu, cevap, damga) {
 var PLAN_SEKME = 'Odeme_Plani';
 var PLAN_BASLIK = ['Plan_ID', 'Tedarikçi', 'Plan_Tarihi', 'Tutar', 'Açıklama', 'Durum', 'Kayıt_Zamanı', 'Kaynak'];
 
-function odemePlanlari_(ss, odemeler, bugun) {
+function odemePlanlari_(ss, odemeler, bugun, TED) {
+  var anahtar = function (ad) { return TED ? TED.bul(ad) : norm_(ad); };
   var p = satirlar_(ss, PLAN_SEKME);
   if (!p.r.length) return [];
   var c = { id: kolon_(p.b, ['Plan_ID']), ad: kolon_(p.b, ['Tedarikçi']), tarih: kolon_(p.b, ['Plan_Tarihi']), tutar: kolon_(p.b, ['Tutar']),
@@ -4586,12 +4598,12 @@ function odemePlanlari_(ss, odemeler, bugun) {
   });
   // Toptancı başına: kayıttan sonraki ödemeler, plan tarihi sırasıyla planlara dağıtılır
   var gruplar = {};
-  liste.forEach(function (x) { if (!x.iptal) (gruplar[norm_(x.ad)] = gruplar[norm_(x.ad)] || []).push(x); });
+  liste.forEach(function (x) { if (!x.iptal) (gruplar[anahtar(x.ad)] = gruplar[anahtar(x.ad)] || []).push(x); });
   Object.keys(gruplar).forEach(function (n) {
     var pl = gruplar[n].sort(function (a, b) { return a.tarih.localeCompare(b.tarih) || a.kayit - b.kayit; });
     var ilkKayit = Math.min.apply(null, pl.map(function (x) { return x.kayit; }));
     var gunBas = function (ms) { return Math.floor(ms / 86400000) * 86400000; };
-    var ods = odemeler.filter(function (o) { return norm_(o.ad) === n && o.ms >= gunBas(ilkKayit); }).sort(function (a, b) { return a.ms - b.ms; });
+    var ods = odemeler.filter(function (o) { return (o.k || anahtar(o.ad)) === n && o.ms >= gunBas(ilkKayit); }).sort(function (a, b) { return a.ms - b.ms; });
     var havuz = ods.map(function (o) { return { ms: o.ms, kalan: o.tutar, tarih: o.tarih }; });
     pl.forEach(function (x) {
       var gerek = x.tutar > 0 ? x.tutar : 0.01, odenen = 0, son = '';
@@ -4703,6 +4715,34 @@ function json_(o) { return ContentService.createTextOutput(JSON.stringify(o)).se
 
 // Adisyo 'İPTAL' yazar: /iptal/i büyük İ'yi tanımaz, bu yüzden norm_ üzerinden bakılır.
 function iptalMi_(v) { var n = norm_(v); return n.indexOf('iptal') >= 0 || n.indexOf('iade') >= 0; }
+/**
+ * Toptancı adı eşleştirici — Alım ekranındaki (kolaybi-fatura-ham-veri › Alım Paneli.gs) ap_nrm_ / ap_tedarikciBul_ /
+ * ap_benzerlik_ ile birebir aynı kural; iki ekran aynı borcu göstersin diye değiştirilirse ikisi birlikte değiştirilir.
+ * ekle(ad): fatura adını kanon olarak kaydeder, anahtarı döner. bul(ad): birebir, yoksa baştan eşleşen ya da %80 benzer
+ * kanon anahtarı; bulunamazsa kendi anahtarı (o zaman yalnız aynı yazımla eşleşir).
+ */
+function tedEslestirici_() {
+  var nrm = function (s) { return String(s || '').replace(/İ/g, 'i').replace(/I/g, 'ı').toLowerCase().replace(/[\s.,\-*/()'"&:;!?]/g, ''); };
+  var benzer = function (a, b) {
+    if (a === b) return 1; if (!a || !b || a.length < 2 || b.length < 2) return 0;
+    var say = {}, n = 0, i;
+    for (i = 0; i < a.length - 1; i++) { var g = a.substr(i, 2); say[g] = (say[g] || 0) + 1; }
+    for (i = 0; i < b.length - 1; i++) { var h = b.substr(i, 2); if (say[h] > 0) { say[h]--; n++; } }
+    return (2 * n) / (a.length - 1 + b.length - 1);
+  };
+  var kanon = {}, anahtarlar = [], onbellek = {};
+  return {
+    ekle: function (ad) { var k = nrm(String(ad || '').replace(/\s+/g, ' ').trim()); if (k && !kanon[k]) { kanon[k] = 1; anahtarlar.push(k); onbellek = {}; } return k; },
+    bul: function (ad) {
+      var key = nrm(String(ad || '').replace(/\s+/g, ' ').trim()); if (!key) return '';
+      if (kanon[key]) return key; if (onbellek[key] !== undefined) return onbellek[key];
+      var enIyi = '', skor = 0;
+      for (var i = 0; i < anahtarlar.length; i++) { var k = anahtarlar[i], sk = (k.indexOf(key) === 0 || key.indexOf(k) === 0) ? 0.85 : benzer(key, k); if (sk > skor) { skor = sk; enIyi = k; } }
+      return (onbellek[key] = skor >= 0.8 ? enIyi : key);
+    }
+  };
+}
+
 function norm_(s) {
   return String(s == null ? '' : s).replace(/İ/g, 'i').toLowerCase()
     .replace(/ı/g, 'i').replace(/ş/g, 's').replace(/ğ/g, 'g').replace(/ü/g, 'u').replace(/ö/g, 'o').replace(/ç/g, 'c')
