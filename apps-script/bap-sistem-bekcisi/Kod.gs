@@ -194,6 +194,12 @@ function kontrolEt_() {
 function sonTarih_(sh, simdi) {
   var son = sh.getLastRow(), sut = Math.min(sh.getLastColumn(), 40);
   if (son < 2 || sut < 1) return null;
+  // getLastRow, verinin çok altındaki tek bir dolu hücreyi (eski formül, boşluk vb.) de sayar; o zaman "son 40 satır"
+  // boş kalır ve yalnız en eski satırlar okunurdu (Kurye › Siparişler 69 gün eski görünüyordu, 10.10).
+  // Gerçek son satır: A sütunundaki son dolu hücre.
+  var a = sh.getRange(1, 1, son, 1).getValues(), gercek = son;
+  while (gercek > 1 && String(a[gercek - 1][0]).trim() === '') gercek--;
+  if (gercek >= 2) son = gercek;
   var parcalar = [sh.getRange(2, 1, Math.min(40, son - 1), sut).getValues()];
   if (son > 41) parcalar.push(sh.getRange(Math.max(2, son - 39), 1, Math.min(40, son - 1), sut).getValues());
   var ust = simdi.getTime() + 6 * 3600000, alt = new Date(2020, 0, 1).getTime(), en = null;
