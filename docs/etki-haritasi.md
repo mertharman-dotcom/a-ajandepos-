@@ -15,8 +15,8 @@ Ajan için: `node araclar/etki-haritasi.mjs ara "<sekme / sütun / fonksiyon ad�
 | | Adet |
 |---|---|
 | Apps Script projesi | 16 |
-| Kodun dokunduğu sekme | 180 |
-| Birden fazla projenin **yazdığı** sekme (risk) | 21 |
+| Kodun dokunduğu sekme | 181 |
+| Birden fazla projenin **yazdığı** sekme (risk) | 22 |
 | Arayüz dosyası (panel, köprü) | 11 |
 
 ### ⚠️ Birden fazla projenin yazdığı sekmeler
@@ -27,6 +27,7 @@ Aynı sekmeye iki ayrı proje yazıyorsa birinin yaptığı değişiklik diğeri
 |---|---|
 | FATURA › Fatura_Kalemleri | Kolaybi Fatura Ham Veri, Stok Takip Sistemi |
 | FATURA › Odemeler | BAP Panel Veri Kapısı, Kolaybi Fatura Ham Veri |
+| FATURA › Sayfa1 | Kolaybi Fatura Ham Veri, Stok Takip Sistemi |
 | GENEL › Menü | BAP Maliyet Modülü, Stok Takip Sistemi |
 | KURYE › Kesintiler | BAP Panel Veri Kapısı, Kurye Net Çalışma Süresi, Trendyol Veri Çekme |
 | MUSTERI › Ana Musteri Listesi | Adisyo Sipariş Toplayıcı, Trendyol Veri Çekme |
@@ -200,9 +201,9 @@ Aynı sekmeye iki ayrı proje yazıyorsa birinin yaptığı değişiklik diğeri
 #### Fatura_Kalemleri
 
 - **Yazan:** `ap_subeAta_` (Kolaybi Fatura Ham Veri), `geriDonukTaramaDuzelt` (Kolaybi Fatura Ham Veri), `haricKalemleriTemizle` (Kolaybi Fatura Ham Veri), `kalemleriAyir` (Kolaybi Fatura Ham Veri), `subeDoldur` (Kolaybi Fatura Ham Veri), `alisIsle_` (Stok Takip Sistemi), `eskiBekleyenleriKapat` (Stok Takip Sistemi)
-- **Okuyan:** `maliyetBolumu_` (BAP Rapor Ajanı), `ap_veri_` (Kolaybi Fatura Ham Veri), `urunListesiOlustur` (Kolaybi Fatura Ham Veri), `veriKontrol` (Kolaybi Fatura Ham Veri), `sonAlisFiyatlariniDoldur` (Stok Takip Sistemi)
+- **Okuyan:** `maliyetBolumu_` (BAP Rapor Ajanı), `ap_veri_` (Kolaybi Fatura Ham Veri), `urunListesiOlustur` (Kolaybi Fatura Ham Veri), `veriKontrol` (Kolaybi Fatura Ham Veri), `faturaSubeDoldur` (Stok Takip Sistemi), `sonAlisFiyatlariniDoldur` (Stok Takip Sistemi)
 - **Yoksa oluşturan:** `kalemleriAyir`
-- Olası başka sütunlar: 28 (aynı fonksiyon birden fazla sekme açtığı için kesin değil; ayrıntı .html / `ara`)
+- Olası başka sütunlar: 31 (aynı fonksiyon birden fazla sekme açtığı için kesin değil; ayrıntı .html / `ara`)
 - **Zamanla çalışan:** haftada bir 09:00 (`haftalikRapor`), haftada bir 03:00 (`kolaybiAlisTamTarama`), her gün 00:10 (`kalemleriAyir`), her gün 14:10 (`kalemleriAyir`), her gün 00:30 (`alisIsle`), her gün 05:00 (`ajanGecelik`), her gün 14:30 (`alisIsle`)
 - **Elle çalıştırılan:** menü: Hariç kalemleri Fatura_Kalemleri'nden temizle (`haricKalemleriTemizle`), menü: Ürün listesini yenile (`urunListesiOlustur`), menü: Yeni faturaları kalemlere ayır (`kalemleriAyir`)
 - **Etkilenen arayüz:** Cloudflare eski sayfalar
@@ -278,9 +279,9 @@ Aynı sekmeye iki ayrı proje yazıyorsa birinin yaptığı değişiklik diğeri
 
 #### Sayfa1
 
-- **Yazan:** `ap_subeAta_` (Kolaybi Fatura Ham Veri), `geriDonukTaramaDuzelt` (Kolaybi Fatura Ham Veri), `kolaybiFaturalariCek` (Kolaybi Fatura Ham Veri), `sayfa1Tekillestir` (Kolaybi Fatura Ham Veri), `subeDoldur` (Kolaybi Fatura Ham Veri), `vadeTarihleriniDoldur` (Kolaybi Fatura Ham Veri)
+- **Yazan:** `ap_subeAta_` (Kolaybi Fatura Ham Veri), `geriDonukTaramaDuzelt` (Kolaybi Fatura Ham Veri), `kolaybiFaturalariCek` (Kolaybi Fatura Ham Veri), `sayfa1Tekillestir` (Kolaybi Fatura Ham Veri), `subeDoldur` (Kolaybi Fatura Ham Veri), `vadeTarihleriniDoldur` (Kolaybi Fatura Ham Veri), `faturaSubeDoldur` (Stok Takip Sistemi)
 - **Okuyan:** `nabizKontrol` (BAP Günlük Yedek), `finans_` (BAP Panel Veri Kapısı), `ap_veri_` (Kolaybi Fatura Ham Veri), `kalemleriAyir` (Kolaybi Fatura Ham Veri), `kolaybiGiderFaturalariCek` (Kolaybi Fatura Ham Veri), `veriKontrol` (Kolaybi Fatura Ham Veri)
-- Olası başka sütunlar: 34 (aynı fonksiyon birden fazla sekme açtığı için kesin değil; ayrıntı .html / `ara`)
+- Olası başka sütunlar: 36 (aynı fonksiyon birden fazla sekme açtığı için kesin değil; ayrıntı .html / `ara`)
 - **Zamanla çalışan:** her gün (`nabizKontrol`), haftada bir 03:00 (`kolaybiAlisTamTarama`), her gün 00:10 (`kalemleriAyir`), her gün 14:10 (`kalemleriAyir`)
 - **Elle çalıştırılan:** menü: Yeni faturaları kalemlere ayır (`kalemleriAyir`)
 - **Etkilenen arayüz:** Cloudflare eski sayfalar
@@ -845,6 +846,12 @@ Aynı sekmeye iki ayrı proje yazıyorsa birinin yaptığı değişiklik diğeri
 - **Yazan:** `eksikUrunler` (Stok Takip Sistemi)
 - Olası başka sütunlar: 4 (aynı fonksiyon birden fazla sekme açtığı için kesin değil; ayrıntı .html / `ara`)
 
+#### Fatura_Sube_Raporu
+
+- **Yazan:** `faturaSubeDoldur` (Stok Takip Sistemi)
+- **Yoksa oluşturan:** `faturaSubeDoldur`
+- Olası başka sütunlar: 8 (aynı fonksiyon birden fazla sekme açtığı için kesin değil; ayrıntı .html / `ara`)
+
 #### Fiyat_Kontrol
 
 - **Yazan:** `fiyatOnaylariniUygula` (Stok Takip Sistemi), `sonAlisFiyatDoldur_` (Stok Takip Sistemi)
@@ -1322,7 +1329,7 @@ Aynı sekmeye iki ayrı proje yazıyorsa birinin yaptığı değişiklik diğeri
 
 ### Stok Takip Sistemi (`apps-script/stok-takip-sistemi`)
 
-Bağlı dosya: STOK · 285 fonksiyon · 53 sekme
+Bağlı dosya: STOK · 286 fonksiyon · 55 sekme
 
 - ekran: Index.html → submitRecipeSuggestion
 - haftada bir 09:00 → rc_kontrolEt

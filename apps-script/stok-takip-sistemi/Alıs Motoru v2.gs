@@ -574,6 +574,78 @@ function bekleyenYaz_(ss, rows) {
 // ============================================================
 // YARDIMCILAR
 // ============================================================
+// ============================================================
+// FATURA ŞUBESİ (P73) — Sayfa1'de şubesi boş faturalara şube bulur.
+// alisIsle şubeyi kalem kalem bulup yalnız Fatura_Kalemleri'ne yazıyor; ürün satırı hiç olmayan faturalar
+// (ör. Sera Sebze e-faturaları, Kalem = 0) ona hiç uğramıyor → Alım ekranında 'şube yok' kalıyordu.
+// Sıra: 1) faturanın kalemlerinde tek şube varsa o  2) tedarikçi tek şubeye bağlıysa o
+//       3) Siparis_Kayitlari: aynı tedarikçiye fatura tarihinden 7 gün önce – 2 gün sonra arası siparişler tek şubedense o;
+//          iki şube varsa fatura günü / bir gün önce yalnız bir şube sipariş vermişse o.
+// İki şubeden sipariş varsa ya da hiç yoksa boş bırakılır (raporda 'belirsiz' / 'bulunamadı'), elle Alım ekranından seçilir.
+// FATURA_SUBE_KURU = true → yalnız 'Fatura_Sube_Raporu' sekmesine yazar. Raporu kontrol et, false yapıp tekrar çalıştır
+// → bulunanlar Sayfa1 Şube sütununa yazılır. Dolu şube asla değiştirilmez.
+// ============================================================
+var FATURA_SUBE_KURU = true;
+var FATURA_SUBE_BASLANGIC = '2026-08-13';   // stoğun başladığı gün; daha eski faturalar stoğa girmediği için atlanır (Alım ekranıyla aynı)
+var FATURA_SUBE_RAPOR = 'Fatura_Sube_Raporu';
+
+function faturaSubeDoldur() {
+  var fss = SpreadsheetApp.openById(FATURA_SS_ID), sss = SpreadsheetApp.openById(SHEET_ID);
+  var s1 = fss.getSheetByName('Sayfa1') || fss.getSheets()[0], kal = fss.getSheetByName(KALEM_SEKME);
+  var v = s1.getDataRange().getValues(), b = v[0].map(function (x) { return norm_(x); });
+  var kol = function (adlar, yedek) { for (var i = 0; i < adlar.length; i++) { var j = b.indexOf(norm_(adlar[i])); if (j >= 0) return j; } return yedek; };
+  // Başlık yoksa Kolaybi çekiminin (subeDoldur) ve Alım ekranının kullandığı sıra: A no, B tarih, C gönderen, D tutar, F şube
+  var c = { no: kol(['Fatura_No', 'Fatura No'], 0), tarih: kol(['Tarih'], 1), ted: kol(['Gönderen', 'Tedarikçi'], 2), tutar: kol(['Tutar'], 3), sube: kol(['Şube', 'Sube'], 5) };
+  var basla = tarihCoz_(FATURA_SUBE_BASLANGIC.split('-').reverse().join('.'));
+
+  // Faturanın kalemlerine yazılmış şubeler
+  var kalemSube = {};
+  if (kal && kal.getLastRow() > 1) kal.getRange(2, 1, kal.getLastRow() - 1, FK_SUBE + 1).getValues().forEach(function (r) {
+    var no = String(r[FK_NO]).replace(/\.0$/, '').trim(), sb = String(r[FK_SUBE] || '').trim();
+    if (no && sb && norm_(sb) !== 'hepsi') (kalemSube[no] = kalemSube[no] || {})[sb] = 1;
+  });
+  var tedBilgi = tedarikciHaritasi_(sss), sipIdx = siparisIndeksi_(sss);
+
+  var rapor = [], yaz = [], say = { bulundu: 0, belirsiz: 0, yok: 0 }, onceki = {};
+  for (var i = 1; i < v.length; i++) {
+    var no = String(v[i][c.no]).replace(/\.0$/, '').trim(), t = tarihCoz_(v[i][c.tarih]);
+    if (!no || String(v[i][c.sube] || '').trim() || !t || t < basla) continue;
+    if (onceki[no] !== undefined) { if (onceki[no]) yaz.push([i + 1, onceki[no]]); continue; }   // aynı faturanın ikinci satırı
+    var unvan = String(v[i][c.ted] || '').trim(), ted = tedBilgi[norm_(unvan)] || { kisa: unvan, sube: '' };
+    var sube = '', kaynak = '', not = '';
+    var ks = Object.keys(kalemSube[no] || {});
+    if (ks.length === 1) { sube = ks[0]; kaynak = 'kalemler'; }
+    else if (ks.length > 1) { kaynak = 'belirsiz'; not = 'kalemlerde birden çok şube: ' + ks.join(', '); }
+    else if (ted.sube && norm_(ted.sube) !== 'hepsi') { sube = ted.sube; kaynak = 'tedarikçi'; }
+    else {
+      var p = pencerede_(sipIdx[norm_(ted.kisa)] || [], t), sb = {};
+      p.forEach(function (x) { sb[x.sube] = (sb[x.sube] || 0) + 1; });
+      var k = Object.keys(sb);
+      // Sebzeci gibi iki şubeye de sık gelen tedarikçide geniş pencere hep iki şube verir → önce fatura günü ve bir gün önce verilen siparişlere bak
+      var yakin = {}; p.forEach(function (x) { var g = Math.round((t - x.tarih) / 86400000); if (g >= 0 && g <= 1) yakin[x.sube] = (yakin[x.sube] || 0) + 1; });
+      var ky = Object.keys(yakin);
+      if (k.length === 1) { sube = k[0]; kaynak = 'sipariş'; not = sb[k[0]] + ' sipariş satırı (−7/+2 gün)'; }
+      else if (k.length > 1 && ky.length === 1) { sube = ky[0]; kaynak = 'sipariş (aynı/önceki gün)'; not = 'o gün yalnız ' + ky[0] + ' sipariş vermiş; 9 günde: ' + k.map(function (x) { return x + ' ' + sb[x]; }).join(', '); }
+      else if (k.length > 1) { kaynak = 'belirsiz'; not = (ky.length > 1 ? 'aynı gün iki şube de sipariş vermiş · ' : '') + k.map(function (x) { return x + ' ' + sb[x]; }).join(', ') + ' sipariş satırı'; }
+      else { kaynak = 'bulunamadı'; not = ted.kisa === unvan ? 'tedarikçi kısa adı tanımlı değil (Tedarikçi Adı tablosu)' : ted.kisa + ' için o günlerde sipariş yok'; }
+    }
+    onceki[no] = sube;
+    if (sube) { say.bulundu++; yaz.push([i + 1, sube]); } else if (kaynak === 'belirsiz') say.belirsiz++; else say.yok++;
+    rapor.push([no, fmtTarih_(t), unvan, num_(v[i][c.tutar]), sube, kaynak, not]);
+  }
+
+  if (!FATURA_SUBE_KURU) yaz.forEach(function (x) { s1.getRange(x[0], c.sube + 1).setValue(x[1]); });
+  var sh = sss.getSheetByName(FATURA_SUBE_RAPOR) || sss.insertSheet(FATURA_SUBE_RAPOR);
+  sh.clearContents();
+  var ozet = (FATURA_SUBE_KURU ? 'KURU (hiçbir şey yazılmadı): ' : 'Sayfa1 Şube sütununa yazıldı: ') + say.bulundu + ' fatura şube buldu, ' +
+    say.belirsiz + ' belirsiz, ' + say.yok + ' bulunamadı · ' + fmtTarih_(new Date());
+  sh.getRange(1, 1).setValue(ozet);
+  sh.getRange(2, 1, 1, 7).setValues([['Fatura_No', 'Tarih', 'Tedarikçi', 'Tutar', 'Bulunan şube', 'Kaynak', 'Not']]).setFontWeight('bold');
+  if (rapor.length) sh.getRange(3, 1, rapor.length, 7).setValues(rapor);
+  Logger.log(ozet);
+  return say;
+}
+
 function norm_(s) { return String(s || '').toLocaleLowerCase('tr').replace(/\s+/g, ' ').trim(); }
 function num_(v) {
   if (typeof v === 'number') return v;
