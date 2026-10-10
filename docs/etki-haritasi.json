@@ -7104,9 +7104,15 @@
    "sekme": "Abonelikler",
    "yazan": [
     {
+     "ad": "bap-sistem-bekcisi › abonelikCalis_",
+     "yer": [
+      "apps-script/bap-sistem-bekcisi/Abonelik.gs:121"
+     ]
+    },
+    {
      "ad": "bap-sistem-bekcisi › abonelikSekmesiKur",
      "yer": [
-      "apps-script/bap-sistem-bekcisi/Kod.gs:541"
+      "apps-script/bap-sistem-bekcisi/Abonelik.gs:102"
      ]
     }
    ],
@@ -7114,7 +7120,7 @@
     {
      "ad": "bap-sistem-bekcisi › abonelikKontrol_",
      "yer": [
-      "apps-script/bap-sistem-bekcisi/Kod.gs:383"
+      "apps-script/bap-sistem-bekcisi/Abonelik.gs:212"
      ]
     }
    ],
@@ -7124,10 +7130,23 @@
    "dolayli": [],
    "sutunlar": [
     {
+     "ad": "Güncellendi",
+     "kesin": true,
+     "fn": [
+      "bap-sistem-bekcisi › abonelikSekmesiKur"
+     ]
+    },
+    {
      "ad": "Hizmet",
      "kesin": true,
      "fn": [
-      "bap-sistem-bekcisi › abonelikKontrol_",
+      "bap-sistem-bekcisi › abonelikSekmesiKur"
+     ]
+    },
+    {
+     "ad": "Kaynak",
+     "kesin": true,
+     "fn": [
       "bap-sistem-bekcisi › abonelikSekmesiKur"
      ]
     },
@@ -7142,7 +7161,6 @@
      "ad": "Nereden bakılır",
      "kesin": true,
      "fn": [
-      "bap-sistem-bekcisi › abonelikKontrol_",
       "bap-sistem-bekcisi › abonelikSekmesiKur"
      ]
     },
@@ -7150,7 +7168,20 @@
      "ad": "Plan / ücret",
      "kesin": true,
      "fn": [
-      "bap-sistem-bekcisi › abonelikKontrol_",
+      "bap-sistem-bekcisi › abonelikSekmesiKur"
+     ]
+    },
+    {
+     "ad": "Son ödeme",
+     "kesin": true,
+     "fn": [
+      "bap-sistem-bekcisi › abonelikSekmesiKur"
+     ]
+    },
+    {
+     "ad": "Son tutar",
+     "kesin": true,
+     "fn": [
       "bap-sistem-bekcisi › abonelikSekmesiKur"
      ]
     },
@@ -7158,7 +7189,6 @@
      "ad": "Yenileme tarihi",
      "kesin": true,
      "fn": [
-      "bap-sistem-bekcisi › abonelikKontrol_",
       "bap-sistem-bekcisi › abonelikSekmesiKur"
      ]
     }
@@ -7169,6 +7199,12 @@
      "tur": "zamanlayici",
      "aciklama": "her 15 dk",
      "fn": "bekci"
+    },
+    {
+     "proje": "bap-sistem-bekcisi",
+     "tur": "zamanlayici",
+     "aciklama": "her saat",
+     "fn": "abonelikGuncelle"
     }
    ],
    "arayuzler": [],
@@ -7185,7 +7221,7 @@
     {
      "ad": "bap-sistem-bekcisi › durumYaz_",
      "yer": [
-      "apps-script/bap-sistem-bekcisi/Kod.gs:428"
+      "apps-script/bap-sistem-bekcisi/Kod.gs:398"
      ]
     }
    ],
@@ -7275,7 +7311,7 @@
     {
      "ad": "bap-sistem-bekcisi › kalpYaz_",
      "yer": [
-      "apps-script/bap-sistem-bekcisi/Kod.gs:461"
+      "apps-script/bap-sistem-bekcisi/Kod.gs:431"
      ]
     }
    ],
@@ -7307,7 +7343,7 @@
     {
      "ad": "bap-sistem-bekcisi › olaylarYaz_",
      "yer": [
-      "apps-script/bap-sistem-bekcisi/Kod.gs:454"
+      "apps-script/bap-sistem-bekcisi/Kod.gs:424"
      ]
     }
    ],
@@ -40782,9 +40818,10 @@
    "klasor": "bap-sistem-bekcisi",
    "ad": "BAP Sistem Bekçisi",
    "bagliDosya": null,
-   "fonksiyonSayisi": 27,
+   "fonksiyonSayisi": 42,
    "girisler": [
-    "her 15 dk → bekci"
+    "her 15 dk → bekci",
+    "her saat → abonelikGuncelle"
    ],
    "sekmeler": [
     "ID:1Zcvs58MkI… › Abonelikler",
@@ -40793,34 +40830,105 @@
     "ID:1Zcvs58MkI… › Olaylar"
    ],
    "fonksiyonlar": {
-    "abonelikKontrol_": {
-     "dosya": "apps-script/bap-sistem-bekcisi/Kod.gs",
-     "satir": 382,
+    "abonelikCalis_": {
+     "dosya": "apps-script/bap-sistem-bekcisi/Abonelik.gs",
+     "satir": 110,
      "cagirir": [
+      "abonelikPlani_",
+      "gmailAbonelik_",
+      "gorunen_",
+      "makeAbonelik_",
       "tarihOku_"
+     ],
+     "sekmeler": [
+      "✎ ID:1Zcvs58MkI… › Abonelikler"
+     ]
+    },
+    "abonelikGuncelle": {
+     "dosya": "apps-script/bap-sistem-bekcisi/Abonelik.gs",
+     "satir": 93,
+     "cagirir": [
+      "abonelikCalis_"
+     ],
+     "sekmeler": []
+    },
+    "abonelikKontrol_": {
+     "dosya": "apps-script/bap-sistem-bekcisi/Abonelik.gs",
+     "satir": 210,
+     "cagirir": [
+      "abonelikSatirlari_",
+      "odemeSorunlari_"
      ],
      "sekmeler": [
       "ID:1Zcvs58MkI… › Abonelikler"
      ]
     },
+    "abonelikKuru": {
+     "dosya": "apps-script/bap-sistem-bekcisi/Abonelik.gs",
+     "satir": 76,
+     "cagirir": [
+      "abonelikCalis_"
+     ],
+     "sekmeler": []
+    },
+    "abonelikOtomatikKur": {
+     "dosya": "apps-script/bap-sistem-bekcisi/Abonelik.gs",
+     "satir": 82,
+     "cagirir": [
+      "abonelikCalis_",
+      "abonelikSekmesiKur"
+     ],
+     "sekmeler": []
+    },
+    "abonelikPlani_": {
+     "dosya": "apps-script/bap-sistem-bekcisi/Abonelik.gs",
+     "satir": 170,
+     "cagirir": [
+      "adEsit_",
+      "gun_",
+      "tarihOku_"
+     ],
+     "sekmeler": []
+    },
+    "abonelikSatirlari_": {
+     "dosya": "apps-script/bap-sistem-bekcisi/Abonelik.gs",
+     "satir": 232,
+     "cagirir": [
+      "adEsit_",
+      "tarihOku_"
+     ],
+     "sekmeler": []
+    },
     "abonelikSekmesiKur": {
-     "dosya": "apps-script/bap-sistem-bekcisi/Kod.gs",
-     "satir": 538,
+     "dosya": "apps-script/bap-sistem-bekcisi/Abonelik.gs",
+     "satir": 99,
      "cagirir": [],
      "sekmeler": [
       "✎ ID:1Zcvs58MkI… › Abonelikler",
       "ID:1Zcvs58MkI… › Abonelikler"
      ]
     },
+    "adEsit_": {
+     "dosya": "apps-script/bap-sistem-bekcisi/Abonelik.gs",
+     "satir": 275,
+     "cagirir": [],
+     "sekmeler": []
+    },
     "adresKontrol_": {
      "dosya": "apps-script/bap-sistem-bekcisi/Kod.gs",
-     "satir": 349,
+     "satir": 337,
+     "cagirir": [],
+     "sekmeler": []
+    },
+    "ayEkle_": {
+     "dosya": "apps-script/bap-sistem-bekcisi/Abonelik.gs",
+     "satir": 280,
      "cagirir": [],
      "sekmeler": []
     },
     "bekci": {
      "dosya": "apps-script/bap-sistem-bekcisi/Kod.gs",
-     "satir": 142,
+     "satir": 130,
      "cagirir": [
       "bildir_",
       "durumGuncelle_",
@@ -40834,19 +40942,19 @@
     },
     "bildir_": {
      "dosya": "apps-script/bap-sistem-bekcisi/Kod.gs",
-     "satir": 472,
+     "satir": 442,
      "cagirir": [],
      "sekmeler": []
     },
     "durumGuncelle_": {
      "dosya": "apps-script/bap-sistem-bekcisi/Kod.gs",
-     "satir": 403,
+     "satir": 373,
      "cagirir": [],
      "sekmeler": []
     },
     "durumYaz_": {
      "dosya": "apps-script/bap-sistem-bekcisi/Kod.gs",
-     "satir": 427,
+     "satir": 397,
      "cagirir": [],
      "sekmeler": [
       "✎ ID:1Zcvs58MkI… › Durum"
@@ -40854,41 +40962,63 @@
     },
     "gapi_": {
      "dosya": "apps-script/bap-sistem-bekcisi/Kod.gs",
-     "satir": 492,
+     "satir": 462,
      "cagirir": [],
      "sekmeler": []
     },
     "gb_": {
      "dosya": "apps-script/bap-sistem-bekcisi/Kod.gs",
-     "satir": 530,
+     "satir": 500,
      "cagirir": [],
      "sekmeler": []
     },
     "geceYedegi_": {
      "dosya": "apps-script/bap-sistem-bekcisi/Kod.gs",
-     "satir": 229,
+     "satir": 217,
      "cagirir": [
       "sureMetni_"
      ],
      "sekmeler": []
     },
+    "gmailAbonelik_": {
+     "dosya": "apps-script/bap-sistem-bekcisi/Abonelik.gs",
+     "satir": 136,
+     "cagirir": [
+      "ayEkle_",
+      "sonMail_",
+      "tutarBul_"
+     ],
+     "sekmeler": []
+    },
     "googleKotalar_": {
      "dosya": "apps-script/bap-sistem-bekcisi/Kod.gs",
-     "satir": 366,
+     "satir": 354,
      "cagirir": [
       "gb_"
      ],
      "sekmeler": []
     },
+    "gorunen_": {
+     "dosya": "apps-script/bap-sistem-bekcisi/Abonelik.gs",
+     "satir": 297,
+     "cagirir": [],
+     "sekmeler": []
+    },
+    "gun_": {
+     "dosya": "apps-script/bap-sistem-bekcisi/Abonelik.gs",
+     "satir": 277,
+     "cagirir": [],
+     "sekmeler": []
+    },
     "isletmeAcik_": {
      "dosya": "apps-script/bap-sistem-bekcisi/Kod.gs",
-     "satir": 511,
+     "satir": 481,
      "cagirir": [],
      "sekmeler": []
     },
     "kalpYaz_": {
      "dosya": "apps-script/bap-sistem-bekcisi/Kod.gs",
-     "satir": 460,
+     "satir": 430,
      "cagirir": [],
      "sekmeler": [
       "✎ ID:1Zcvs58MkI… › Kalp"
@@ -40896,7 +41026,7 @@
     },
     "kontrolEt_": {
      "dosya": "apps-script/bap-sistem-bekcisi/Kod.gs",
-     "satir": 156,
+     "satir": 144,
      "cagirir": [
       "abonelikKontrol_",
       "adresKontrol_",
@@ -40914,7 +41044,7 @@
     },
     "kuruCalistir": {
      "dosya": "apps-script/bap-sistem-bekcisi/Kod.gs",
-     "satir": 126,
+     "satir": 114,
      "cagirir": [
       "kontrolEt_",
       "raporMetni_"
@@ -40923,31 +41053,47 @@
     },
     "kurulumuTamamla": {
      "dosya": "apps-script/bap-sistem-bekcisi/Kod.gs",
-     "satir": 132,
+     "satir": 120,
      "cagirir": [
       "abonelikSekmesiKur",
       "bekci"
      ],
      "sekmeler": []
     },
+    "makeAbonelik_": {
+     "dosya": "apps-script/bap-sistem-bekcisi/Abonelik.gs",
+     "satir": 145,
+     "cagirir": [
+      "makeGet_"
+     ],
+     "sekmeler": []
+    },
     "makeGet_": {
      "dosya": "apps-script/bap-sistem-bekcisi/Kod.gs",
-     "satir": 501,
+     "satir": 471,
      "cagirir": [],
      "sekmeler": []
     },
     "makeKontrol_": {
      "dosya": "apps-script/bap-sistem-bekcisi/Kod.gs",
-     "satir": 301,
+     "satir": 289,
      "cagirir": [
       "makeGet_",
       "sureMetni_"
      ],
      "sekmeler": []
     },
+    "odemeSorunlari_": {
+     "dosya": "apps-script/bap-sistem-bekcisi/Abonelik.gs",
+     "satir": 218,
+     "cagirir": [
+      "sonMail_"
+     ],
+     "sekmeler": []
+    },
     "olaylarYaz_": {
      "dosya": "apps-script/bap-sistem-bekcisi/Kod.gs",
-     "satir": 451,
+     "satir": 421,
      "cagirir": [],
      "sekmeler": [
       "✎ ID:1Zcvs58MkI… › Olaylar",
@@ -40956,13 +41102,13 @@
     },
     "raporMetni_": {
      "dosya": "apps-script/bap-sistem-bekcisi/Kod.gs",
-     "satir": 486,
+     "satir": 456,
      "cagirir": [],
      "sekmeler": []
     },
     "scriptHatalari_": {
      "dosya": "apps-script/bap-sistem-bekcisi/Kod.gs",
-     "satir": 264,
+     "satir": 252,
      "cagirir": [
       "gapi_",
       "sureMetni_",
@@ -40972,13 +41118,19 @@
     },
     "sonAcilis_": {
      "dosya": "apps-script/bap-sistem-bekcisi/Kod.gs",
-     "satir": 514,
+     "satir": 484,
+     "cagirir": [],
+     "sekmeler": []
+    },
+    "sonMail_": {
+     "dosya": "apps-script/bap-sistem-bekcisi/Abonelik.gs",
+     "satir": 157,
      "cagirir": [],
      "sekmeler": []
     },
     "sonTarih_": {
      "dosya": "apps-script/bap-sistem-bekcisi/Kod.gs",
-     "satir": 194,
+     "satir": 182,
      "cagirir": [
       "tarihOku_"
      ],
@@ -40986,25 +41138,31 @@
     },
     "sureMetni_": {
      "dosya": "apps-script/bap-sistem-bekcisi/Kod.gs",
-     "satir": 520,
+     "satir": 490,
      "cagirir": [],
      "sekmeler": []
     },
     "tarihOku_": {
      "dosya": "apps-script/bap-sistem-bekcisi/Kod.gs",
-     "satir": 216,
+     "satir": 204,
      "cagirir": [],
      "sekmeler": []
     },
     "turMetni_": {
      "dosya": "apps-script/bap-sistem-bekcisi/Kod.gs",
-     "satir": 532,
+     "satir": 502,
+     "cagirir": [],
+     "sekmeler": []
+    },
+    "tutarBul_": {
+     "dosya": "apps-script/bap-sistem-bekcisi/Abonelik.gs",
+     "satir": 287,
      "cagirir": [],
      "sekmeler": []
     },
     "zipYedegi_": {
      "dosya": "apps-script/bap-sistem-bekcisi/Kod.gs",
-     "satir": 247,
+     "satir": 235,
      "cagirir": [
       "sureMetni_"
      ],
@@ -41016,7 +41174,7 @@
      "proje": "bap-sistem-bekcisi",
      "fn": "kontrolEt_",
      "dosya": "apps-script/bap-sistem-bekcisi/Kod.gs",
-     "satir": 166,
+     "satir": 154,
      "ifade": "a . sekme"
     }
    ]

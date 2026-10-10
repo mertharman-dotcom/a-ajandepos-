@@ -4,7 +4,7 @@
  *   Durum       → her sistemin şu anki hâli (OK / UYARI / SORUN), ne zamandan beri, nerede, ne yapmalı
  *   Olaylar     → bir sistemin durumu her değiştiğinde bir satır (ne zaman durdu, ne zaman düzeldi)
  *   Kalp        → bekçinin kendi son çalışması ve gece yedeği zamanı (TS Sistem Sağlığı ajanı buna bakar)
- *   Abonelikler → sahibin elle doldurduğu ücretli hizmetler ve yenileme tarihleri
+ *   Abonelikler → ücretli hizmetler ve yenileme tarihleri (Abonelik.gs saatte bir Gmail makbuzlarından ve Make'ten doldurur)
  * Yönetim paneli (Veri Kapısı › nabiz_) Durum sekmesini okuyup "Sistem Sağlığı" ekranında gösterir.
  *
  * Neye bakar:
@@ -13,7 +13,7 @@
  *   3) Make: kapalı / bozuk senaryolar, son çalışması hata veren senaryolar, aylık işlem kotası, yapay zekâ kredisi hataları
  *   4) Web adresleri: mutfak paneli, yönetim paneli, Apps Script web uygulamaları cevap veriyor mu
  *   5) Google: Drive alanı, günlük e-posta kotası; kurye gece yedeği
- *   6) Abonelikler: yenileme tarihi yaklaşan ya da geçen hizmetler
+ *   6) Abonelikler: yenileme tarihi yaklaşan ya da geçen hizmetler; Gmail'e gelen ödeme / kredi sorunu mailleri
  *
  * Yalnızca okur; başka hiçbir tabloya yazmaz. Yazdığı tek yer bu dosyanın kendi sekmeleri.
  *
@@ -107,19 +107,7 @@ var ADRESLER = [
   { ad: 'Yemek kartı web uygulaması', url: 'https://script.google.com/macros/s/AKfycbx9fcm_VBi6Ug-d1Uf9z-6Yao0AzIePIhasKN_Vv9A6yuBnqR4ZDPvSX_ho9JF-jC1OKA/exec', nerede: 'Apps Script › BAP Yemek Kartı (MacBook ve iPhone kestirmeleri buna bağlanır)' }
 ];
 
-var ABONELIK_BASLIK = ['Hizmet', 'Ne için', 'Plan / ücret', 'Yenileme tarihi', 'Nereden bakılır'];
-var ABONELIK_ORNEK = [
-  ['Make.com', 'WhatsApp botu, müşteri memnuniyeti, AI motoru', 'Core', '', 'make.com › Organization › Subscription (aylık işlem kotasını bekçi kendisi okur)'],
-  ['Claude', 'Departman ajanları, kod', '', '', 'claude.ai › Settings › Billing'],
-  ['ChatGPT / OpenAI', 'Make\'teki AI senaryoları', '', '', 'platform.openai.com › Billing (API kredisi) · chatgpt.com › Plan'],
-  ['Anthropic API', 'Make\'teki Claude modülleri', '', '', 'console.anthropic.com › Billing'],
-  ['Google One / Drive', 'Bütün tablolar', '', '', 'one.google.com (Drive alanını bekçi kendisi okur)'],
-  ['Cloudflare', 'Mutfak ve yönetim paneli', 'Ücretsiz', '', 'dash.cloudflare.com'],
-  ['WhatsApp Business (Meta)', 'Bot mesajları', '', '', 'business.facebook.com › Ödemeler'],
-  ['Adisyo', 'Kasa / sipariş', '', '', 'Adisyo hesabı'],
-  ['KolayBi', 'Fatura', '', '', 'KolayBi hesabı'],
-  ['HemenYolda', 'Kurye takibi', '', '', 'HemenYolda hesabı']
-];
+// Abonelikler: Abonelik.gs
 
 /* ============================ Giriş noktaları ============================ */
 
@@ -379,24 +367,6 @@ function googleKotalar_() {
   return out;
 }
 
-function abonelikKontrol_(simdi) {
-  var sh = SpreadsheetApp.openById(NABIZ_ID).getSheetByName('Abonelikler');
-  if (!sh || sh.getLastRow() < 2) return [];
-  var v = sh.getRange(1, 1, sh.getLastRow(), sh.getLastColumn()).getValues(), b = v[0].map(String);
-  var cH = b.indexOf('Hizmet'), cT = b.indexOf('Yenileme tarihi'), cP = b.indexOf('Plan / ücret'), cN = b.indexOf('Nereden bakılır');
-  if (cH < 0 || cT < 0) return [];
-  var out = [];
-  for (var i = 1; i < v.length; i++) {
-    var ad = String(v[i][cH] || '').trim(), t = tarihOku_(v[i][cT]);
-    if (!ad || !t) continue;
-    var gun = Math.floor((t - simdi) / 86400000);
-    out.push({ grup: 'Abonelikler', ad: ad, durum: gun < 0 ? 'SORUN' : gun <= 7 ? 'UYARI' : 'OK',
-      detay: (cP >= 0 && v[i][cP] ? v[i][cP] + ' · ' : '') + (gun < 0 ? 'Yenileme tarihi ' + (-gun) + ' gün önce geçti: ödeme yapıldı mı? Yapıldıysa tarihi güncelle.' : gun === 0 ? 'Bugün yenileniyor.' : gun + ' gün sonra yenileniyor (' + Utilities.formatDate(t, TZ_B, 'dd.MM.yyyy') + ').'),
-      nerede: cN >= 0 ? String(v[i][cN] || '') : '', cozum: 'Kartın limiti ve son kullanma tarihi yeterli mi kontrol et; yenilenince bu satırdaki tarihi bir sonraki döneme çek.' });
-  }
-  return out;
-}
-
 /* ============================ Durum, olaylar, bildirim ============================ */
 
 // Her sistemin önceki durumu Script Properties'te: { "Grup|Ad": { d: 'SORUN', bas: ms, kez: 2, bildirildi: true } }
@@ -532,16 +502,4 @@ function gb_(b) { return (b / 1073741824).toFixed(1).replace('.', ',') + ' GB'; 
 function turMetni_(t) {
   return { TIME_DRIVEN: 'zamanlayıcı', WEBAPP: 'web uygulaması', MENU: 'tablo menüsü', EDITOR: 'editörden elle', SIMPLE_TRIGGER: 'otomatik (onEdit/onOpen)',
            TRIGGER: 'tetikleyici', EXECUTION_API: 'dışarıdan çağrı', ADD_ON: 'eklenti' }[t] || (t || '');
-}
-
-/** Abonelikler sekmesini (yoksa) örnek satırlarla kurar. Tarihleri sahibi doldurur. */
-function abonelikSekmesiKur() {
-  var ss = SpreadsheetApp.openById(NABIZ_ID);
-  if (ss.getSheetByName('Abonelikler')) return 'Abonelikler sekmesi zaten var.';
-  var sh = ss.insertSheet('Abonelikler');
-  sh.getRange(1, 1, 1, ABONELIK_BASLIK.length).setValues([ABONELIK_BASLIK]).setFontWeight('bold');
-  sh.getRange(2, 1, ABONELIK_ORNEK.length, ABONELIK_BASLIK.length).setValues(ABONELIK_ORNEK);
-  sh.getRange(2, 4, ABONELIK_ORNEK.length, 1).setNumberFormat('dd.mm.yyyy');
-  sh.setFrozenRows(1);
-  return 'Abonelikler sekmesi kuruldu: "Yenileme tarihi" sütununu doldur.';
 }
