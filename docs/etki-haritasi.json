@@ -3106,7 +3106,7 @@
     {
      "ad": "stok-takip-sistemi › faturaSubeDoldur",
      "yer": [
-      "apps-script/stok-takip-sistemi/Alıs Motoru v2.gs:594"
+      "apps-script/stok-takip-sistemi/Alıs Motoru v2.gs:603"
      ]
     },
     {
@@ -3125,7 +3125,8 @@
      "ad": "Açıklama",
      "kesin": false,
      "fn": [
-      "kolaybi-fatura-ham-veri › ap_veri_"
+      "kolaybi-fatura-ham-veri › ap_veri_",
+      "stok-takip-sistemi › faturaSubeDoldur"
      ]
     },
     {
@@ -3193,6 +3194,20 @@
      ]
     },
     {
+     "ad": "Icerik",
+     "kesin": false,
+     "fn": [
+      "stok-takip-sistemi › faturaSubeDoldur"
+     ]
+    },
+    {
+     "ad": "İçerik",
+     "kesin": false,
+     "fn": [
+      "stok-takip-sistemi › faturaSubeDoldur"
+     ]
+    },
+    {
      "ad": "İlk Fiyat",
      "kesin": false,
      "fn": [
@@ -3211,6 +3226,13 @@
      "kesin": false,
      "fn": [
       "kolaybi-fatura-ham-veri › kalemleriAyir"
+     ]
+    },
+    {
+     "ad": "Kalemler",
+     "kesin": false,
+     "fn": [
+      "stok-takip-sistemi › faturaSubeDoldur"
      ]
     },
     {
@@ -3343,6 +3365,13 @@
      "fn": [
       "kolaybi-fatura-ham-veri › kalemleriAyir",
       "kolaybi-fatura-ham-veri › urunListesiOlustur"
+     ]
+    },
+    {
+     "ad": "Ürünler",
+     "kesin": false,
+     "fn": [
+      "stok-takip-sistemi › faturaSubeDoldur"
      ]
     }
    ],
@@ -4721,7 +4750,7 @@
     {
      "ad": "stok-takip-sistemi › faturaSubeDoldur",
      "yer": [
-      "apps-script/stok-takip-sistemi/Alıs Motoru v2.gs:594"
+      "apps-script/stok-takip-sistemi/Alıs Motoru v2.gs:603"
      ]
     }
    ],
@@ -4784,7 +4813,8 @@
      "ad": "Açıklama",
      "kesin": false,
      "fn": [
-      "kolaybi-fatura-ham-veri › ap_veri_"
+      "kolaybi-fatura-ham-veri › ap_veri_",
+      "stok-takip-sistemi › faturaSubeDoldur"
      ]
     },
     {
@@ -4849,6 +4879,20 @@
      ]
     },
     {
+     "ad": "Icerik",
+     "kesin": false,
+     "fn": [
+      "stok-takip-sistemi › faturaSubeDoldur"
+     ]
+    },
+    {
+     "ad": "İçerik",
+     "kesin": false,
+     "fn": [
+      "stok-takip-sistemi › faturaSubeDoldur"
+     ]
+    },
+    {
      "ad": "Kalan",
      "kesin": false,
      "fn": [
@@ -4868,6 +4912,13 @@
      "kesin": false,
      "fn": [
       "kolaybi-fatura-ham-veri › kalemleriAyir"
+     ]
+    },
+    {
+     "ad": "Kalemler",
+     "kesin": false,
+     "fn": [
+      "stok-takip-sistemi › faturaSubeDoldur"
      ]
     },
     {
@@ -4997,6 +5048,13 @@
      "kesin": false,
      "fn": [
       "kolaybi-fatura-ham-veri › kalemleriAyir"
+     ]
+    },
+    {
+     "ad": "Ürünler",
+     "kesin": false,
+     "fn": [
+      "stok-takip-sistemi › faturaSubeDoldur"
      ]
     },
     {
@@ -17663,7 +17721,7 @@
     {
      "ad": "stok-takip-sistemi › faturaSubeDoldur",
      "yer": [
-      "apps-script/stok-takip-sistemi/Alıs Motoru v2.gs:638"
+      "apps-script/stok-takip-sistemi/Alıs Motoru v2.gs:649"
      ]
     }
    ],
@@ -17673,6 +17731,13 @@
    ],
    "dolayli": [],
    "sutunlar": [
+    {
+     "ad": "Açıklama",
+     "kesin": false,
+     "fn": [
+      "stok-takip-sistemi › faturaSubeDoldur"
+     ]
+    },
     {
      "ad": "Fatura No",
      "kesin": false,
@@ -17689,6 +17754,27 @@
     },
     {
      "ad": "Gönderen",
+     "kesin": false,
+     "fn": [
+      "stok-takip-sistemi › faturaSubeDoldur"
+     ]
+    },
+    {
+     "ad": "Icerik",
+     "kesin": false,
+     "fn": [
+      "stok-takip-sistemi › faturaSubeDoldur"
+     ]
+    },
+    {
+     "ad": "İçerik",
+     "kesin": false,
+     "fn": [
+      "stok-takip-sistemi › faturaSubeDoldur"
+     ]
+    },
+    {
+     "ad": "Kalemler",
      "kesin": false,
      "fn": [
       "stok-takip-sistemi › faturaSubeDoldur"
@@ -17724,6 +17810,13 @@
     },
     {
      "ad": "Tutar",
+     "kesin": false,
+     "fn": [
+      "stok-takip-sistemi › faturaSubeDoldur"
+     ]
+    },
+    {
+     "ad": "Ürünler",
      "kesin": false,
      "fn": [
       "stok-takip-sistemi › faturaSubeDoldur"
@@ -18680,13 +18773,13 @@
     {
      "ad": "stok-takip-sistemi › alisTarihDuzelt",
      "yer": [
-      "apps-script/stok-takip-sistemi/Alıs Motoru v2.gs:687"
+      "apps-script/stok-takip-sistemi/Alıs Motoru v2.gs:698"
      ]
     },
     {
      "ad": "stok-takip-sistemi › degisimSutunuEkle",
      "yer": [
-      "apps-script/stok-takip-sistemi/Alıs Motoru v2.gs:681"
+      "apps-script/stok-takip-sistemi/Alıs Motoru v2.gs:692"
      ]
     },
     {
@@ -26551,7 +26644,7 @@
    "klasor": "stok-takip-sistemi",
    "ad": "Stok Takip Sistemi",
    "bagliDosya": "STOK",
-   "fonksiyonSayisi": 286,
+   "fonksiyonSayisi": 287,
    "girisler": [
     "ekran: Index.html → submitRecipeSuggestion",
     "haftada bir 09:00 → rc_kontrolEt",
@@ -26927,7 +27020,7 @@
     },
     "alisTarihDuzelt": {
      "dosya": "apps-script/stok-takip-sistemi/Alıs Motoru v2.gs",
-     "satir": 686,
+     "satir": 697,
      "cagirir": [],
      "sekmeler": [
       "✎ STOK › Stok_Hareketleri"
@@ -26935,7 +27028,7 @@
     },
     "alisTetikleyiciKur": {
      "dosya": "apps-script/stok-takip-sistemi/Alıs Motoru v2.gs",
-     "satir": 668,
+     "satir": 679,
      "cagirir": [],
      "sekmeler": []
     },
@@ -27166,7 +27259,7 @@
     },
     "degisimSutunuEkle": {
      "dosya": "apps-script/stok-takip-sistemi/Alıs Motoru v2.gs",
-     "satir": 680,
+     "satir": 691,
      "cagirir": [],
      "sekmeler": [
       "✎ STOK › Stok_Hareketleri"
@@ -27376,7 +27469,7 @@
     },
     "faturaSubeDoldur": {
      "dosya": "apps-script/stok-takip-sistemi/Alıs Motoru v2.gs",
-     "satir": 592,
+     "satir": 601,
      "cagirir": [
       "fmtTarih_",
       "norm_",
@@ -27384,6 +27477,7 @@
       "pencerede_",
       "siparisIndeksi_",
       "tarihCoz_",
+      "tasimaFaturasiMi_",
       "tedarikciHaritasi_"
      ],
      "sekmeler": [
@@ -27449,7 +27543,7 @@
     },
     "fmtTarih_": {
      "dosya": "apps-script/stok-takip-sistemi/Alıs Motoru v2.gs",
-     "satir": 666,
+     "satir": 677,
      "cagirir": [],
      "sekmeler": []
     },
@@ -28260,7 +28354,7 @@
     },
     "norm_": {
      "dosya": "apps-script/stok-takip-sistemi/Alıs Motoru v2.gs",
-     "satir": 649,
+     "satir": 660,
      "cagirir": [],
      "sekmeler": []
     },
@@ -28282,7 +28376,7 @@
     },
     "num_": {
      "dosya": "apps-script/stok-takip-sistemi/Alıs Motoru v2.gs",
-     "satir": 650,
+     "satir": 661,
      "cagirir": [],
      "sekmeler": []
     },
@@ -29153,7 +29247,13 @@
     },
     "tarihCoz_": {
      "dosya": "apps-script/stok-takip-sistemi/Alıs Motoru v2.gs",
-     "satir": 657,
+     "satir": 668,
+     "cagirir": [],
+     "sekmeler": []
+    },
+    "tasimaFaturasiMi_": {
+     "dosya": "apps-script/stok-takip-sistemi/Alıs Motoru v2.gs",
+     "satir": 595,
      "cagirir": [],
      "sekmeler": []
     },

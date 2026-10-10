@@ -578,7 +578,8 @@ function bekleyenYaz_(ss, rows) {
 // FATURA ŞUBESİ (P73) — Sayfa1'de şubesi boş faturalara şube bulur.
 // alisIsle şubeyi kalem kalem bulup yalnız Fatura_Kalemleri'ne yazıyor; ürün satırı hiç olmayan faturalar
 // (ör. Sera Sebze e-faturaları, Kalem = 0) ona hiç uğramıyor → Alım ekranında 'şube yok' kalıyordu.
-// Sıra: 1) faturanın kalemlerinde tek şube varsa o  2) tedarikçi tek şubeye bağlıysa o
+// Sıra: 0) içeriğin tamamı mal taşıma / nakliye gibi hizmetse → Merkez (sahibi 10.10: "taşıma, nakliye faturalarının hepsi merkeze")
+//       1) faturanın kalemlerinde tek şube varsa o  2) tedarikçi tek şubeye bağlıysa o
 //       3) Siparis_Kayitlari: aynı tedarikçiye fatura tarihinden 7 gün önce – 2 gün sonra arası siparişler tek şubedense o;
 //          iki şube varsa fatura günü / bir gün önce yalnız bir şube sipariş vermişse o.
 // İki şubeden sipariş varsa ya da hiç yoksa boş bırakılır (raporda 'belirsiz' / 'bulunamadı'), elle Alım ekranından seçilir.
@@ -588,6 +589,14 @@ function bekleyenYaz_(ss, rows) {
 var FATURA_SUBE_KURU = true;
 var FATURA_SUBE_BASLANGIC = '2026-08-13';   // stoğun başladığı gün; daha eski faturalar stoğa girmediği için atlanır (Alım ekranıyla aynı)
 var FATURA_SUBE_RAPOR = 'Fatura_Sube_Raporu';
+// İçerik satırının tamamı bu kelimelerden birini taşıyorsa fatura taşıma faturasıdır (küçük harf, Türkçe harfsiz yazılır)
+var TASIMA_KELIMELERI = ['tasima', 'nakliye', 'nakliyat', 'navlun', 'kargo', 'yukleme', 'sevkiyat', 'lojistik'];
+
+function tasimaFaturasiMi_(icerik) {
+  var sade = function (x) { return String(x || '').toLocaleLowerCase('tr').replace(/ı/g, 'i').replace(/ş/g, 's').replace(/ğ/g, 'g').replace(/ü/g, 'u').replace(/ö/g, 'o').replace(/ç/g, 'c'); };
+  var satirlar = String(icerik || '').split(/\r?\n/).map(sade).filter(function (x) { return x.trim(); });
+  return satirlar.length > 0 && satirlar.every(function (x) { return TASIMA_KELIMELERI.some(function (k) { return x.indexOf(k) > -1; }); });
+}
 
 function faturaSubeDoldur() {
   var fss = SpreadsheetApp.openById(FATURA_SS_ID), sss = SpreadsheetApp.openById(SHEET_ID);
@@ -595,7 +604,8 @@ function faturaSubeDoldur() {
   var v = s1.getDataRange().getValues(), b = v[0].map(function (x) { return norm_(x); });
   var kol = function (adlar, yedek) { for (var i = 0; i < adlar.length; i++) { var j = b.indexOf(norm_(adlar[i])); if (j >= 0) return j; } return yedek; };
   // Başlık yoksa Kolaybi çekiminin (subeDoldur) ve Alım ekranının kullandığı sıra: A no, B tarih, C gönderen, D tutar, F şube
-  var c = { no: kol(['Fatura_No', 'Fatura No'], 0), tarih: kol(['Tarih'], 1), ted: kol(['Gönderen', 'Tedarikçi'], 2), tutar: kol(['Tutar'], 3), sube: kol(['Şube', 'Sube'], 5) };
+  var c = { no: kol(['Fatura_No', 'Fatura No'], 0), tarih: kol(['Tarih'], 1), ted: kol(['Gönderen', 'Tedarikçi'], 2), tutar: kol(['Tutar'], 3), sube: kol(['Şube', 'Sube'], 5),
+            icerik: kol(['İçerik', 'Icerik', 'Ürünler', 'Kalemler', 'Açıklama'], 4) };
   var basla = tarihCoz_(FATURA_SUBE_BASLANGIC.split('-').reverse().join('.'));
 
   // Faturanın kalemlerine yazılmış şubeler
@@ -614,7 +624,8 @@ function faturaSubeDoldur() {
     var unvan = String(v[i][c.ted] || '').trim(), ted = tedBilgi[norm_(unvan)] || { kisa: unvan, sube: '' };
     var sube = '', kaynak = '', not = '';
     var ks = Object.keys(kalemSube[no] || {});
-    if (ks.length === 1) { sube = ks[0]; kaynak = 'kalemler'; }
+    if (tasimaFaturasiMi_(v[i][c.icerik])) { sube = AMB_SUBE_ADI; kaynak = 'taşıma/nakliye'; not = String(v[i][c.icerik]).replace(/\s+/g, ' ').slice(0, 80); }
+    else if (ks.length === 1) { sube = ks[0]; kaynak = 'kalemler'; }
     else if (ks.length > 1) { kaynak = 'belirsiz'; not = 'kalemlerde birden çok şube: ' + ks.join(', '); }
     else if (ted.sube && norm_(ted.sube) !== 'hepsi') { sube = ted.sube; kaynak = 'tedarikçi'; }
     else {
