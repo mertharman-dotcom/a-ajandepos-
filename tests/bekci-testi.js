@@ -15,7 +15,7 @@ const Utilities = {
 const props = {};
 const PropertiesService = { getScriptProperties: () => ({ getProperty: k => props[k] || null, setProperty: (k, v) => { props[k] = v; } }) };
 const ctx = vm.createContext({ console, Utilities, PropertiesService, Logger: { log() {} } });
-vm.runInContext(fs.readFileSync(path.join(__dirname, '../apps-script/bap-sistem-bekcisi/Kod.gs'), 'utf8'), ctx);
+for (const d of ['Kod.gs', 'Abonelik.gs']) vm.runInContext(fs.readFileSync(path.join(__dirname, '../apps-script/bap-sistem-bekcisi', d), 'utf8'), ctx);
 const f = ad => ctx[ad];
 const ist = (y, a, g, s, d) => new Date(Date.UTC(y, a - 1, g, s, d) - TZ_FARK);   // İstanbul saatiyle tarih
 
@@ -70,6 +70,55 @@ a = tur('OK');
 k.push(['düzelince bir kez "düzeldi" bildirilir', a.r.bildir === 'duzeldi' && a.d.degisim.length === 1]);
 a = tur('SORUN'); a = tur('OK');
 k.push(['bildirilmeden düzelen kısa sorun için "düzeldi" gitmez', !a.r.bildir]);
+
+// Abonelikler: ay ekleme, tutar okuma
+const ay = f('ayEkle_')(new Date(2026, 0, 31), 1);
+k.push(['31 Ocak + 1 ay = 28 Şubat', ay.getMonth() === 1 && ay.getDate() === 28]);
+const ay2 = f('ayEkle_')(new Date(2026, 8, 18), 1);
+k.push(['18 Eylül + 1 ay = 18 Ekim', ay2.getMonth() === 9 && ay2.getDate() === 18]);
+k.push(['Anthropic makbuz tutarı', f('tutarBul_')('Receipt #2349\nAmount paid $24.00\nPaid October 4') === '$24.00']);
+k.push(['OpenAI yükleme tutarı', f('tutarBul_')('We charged $12.00 to your credit card ending in 0013') === '$12.00']);
+k.push(['Google Cloud TL tutarı', f('tutarBul_')('Ödeme alındı ₺250,00 tutarındaki ödemeniz') === '₺250,00']);
+k.push(['tutar yoksa boş', f('tutarBul_')('Teşekkür ederiz, aboneliğiniz devam ediyor') === '']);
+
+// Abonelik planı: eksik sütun eklenir, tarih yalnız ileri alınır, sahibin yazdığı plan ezilmez, yeni hizmet satırı açılır
+const eskiTablo = [
+  ['Hizmet', 'Ne için', 'Plan / ücret', 'Yenileme tarihi', 'Nereden bakılır'],
+  ['Google One / Drive', 'Tablolar', 'Benim notum', new Date(2026, 9, 10), ''],
+  ['ChatGPT / OpenAI', '', '', new Date(2026, 11, 1), '']   // sahip elle ileri tarih yazmış
+];
+const pl = f('abonelikPlani_')(eskiTablo, [
+  { hizmet: 'google one / drive', plan: 'Google AI Pro', sonOdeme: new Date(2026, 9, 10, 2, 11), tarih: new Date(2026, 10, 10), tutar: '₺869,99', kaynak: 'Gmail makbuzu + 1 ay (tahmini)' },
+  { hizmet: 'ChatGPT / OpenAI', plan: 'ChatGPT Plus', sonOdeme: new Date(2026, 8, 18), tarih: new Date(2026, 9, 18), kaynak: 'Gmail' },
+  { hizmet: 'Google Workspace', plan: 'Aylık', tarih: new Date(2026, 10, 1), bosIse: true, kaynak: 'Gmail taraması (tahmini)' }
+], new Date(2026, 9, 10, 12));
+const hucre = (r, sutun) => pl.islem.filter(x => x.r === r && x.sutun === sutun)[0];
+k.push(['eksik 4 sütun başlığa eklenir', pl.islem.filter(x => x.ad === '(başlık)').length === 4 && pl.baslik.length === 9]);
+k.push(['Google One yenilemesi 10.11\'e alınır', hucre(1, 'Yenileme tarihi') && hucre(1, 'Yenileme tarihi').yeni.getMonth() === 10]);
+k.push(['sahibin plan notu ezilmez', !hucre(1, 'Plan / ücret')]);
+k.push(['sahibin ileri tarihi geri alınmaz', !hucre(2, 'Yenileme tarihi') && !!hucre(2, 'Plan / ücret')]);
+k.push(['makbuz tutarı yazılır', hucre(1, 'Son tutar') && hucre(1, 'Son tutar').yeni === '₺869,99']);
+k.push(['yeni hizmet yeni satıra yazılır', hucre(3, 'Hizmet') && hucre(3, 'Hizmet').yeni === 'Google Workspace' && hucre(3, 'Yenileme tarihi')]);
+const tekrar = f('abonelikPlani_')([pl.baslik, ['Google Workspace', '', 'Aylık', new Date(2026, 10, 1), '', '', '', 'x', '']],
+  [{ hizmet: 'Google Workspace', plan: 'Aylık', tarih: new Date(2027, 0, 1), bosIse: true }], new Date());
+k.push(['başlangıç bilgisi dolu tarihi değiştirmez', tekrar.islem.length === 0]);
+
+// Bekçi satırları: tarih + Gmail sorun maili
+const ab = [pl.baslik,
+  ['Google One / Drive', '', '', new Date(2026, 10, 10), '', new Date(2026, 9, 10), '', 'Gmail makbuzu + 1 ay (tahmini)', ''],
+  ['ChatGPT / OpenAI', '', '', ist(2026, 10, 4, 12, 0), '', '', '', '', ''],
+  ['Anthropic API', '', 'API kredisi', '', '', new Date(2026, 9, 4), '', '', ''],
+  ['KolayBi', '', '', '', '', '', '', '', '']];
+const sat = f('abonelikSatirlari_')(ab, [
+  { hizmet: 'Google One / Drive', zaman: simdi, konu: "There's an issue with your Mastercard-4601", cozum: 'kartı güncelle' },
+  { hizmet: 'Anthropic API', zaman: simdi, konu: '[Action needed] Your Claude API access is turned off' },
+  { hizmet: 'Google Cloud', zaman: simdi, konu: 'Ödeme reddedildi' }], simdi);
+const s_ = ad => sat.filter(r => r.ad === ad)[0];
+k.push(['kart uyarısı UYARI olur', s_('Google One / Drive').durum === 'UYARI' && /Mastercard/.test(s_('Google One / Drive').detay)]);
+k.push(['API kapandı SORUN olur', s_('Anthropic API').durum === 'SORUN']);
+k.push(['4 gün geçmiş yenileme SORUN', s_('ChatGPT / OpenAI').durum === 'SORUN']);
+k.push(['tarihsiz, sorunsuz hizmet satır üretmez', !s_('KolayBi')]);
+k.push(['sekmede olmayan hizmetin sorunu da çıkar', s_('Google Cloud') && s_('Google Cloud').durum === 'SORUN']);
 
 let hata = 0;
 for (const [ad, ok] of k) { console.log((ok ? 'TAMAM ' : 'HATA  ') + ad); if (!ok) hata++; }

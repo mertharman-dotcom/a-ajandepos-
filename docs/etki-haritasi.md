@@ -1278,11 +1278,11 @@ Aynı sekmeye iki ayrı proje yazıyorsa birinin yaptığı değişiklik diğeri
 
 #### Abonelikler
 
-- **Yazan:** `abonelikSekmesiKur` (BAP Sistem Bekçisi)
+- **Yazan:** `abonelikCalis_` (BAP Sistem Bekçisi), `abonelikSekmesiKur` (BAP Sistem Bekçisi)
 - **Okuyan:** `abonelikKontrol_` (BAP Sistem Bekçisi)
 - **Yoksa oluşturan:** `abonelikSekmesiKur`
-- **Adıyla aranan sütunlar:** `Hizmet`, `Ne için`, `Nereden bakılır`, `Plan / ücret`, `Yenileme tarihi`
-- **Zamanla çalışan:** her 15 dk (`bekci`)
+- **Adıyla aranan sütunlar:** `Güncellendi`, `Hizmet`, `Kaynak`, `Ne için`, `Nereden bakılır`, `Plan / ücret`, `Son ödeme`, `Son tutar`, `Yenileme tarihi`
+- **Zamanla çalışan:** her 15 dk (`bekci`), her saat (`abonelikGuncelle`)
 
 #### Durum
 
@@ -1486,9 +1486,10 @@ Bağlı dosya: — (tabloları kimlikle açar) · 16 fonksiyon · 8 sekme
 
 ### BAP Sistem Bekçisi (`apps-script/bap-sistem-bekcisi`)
 
-Bağlı dosya: — (tabloları kimlikle açar) · 27 fonksiyon · 4 sekme
+Bağlı dosya: — (tabloları kimlikle açar) · 42 fonksiyon · 4 sekme
 
 - her 15 dk → bekci
+- her saat → abonelikGuncelle
 
 ## Arayüzler
 
@@ -1550,4 +1551,4 @@ Sekme adı koddan okunamadı (değişkenle ya da döngüyle açılıyor). Bu yer
 | indirim-orani | `kaynakSayfaBul` | `indirim-orani/Kod.gs:170` | `KAYNAK_SAYFA_ADI` |
 | bap-yemek-karti | `payeMailCek` | `bap-yemek-karti/Paye.gs:18` | `ad` |
 | bap-yemek-karti | `payeMailCek` | `bap-yemek-karti/Paye.gs:19` | `ad` |
-| bap-sistem-bekcisi | `kontrolEt_` | `bap-sistem-bekcisi/Kod.gs:166` | `a . sekme` |
+| bap-sistem-bekcisi | `kontrolEt_` | `bap-sistem-bekcisi/Kod.gs:154` | `a . sekme` |
